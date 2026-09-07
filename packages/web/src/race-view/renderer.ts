@@ -340,7 +340,8 @@ export function createRenderer(canvas: HTMLCanvasElement, opts: RendererOptions)
     drawTrack();
     if (!track.closed) drawLine(track.poseAt(0), 'start');
     drawLine(track.poseAt(track.distance), 'finish');
-    drawLure(s.leader.distance);
+    // The hare is caught at the line; once the winner is home there is nothing to chase.
+    if (s.finishedCount === 0) drawLure(s.leader.distance);
     // Back markers first, so the leaders are drawn over the field.
     for (const r of [...s.standing].reverse()) drawRunner(r, opts.styleFor(r.index));
 

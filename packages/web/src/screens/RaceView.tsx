@@ -280,7 +280,7 @@ function RaceReplay({
             })}
           </ol>
 
-          <div className="race-call">{hud.call?.text ?? ''}</div>
+          {stage === 'result' ? null : <div className="race-call">{hud.call?.text ?? ''}</div>}
 
           {stage === 'photo' ? <div className="race-photo">PHOTO FINISH</div> : null}
           {stage === 'result' ? (
