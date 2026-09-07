@@ -41,7 +41,13 @@ function RaceTable({ s, r, meId }: { s: GameState; r: RaceResult; meId: string }
                 <td>{i + 1}</td>
                 <td>{e.trap}</td>
                 <td>{e.name}</td>
-                <td>{owner ? <StableName player={owner} me={owner.id === meId} /> : <Badge>local</Badge>}</td>
+                <td>
+                  {owner ? (
+                    <StableName player={owner} me={owner.id === meId} />
+                  ) : (
+                    <Badge>local</Badge>
+                  )}
+                </td>
                 <td className="num">{e.rating}</td>
                 <td className="num">
                   <Delta n={r.ratingDeltas[dogId] ?? 0} />
@@ -86,7 +92,10 @@ export function Results({ s, me }: { s: GameState; me: Player }) {
           <p style={{ margin: 0 }}>
             You picked up <b>{formatBones(won)}</b>:{' '}
             {mine
-              .map((p) => `${CLASS_LABEL[p.cls]} ${p.place === 1 ? '1st' : p.place === 2 ? '2nd' : '3rd'}`)
+              .map(
+                (p) =>
+                  `${CLASS_LABEL[p.cls]} ${p.place === 1 ? '1st' : p.place === 2 ? '2nd' : '3rd'}`,
+              )
               .join(', ')}
             .
           </p>

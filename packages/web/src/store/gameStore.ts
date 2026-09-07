@@ -114,9 +114,7 @@ export const useGame = create<GameStore>((set, get) => ({
       const nextLog = [...log, ...added];
       writeSave({ v: SAVE_VERSION, setup, log: nextLog, ui: { resultsSeenWeek } });
       const moved =
-        next.week !== beforeWeek ||
-        next.phase !== beforePhase ||
-        waitingOn(next) !== beforeWho;
+        next.week !== beforeWeek || next.phase !== beforePhase || waitingOn(next) !== beforeWho;
       set({
         state: next,
         log: nextLog,
