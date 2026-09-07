@@ -1,4 +1,14 @@
 import { balance } from '../content/balance';
+import { pow10 } from '../determinism';
+
+/**
+ * strength_i = 10^(rating_i / oddsScale), via the quantized pow10 so the model is bit-identical
+ * on every JS engine (see determinism.ts). Ratings are integers 5–99, so this has only ~95
+ * possible results; test/determinism.test.ts proves every one sits far from a rounding boundary.
+ */
+function strength(rating: number): number {
+  return pow10(rating / balance.oddsScale);
+}
 
 /**
  * The bookie's model (GDD §10): a Bradley–Terry / logistic strength model on public ratings,
@@ -7,7 +17,7 @@ import { balance } from '../content/balance';
  * rating-65 dog against seven 50s wins about half the time.
  */
 export function winProbabilities(ratings: readonly number[]): number[] {
-  const strengths = ratings.map((r) => Math.pow(10, r / balance.oddsScale));
+  const strengths = ratings.map(strength);
   const total = strengths.reduce((s, x) => s + x, 0);
   return strengths.map((s) => Math.max(balance.oddsFloor, s / total));
 }
@@ -15,7 +25,7 @@ export function winProbabilities(ratings: readonly number[]): number[] {
 /** Harville expansion: probability each runner finishes in the top `places`. */
 export function placeProbabilities(ratings: readonly number[], places = 3): number[] {
   const n = ratings.length;
-  const strengths = ratings.map((r) => Math.pow(10, r / balance.oddsScale));
+  const strengths = ratings.map(strength);
   const result = new Array<number>(n).fill(0);
   const recurse = (remaining: number[], depth: number, prob: number) => {
     if (depth === places) return;

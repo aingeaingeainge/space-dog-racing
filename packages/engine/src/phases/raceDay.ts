@@ -1,4 +1,5 @@
 import { balance } from '../content/balance';
+import { pow10 } from '../determinism';
 import { createLocalDog } from '../economy/market';
 import { dogValue } from '../economy/dogValue';
 import { decimalOdds, placeProbabilities, winProbabilities } from '../race/odds';
@@ -110,7 +111,9 @@ function runnerFrom(d: Dog, trap: number): Runner {
 function applyRaceOutcome(s: GameState, d: Dog, place: number, field: Dog[]): number {
   const n = field.length;
   const avg = field.reduce((sum, x) => sum + x.rating, 0) / n;
-  const expected = 1 + (n - 1) * (1 / (1 + Math.pow(10, (d.rating - avg) / balance.eloScale)));
+  // pow10, not Math.pow: this feeds the stored rating, so it has to be engine-independent.
+  const odds = pow10((d.rating - avg) / balance.eloScale);
+  const expected = 1 + (n - 1) * (1 / (1 + odds));
   const rawDelta = (expected - place) * balance.ratingK;
   const delta = Math.round(rawDelta);
   d.rating = clamp(d.rating + delta, 5, 99);

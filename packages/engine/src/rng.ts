@@ -3,6 +3,7 @@
  * an Rng whose 32-bit state lives in GameState.rng, so a serialised state carries its
  * randomness with it and (seed + action log) replays identically anywhere.
  */
+import { normalDeviate } from './determinism';
 
 export interface Rng {
   /** Uniform float in [0, 1). */
@@ -39,11 +40,12 @@ export function mulberry32(seed: number): Rng {
     int: (lo, hi) => lo + Math.floor(next() * (hi - lo + 1)),
     uniform: (lo, hi) => lo + next() * (hi - lo),
     gauss: (mean = 0, sd = 1) => {
-      // Box–Muller; two draws every call so the draw count is stable.
-      let u = next();
+      // Box–Muller; two draws every call so the draw count is stable. The transform itself
+      // lives in determinism.ts because Math.log and Math.cos are implementation-defined, and
+      // a last-ULP difference here can flip a finishing order and desync two clients.
+      const u = next();
       const v = next();
-      if (u < 1e-12) u = 1e-12;
-      return mean + sd * Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+      return mean + sd * normalDeviate(u, v);
     },
     pick: (items) => {
       if (items.length === 0) throw new Error('pick from empty array');
