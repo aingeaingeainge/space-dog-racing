@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react';
 import { formatBones, TRAIT_BY_ID, type Dog, type Player, type TraitId } from '@sdr/engine';
 import { Panel } from './Panel';
+import { NeonButton } from './NeonButton';
+import { StatBar } from './StatBar';
 
 /** GDD §16: the eight saddle-cloth colours, in Player.colour order. */
 export const STABLE_COLOURS = [
@@ -35,16 +37,9 @@ export function Bones({ n }: { n: number }) {
   return <span>{formatBones(n)}</span>;
 }
 
-export function Bar({ value, max = 100 }: { value: number; max?: number }) {
-  const pct = Math.max(0, Math.min(100, (value / max) * 100));
-  return (
-    <>
-      <i className="bar">
-        <span style={{ width: `${pct}%` }} />
-      </i>
-      {Math.round(value)}
-    </>
-  );
+/** Kept for the dog tables, which want a bar in a cell. It is StatBar without the label. */
+export function Bar({ value, max = 100, tone }: { value: number; max?: number; tone?: 'auto' }) {
+  return <StatBar value={value} max={max} tone={tone ?? 'accent'} />;
 }
 
 export function Delta({ n }: { n: number }) {
@@ -73,18 +68,21 @@ export function Modal({
   sub,
   children,
   onClose,
+  kind,
 }: {
   title: ReactNode;
   sub?: ReactNode;
   children: ReactNode;
   onClose?: () => void;
+  /** 'event' narrows the card so the illustration slot is not a letterbox. */
+  kind?: 'event';
 }) {
   return (
-    <div className="scrim">
+    <div className={kind ? `scrim ${kind}` : 'scrim'}>
       <Panel
         title={title}
         sub={sub}
-        actions={onClose ? <button onClick={onClose}>Close</button> : undefined}
+        actions={onClose ? <NeonButton onClick={onClose}>Close</NeonButton> : undefined}
       >
         {children}
       </Panel>
@@ -96,7 +94,7 @@ export function KV({ items }: { items: [string, ReactNode][] }) {
   return (
     <dl className="kv">
       {items.map(([k, v]) => (
-        <div key={k} style={{ display: 'contents' }}>
+        <div key={k}>
           <dt>{k}</dt>
           <dd>{v}</dd>
         </div>
@@ -121,12 +119,9 @@ export function Traits({ ids }: { ids: readonly TraitId[] }) {
 
 /** A filled bar with its own caption — the cargo hold, mostly. */
 export function Gauge({ value, max, unit }: { value: number; max: number; unit: string }) {
-  const pct = max > 0 ? Math.max(0, Math.min(100, (value / max) * 100)) : 0;
   return (
     <span className="gauge">
-      <i className="bar wide">
-        <span style={{ width: `${pct}%` }} />
-      </i>
+      <StatBar value={value} max={max} wide showValue={false} />
       {value} / {max} {unit}
     </span>
   );

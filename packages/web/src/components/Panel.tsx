@@ -12,8 +12,12 @@ export interface PanelProps {
 }
 
 /**
- * The one frame every screen sits in. M1 renders it as a plain box; M3 swaps in the riveted
- * metal panel of the art bible by rewriting this component alone, not the screens.
+ * The one frame every screen sits in.
+ *
+ * M1 and M2 both kept the promise that every screen sits inside this component and nothing
+ * else, and M3 is the payoff: the riveted metal plate of GDD §16 arrived as CSS on these exact
+ * class names, with the same four props and not a line changed in any screen. The header rule
+ * and the title are painted in the planet's first accent, so the frame tints itself.
  */
 export function Panel({ title, sub, actions, tight, children }: PanelProps) {
   return (

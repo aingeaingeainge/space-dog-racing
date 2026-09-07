@@ -1,4 +1,5 @@
 import type { GameState, Player } from '@sdr/engine';
+import { NeonButton } from './NeonButton';
 import { PHASE_LABEL } from '../lib/selectors';
 import { useGame } from '../store/gameStore';
 
@@ -13,9 +14,9 @@ export function PassTo({ s, next }: { s: GameState; next: Player }) {
           Week {s.week} of {s.calendar.length} · {PHASE_LABEL[s.phase]}
         </p>
         <p className="muted">Everyone else: look away.</p>
-        <button className="primary" onClick={() => ackPass(next.id)}>
+        <NeonButton variant="primary" onClick={() => ackPass(next.id)}>
           I am {next.name}
-        </button>
+        </NeonButton>
       </div>
     </div>
   );

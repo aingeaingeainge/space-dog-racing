@@ -3,7 +3,33 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#1b1a22" />
+    <meta
+      name="description"
+      content="Thirteen weekends of greyhound stable management on the grimy underground racing circuit of a cartoon future."
+    />
     <title>Space Dog Racing</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <!--
+      GDD §16 type: Bungee for display, Space Mono for numbers. Loaded off the critical path
+      (media="print" until it lands) so a slow or blocked fonts.googleapis.com never holds up
+      first paint. Both stacks have real fallbacks and every heading has a fixed line-height,
+      so if the fetch never completes the layout is unchanged — only the letterforms are.
+    -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      media="print"
+      onload="this.media='all'"
+      href="https://fonts.googleapis.com/css2?family=Bungee&family=Space+Mono:wght@400;700&display=swap"
+    />
+    <noscript>
+      <link
+        rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Bungee&family=Space+Mono:wght@400;700&display=swap"
+      />
+    </noscript>
   </head>
   <body>
     <div id="root"></div>

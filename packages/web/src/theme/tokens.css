@@ -1,18 +1,98 @@
-/* GDD §16 palette. Full theme arrives in M3; M0 only needs the page not to be white. */
+/*
+ * GDD §16, the art bible, as variables.
+ *
+ * Two layers live here and nothing else. The house palette — charcoal, rust and the four
+ * accents — is fixed for the whole game. On top of it sit --accent-1 and --accent-2, which
+ * every planet overrides from its own `Planet.accents` pair (see theme/planetTheme.tsx). A
+ * screen never reads a planet's colours: it uses the accent variables and gets tinted for free.
+ *
+ * Fonts are Bungee for display and Space Mono for numbers, pulled from Google Fonts by a
+ * non-blocking link in index.html. Both stacks have real fallbacks and every heading carries a
+ * fixed line-height, so a font that never arrives costs the layout nothing.
+ */
+
 :root {
+  /* ---- house palette (GDD §16) ---- */
   --charcoal: #1b1a22;
   --rust: #6b3a22;
   --acid: #9be84b;
   --hazard: #f4c542;
   --pink: #f04e98;
   --cyan: #3fd6e0;
-  --text: #f4f4f4;
+
+  /* ---- the metal everything is bolted to ---- */
+  --ink: #0c0b11;
+  --pitch: #141320;
+  --plate-lo: #1c1b26;
+  --plate: #262433;
+  --plate-hi: #322f42;
+  --edge: #47415a;
+  --edge-lit: #5d5674;
+  --rivet: #7a7290;
+  --rivet-dark: #0a0910;
+
+  /* ---- ink ---- */
+  --text: #f2f0f6;
   --muted: #9a97a8;
+  --dim: #6f6b80;
+
+  /* ---- per-planet accents; these are the house defaults ----
+     PlanetTheme overrides all six of these together: the two hues, a legible text version of
+     each (some planets' accents are far too dark to read on charcoal — Hushmarket's #7A1F2B),
+     and the ink that goes on top of a solid accent fill. Luminance is arithmetic, so it is
+     computed in JS once per planet rather than guessed at in CSS. */
+  --accent-1: #9be84b;
+  --accent-2: #3fd6e0;
+  --accent-1-text: #bcef92;
+  --accent-2-text: #8fe6ec;
+  --accent-1-ink: #0c0b11;
+  --accent-2-ink: #0c0b11;
+
+  --font-display: 'Bungee', 'Titan One', Impact, 'Arial Narrow Bold', sans-serif;
+  --font-mono: 'Space Mono', ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+
+  --shadow-drop: 0 3px 0 var(--ink), 0 6px 14px rgba(0, 0, 0, 0.55);
+  --radius: 3px;
 }
+
+/*
+ * Tints derived from whichever accents are in force. Defined on the planet wrapper as well as
+ * the root, because a custom property that mixes var(--accent-1) resolves where it is DEFINED,
+ * not where it is used — declare it only on :root and every planet gets the house green.
+ * Solid fallbacks first for any engine without color-mix, then the mixes, so nothing ever
+ * renders with an empty custom property.
+ */
+:root,
+.planet-theme {
+  --accent-1-soft: rgba(155, 232, 75, 0.16);
+  --accent-2-soft: rgba(63, 214, 224, 0.16);
+  --accent-1-line: rgba(155, 232, 75, 0.45);
+  --accent-1-glow: rgba(155, 232, 75, 0.32);
+  --accent-1-deep: #35462a;
+  --accent-2-deep: #1e3d44;
+}
+
+@supports (color: color-mix(in srgb, red 50%, blue)) {
+  :root,
+  .planet-theme {
+    --accent-1-soft: color-mix(in srgb, var(--accent-1) 16%, transparent);
+    --accent-2-soft: color-mix(in srgb, var(--accent-2) 16%, transparent);
+    --accent-1-line: color-mix(in srgb, var(--accent-1) 45%, transparent);
+    --accent-1-glow: color-mix(in srgb, var(--accent-1) 32%, transparent);
+    --accent-1-deep: color-mix(in srgb, var(--accent-1) 28%, var(--ink));
+    --accent-2-deep: color-mix(in srgb, var(--accent-2) 28%, var(--ink));
+  }
+}
+
 html,
 body {
   margin: 0;
   background: var(--charcoal);
   color: var(--text);
-  font-family: 'Space Mono', ui-monospace, Menlo, Consolas, monospace;
+  font-family: var(--font-mono);
+  /* The grime: a soot vignette and a faint scratch, so no panel sits on a flat rectangle. */
+  background-image:
+    radial-gradient(120% 90% at 50% -10%, rgba(107, 58, 34, 0.28), transparent 62%),
+    radial-gradient(80% 60% at 50% 120%, rgba(0, 0, 0, 0.6), transparent 60%);
+  background-attachment: fixed;
 }

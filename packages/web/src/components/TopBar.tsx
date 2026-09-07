@@ -1,4 +1,5 @@
 import { formatBones, planetOf, type GameState, type Player } from '@sdr/engine';
+import { NeonButton } from './NeonButton';
 import { PHASE_LABEL } from '../lib/selectors';
 import { useGame } from '../store/gameStore';
 
@@ -18,7 +19,11 @@ export function TopBar({ s, me }: { s: GameState; me: Player | null }) {
           <>
             {' '}
             · <b>{planet.name}</b>
-            {entry?.grandFinal ? ' ★ Grand Final' : entry?.major ? ' ★ Major' : ''}
+            {entry?.grandFinal ? (
+              <span className="star"> ★ Grand Final</span>
+            ) : entry?.major ? (
+              <span className="star"> ★ Major</span>
+            ) : null}
           </>
         ) : null}
       </span>
@@ -29,15 +34,18 @@ export function TopBar({ s, me }: { s: GameState; me: Player | null }) {
         </span>
       ) : null}
       <span className="spacer" />
-      <button onClick={() => setLeaderboard(true)}>Leaderboard</button>
-      <button
-        className="danger"
+      <NeonButton small onClick={() => setLeaderboard(true)}>
+        Leaderboard
+      </NeonButton>
+      <NeonButton
+        small
+        variant="danger"
         onClick={() => {
           if (confirm('Abandon this season? The save is deleted.')) abandon();
         }}
       >
         Quit
-      </button>
+      </NeonButton>
     </div>
   );
 }

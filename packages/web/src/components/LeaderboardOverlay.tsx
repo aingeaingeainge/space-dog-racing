@@ -57,7 +57,7 @@ export function LeaderboardOverlay({ s, meId }: { s: GameState; meId: Id | null 
           </tbody>
         </table>
       </div>
-      <p className="muted" style={{ marginBottom: 0 }}>
+      <p className="muted flush-b">
         Net worth = cash + dogs + ship + cargo − debt (GDD §4.3). Tie-break: most Gold wins.
       </p>
     </Modal>
