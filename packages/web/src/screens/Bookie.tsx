@@ -64,11 +64,9 @@ export function Bookie({ s, me }: { s: GameState; me: Player }) {
         />
       </Panel>
 
-      <div className="grid3">
-        {RACE_CLASSES.map((cls) => (
-          <RaceBetting key={cls} s={s} me={me} cls={cls} margin={margin} frac={frac} />
-        ))}
-      </div>
+      {RACE_CLASSES.map((cls) => (
+        <RaceBetting key={cls} s={s} me={me} cls={cls} margin={margin} frac={frac} />
+      ))}
     </>
   );
 }
@@ -134,6 +132,8 @@ function RaceBetting({
             <tr>
               <th>Trap</th>
               <th>Dog</th>
+              <th>Stable</th>
+              <th>Traits</th>
               <th className="num">Rating</th>
               <th className="num">Fit</th>
               <th className="num">Win</th>
@@ -149,24 +149,23 @@ function RaceBetting({
               return (
                 <tr key={e.dogId} className={e.ownerId === me.id ? 'me' : ''}>
                   <td>{e.trap}</td>
-                  <td style={{ whiteSpace: 'normal' }}>
-                    {e.name}
+                  <td>
+                    <b>{e.name}</b>
                     {d && d.ownerId === me.id && d.supplemented ? (
                       <Badge tone="hot" title="you fed this one a supplement — the bookie does not know">
                         💉
                       </Badge>
                     ) : null}
-                    <br />
+                  </td>
+                  <td>
                     {owner ? (
-                      <span style={{ fontSize: 12 }}>
-                        <StableName player={owner} me={owner.id === me.id} />
-                      </span>
+                      <StableName player={owner} me={owner.id === me.id} />
                     ) : (
                       <Badge>local</Badge>
                     )}
-                    <div style={{ fontSize: 11 }}>
-                      <Traits ids={d?.traits ?? []} />
-                    </div>
+                  </td>
+                  <td style={{ whiteSpace: 'normal' }}>
+                    <Traits ids={d?.traits ?? []} />
                   </td>
                   <td className="num">{e.rating}</td>
                   <td className="num">{d ? d.fitness : '—'}</td>

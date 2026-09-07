@@ -216,8 +216,10 @@ export function Docks({ s, me }: { s: GameState; me: Player }) {
             <Notes
               lines={[
                 tradeShut,
-                `Buying ${units} takes the fuel for the next jump from ${formatBones(fuelNow)} to ${formatBones(fuelAfterBuy)}.`,
-                me.cargo > 0
+                fuelAfterBuy !== fuelNow
+                  ? `Buying ${units} takes the fuel for the next jump from ${formatBones(fuelNow)} to ${formatBones(fuelAfterBuy)}.`
+                  : `The first ${balance.fuelCargoFree} crates ride free; fuel only climbs above that (you carry ${me.cargo}).`,
+                me.cargo > 0 && fuelAfterSell !== fuelNow
                   ? `Selling ${units} takes it to ${formatBones(fuelAfterSell)}.`
                   : null,
                 `A full hold also costs you ${Math.round(me.ship.cargoCap / balance.arrivalCargoDiv)} off the arrival roll.`,

@@ -356,6 +356,7 @@ ul.notes li {
   border-bottom: none;
 }
 .shop-row .what {
+  flex: 1 1 320px;
   min-width: 190px;
 }
 .shop-row .what b {
@@ -363,7 +364,7 @@ ul.notes li {
 }
 .shop-row .price {
   font-variant-numeric: tabular-nums;
-  min-width: 110px;
+  min-width: 130px;
   text-align: right;
   color: var(--hazard);
 }

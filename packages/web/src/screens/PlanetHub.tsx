@@ -60,7 +60,17 @@ export function PlanetHub({ s, me }: { s: GameState; me: Player }) {
               ['Phase', PHASE_LABEL[s.phase]],
               [
                 'This week costs',
-                `${formatBones(bill.total)} — upkeep ${formatBones(bill.upkeep)}, wages ${formatBones(bill.wages)}, fuel ${formatBones(bill.fuel)}${bill.food ? `, kibble ${formatBones(bill.food)}` : ''}${bill.interest ? `, interest ${formatBones(bill.interest)}` : ''}`,
+                `${formatBones(bill.total)} — ${
+                  [
+                    bill.upkeep ? `upkeep ${formatBones(bill.upkeep)}` : null,
+                    bill.wages ? `wages ${formatBones(bill.wages)}` : null,
+                    bill.fuel ? `fuel ${formatBones(bill.fuel)}` : null,
+                    bill.food ? `kibble at the gate ${formatBones(bill.food)}` : null,
+                    bill.interest ? `interest ${formatBones(bill.interest)}` : null,
+                  ]
+                    .filter(Boolean)
+                    .join(', ') || 'nothing at all this week'
+                }`,
               ],
             ]}
           />
