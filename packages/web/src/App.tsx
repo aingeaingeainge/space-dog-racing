@@ -1,80 +1,82 @@
-import { useState } from 'react';
-import { formatBones, netWorth, runSeason, type GameState } from '@sdr/engine';
+import { EventModal } from './components/EventModal';
+import { LeaderboardOverlay } from './components/LeaderboardOverlay';
+import { Nav } from './components/Nav';
+import { PassTo } from './components/PassTo';
+import { TopBar } from './components/TopBar';
+import { GalaxyMap } from './screens/GalaxyMap';
+import { Locked } from './screens/Locked';
+import { PlanetHub } from './screens/PlanetHub';
+import { RaceOffice } from './screens/RaceOffice';
+import { Results } from './screens/Results';
+import { SeasonEnd } from './screens/SeasonEnd';
+import { Stable } from './screens/Stable';
+import { Title } from './screens/Title';
+import { screenFor } from './store/loop';
+import { useGame } from './store/gameStore';
 
 /**
- * M0 shell: proves the engine bundles for the browser by running a headless season.
- * The real screens arrive in M1.
+ * One human is on the clock at any moment: the store drives AI stables and system phases in
+ * the engine, so whatever is on screen belongs to that player. `screenFor` decides which
+ * screen that is — the same function a headless run of a whole season walks through.
  */
 export function App() {
-  const [seed, setSeed] = useState(42);
-  const [state, setState] = useState<GameState | null>(null);
-  const [ms, setMs] = useState(0);
+  const state = useGame((g) => g.state);
+  const view = useGame((g) => g.view);
+  const leaderboard = useGame((g) => g.leaderboard);
+  const resultsSeenWeek = useGame((g) => g.resultsSeenWeek);
+  const passAck = useGame((g) => g.passAck);
+  const error = useGame((g) => g.error);
+  const clearError = useGame((g) => g.clearError);
 
-  const run = () => {
-    const t0 = performance.now();
-    const { state: s } = runSeason({
-      seed,
-      players: Array.from({ length: 6 }, () => ({
-        name: '',
-        kind: 'ai' as const,
-        difficulty: 'normal' as const,
-      })),
-    });
-    setMs(performance.now() - t0);
-    setState(s);
-  };
+  if (!state) return <Title />;
+
+  const screen = screenFor(state, { resultsSeenWeek, passAck });
+
+  if (screen.kind === 'seasonEnd') return <SeasonEnd s={state} />;
+  if (screen.kind === 'noHuman' || !screen.me) {
+    return (
+      <div className="app">
+        <div className="notice error">
+          This season has no human stable left to play it. Start a new one.
+        </div>
+      </div>
+    );
+  }
+  const me = screen.me;
+  if (screen.kind === 'results') return <Results s={state} me={me} />;
+  if (screen.kind === 'pass') return <PassTo s={state} next={me} />;
+
+  const inTurn = state.phase === 'planetPre' || state.phase === 'planetPost';
 
   return (
-    <main style={{ maxWidth: 720, margin: '2rem auto', padding: '0 1rem' }}>
-      <h1 style={{ color: 'var(--acid)', fontFamily: 'Bungee, Impact, sans-serif' }}>
-        Space Dog Racing
-      </h1>
-      <p style={{ color: 'var(--hazard)' }}>Milestone M0 — engine only. The game arrives in M1.</p>
-      <label>
-        Seed <input type="number" value={seed} onChange={(e) => setSeed(Number(e.target.value))} />
-      </label>{' '}
-      <button
-        onClick={run}
-        style={{ background: 'var(--pink)', border: 0, padding: '0.4rem 1rem', color: '#000' }}
-      >
-        Simulate a season (6 Normal AIs)
-      </button>
-      {state && (
-        <section>
-          <p>
-            Season {state.seed} simulated in {ms.toFixed(0)} ms.
-          </p>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ color: 'var(--cyan)', textAlign: 'left' }}>
-                <th>#</th>
-                <th>Stable</th>
-                <th>Cash</th>
-                <th>Dogs</th>
-                <th>Net worth</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(state.finalStandings ?? []).map((row, i) => {
-                const p = state.players.find((x) => x.id === row.playerId)!;
-                return (
-                  <tr key={p.id}>
-                    <td>{i + 1}</td>
-                    <td>{p.name}</td>
-                    <td>{formatBones(p.cash)}</td>
-                    <td>
-                      {p.dogIds
-                        .map((id) => `${state.dogs[id]?.name} (${state.dogs[id]?.rating})`)
-                        .join(', ')}
-                    </td>
-                    <td>{formatBones(netWorth(state, p))}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </section>
-      )}
-    </main>
+    <>
+      <TopBar s={state} me={me} />
+      <div className="app">
+        {error ? (
+          <div className="notice error" onClick={clearError}>
+            {error} <span className="muted">(click to dismiss)</span>
+          </div>
+        ) : null}
+
+        {screen.kind === 'betting' ? (
+          <Locked s={state} me={me} />
+        ) : (
+          <>
+            {inTurn ? <Nav s={state} me={me} /> : null}
+            {view === 'stable' ? (
+              <Stable s={state} me={me} />
+            ) : view === 'office' && state.phase === 'planetPre' ? (
+              <RaceOffice s={state} me={me} />
+            ) : view === 'map' ? (
+              <GalaxyMap s={state} />
+            ) : (
+              <PlanetHub s={state} me={me} />
+            )}
+          </>
+        )}
+      </div>
+      {state.pendingEvent ? <EventModal s={state} /> : null}
+      {leaderboard ? <LeaderboardOverlay s={state} meId={me.id} /> : null}
+    </>
   );
 }
