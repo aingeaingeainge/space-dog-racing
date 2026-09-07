@@ -7,7 +7,7 @@
  * and writes SNAPSHOT.md there with the commit hash, tag and a harness summary.
  * backups/ is git-ignored. Rollback: copy a snapshot over the repo, `npm install`, done.
  */
-import { cpSync, mkdirSync, writeFileSync, existsSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 import { dirname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -38,13 +38,17 @@ if (existsSync(dest)) {
   process.exit(1);
 }
 mkdirSync(dest, { recursive: true });
-cpSync(root, dest, {
-  recursive: true,
-  filter: (src) => {
-    const rel = src.slice(root.length).split(sep).filter(Boolean);
-    return !rel.some((part) => EXCLUDE.has(part));
-  },
-});
+// Copy top-level entries one by one: cpSync refuses to copy a directory into itself.
+for (const entry of readdirSync(root)) {
+  if (EXCLUDE.has(entry)) continue;
+  cpSync(join(root, entry), join(dest, entry), {
+    recursive: true,
+    filter: (src) => {
+      const rel = src.slice(root.length).split(sep).filter(Boolean);
+      return !rel.some((part) => EXCLUDE.has(part));
+    },
+  });
+}
 
 console.log('Running harness for SNAPSHOT.md …');
 const harness = sh('npm run harness --silent -- --seasons 50', '(harness did not run)');
