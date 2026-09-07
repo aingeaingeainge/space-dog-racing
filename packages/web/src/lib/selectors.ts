@@ -3,8 +3,11 @@ import {
   debt,
   dogsValue,
   dogValue,
+  fuelCost,
   netWorthBreakdown,
+  planetOf,
   shipValue,
+  weeklyInterest,
   RACE_CLASSES,
   type Dog,
   type GameState,
@@ -144,3 +147,53 @@ export function worthParts(s: GameState, p: Player) {
 }
 
 export { dogValue };
+
+export interface WeeklyBill {
+  upkeep: number;
+  wages: number;
+  fuel: number;
+  food: number;
+  interest: number;
+  total: number;
+  /** Crates the dogs will eat, and how many of them are already in the hold. */
+  foodNeeded: number;
+  foodFromHold: number;
+}
+
+/**
+ * What the jump at the end of this week will cost (GDD §7.2). This mirrors phases/endTurn.ts
+ * for display only — the engine still does the charging — so a player can see a bad week coming
+ * rather than discovering it on the leaderboard.
+ */
+export function weeklyBill(s: GameState, p: Player): WeeklyBill {
+  const planet = planetOf(s.planet.planetId);
+  const dogs = ownedDogs(s, p);
+  let upkeep = 0;
+  if (!planet.special.noUpkeep)
+    for (const d of dogs)
+      upkeep += d.traits.includes('cheapDate') ? balance.upkeepPerDog / 2 : balance.upkeepPerDog;
+  let wages = 0;
+  if (p.staff.trainer) wages += balance.trainerWage;
+  if (p.staff.vet) wages += balance.vetWage;
+  if (p.staff.fixer) wages += 350;
+  const fuel = s.week < balance.weeks ? fuelCost(p.cargo) : 0;
+  let foodNeeded = 0;
+  for (const d of dogs)
+    foodNeeded += d.traits.includes('glutton') ? 2 * balance.foodPerDog : balance.foodPerDog;
+  if (p.sponsorWeeks > 0) foodNeeded *= 2;
+  const foodFromHold = Math.min(p.cargo, foodNeeded);
+  const food = Math.round(
+    (foodNeeded - foodFromHold) * s.planet.foodBuy * balance.foodNoCargoPenalty,
+  );
+  const interest = weeklyInterest(p);
+  return {
+    upkeep: Math.round(upkeep),
+    wages,
+    fuel,
+    food,
+    interest,
+    total: Math.round(upkeep) + wages + fuel + food + interest,
+    foodNeeded,
+    foodFromHold,
+  };
+}

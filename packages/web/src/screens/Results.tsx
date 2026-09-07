@@ -7,7 +7,7 @@ import {
   type RaceResult,
 } from '@sdr/engine';
 import { Panel } from '../components/Panel';
-import { Badge, Delta, StableName } from '../components/ui';
+import { Badge, Delta, StableName, Traits } from '../components/ui';
 import { CLASS_LABEL, playerById } from '../lib/selectors';
 import { useGame } from '../store/gameStore';
 
@@ -22,6 +22,7 @@ function RaceTable({ s, r, meId }: { s: GameState; r: RaceResult; meId: string }
             <th>Dog</th>
             <th>Stable</th>
             <th className="num">Rating</th>
+            <th>Traits</th>
             <th className="num">Δ</th>
             <th className="num">Odds</th>
             <th className="num">Prize</th>
@@ -49,6 +50,9 @@ function RaceTable({ s, r, meId }: { s: GameState; r: RaceResult; meId: string }
                   )}
                 </td>
                 <td className="num">{e.rating}</td>
+                <td style={{ whiteSpace: 'normal' }}>
+                  <Traits ids={s.dogs[dogId]?.traits ?? []} />
+                </td>
                 <td className="num">
                   <Delta n={r.ratingDeltas[dogId] ?? 0} />
                 </td>
@@ -106,6 +110,8 @@ export function Results({ s, me }: { s: GameState; me: Player }) {
         )}
       </Panel>
 
+      <BetsSettled s={s} me={me} />
+
       {RACE_CLASSES.map((cls) => {
         const r = s.races![cls];
         const winner = r.entries.find((e) => e.dogId === r.order[0]);
@@ -121,5 +127,80 @@ export function Results({ s, me }: { s: GameState; me: Player }) {
         );
       })}
     </div>
+  );
+}
+
+/** GDD §10: every slip you had on this weekend, and what it did to the cash. */
+function BetsSettled({ s, me }: { s: GameState; me: Player }) {
+  const bets = s.bets.filter((b) => b.playerId === me.id && b.week === s.week);
+  if (!bets.length) return null;
+  const staked = bets.reduce((sum, b) => sum + b.stake, 0);
+  const returned = bets.reduce((sum, b) => sum + (b.settled?.payout ?? 0), 0);
+  const net = returned - staked;
+
+  return (
+    <Panel
+      title="Your bets"
+      sub="nobody else at the table sees these"
+      tight
+      actions={
+        <span className={net > 0 ? 'up' : net < 0 ? 'down' : 'muted'}>
+          {net >= 0 ? '+' : ''}
+          {formatBones(net)} on the day
+        </span>
+      }
+    >
+      <div className="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Race</th>
+              <th>Dog</th>
+              <th>Bet</th>
+              <th className="num">Stake</th>
+              <th className="num">Odds</th>
+              <th>Result</th>
+              <th className="num">Payout</th>
+            </tr>
+          </thead>
+          <tbody>
+            {bets.map((b, i) => (
+              <tr key={i} className={b.settled?.won ? 'me' : 'dim'}>
+                <td>{CLASS_LABEL[b.cls]}</td>
+                <td>{s.dogs[b.dogId]?.name ?? 'that dog'}</td>
+                <td>{b.kind === 'win' ? 'Win' : 'Place'}</td>
+                <td className="num">{formatBones(b.stake)}</td>
+                <td className="num">{b.odds.toFixed(2)}</td>
+                <td>
+                  {b.settled ? (
+                    b.settled.won ? (
+                      <Badge tone="good">won</Badge>
+                    ) : (
+                      <Badge tone="bad">lost</Badge>
+                    )
+                  ) : (
+                    <span className="muted">open</span>
+                  )}
+                </td>
+                <td className="num">{formatBones(b.settled?.payout ?? 0)}</td>
+              </tr>
+            ))}
+            <tr>
+              <td colSpan={3}>
+                <b>Total</b>
+              </td>
+              <td className="num">
+                <b>{formatBones(staked)}</b>
+              </td>
+              <td />
+              <td />
+              <td className="num">
+                <b>{formatBones(returned)}</b>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </Panel>
   );
 }

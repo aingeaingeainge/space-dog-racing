@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import type { Difficulty, PlayerSetup } from '@sdr/engine';
+import type { Difficulty, PlayerSetup, Toggles } from '@sdr/engine';
 import { Panel } from '../components/Panel';
-import { Swatch } from '../components/ui';
+import { Notes, Swatch } from '../components/ui';
 import { useGame } from '../store/gameStore';
 
 const MAX_STABLES = 8;
@@ -25,6 +25,12 @@ export function Title() {
   const { newSeason, resume, hasSave, error } = useGame();
   const [seed, setSeed] = useState(randomSeed);
   const [roster, setRoster] = useState<PlayerSetup[]>(defaultRoster);
+  const [toggles, setToggles] = useState<Toggles>({
+    cleanSport: false,
+    betting: true,
+    trading: true,
+    casualEvents: false,
+  });
 
   const update = (i: number, patch: Partial<PlayerSetup>) =>
     setRoster((r) => r.map((p, j) => (i === j ? { ...p, ...patch } : p)));
@@ -35,6 +41,7 @@ export function Title() {
   const start = () =>
     newSeason({
       seed,
+      toggles,
       players: roster.map((p, i) => ({
         ...p,
         name: p.name.trim() || (p.kind === 'human' ? `Stable ${i + 1}` : ''),
@@ -165,12 +172,69 @@ export function Title() {
         {!canStart ? <p className="muted">A season needs at least one human stable.</p> : null}
       </Panel>
 
-      <Panel title="What is in this build" sub="milestone M1, session 1">
+      <Panel title="Complexity toggles" sub="GDD §13 — Gazillionaire-style, set before the season starts">
+        <div className="grid2">
+          <Toggle
+            on={toggles.cleanSport}
+            set={(v) => setToggles((t) => ({ ...t, cleanSport: v }))}
+            label="Clean Sport"
+            blurb="No supplements, no fixers, no sabotage or steward bribes."
+          />
+          <Toggle
+            on={!toggles.betting}
+            set={(v) => setToggles((t) => ({ ...t, betting: !v }))}
+            label="No Betting"
+            blurb="The bookie never opens; prize money and trading only."
+          />
+          <Toggle
+            on={!toggles.trading}
+            set={(v) => setToggles((t) => ({ ...t, trading: !v }))}
+            label="No Trading"
+            blurb="No kibble trade. Your dogs still eat: you pay the local price at the gate."
+          />
+          <Toggle
+            on={toggles.casualEvents}
+            set={(v) => setToggles((t) => ({ ...t, casualEvents: v }))}
+            label="Casual events"
+            blurb="Drops the big-swing event cards; the flavour and small choices stay."
+          />
+        </div>
+        <Notes
+          lines={[
+            'Toggles are part of the season, so a shared seed only replays the same way with the same toggles.',
+          ]}
+        />
+      </Panel>
+
+      <Panel title="What is in this build" sub="milestone M1, session 2">
         <p className="muted" style={{ margin: 0 }}>
-          Declarations, races, results, events and the leaderboard — a whole 13-week season. The
-          Market, Docks, Saloon and Bookie are the next session; AI stables already use them.
+          A whole 13-week season: declarations, races, results, events, the leaderboard, and every
+          venue on the planet — Market, Kennels, Docks, Saloon, Bookie and Race Office. The race
+          view and the art arrive in M2 and M3.
         </p>
       </Panel>
     </div>
+  );
+}
+
+function Toggle({
+  on,
+  set,
+  label,
+  blurb,
+}: {
+  on: boolean;
+  set: (v: boolean) => void;
+  label: string;
+  blurb: string;
+}) {
+  return (
+    <label className="shop-row" style={{ alignItems: 'flex-start' }}>
+      <input type="checkbox" checked={on} onChange={(e) => set(e.target.checked)} />
+      <span className="what">
+        <b>{label}</b>
+        <span className="muted">{blurb}</span>
+      </span>
+    </label>
   );
 }

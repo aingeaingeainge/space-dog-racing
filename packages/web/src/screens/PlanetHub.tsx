@@ -1,4 +1,5 @@
 import {
+  balance,
   formatBones,
   planetOf,
   purseFor,
@@ -8,8 +9,9 @@ import {
   type Player,
 } from '@sdr/engine';
 import { Panel } from '../components/Panel';
-import { Badge, KV, StableName } from '../components/ui';
+import { Badge, KV, Notes, StableName } from '../components/ui';
 import { specialText, trackText } from '../lib/planetText';
+import { venues } from '../lib/venues';
 import {
   CLASS_LABEL,
   PHASE_LABEL,
@@ -17,17 +19,26 @@ import {
   declaredCount,
   localRatingFor,
   playerById,
+  weeklyBill,
   TRAPS,
 } from '../lib/selectors';
+import { useGame, type View } from '../store/gameStore';
 
-/** GDD §15.3 as a shell: what is on this week, what the planet does to you, whose turn it is. */
+const pct = (n: number) => `${Math.round(n * 100)}%`;
+
+/** GDD §15.3: what is on this week, what this rock does to you, and the way into every venue. */
 export function PlanetHub({ s, me }: { s: GameState; me: Player }) {
+  const setView = useGame((g) => g.setView);
   const entry = s.calendar[s.week - 1]!;
   const planet = planetOf(entry.planetId);
+  const sp = planet.special;
   const rules = specialText(planet);
+  const bill = weeklyBill(s, me);
   const weekLog = s.eventLog.filter(
     (l) => l.week === s.week && (!l.playerId || l.playerId === me.id),
   );
+  const purseMult = (entry.grandFinal ? balance.finalMult : entry.major ? balance.majorMult : 1) *
+    (sp.purseMult ?? 1);
 
   return (
     <>
@@ -47,6 +58,10 @@ export function PlanetHub({ s, me }: { s: GameState; me: Player }) {
               ['Kibble', `buy ${s.planet.foodBuy} / sell ${s.planet.foodSell} per crate`],
               ['Market', planet.marketBias],
               ['Phase', PHASE_LABEL[s.phase]],
+              [
+                'This week costs',
+                `${formatBones(bill.total)} — upkeep ${formatBones(bill.upkeep)}, wages ${formatBones(bill.wages)}, fuel ${formatBones(bill.fuel)}${bill.food ? `, kibble ${formatBones(bill.food)}` : ''}${bill.interest ? `, interest ${formatBones(bill.interest)}` : ''}`,
+              ],
             ]}
           />
           <div>
@@ -77,8 +92,40 @@ export function PlanetHub({ s, me }: { s: GameState; me: Player }) {
                 <span className="muted">No special rules on this rock.</span>
               )}
             </div>
+            <Notes
+              lines={[
+                purseMult !== 1 ? `Purses are ×${purseMult} this weekend.` : null,
+                sp.winningsTax ? `${pct(sp.winningsTax)} of every purse goes to the port authority.` : null,
+                sp.noUpkeep ? 'The monks feed and house your dogs: no upkeep this week.' : null,
+                sp.fitnessOnArrival
+                  ? `Your dogs arrived ${sp.fitnessOnArrival > 0 ? 'refreshed' : 'flat'}: fitness ${sp.fitnessOnArrival > 0 ? '+' : ''}${sp.fitnessOnArrival}.`
+                  : null,
+                sp.dopingCatch !== undefined
+                  ? sp.dopingCatch === 0
+                    ? 'Supplements are legal here — the stewards catch nobody.'
+                    : `The stewards here catch ${pct(sp.dopingCatch)} of doped dogs, against ${pct(balance.supplementCatchBase)} elsewhere.`
+                  : null,
+                sp.localsNervy ? 'The local runners are all Nervy — traps 1 and 8 do them no favours.' : null,
+              ]}
+            />
           </div>
         </div>
+      </Panel>
+
+      <Panel title="Where to?" sub="GDD §4.2 phase 3 — spend your time in turn order">
+        <div className="venues">
+          {venues(s).map((v) => (
+            <button
+              key={v.id}
+              disabled={!v.open || v.id === 'bookie'}
+              title={v.reason}
+              onClick={() => setView(v.id as View)}
+            >
+              {v.label}
+            </button>
+          ))}
+        </div>
+        <Notes lines={venues(s).filter((v) => v.reason).map((v) => `${v.label}: ${v.reason}`)} />
       </Panel>
 
       <Panel title="This weekend's card" sub="one dog per race, per stable">

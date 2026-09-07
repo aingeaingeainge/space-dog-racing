@@ -1,28 +1,38 @@
 import {
+  balance,
   dogValue,
+  dopingCatchRate,
   formatBones,
   netWorthBreakdown,
-  TRAIT_BY_ID,
+  planetOf,
+  upgradePrice,
   type Dog,
   type GameState,
   type Player,
+  type UpgradeId,
 } from '@sdr/engine';
 import { Panel } from '../components/Panel';
-import { Badge, Bar, Delta, KV } from '../components/ui';
-import { CLASS_LABEL, declaredClass, ownedDogs } from '../lib/selectors';
+import { Badge, Bar, Delta, KV, Notes, Traits } from '../components/ui';
+import { CLASS_LABEL, declaredClass, ownedDogs, weeklyBill } from '../lib/selectors';
+import { useGame } from '../store/gameStore';
 
 function status(d: Dog): { text: string; tone?: 'bad' | 'hot' } {
   if (d.injuryWeeks > 0) return { text: `injured ${d.injuryWeeks}w`, tone: 'bad' };
   if (d.banWeeks > 0) return { text: `banned ${d.banWeeks}w`, tone: 'bad' };
-  if (d.fitness < 60) return { text: 'jaded', tone: 'hot' };
+  if (d.fitness < balance.fitnessScaleBelow) return { text: 'jaded', tone: 'hot' };
   return { text: 'fit' };
 }
 
-/** GDD §15.4. Read-only in this build: buying, selling and training arrive with the Market. */
+/**
+ * GDD §15.4 — your dogs, and the kennel gear you can put on them. Gear is priced at the market
+ * (§8) but applied to a named dog here, which is where you are looking when you decide.
+ */
 export function Stable({ s, me }: { s: GameState; me: Player }) {
   const dogs = ownedDogs(s, me);
   const worth = netWorthBreakdown(s, me);
   const trained = me.training ? s.dogs[me.training.dogId] : undefined;
+  const bill = weeklyBill(s, me);
+  const inTurn = s.phase === 'planetPre' || s.phase === 'planetPost';
 
   return (
     <>
@@ -65,6 +75,12 @@ export function Stable({ s, me }: { s: GameState; me: Player }) {
             ]}
           />
         </div>
+        <Notes
+          lines={[
+            `This week's bill: ${formatBones(bill.total)} — upkeep ${formatBones(bill.upkeep)}, wages ${formatBones(bill.wages)}, fuel ${formatBones(bill.fuel)}, kibble ${bill.foodNeeded} crate${bill.foodNeeded === 1 ? '' : 's'} (${bill.foodFromHold} from the hold${bill.food ? `, ${formatBones(bill.food)} bought at the gate` : ''})${bill.interest ? `, interest ${formatBones(bill.interest)}` : ''}.`,
+            `Fitness below ${balance.fitnessScaleBelow} scales every stat down; a race costs ${balance.fitnessPerRace} and a week recovers ${balance.fitnessRecovery} (${balance.fitnessRecoveryVet} with a vet).`,
+          ]}
+        />
       </Panel>
 
       <Panel title="Dogs" sub="ratings and stats are public — everyone can see them" tight>
@@ -85,6 +101,7 @@ export function Stable({ s, me }: { s: GameState; me: Player }) {
                 <th className="num">Value</th>
                 <th>Status</th>
                 <th>Traits</th>
+                <th>Kennel gear</th>
               </tr>
             </thead>
             <tbody>
@@ -99,6 +116,9 @@ export function Stable({ s, me }: { s: GameState; me: Player }) {
                         <Badge tone="good" title="declared this weekend">
                           {CLASS_LABEL[cls]}
                         </Badge>
+                      ) : null}
+                      {me.training?.dogId === d.id ? (
+                        <Badge title={`in training: ${me.training.stat}`}>training</Badge>
                       ) : null}
                     </td>
                     <td className="num">{d.age}</td>
@@ -131,11 +151,10 @@ export function Stable({ s, me }: { s: GameState; me: Player }) {
                       {st.tone ? <Badge tone={st.tone}>{st.text}</Badge> : <span>{st.text}</span>}
                     </td>
                     <td style={{ whiteSpace: 'normal' }}>
-                      {d.traits.map((t) => (
-                        <Badge key={t} title={TRAIT_BY_ID[t]?.blurb}>
-                          {TRAIT_BY_ID[t]?.name ?? t}
-                        </Badge>
-                      ))}
+                      <Traits ids={d.traits} />
+                    </td>
+                    <td>
+                      <Gear s={s} me={me} d={d} inTurn={inTurn} />
                     </td>
                   </tr>
                 );
@@ -145,5 +164,65 @@ export function Stable({ s, me }: { s: GameState; me: Player }) {
         </div>
       </Panel>
     </>
+  );
+}
+
+/** The three kennel items (GDD §8), bought straight onto one dog. */
+function Gear({ s, me, d, inTurn }: { s: GameState; me: Player; d: Dog; inTurn: boolean }) {
+  const dispatch = useGame((g) => g.dispatch);
+  const planet = planetOf(s.planet.planetId);
+  const pre = s.phase === 'planetPre';
+  const catchRate = dopingCatchRate(s);
+
+  const items: { upgrade: UpgradeId; label: string; what: string; shut: string | null }[] = [
+    {
+      upgrade: 'trackDay',
+      label: 'Pass',
+      what: `Track-day pass: +${balance.itemTrackDayBonus} to the weakest stat`,
+      shut: s.planet.trackDayPasses ? null : 'No passes on this planet this week',
+    },
+    {
+      upgrade: 'muzzle',
+      label: 'Muzzle',
+      what: `Racing muzzle: +${balance.itemMuzzleBonus} Trap`,
+      shut: s.planet.muzzlesInStock ? null : 'No muzzles in stock here this week',
+    },
+    {
+      upgrade: 'supplement',
+      label: '💉',
+      what: `"Supplement": +${balance.itemSupplementBonus} speed for this weekend, ${Math.round(catchRate * 100)}% caught on ${planet.name}`,
+      shut: s.toggles.cleanSport
+        ? 'Clean Sport is on this season'
+        : !pre
+          ? 'Too late — supplements go in before the races'
+          : d.supplemented
+            ? `${d.name} has had enough`
+            : null,
+    },
+  ];
+
+  return (
+    <span className="row">
+      {items.map((it) => {
+        const price = upgradePrice(it.upgrade, planet, me);
+        const why = !inTurn
+          ? 'Not while the races are on'
+          : (it.shut ?? (price > me.cash ? `Short by ${formatBones(price - me.cash)}` : null));
+        return (
+          <button
+            key={it.upgrade}
+            className="link"
+            disabled={!!why}
+            title={why ? `${it.what} — ${why}` : `${it.what} — ${formatBones(price)}`}
+            onClick={() =>
+              dispatch({ t: 'BuyUpgrade', playerId: me.id, upgrade: it.upgrade, dogId: d.id })
+            }
+          >
+            {it.label}
+          </button>
+        );
+      })}
+      {d.supplemented ? <Badge tone="hot" title="doped for this weekend">💉 on</Badge> : null}
+    </span>
   );
 }

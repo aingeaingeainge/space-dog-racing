@@ -1,5 +1,7 @@
 import {
+  balance,
   formatBones,
+  planetOf,
   purseFor,
   ratingCap,
   RACE_CLASSES,
@@ -8,7 +10,8 @@ import {
   type RaceClass,
 } from '@sdr/engine';
 import { Panel } from '../components/Panel';
-import { Badge, StableName } from '../components/ui';
+import { Badge, Notes, StableName, Traits } from '../components/ui';
+import { trackText } from '../lib/planetText';
 import {
   CLASS_LABEL,
   declaredClass,
@@ -26,7 +29,11 @@ import { useGame } from '../store/gameStore';
 export function RaceOffice({ s, me }: { s: GameState; me: Player }) {
   const dispatch = useGame((g) => g.dispatch);
   const dogs = ownedDogs(s, me);
-  const major = s.calendar[s.week - 1]?.major ?? false;
+  const entry = s.calendar[s.week - 1];
+  const major = entry?.major ?? false;
+  const planet = planetOf(s.planet.planetId);
+  const sp = planet.special;
+  const pct = (n: number) => `${Math.round(n * 100)}%`;
   const otherHumans = s.players.filter((p) => p.kind === 'human' && p.id !== me.id).length > 0;
 
   const declare = (cls: RaceClass, dogId: string) =>
@@ -48,6 +55,31 @@ export function RaceOffice({ s, me }: { s: GameState; me: Player }) {
           Empty traps are filled by local dogs. Declarations lock when every stable has left the
           planet — after that the fields, traps and odds are public and the races run.
         </p>
+        <Notes
+          lines={[
+            `${planet.name}: ${trackText(planet.track)}.`,
+            planet.track.hazard !== 1
+              ? `A hazardous surface — injury risk ×${planet.track.hazard} on top of the base ${pct(balance.injuryBase)} a race.`
+              : null,
+            planet.track.mud ? 'Mudlarks love it here.' : null,
+            planet.track.slippery ? 'Slippery: acceleration counts for more than usual.' : null,
+            planet.track.length === 'sprint'
+              ? 'A sprint: Sprinters and fast starters.'
+              : planet.track.length === 'staying'
+                ? 'A staying trip: Stayers and stamina.'
+                : null,
+            planet.track.bends === 'tight' ? 'Tight bends: Railers gain, everyone else risks a bump.' : null,
+            entry?.grandFinal
+              ? `The Grand Final — purses ×${balance.finalMult}.`
+              : major
+                ? `A Major — purses ×${balance.majorMult}, Showboats lift, and the locals are ${balance.localRatingMajorBonus} points better.`
+                : null,
+            sp.purseMult ? `${planet.name} adds ×${sp.purseMult} to every purse.` : null,
+            sp.winningsTax ? `${pct(sp.winningsTax)} of any prize money is taxed here.` : null,
+            sp.localsNervy ? 'The locals are Nervy: they lose 5% in traps 1 and 8.' : null,
+            `A run costs ${balance.fitnessPerRace} fitness; below ${balance.fitnessScaleBelow} every stat is scaled down.`,
+          ]}
+        />
       </Panel>
 
       <div className="grid3">
@@ -88,6 +120,15 @@ export function RaceOffice({ s, me }: { s: GameState; me: Player }) {
                   })}
                 </select>
               </label>
+
+              {mine && s.dogs[mine] ? (
+                <p style={{ margin: '6px 0' }}>
+                  <Traits ids={s.dogs[mine]!.traits} />
+                  <span className="muted">
+                    fitness {s.dogs[mine]!.fitness} · form {s.dogs[mine]!.form}
+                  </span>
+                </p>
+              ) : null}
 
               <p className="muted" style={{ marginBottom: 4 }}>
                 {declaredHere} declared · {Math.max(0, TRAPS - declaredHere)} local dogs will fill
