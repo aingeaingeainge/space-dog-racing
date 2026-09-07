@@ -31,10 +31,13 @@ export function applyActions(base: GameState, actions: readonly Action[]): Appli
   return { state, added };
 }
 
-export type ScreenKind = 'seasonEnd' | 'noHuman' | 'results' | 'pass' | 'betting' | 'planet';
+export type ScreenKind =
+  'seasonEnd' | 'noHuman' | 'race' | 'results' | 'pass' | 'betting' | 'planet';
 
 export interface ScreenUi {
-  /** Week whose race results the table has already watched. */
+  /** Week whose races the table has already watched run. */
+  racesWatchedWeek: number;
+  /** Week whose race results the table has already read. */
   resultsSeenWeek: number;
   /** The human whose "pass the laptop" screen has been acknowledged. */
   passAck: Id | null;
@@ -56,7 +59,9 @@ export function screenFor(s: GameState, ui: ScreenUi): Screen {
   const waiting = waitingOn(s);
   const me = s.players.find((p) => p.id === waiting) ?? table[0] ?? null;
   if (!me) return { kind: 'noHuman', me: null };
-  // Results are public: the whole table watches them before the laptop moves on.
+  // Races are public: the whole table watches them run, then reads the results, before the
+  // laptop moves on to anybody's private business.
+  if (s.races && ui.racesWatchedWeek !== s.week) return { kind: 'race', me };
   if (s.races && ui.resultsSeenWeek !== s.week) return { kind: 'results', me };
   if (table.length > 1 && ui.passAck !== me.id) return { kind: 'pass', me };
   if (s.phase === 'betting') return { kind: 'betting', me };

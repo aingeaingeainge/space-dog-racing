@@ -8,6 +8,7 @@ import { Docks } from './screens/Docks';
 import { GalaxyMap } from './screens/GalaxyMap';
 import { Market } from './screens/Market';
 import { PlanetHub } from './screens/PlanetHub';
+import { RaceView } from './screens/RaceView';
 import { RaceOffice } from './screens/RaceOffice';
 import { Results } from './screens/Results';
 import { Saloon } from './screens/Saloon';
@@ -26,6 +27,7 @@ export function App() {
   const state = useGame((g) => g.state);
   const view = useGame((g) => g.view);
   const leaderboard = useGame((g) => g.leaderboard);
+  const racesWatchedWeek = useGame((g) => g.racesWatchedWeek);
   const resultsSeenWeek = useGame((g) => g.resultsSeenWeek);
   const passAck = useGame((g) => g.passAck);
   const error = useGame((g) => g.error);
@@ -33,7 +35,7 @@ export function App() {
 
   if (!state) return <Title />;
 
-  const screen = screenFor(state, { resultsSeenWeek, passAck });
+  const screen = screenFor(state, { racesWatchedWeek, resultsSeenWeek, passAck });
 
   if (screen.kind === 'seasonEnd') return <SeasonEnd s={state} />;
   if (screen.kind === 'noHuman' || !screen.me) {
@@ -46,6 +48,7 @@ export function App() {
     );
   }
   const me = screen.me;
+  if (screen.kind === 'race') return <RaceView s={state} me={me} />;
   if (screen.kind === 'results') return <Results s={state} me={me} />;
   if (screen.kind === 'pass') return <PassTo s={state} next={me} />;
 

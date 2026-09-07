@@ -394,3 +394,161 @@ input[type='range'] {
   gap: 6px;
   align-items: flex-start;
 }
+
+/* ---- race view (M2) ---- */
+.race-controls {
+  display: flex;
+  gap: 6px;
+}
+.race-stage {
+  position: relative;
+  background: #16151d;
+  line-height: 0;
+}
+.race-canvas {
+  display: block;
+  width: 100%;
+  height: min(58vh, 520px);
+  min-height: 300px;
+}
+.race-stage > *:not(.race-canvas) {
+  line-height: 1.45;
+}
+.race-clock {
+  position: absolute;
+  top: 8px;
+  left: 10px;
+  padding: 2px 8px;
+  background: rgba(18, 17, 26, 0.78);
+  border: 1px solid #34323f;
+  border-radius: 3px;
+  font-size: 12px;
+  color: var(--hazard);
+}
+.race-ticker {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  background: rgba(18, 17, 26, 0.78);
+  border: 1px solid #34323f;
+  border-radius: 3px;
+  font-size: 12px;
+  min-width: 210px;
+}
+.race-ticker li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 1px 2px;
+}
+.race-ticker li.me {
+  background: rgba(155, 232, 75, 0.14);
+}
+.race-ticker li > b {
+  width: 14px;
+  text-align: right;
+  color: var(--muted);
+  font-weight: 400;
+}
+.race-ticker .nm {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.race-ticker .gap {
+  color: var(--muted);
+  font-size: 11px;
+  min-width: 38px;
+  text-align: right;
+}
+.cloth {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border: 1px solid #0e0d13;
+  border-radius: 2px;
+  font-style: normal;
+  font-size: 11px;
+  font-weight: 700;
+  flex: 0 0 auto;
+}
+.race-call {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  min-height: 30px;
+  padding: 6px 12px;
+  background: linear-gradient(rgba(18, 17, 26, 0), rgba(18, 17, 26, 0.92) 55%);
+  color: var(--acid);
+  font-size: 14px;
+}
+.race-photo {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: Bungee, Impact, sans-serif;
+  font-size: clamp(24px, 6vw, 54px);
+  letter-spacing: 0.08em;
+  color: var(--hazard);
+  text-shadow: 0 0 18px rgba(0, 0, 0, 0.9);
+  background: rgba(18, 17, 26, 0.25);
+  pointer-events: none;
+}
+.race-result {
+  position: absolute;
+  inset: auto 0 0 0;
+  padding: 10px 12px 12px;
+  background: rgba(18, 17, 26, 0.94);
+  border-top: 2px solid var(--rust);
+}
+.race-result h3 {
+  margin: 0 0 6px;
+  font-family: Bungee, Impact, sans-serif;
+  font-size: 14px;
+  color: var(--hazard);
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.race-result ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.race-result li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 0;
+  font-size: 13px;
+}
+.race-result li > b {
+  width: 14px;
+  color: var(--muted);
+  font-weight: 400;
+}
+.race-result .nm {
+  flex: 1;
+}
+.race-result .own {
+  color: var(--muted);
+  min-width: 90px;
+}
+.race-result .num {
+  min-width: 62px;
+  text-align: right;
+}
+.race-margin {
+  margin: 6px 0 8px;
+  font-size: 13px;
+  color: var(--muted);
+}

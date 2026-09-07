@@ -5,11 +5,22 @@ import type { Action, SeasonSetup } from '@sdr/engine';
  * `setup` carries the seed and the table of stables, which is everything createSeason needs;
  * replaying the log on top of that reproduces the season exactly on any machine.
  */
+export interface SaveUi {
+  resultsSeenWeek: number;
+  /**
+   * Week whose races have been watched, and how fast the player likes to watch them. Both are
+   * UI-only — they never enter GameState — and both are optional so a save written before the
+   * race view still loads. That is why SAVE_VERSION has not moved.
+   */
+  racesWatchedWeek?: number;
+  raceSpeed?: number;
+}
+
 export interface SaveBlob {
   v: number;
   setup: SeasonSetup;
   log: Action[];
-  ui: { resultsSeenWeek: number };
+  ui: SaveUi;
 }
 
 export const SAVE_VERSION = 1;

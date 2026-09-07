@@ -254,7 +254,10 @@ function bettingTurn(s: GameState, p: Player, tally: Record<string, number>): Ac
       cash -= stake;
       tally.PlaceBet++;
     }
-    const room2 = Math.max(0, Math.min(Math.floor(cash * frac) - already - stake, Math.floor(cash)));
+    const room2 = Math.max(
+      0,
+      Math.min(Math.floor(cash * frac) - already - stake, Math.floor(cash)),
+    );
     if (outsider && outsider !== fav && room2 >= 50) {
       const stake2 = Math.min(50, room2);
       out.push({
@@ -305,7 +308,7 @@ function playSeason(seed: number, toggles?: SeasonSetup['toggles']) {
   let state = createSeason(setup);
   const log: Action[] = [];
   drive(state, log);
-  const ui: ScreenUi = { resultsSeenWeek: 0, passAck: null };
+  const ui: ScreenUi = { racesWatchedWeek: 0, resultsSeenWeek: 0, passAck: null };
 
   for (let step = 0; step < 20000; step++) {
     const screen = screenFor(state, ui);
@@ -319,6 +322,12 @@ function playSeason(seed: number, toggles?: SeasonSetup['toggles']) {
     }
     if (screen.kind === 'noHuman') throw new Error(`seed ${seed}: lost the human stable`);
     const me = screen.me!;
+    if (screen.kind === 'race') {
+      // The race view: the table watches the three logs replay. Watching changes nothing, so
+      // the headless walk acknowledges it exactly as pressing skip three times would.
+      ui.racesWatchedWeek = state.week;
+      continue;
+    }
     if (screen.kind === 'results') {
       ui.resultsSeenWeek = state.week;
       continue;
@@ -330,7 +339,11 @@ function playSeason(seed: number, toggles?: SeasonSetup['toggles']) {
     let actions: Action[];
     if (state.pendingEvent && state.pendingEvent.playerId === me.id) {
       actions = [
-        { t: 'ResolveEvent', playerId: me.id, choice: state.week % state.pendingEvent.choices.length },
+        {
+          t: 'ResolveEvent',
+          playerId: me.id,
+          choice: state.week % state.pendingEvent.choices.length,
+        },
       ];
       tally.ResolveEvent++;
     } else if (screen.kind === 'betting') {
@@ -345,7 +358,10 @@ function playSeason(seed: number, toggles?: SeasonSetup['toggles']) {
   throw new Error(`seed ${seed}: the season never ended`);
 }
 
-const seeds = process.argv.slice(2).map(Number).filter((n) => !Number.isNaN(n));
+const seeds = process.argv
+  .slice(2)
+  .map(Number)
+  .filter((n) => !Number.isNaN(n));
 const toRun = seeds.length ? seeds : [42, 7, 1234, 90210];
 let failures = 0;
 for (const seed of toRun) {
@@ -353,12 +369,15 @@ for (const seed of toRun) {
     seed === toRun[0]
       ? [
           ['default toggles', undefined],
-          ['clean sport, no betting, no trading, casual events', {
-            cleanSport: true,
-            betting: false,
-            trading: false,
-            casualEvents: true,
-          }],
+          [
+            'clean sport, no betting, no trading, casual events',
+            {
+              cleanSport: true,
+              betting: false,
+              trading: false,
+              casualEvents: true,
+            },
+          ],
         ]
       : [['default toggles', undefined]];
   for (const [label, toggles] of variants) {
