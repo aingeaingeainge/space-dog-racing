@@ -1,0 +1,325 @@
+/*
+ * M1 is deliberately plain: tables, buttons and simple modals. Everything here is scoped to
+ * class names used by <Panel> and the kit in components/ui.tsx, so M3 can restyle the game
+ * by replacing this file and those two modules without touching a screen.
+ */
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.app {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 0 12px 64px;
+}
+
+/* ---- top bar ---- */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  align-items: center;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  background: #12111a;
+  border-bottom: 2px solid var(--rust);
+}
+.topbar .brand {
+  font-family: Bungee, Impact, sans-serif;
+  color: var(--acid);
+  letter-spacing: 0.04em;
+}
+.topbar .spacer {
+  flex: 1;
+}
+.topbar .stat {
+  color: var(--muted);
+}
+.topbar .stat b {
+  color: var(--text);
+  font-weight: 400;
+}
+
+/* ---- panel ---- */
+.panel {
+  background: #201f2a;
+  border: 2px solid #34323f;
+  border-radius: 4px;
+  margin-bottom: 12px;
+}
+.panel > header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  align-items: baseline;
+  padding: 8px 12px;
+  background: #2a2836;
+  border-bottom: 2px solid #34323f;
+}
+.panel > header h2 {
+  margin: 0;
+  font-size: 15px;
+  font-family: Bungee, Impact, sans-serif;
+  letter-spacing: 0.03em;
+  color: var(--hazard);
+}
+.panel > header .sub {
+  color: var(--muted);
+  font-size: 12px;
+}
+.panel > header .head-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 6px;
+}
+.panel > .body {
+  padding: 12px;
+}
+.panel.tight > .body {
+  padding: 0;
+}
+
+/* ---- buttons ---- */
+button {
+  font: inherit;
+  color: var(--text);
+  background: #3a3747;
+  border: 2px solid #4d4a5e;
+  border-radius: 3px;
+  padding: 5px 12px;
+  cursor: pointer;
+}
+button:hover:not(:disabled) {
+  border-color: var(--cyan);
+}
+button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+button.primary {
+  background: var(--acid);
+  border-color: var(--acid);
+  color: #10100f;
+  font-weight: 700;
+}
+button.danger {
+  background: #4a2230;
+  border-color: var(--pink);
+}
+button.link {
+  background: none;
+  border: none;
+  padding: 2px 4px;
+  color: var(--cyan);
+  text-decoration: underline;
+}
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.row.end {
+  justify-content: flex-end;
+}
+.spread {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+select,
+input {
+  font: inherit;
+  color: var(--text);
+  background: #17161f;
+  border: 2px solid #4d4a5e;
+  border-radius: 3px;
+  padding: 4px 6px;
+}
+
+/* ---- tables ---- */
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+th,
+td {
+  text-align: left;
+  padding: 5px 8px;
+  border-bottom: 1px solid #34323f;
+  white-space: nowrap;
+}
+th {
+  color: var(--cyan);
+  font-weight: 400;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+td.num,
+th.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+tr.me td {
+  background: #2b2f22;
+}
+tr.dim td {
+  color: var(--muted);
+}
+.table-wrap {
+  overflow-x: auto;
+}
+
+/* ---- bits ---- */
+.badge {
+  display: inline-block;
+  padding: 1px 6px;
+  margin-right: 4px;
+  border-radius: 10px;
+  font-size: 11px;
+  border: 1px solid #4d4a5e;
+  color: var(--muted);
+}
+.badge.hot {
+  border-color: var(--hazard);
+  color: var(--hazard);
+}
+.badge.bad {
+  border-color: var(--pink);
+  color: var(--pink);
+}
+.badge.good {
+  border-color: var(--acid);
+  color: var(--acid);
+}
+.muted {
+  color: var(--muted);
+}
+.up {
+  color: var(--acid);
+}
+.down {
+  color: var(--pink);
+}
+.bar {
+  display: inline-block;
+  width: 64px;
+  height: 8px;
+  background: #17161f;
+  border: 1px solid #4d4a5e;
+  vertical-align: middle;
+  margin-right: 6px;
+}
+.bar > span {
+  display: block;
+  height: 100%;
+  background: var(--cyan);
+}
+.swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 6px;
+  border: 1px solid #000;
+  vertical-align: baseline;
+}
+.phases {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  font-size: 11px;
+}
+.phases span {
+  padding: 2px 7px;
+  border: 1px solid #4d4a5e;
+  border-radius: 10px;
+  color: var(--muted);
+}
+.phases span.done {
+  color: #6f6d7d;
+  border-color: #2f2d3a;
+}
+.phases span.now {
+  color: #10100f;
+  background: var(--hazard);
+  border-color: var(--hazard);
+}
+.notice {
+  padding: 8px 12px;
+  border-left: 4px solid var(--hazard);
+  background: #2a2836;
+  margin-bottom: 12px;
+}
+.error {
+  border-left-color: var(--pink);
+  color: var(--pink);
+}
+.grid2 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+}
+.grid3 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+}
+dl.kv {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 12px;
+  margin: 0;
+}
+dl.kv dt {
+  color: var(--muted);
+}
+dl.kv dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- modal ---- */
+.scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgba(8, 8, 12, 0.82);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  overflow: auto;
+  padding: 32px 12px;
+}
+.scrim > .panel {
+  width: 100%;
+  max-width: 760px;
+  margin: 0;
+}
+.centre {
+  text-align: center;
+  padding: 40px 12px;
+}
+.centre h1 {
+  font-family: Bungee, Impact, sans-serif;
+  color: var(--acid);
+}
+.log {
+  max-height: 190px;
+  overflow: auto;
+  font-size: 12px;
+}
+.log p {
+  margin: 0 0 3px;
+}
