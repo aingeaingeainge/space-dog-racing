@@ -52,8 +52,8 @@ export function GalaxyMap({ s }: { s: GameState }) {
                   <td className="num">
                     {p.foodBand[0]}–{p.foodBand[1]}
                   </td>
-                  <td className="muted">{p.marketBias}</td>
-                  <td className="wrap">
+                  <td className="muted wrap">{p.marketBias}</td>
+                  <td className="wrap rules">
                     {specialText(p).map((t) => (
                       <Badge key={t}>{t}</Badge>
                     ))}

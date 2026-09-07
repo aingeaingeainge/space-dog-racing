@@ -14,8 +14,10 @@ import { ineligibleReason, ownedDogs, declaredCount, TRAPS } from './selectors';
 import type { VenueId } from './venues';
 
 export interface VenueStatus {
-  /** One line of what is actually in there this week, for the hotspot and the tab strip. */
+  /** One line of what is actually in there this week, for the tab strip and the hub's list. */
   line: string;
+  /** Two or three words of the same thing, for the hotspot on the backdrop. */
+  short: string;
   /**
    * Is there anything here this player can do this week? PLAYTEST_NOTES finding 4 is that a
    * season is a lot of clicks, and most of them are spent opening a venue to discover it has
@@ -26,7 +28,11 @@ export interface VenueStatus {
   worth: boolean;
 }
 
-const nothing = (line: string): VenueStatus => ({ line, worth: false });
+const nothing = (line: string, short = 'nothing today'): VenueStatus => ({
+  line,
+  short,
+  worth: false,
+});
 
 /**
  * What each venue has for this player right now. One source of truth for the hub hotspots,
@@ -64,6 +70,9 @@ export function venueStatus(s: GameState, me: Player): Record<VenueId, VenueStat
           ]
             .filter(Boolean)
             .join(' · '),
+          short: [canBuy.length ? `${canBuy.length} dog${canBuy.length === 1 ? '' : 's'}` : null, gearInStock.length ? 'gear' : null]
+            .filter(Boolean)
+            .join(' + '),
           worth: true,
         }
       : nothing(
@@ -78,11 +87,12 @@ export function venueStatus(s: GameState, me: Player): Record<VenueId, VenueStat
   const wrong = mine.filter((d) => d.injuryWeeks > 0 || d.banWeeks > 0 || d.fitness < balance.fitnessScaleBelow);
   const kennels: VenueStatus =
     inTurn && gearInStock.length
-      ? { line: `${mine.length} dogs · ${gearInStock.join(', ')} to fit`, worth: true }
+      ? { line: `${mine.length} dogs · ${gearInStock.join(', ')} to fit`, short: 'gear to fit', worth: true }
       : nothing(
           wrong.length
             ? `${mine.length} dogs · ${wrong.length} off colour`
             : `${mine.length} dogs, all sound`,
+          wrong.length ? `${wrong.length} off colour` : `${mine.length} sound`,
         );
 
   // --- Docks: an upgrade you can pay for, or a kibble trade with somewhere to go.
@@ -111,12 +121,20 @@ export function venueStatus(s: GameState, me: Player): Record<VenueId, VenueStat
           ]
             .filter(Boolean)
             .join(' · '),
+          short: [
+            upgrades.length ? `${upgrades.length} upgrade${upgrades.length === 1 ? '' : 's'}` : null,
+            worthBuying ? 'kibble cheap' : null,
+            worthSelling ? 'kibble dear' : null,
+          ]
+            .filter(Boolean)
+            .join(' + '),
           worth: true,
         }
       : nothing(
           s.toggles.trading
             ? `Kibble ${s.planet.foodBuy}/${s.planet.foodSell} · hold ${me.cargo}/${me.ship.cargoCap}`
             : 'No trading this season',
+          s.toggles.trading ? `hold ${me.cargo}/${me.ship.cargoCap}` : 'no trading',
         );
 
   // --- Saloon: someone to hire, someone to lend, or a training focus going spare.
@@ -137,6 +155,9 @@ export function venueStatus(s: GameState, me: Player): Record<VenueId, VenueStat
           ]
             .filter(Boolean)
             .join(' · '),
+          short: hireable.length
+            ? `${hireable.length} to hire`
+            : 'trainer idle',
           worth: true,
         }
       : nothing(
@@ -145,6 +166,7 @@ export function venueStatus(s: GameState, me: Player): Record<VenueId, VenueStat
               ? 'Fat Tony is in; nobody to hire'
               : 'The bank is open; nobody to hire'
             : 'Nobody for hire, nobody lending',
+          lender ? (planet.special.shark ? 'Fat Tony is in' : 'bank open') : 'nobody about',
         );
 
   // --- Bookie: only during the betting phase, and only where the planet has one.
@@ -153,8 +175,8 @@ export function venueStatus(s: GameState, me: Player): Record<VenueId, VenueStat
     : planet.special.noBetting
       ? nothing(`No bookie on ${planet.name}`)
       : s.phase === 'betting'
-        ? { line: 'Open — three races on the board', worth: true }
-        : nothing('Opens when the card locks');
+        ? { line: 'Open — three races on the board', short: 'three races up', worth: true }
+        : nothing('Opens when the card locks', 'shut till lock');
 
   // --- Race Office: a runner still to declare in a race you are eligible for.
   const undeclared = RACE_CLASSES.filter((cls) => {
@@ -167,13 +189,17 @@ export function venueStatus(s: GameState, me: Player): Record<VenueId, VenueStat
     : undeclared.length
       ? {
           line: `${declaredMine} of 3 declared · ${undeclared.length} race${undeclared.length === 1 ? '' : 's'} you can still fill`,
+          short: `${undeclared.length} to fill`,
           worth: true,
         }
-      : nothing(`All ${declaredMine} declared · ${TRAPS - declaredCount(s, 'gold')} locals in Gold`);
+      : nothing(
+          `All ${declaredMine} declared · ${TRAPS - declaredCount(s, 'gold')} locals in Gold`,
+          `${declaredMine} declared`,
+        );
 
   return {
-    hub: { line: '', worth: false },
-    map: nothing('The whole circuit, from week 1'),
+    hub: { line: '', short: '', worth: false },
+    map: nothing('The whole circuit, from week 1', '13 stops'),
     market,
     stable: kennels,
     docks,

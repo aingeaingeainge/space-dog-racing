@@ -5,12 +5,15 @@ import type { ReactNode } from 'react';
  * a coloured tear-off in the planet's accent, the field underneath on manila card. Used by the
  * Race Office, the Bookie and the weekend card on the hub, so a race looks the same everywhere.
  */
+export type TicketTone = 'accent' | 'bronze' | 'silver' | 'gold';
+
 export function TicketCard({
   cls,
   purse,
   cap,
   serial,
   sub,
+  tone = 'accent',
   children,
 }: {
   /** Bronze / Silver / Gold. */
@@ -21,10 +24,16 @@ export function TicketCard({
   /** Bottom-left small print: 2nd and 3rd money, usually. */
   serial?: ReactNode;
   sub?: ReactNode;
+  /**
+   * The stub's colour. The three race classes get metal, because three identical stubs side by
+   * side is a worse screen than three that name themselves; everything else takes the planet's
+   * accent like the rest of the chrome.
+   */
+  tone?: TicketTone;
   children?: ReactNode;
 }) {
   return (
-    <section className="ticket">
+    <section className={tone === 'accent' ? 'ticket' : `ticket ${tone}`}>
       <div className="stub">
         <span className="cls">{cls}</span>
         {cap ? <span className="cap">{cap}</span> : null}

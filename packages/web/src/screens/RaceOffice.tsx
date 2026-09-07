@@ -97,6 +97,7 @@ export function RaceOffice({ s, me }: { s: GameState; me: Player }) {
             <TicketCard
               key={cls}
               cls={CLASS_LABEL[cls]}
+              tone={cls}
               cap={cls === 'gold' ? 'no cap' : `cap ${cap}`}
               purse={formatBones(purse[0])}
               serial={`2nd ${formatBones(purse[1])} · 3rd ${formatBones(purse[2])}`}
@@ -134,7 +135,7 @@ export function RaceOffice({ s, me }: { s: GameState; me: Player }) {
                 the rest, rating about {localRatingFor(cls, major)}
               </p>
 
-              <table>
+              <table className="rivals">
                 <tbody>
                   {rivals.map(({ p, dogId }) => {
                     const hide = p.kind === 'human' && !s.locked;

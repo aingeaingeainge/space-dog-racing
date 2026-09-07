@@ -1620,3 +1620,91 @@ dl.kv > div {
   max-width: 46ch;
   margin: 0 auto;
 }
+
+/* ---------------------------------------------------------------- hub refinements */
+/* A stand-in backdrop is held back so the hotspots stay readable over its label; a finished
+   one is shown at full strength. */
+.hub-backdrop.ph.on {
+  opacity: 0.4;
+}
+.hotspot {
+  max-width: 26%;
+}
+.hotspot.worth {
+  border-color: var(--accent-1);
+  box-shadow:
+    0 3px 0 var(--ink),
+    0 0 22px var(--accent-1-glow);
+}
+.hotspot:not(.worth):not(:disabled) {
+  border-color: var(--edge-lit);
+  box-shadow: 0 3px 0 var(--ink);
+}
+.hotspot .why.open {
+  color: var(--muted);
+  max-width: 17ch;
+}
+.hotspot .why.open.lit {
+  color: var(--accent-1-text);
+}
+/* The betting slip sits inside a ticket, where a heavy drop shadow would smother the small
+   print underneath it. */
+.ticket .slip {
+  box-shadow: inset 0 0 0 1px rgba(33, 29, 24, 0.25);
+  margin-bottom: 8px;
+}
+
+/* The three race classes name themselves on their stub. Metal, not the planet accent: three
+   identical stubs side by side is a worse screen than three you can tell apart at a glance. */
+.ticket.bronze > .stub {
+  background: linear-gradient(180deg, #cd8542, #7a4a20);
+  color: #1a1109;
+}
+.ticket.silver > .stub {
+  background: linear-gradient(180deg, #d8dde4, #8b9199);
+  color: #14161a;
+}
+.ticket.gold > .stub {
+  background: linear-gradient(180deg, #f7d76a, #c39a1c);
+  color: #1a1405;
+}
+
+/* A wide table inside a ticket scrolls on its own rather than pushing the page sideways; give
+   it a scrollbar you can see, because a silently scrollable field is a field you cannot bet on. */
+.table-wrap {
+  scrollbar-width: thin;
+  scrollbar-color: var(--accent-1) rgba(12, 11, 17, 0.4);
+}
+.table-wrap::-webkit-scrollbar {
+  height: 9px;
+}
+.table-wrap::-webkit-scrollbar-track {
+  background: rgba(12, 11, 17, 0.4);
+  border-radius: 5px;
+}
+.table-wrap::-webkit-scrollbar-thumb {
+  background: var(--accent-1);
+  border-radius: 5px;
+}
+.ticket .table-wrap {
+  scrollbar-color: var(--rust) rgba(33, 29, 24, 0.18);
+}
+.ticket .table-wrap::-webkit-scrollbar-track {
+  background: rgba(33, 29, 24, 0.18);
+}
+.ticket .table-wrap::-webkit-scrollbar-thumb {
+  background: var(--rust);
+}
+/* The rivals list on a declaration ticket is two narrow columns, so names wrap rather than
+   being cut off by the stub. */
+.ticket table.rivals td {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+/* The circuit's rules column: badges flow across a wide cell rather than stacking into a
+   thin one, so a Major's five rules read as a row and not a column. */
+td.rules {
+  min-width: 240px;
+  line-height: 2;
+}

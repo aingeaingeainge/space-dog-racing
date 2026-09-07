@@ -103,6 +103,7 @@ function RaceBetting({
   return (
     <TicketCard
       cls={CLASS_LABEL[cls]}
+      tone={cls}
       cap="trap draw and odds"
       purse={formatBones(purse[0])}
       serial={`2nd ${formatBones(purse[1])} · 3rd ${formatBones(purse[2])}`}

@@ -10,31 +10,42 @@ export function Hotspot({
   icon,
   label,
   status,
+  detail,
+  worth,
   reason,
   onClick,
 }: {
   spot: Spot;
   icon: string;
   label: string;
-  /** What is in there this week; also the tooltip when the venue is open. */
+  /** Two or three words on what is in there this week. */
   status?: string;
+  /** The full sentence, for the tooltip. */
+  detail?: string;
+  /** True when there is something here worth a walk — lights the plate. */
+  worth?: boolean;
   /** Why it is shut. Present means disabled. */
   reason?: string;
   onClick: () => void;
 }) {
+  const cls = ['hotspot', worth && !reason ? 'worth' : null].filter(Boolean).join(' ');
   return (
     <button
-      className="hotspot"
+      className={cls}
       style={{ left: `${spot.x}%`, top: `${spot.y}%` }}
       disabled={!!reason}
-      title={reason ? `${label} — ${reason}` : status ? `${label} — ${status}` : label}
+      title={reason ? `${label} — ${reason}` : detail ? `${label} — ${detail}` : label}
       onClick={onClick}
     >
       <span className="icon" aria-hidden="true">
         {icon}
       </span>
       <span className="lab">{label}</span>
-      {reason ? <span className="why">{reason}</span> : status ? <span className="why open">{status}</span> : null}
+      {reason ? (
+        <span className="why">{reason}</span>
+      ) : status ? (
+        <span className={worth ? 'why open lit' : 'why open'}>{status}</span>
+      ) : null}
     </button>
   );
 }

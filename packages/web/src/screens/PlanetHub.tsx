@@ -81,7 +81,9 @@ export function PlanetHub({ s, me }: { s: GameState; me: Player }) {
               spot={spots[id]}
               icon={VENUE_ICON[id]}
               label={v.label}
-              status={st.worth ? st.line : undefined}
+              status={st.short}
+              detail={st.line}
+              worth={st.worth}
               reason={v.open ? undefined : (v.reason ?? 'Shut')}
               onClick={() => setView(id as View)}
             />
@@ -179,6 +181,7 @@ export function PlanetHub({ s, me }: { s: GameState; me: Player }) {
             <TicketCard
               key={cls}
               cls={CLASS_LABEL[cls]}
+              tone={cls}
               cap={cls === 'gold' ? 'no cap' : `cap ${ratingCap(cls)}`}
               purse={formatBones(purse[0])}
               serial={`2nd ${formatBones(purse[1])} · 3rd ${formatBones(purse[2])}`}

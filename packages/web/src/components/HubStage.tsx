@@ -32,7 +32,7 @@ export function HubStage({
     <div className="hub-stage">
       {art ? (
         <img
-          className={loaded ? 'hub-backdrop on' : 'hub-backdrop'}
+          className={`hub-backdrop${loaded ? ' on' : ''}${art.placeholder ? ' ph' : ''}`}
           src={art.url}
           alt=""
           loading="lazy"
