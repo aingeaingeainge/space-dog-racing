@@ -31,7 +31,6 @@ import {
   drive,
   planetOf,
   upgradePrice,
-  RACE_CLASSES,
   type Action,
   type Dog,
   type GameState,
@@ -45,7 +44,6 @@ import { venues } from '../src/lib/venues';
 import { venueStatus } from '../src/lib/venueStatus';
 import { HOTSPOT_VENUES } from '../src/lib/hotspots';
 
-const HUMAN = 'p1';
 /** Declarations (3) + head to the track + run the races + back to the planet + end turn. */
 const FIXED_PER_WEEKEND = 7;
 
