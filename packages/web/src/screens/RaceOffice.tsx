@@ -10,6 +10,7 @@ import {
   type RaceClass,
 } from '@sdr/engine';
 import { Panel } from '../components/Panel';
+import { TicketCard } from '../components/TicketCard';
 import { Badge, Notes, StableName, Traits } from '../components/ui';
 import { trackText } from '../lib/planetText';
 import {
@@ -51,7 +52,7 @@ export function RaceOffice({ s, me }: { s: GameState; me: Player }) {
           </span>
         }
       >
-        <p className="muted" style={{ marginTop: 0 }}>
+        <p className="muted first">
           Empty traps are filled by local dogs. Declarations lock when every stable has left the
           planet — after that the fields, traps and odds are public and the races run.
         </p>
@@ -93,19 +94,17 @@ export function RaceOffice({ s, me }: { s: GameState; me: Player }) {
           const declaredHere = rivals.filter((r) => r.dogId).length + (mine ? 1 : 0);
 
           return (
-            <Panel
+            <TicketCard
               key={cls}
-              title={`${CLASS_LABEL[cls]} — ${formatBones(purse[0])}`}
-              sub={`rating cap ${cls === 'gold' ? 'none' : cap} · 2nd ${formatBones(purse[1])} · 3rd ${formatBones(purse[2])}`}
+              cls={CLASS_LABEL[cls]}
+              cap={cls === 'gold' ? 'no cap' : `cap ${cap}`}
+              purse={formatBones(purse[0])}
+              serial={`2nd ${formatBones(purse[1])} · 3rd ${formatBones(purse[2])}`}
             >
               <label>
                 <span className="muted">Your runner</span>
                 <br />
-                <select
-                  value={mine}
-                  style={{ width: '100%' }}
-                  onChange={(e) => declare(cls, e.target.value)}
-                >
+                <select className="wide" value={mine} onChange={(e) => declare(cls, e.target.value)}>
                   <option value="">— no runner —</option>
                   {dogs.map((d) => {
                     const bad = ineligibleReason(d, cls);
@@ -122,7 +121,7 @@ export function RaceOffice({ s, me }: { s: GameState; me: Player }) {
               </label>
 
               {mine && s.dogs[mine] ? (
-                <p style={{ margin: '6px 0' }}>
+                <p className="tight-p">
                   <Traits ids={s.dogs[mine]!.traits} />
                   <span className="muted">
                     fitness {s.dogs[mine]!.fitness} · form {s.dogs[mine]!.form}
@@ -130,7 +129,7 @@ export function RaceOffice({ s, me }: { s: GameState; me: Player }) {
                 </p>
               ) : null}
 
-              <p className="muted" style={{ marginBottom: 4 }}>
+              <p className="muted tight-p">
                 {declaredHere} declared · {Math.max(0, TRAPS - declaredHere)} local dogs will fill
                 the rest, rating about {localRatingFor(cls, major)}
               </p>
@@ -162,11 +161,9 @@ export function RaceOffice({ s, me }: { s: GameState; me: Player }) {
                 </tbody>
               </table>
               {otherHumans ? (
-                <p className="muted" style={{ marginBottom: 0 }}>
-                  Other humans&apos; picks stay hidden until the card locks.
-                </p>
+                <p className="muted last">Other humans&apos; picks stay hidden until the card locks.</p>
               ) : null}
-            </Panel>
+            </TicketCard>
           );
         })}
       </div>

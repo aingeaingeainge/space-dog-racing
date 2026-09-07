@@ -14,6 +14,7 @@ import {
 } from '@sdr/engine';
 import { Panel } from '../components/Panel';
 import { Badge, Notes, StatCells, StatHeads, Traits } from '../components/ui';
+import { NeonButton } from '../components/NeonButton';
 import { CLASS_LABEL, declaredClass, ownedDogs } from '../lib/selectors';
 import { useGame } from '../store/gameStore';
 
@@ -110,18 +111,18 @@ export function Market({ s, me }: { s: GameState; me: Player }) {
                     </td>
                     <StatCells d={d} />
                     <td className="num">{d.fitness}</td>
-                    <td style={{ whiteSpace: 'normal' }}>
+                    <td className="wrap">
                       <Traits ids={d.traits} />
                     </td>
                     <td className="num">{formatBones(price)}</td>
                     <td>
-                      <button
+                      <NeonButton
                         disabled={!!why}
                         title={why ?? `Buy ${d.name}`}
                         onClick={() => dispatch({ t: 'BuyDog', playerId: me.id, dogId: d.id })}
                       >
                         Buy
-                      </button>
+                      </NeonButton>
                       {why ? <div className="muted">{why}</div> : null}
                     </td>
                   </tr>
@@ -170,7 +171,7 @@ export function Market({ s, me }: { s: GameState; me: Player }) {
                     </td>
                     <StatCells d={d} />
                     <td className="num">{d.fitness}</td>
-                    <td style={{ whiteSpace: 'normal' }}>
+                    <td className="wrap">
                       <Traits ids={d.traits} />
                     </td>
                     <td className="num">{formatBones(dogValue(d))}</td>
@@ -178,13 +179,13 @@ export function Market({ s, me }: { s: GameState; me: Player }) {
                       <b>{formatBones(price)}</b>
                     </td>
                     <td>
-                      <button
+                      <NeonButton
                         disabled={!!why}
                         title={why ?? `Sell ${d.name} for ${formatBones(price)}`}
                         onClick={() => dispatch({ t: 'SellDog', playerId: me.id, dogId: d.id })}
                       >
                         Sell
-                      </button>
+                      </NeonButton>
                       {why ? <div className="muted">{why}</div> : null}
                     </td>
                   </tr>
@@ -295,7 +296,7 @@ function ItemRow({
         ))}
       </select>
       <span className="price">{formatBones(price)}</span>
-      <button
+      <NeonButton
         disabled={!!why}
         title={why ?? undefined}
         onClick={() =>
@@ -303,7 +304,7 @@ function ItemRow({
         }
       >
         {label}
-      </button>
+      </NeonButton>
       {why ? <span className="why">{why}</span> : null}
       {catchRate !== undefined && !shut ? (
         <span className="why">

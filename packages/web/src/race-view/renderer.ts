@@ -1,5 +1,6 @@
 import type { Id, RaceResult } from '@sdr/engine';
 import { createCamera, type Camera, type Viewport } from './camera';
+import { DEFAULT_RACE_PALETTE, type RacePalette } from './palette';
 import type { Pose, TrackGeometry } from './tracks';
 
 /**
@@ -55,6 +56,11 @@ export interface RendererOptions {
    * instead of the placeholder capsule. Until then every runner is a coloured capsule.
    */
   spriteFor?: (dogId: Id, heading: number) => CanvasImageSource | null;
+  /**
+   * M3. The planet's track colours, built from Planet.accents in race-view/palette.ts. The
+   * geometry does not change — only the paint. Omitted, the track is M2's soot brown.
+   */
+  palette?: RacePalette;
 }
 
 export interface Renderer {
@@ -156,6 +162,7 @@ export function createRenderer(canvas: HTMLCanvasElement, opts: RendererOptions)
   );
   const winnerAt = (result.order[0] ? finishTickOf(result.order[0]) : lastTick) * tickSeconds;
 
+  const pal: RacePalette = opts.palette ?? DEFAULT_RACE_PALETTE;
   let view: Viewport = { w: canvas.clientWidth || 960, h: canvas.clientHeight || 540 };
   let dpr = 1;
   let path: Path2D | null = null;
@@ -196,13 +203,13 @@ export function createRenderer(canvas: HTMLCanvasElement, opts: RendererOptions)
     ctx!.strokeStyle = '#0e0d13';
     ctx!.lineWidth = w + 1.6;
     ctx!.stroke(path);
-    ctx!.strokeStyle = '#3a2b21';
+    ctx!.strokeStyle = pal.surface;
     ctx!.lineWidth = w;
     ctx!.stroke(path);
     // The rail the dogs hug.
     ctx!.save();
     ctx!.setLineDash([6, 5]);
-    ctx!.strokeStyle = 'rgba(244, 197, 66, 0.16)';
+    ctx!.strokeStyle = pal.rail;
     ctx!.lineWidth = 0.25;
     ctx!.stroke(path);
     ctx!.restore();
@@ -213,7 +220,7 @@ export function createRenderer(canvas: HTMLCanvasElement, opts: RendererOptions)
     const ny = pose.hx;
     const half = track.halfWidth;
     if (style === 'start') {
-      ctx!.strokeStyle = 'rgba(155, 232, 75, 0.5)';
+      ctx!.strokeStyle = pal.line;
       ctx!.lineWidth = 0.3;
       ctx!.beginPath();
       ctx!.moveTo(pose.x - nx * half, pose.y - ny * half);
@@ -246,11 +253,13 @@ export function createRenderer(canvas: HTMLCanvasElement, opts: RendererOptions)
     ctx!.save();
     ctx!.translate(pose.x, pose.y);
     ctx!.rotate(a);
-    ctx!.fillStyle = 'rgba(63, 214, 224, 0.22)';
+    ctx!.fillStyle = pal.lure;
+    ctx!.globalAlpha = 0.22;
     ctx!.beginPath();
     ctx!.ellipse(0, 0, 2.4, 1.2, 0, 0, Math.PI * 2);
     ctx!.fill();
-    ctx!.fillStyle = '#3fd6e0';
+    ctx!.globalAlpha = 1;
+    ctx!.fillStyle = pal.lure;
     ctx!.strokeStyle = '#0e0d13';
     ctx!.lineWidth = 0.16;
     ctx!.beginPath();
@@ -332,7 +341,7 @@ export function createRenderer(canvas: HTMLCanvasElement, opts: RendererOptions)
     else camera.follow(frame, view, dt);
 
     ctx!.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx!.fillStyle = '#16151d';
+    ctx!.fillStyle = pal.ground;
     ctx!.fillRect(0, 0, view.w, view.h);
     ctx!.save();
     camera.apply(ctx!, view);

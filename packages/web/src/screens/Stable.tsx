@@ -11,8 +11,10 @@ import {
   type Player,
   type UpgradeId,
 } from '@sdr/engine';
+import { DogCard } from '../components/DogCard';
+import { NeonButton } from '../components/NeonButton';
 import { Panel } from '../components/Panel';
-import { Badge, Bar, Delta, KV, Notes, Traits } from '../components/ui';
+import { Badge, KV, Notes } from '../components/ui';
 import { CLASS_LABEL, declaredClass, ownedDogs, weeklyBill } from '../lib/selectors';
 import { useGame } from '../store/gameStore';
 
@@ -24,8 +26,11 @@ function status(d: Dog): { text: string; tone?: 'bad' | 'hot' } {
 }
 
 /**
- * GDD §15.4 — your dogs, and the kennel gear you can put on them. Gear is priced at the market
- * (§8) but applied to a named dog here, which is where you are looking when you decide.
+ * GDD §15.4 — "your dogs as cards: portrait, stats bars, rating, fitness, form arrows, age,
+ * traits, value, training focus". M1 laid this out as a table because there was no card to put
+ * a dog in; M3 has one, so the Kennels is now the kit's DogCard grid with the portrait slot
+ * session 2 fills. Every action the table carried is still on the card: the same three kennel
+ * items, priced at the market and applied to a named dog here, through the same BuyUpgrade.
  */
 export function Stable({ s, me }: { s: GameState; me: Player }) {
   const dogs = ownedDogs(s, me);
@@ -56,10 +61,7 @@ export function Stable({ s, me }: { s: GameState; me: Player }) {
                       .join(', ')
                   : 'none',
               ],
-              [
-                'Training',
-                trained && me.training ? `${trained.name}: ${me.training.stat}` : 'none',
-              ],
+              ['Training', trained && me.training ? `${trained.name}: ${me.training.stat}` : 'none'],
             ]}
           />
           <KV
@@ -83,84 +85,39 @@ export function Stable({ s, me }: { s: GameState; me: Player }) {
         />
       </Panel>
 
-      <Panel title="Dogs" sub="ratings and stats are public — everyone can see them" tight>
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Dog</th>
-                <th className="num">Age</th>
-                <th className="num">Rating</th>
-                <th>Speed</th>
-                <th>Accel</th>
-                <th>Stamina</th>
-                <th>Trap</th>
-                <th>Fitness</th>
-                <th className="num">Form</th>
-                <th className="num">Runs</th>
-                <th className="num">Value</th>
-                <th>Status</th>
-                <th>Traits</th>
-                <th>Kennel gear</th>
-              </tr>
-            </thead>
-            <tbody>
-              {dogs.map((d) => {
-                const st = status(d);
-                const cls = declaredClass(s, me.id, d.id);
-                return (
-                  <tr key={d.id}>
-                    <td>
-                      <b>{d.name}</b>
-                      {cls ? (
-                        <Badge tone="good" title="declared this weekend">
-                          {CLASS_LABEL[cls]}
-                        </Badge>
-                      ) : null}
-                      {me.training?.dogId === d.id ? (
-                        <Badge title={`in training: ${me.training.stat}`}>training</Badge>
-                      ) : null}
-                    </td>
-                    <td className="num">{d.age}</td>
-                    <td className="num">
-                      <b>{d.rating}</b>
-                    </td>
-                    <td>
-                      <Bar value={d.speed} />
-                    </td>
-                    <td>
-                      <Bar value={d.accel} />
-                    </td>
-                    <td>
-                      <Bar value={d.stamina} />
-                    </td>
-                    <td>
-                      <Bar value={d.trap} />
-                    </td>
-                    <td>
-                      <Bar value={d.fitness} />
-                    </td>
-                    <td className="num">
-                      <Delta n={d.form} />
-                    </td>
-                    <td className="num">
-                      {d.wins}/{d.runs}
-                    </td>
-                    <td className="num">{formatBones(dogValue(d))}</td>
-                    <td>
-                      {st.tone ? <Badge tone={st.tone}>{st.text}</Badge> : <span>{st.text}</span>}
-                    </td>
-                    <td style={{ whiteSpace: 'normal' }}>
-                      <Traits ids={d.traits} />
-                    </td>
-                    <td>
-                      <Gear s={s} me={me} d={d} inTurn={inTurn} />
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+      <Panel title="Dogs" sub="ratings and stats are public — everyone can see them">
+        <div className="dogcards">
+          {dogs.map((d) => {
+            const st = status(d);
+            const cls = declaredClass(s, me.id, d.id);
+            return (
+              <DogCard
+                key={d.id}
+                dog={d}
+                declared={!!cls}
+                sub={`age ${d.age} · ${d.wins}/${d.runs} · ${formatBones(dogValue(d))}`}
+                badges={
+                  <>
+                    {cls ? (
+                      <Badge tone="good" title="declared this weekend">
+                        {CLASS_LABEL[cls]}
+                      </Badge>
+                    ) : null}
+                    {me.training?.dogId === d.id ? (
+                      <Badge title={`in training: ${me.training.stat}`}>training</Badge>
+                    ) : null}
+                    {st.tone ? <Badge tone={st.tone}>{st.text}</Badge> : null}
+                    {d.supplemented ? (
+                      <Badge tone="hot" title="doped for this weekend">
+                        💉 on
+                      </Badge>
+                    ) : null}
+                  </>
+                }
+                actions={<Gear s={s} me={me} d={d} inTurn={inTurn} />}
+              />
+            );
+          })}
         </div>
       </Panel>
     </>
@@ -177,7 +134,7 @@ function Gear({ s, me, d, inTurn }: { s: GameState; me: Player; d: Dog; inTurn: 
   const items: { upgrade: UpgradeId; label: string; what: string; shut: string | null }[] = [
     {
       upgrade: 'trackDay',
-      label: 'Pass',
+      label: 'Track day',
       what: `Track-day pass: +${balance.itemTrackDayBonus} to the weakest stat`,
       shut: s.planet.trackDayPasses ? null : 'No passes on this planet this week',
     },
@@ -202,16 +159,16 @@ function Gear({ s, me, d, inTurn }: { s: GameState; me: Player; d: Dog; inTurn: 
   ];
 
   return (
-    <span className="row">
+    <>
       {items.map((it) => {
         const price = upgradePrice(it.upgrade, planet, me);
         const why = !inTurn
           ? 'Not while the races are on'
           : (it.shut ?? (price > me.cash ? `Short by ${formatBones(price - me.cash)}` : null));
         return (
-          <button
+          <NeonButton
             key={it.upgrade}
-            className="link"
+            small
             disabled={!!why}
             title={why ? `${it.what} — ${why}` : `${it.what} — ${formatBones(price)}`}
             onClick={() =>
@@ -219,10 +176,9 @@ function Gear({ s, me, d, inTurn }: { s: GameState; me: Player; d: Dog; inTurn: 
             }
           >
             {it.label}
-          </button>
+          </NeonButton>
         );
       })}
-      {d.supplemented ? <Badge tone="hot" title="doped for this weekend">💉 on</Badge> : null}
-    </span>
+    </>
   );
 }

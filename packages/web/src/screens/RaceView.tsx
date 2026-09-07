@@ -12,10 +12,12 @@ import {
 } from '@sdr/engine';
 import { Panel } from '../components/Panel';
 import { Badge, Delta, STABLE_COLOURS } from '../components/ui';
+import { NeonButton } from '../components/NeonButton';
 import { CLASS_LABEL, playerById } from '../lib/selectors';
 import { useGame, type RaceSpeed } from '../store/gameStore';
 import { buildCommentary, lineAt, type CommentaryLine } from '../race-view/commentary';
 import { createRenderer, type RaceSample, type RunnerStyle } from '../race-view/renderer';
+import { paletteFor } from '../race-view/palette';
 import { trackBlurb, trackFor } from '../race-view/tracks';
 
 /**
@@ -96,6 +98,8 @@ function RaceReplay({
   }, [speed]);
 
   const track = useMemo(() => trackFor(result.planetId), [result.planetId]);
+  // The track is repainted in this planet's two accents; the geometry is M2's and does not move.
+  const palette = useMemo(() => paletteFor(result.planetId), [result.planetId]);
   const styles = useMemo(() => {
     return result.entries.map((e): RunnerStyle => {
       const owner = e.local ? undefined : playerById(s, e.ownerId as Id);
@@ -127,6 +131,7 @@ function RaceReplay({
       track,
       tickSeconds: balance.raceTickSeconds,
       styleFor: (i) => styles[i]!,
+      palette,
     });
     let raf = 0;
     let last = 0;
@@ -195,7 +200,7 @@ function RaceReplay({
       cancelAnimationFrame(raf);
       globalThis.removeEventListener('resize', onResize);
     };
-  }, [result, track, styles, commentary]);
+  }, [result, track, styles, commentary, palette]);
 
   // --- the result overlay advances itself ------------------------------------------------
   useEffect(() => {
@@ -232,26 +237,26 @@ function RaceReplay({
         tight
         actions={
           <span className="race-controls">
-            <button
-              className={speed === 1 ? 'primary' : ''}
+            <NeonButton
+              variant={speed === 1 ? 'primary' : 'default'}
               onClick={() => setRaceSpeed(1)}
               title="Real time (key: 1)"
             >
               1×
-            </button>
-            <button
-              className={speed === 2 ? 'primary' : ''}
+            </NeonButton>
+            <NeonButton
+              variant={speed === 2 ? 'primary' : 'default'}
               onClick={() => setRaceSpeed(2)}
               title="Double speed (key: 2)"
             >
               2×
-            </button>
-            <button
+            </NeonButton>
+            <NeonButton
               onClick={() => (stage === 'result' ? onDone() : (skipRef.current = true))}
               title="Skip to the result (key: S)"
             >
               {stage === 'result' ? 'Next ⏎' : 'Skip'}
-            </button>
+            </NeonButton>
           </span>
         }
       >
@@ -349,9 +354,9 @@ function ResultCard({
           </>
         ) : null}
       </p>
-      <button className="primary" onClick={onNext}>
+      <NeonButton variant="primary" onClick={onNext}>
         Next ⏎
-      </button>
+      </NeonButton>
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { formatBones, planetOf, type GameState } from '@sdr/engine';
 import { Panel } from '../components/Panel';
 import { StableName } from '../components/ui';
+import { NeonButton } from '../components/NeonButton';
 import { standings } from '../lib/selectors';
 import { useGame } from '../store/gameStore';
 
@@ -21,16 +22,14 @@ export function SeasonEnd({ s }: { s: GameState }) {
       </div>
 
       <Panel title="Podium" sub="highest net worth wins; tie-break most Gold wins">
-        <div className="grid3">
+        <div className="podium">
           {podium.map((r, i) => (
-            <div key={r.player.id} style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: 28 }}>{['🥇', '🥈', '🥉'][i]}</div>
+            <div key={r.player.id} className={i === 0 ? 'first' : undefined}>
+              <div className="medal">{['🥇', '🥈', '🥉'][i]}</div>
               <div>
                 <StableName player={r.player} />
               </div>
-              <div>
-                <b>{formatBones(r.netWorth)}</b>
-              </div>
+              <div className="worth">{formatBones(r.netWorth)}</div>
               <div className="muted">{r.goldWins} Gold wins</div>
             </div>
           ))}
@@ -79,9 +78,9 @@ export function SeasonEnd({ s }: { s: GameState }) {
       </Panel>
 
       <div className="row">
-        <button className="primary" onClick={abandon}>
+        <NeonButton variant="primary" onClick={abandon}>
           New season
-        </button>
+        </NeonButton>
       </div>
     </div>
   );

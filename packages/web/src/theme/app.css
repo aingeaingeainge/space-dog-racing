@@ -1611,3 +1611,12 @@ input.seed {
 dl.kv > div {
   display: contents;
 }
+
+.star {
+  color: var(--hazard);
+  text-shadow: 0 0 10px rgba(244, 197, 66, 0.5);
+}
+.tagline {
+  max-width: 46ch;
+  margin: 0 auto;
+}

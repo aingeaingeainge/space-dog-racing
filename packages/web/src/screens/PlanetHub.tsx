@@ -9,9 +9,16 @@ import {
   type Player,
 } from '@sdr/engine';
 import { Panel } from '../components/Panel';
-import { Badge, KV, Notes, StableName } from '../components/ui';
+import { HubStage } from '../components/HubStage';
+import { Hotspot } from '../components/Hotspot';
+import { NeonButton } from '../components/NeonButton';
+import { Signpost } from '../components/Signpost';
+import { TicketCard } from '../components/TicketCard';
+import { KV, Notes, StableName } from '../components/ui';
 import { specialText, trackText } from '../lib/planetText';
+import { hotspotsFor, HOTSPOT_VENUES, VENUE_ICON } from '../lib/hotspots';
 import { venues } from '../lib/venues';
+import { venueStatus } from '../lib/venueStatus';
 import {
   CLASS_LABEL,
   PHASE_LABEL,
@@ -26,7 +33,15 @@ import { useGame, type View } from '../store/gameStore';
 
 const pct = (n: number) => `${Math.round(n * 100)}%`;
 
-/** GDD §15.3: what is on this week, what this rock does to you, and the way into every venue. */
+/**
+ * GDD §15.3 — the painted planet with six hotspots, its rules on a signpost, this weekend's
+ * card, and the way into every venue.
+ *
+ * Each hotspot carries what is actually in that venue this week (lib/venueStatus.ts), which is
+ * the answer to PLAYTEST_NOTES finding 4: a season is a lot of clicks, and most of them go on
+ * opening a shop to find out it has nothing in it. Nothing is hidden and nothing is disabled
+ * that was not already — a shut venue still says why, per M1 note 2.
+ */
 export function PlanetHub({ s, me }: { s: GameState; me: Player }) {
   const setView = useGame((g) => g.setView);
   const entry = s.calendar[s.week - 1]!;
@@ -34,155 +49,157 @@ export function PlanetHub({ s, me }: { s: GameState; me: Player }) {
   const sp = planet.special;
   const rules = specialText(planet);
   const bill = weeklyBill(s, me);
+  const spots = hotspotsFor(planet.id);
+  const status = venueStatus(s, me);
+  const byId = new Map(venues(s).map((v) => [v.id, v]));
   const weekLog = s.eventLog.filter(
     (l) => l.week === s.week && (!l.playerId || l.playerId === me.id),
   );
-  const purseMult = (entry.grandFinal ? balance.finalMult : entry.major ? balance.majorMult : 1) *
+  const purseMult =
+    (entry.grandFinal ? balance.finalMult : entry.major ? balance.majorMult : 1) *
     (sp.purseMult ?? 1);
 
   return (
     <>
-      <Panel
-        title={
+      <HubStage
+        planetId={planet.id}
+        name={
           <>
             {planet.name}
-            {entry.grandFinal ? ' ★★' : entry.major ? ' ★' : ''}
+            {entry.grandFinal ? <span className="star"> ★★</span> : entry.major ? <span className="star"> ★</span> : null}
           </>
         }
-        sub={entry.major ? planet.event : planet.vibe}
+        vibe={entry.major && planet.event ? planet.event : planet.vibe}
       >
-        <div className="grid2">
-          <KV
-            items={[
-              ['Track', trackText(planet.track)],
-              ['Kibble', `buy ${s.planet.foodBuy} / sell ${s.planet.foodSell} per crate`],
-              ['Market', planet.marketBias],
-              ['Phase', PHASE_LABEL[s.phase]],
-              [
-                'This week costs',
-                `${formatBones(bill.total)} — ${
-                  [
-                    bill.upkeep ? `upkeep ${formatBones(bill.upkeep)}` : null,
-                    bill.wages ? `wages ${formatBones(bill.wages)}` : null,
-                    bill.fuel ? `fuel ${formatBones(bill.fuel)}` : null,
-                    bill.food ? `kibble at the gate ${formatBones(bill.food)}` : null,
-                    bill.interest ? `interest ${formatBones(bill.interest)}` : null,
-                  ]
-                    .filter(Boolean)
-                    .join(', ') || 'nothing at all this week'
-                }`,
-              ],
-            ]}
-          />
-          <div>
-            <div className="phases" style={{ marginBottom: 8 }}>
-              {PHASE_ORDER.map((p) => (
-                <span
-                  key={p}
-                  className={
-                    p === s.phase
-                      ? 'now'
-                      : PHASE_ORDER.indexOf(p) < PHASE_ORDER.indexOf(s.phase)
-                        ? 'done'
-                        : ''
-                  }
-                >
-                  {PHASE_LABEL[p]}
-                </span>
-              ))}
-            </div>
-            <div style={{ whiteSpace: 'normal' }}>
-              {rules.length ? (
-                rules.map((t) => (
-                  <Badge key={t} tone="hot">
-                    {t}
-                  </Badge>
-                ))
-              ) : (
-                <span className="muted">No special rules on this rock.</span>
-              )}
-            </div>
-            <Notes
-              lines={[
-                purseMult !== 1 ? `Purses are ×${purseMult} this weekend.` : null,
-                sp.winningsTax ? `${pct(sp.winningsTax)} of every purse goes to the port authority.` : null,
-                sp.noUpkeep ? 'The monks feed and house your dogs: no upkeep this week.' : null,
-                sp.fitnessOnArrival
-                  ? `Your dogs arrived ${sp.fitnessOnArrival > 0 ? 'refreshed' : 'flat'}: fitness ${sp.fitnessOnArrival > 0 ? '+' : ''}${sp.fitnessOnArrival}.`
-                  : null,
-                sp.dopingCatch !== undefined
-                  ? sp.dopingCatch === 0
-                    ? 'Supplements are legal here — the stewards catch nobody.'
-                    : `The stewards here catch ${pct(sp.dopingCatch)} of doped dogs, against ${pct(balance.supplementCatchBase)} elsewhere.`
-                  : null,
-                sp.localsNervy ? 'The local runners are all Nervy — traps 1 and 8 do them no favours.' : null,
-              ]}
+        {HOTSPOT_VENUES.map((id) => {
+          const v = byId.get(id);
+          if (!v) return null;
+          const st = status[id];
+          return (
+            <Hotspot
+              key={id}
+              spot={spots[id]}
+              icon={VENUE_ICON[id]}
+              label={v.label}
+              status={st.worth ? st.line : undefined}
+              reason={v.open ? undefined : (v.reason ?? 'Shut')}
+              onClick={() => setView(id as View)}
             />
-          </div>
+          );
+        })}
+      </HubStage>
+
+      <Signpost rules={rules}>
+        <Notes
+          lines={[
+            `${trackText(planet.track)} · kibble ${s.planet.foodBuy} in, ${s.planet.foodSell} out · ${planet.marketBias.toLowerCase()}`,
+            purseMult !== 1 ? `Purses are ×${purseMult} this weekend.` : null,
+            sp.winningsTax ? `${pct(sp.winningsTax)} of every purse goes to the port authority.` : null,
+            sp.noUpkeep ? 'The monks feed and house your dogs: no upkeep this week.' : null,
+            sp.fitnessOnArrival
+              ? `Your dogs arrived ${sp.fitnessOnArrival > 0 ? 'refreshed' : 'flat'}: fitness ${sp.fitnessOnArrival > 0 ? '+' : ''}${sp.fitnessOnArrival}.`
+              : null,
+            sp.dopingCatch !== undefined
+              ? sp.dopingCatch === 0
+                ? 'Supplements are legal here — the stewards catch nobody.'
+                : `The stewards here catch ${pct(sp.dopingCatch)} of doped dogs, against ${pct(balance.supplementCatchBase)} elsewhere.`
+              : null,
+            sp.localsNervy ? 'The local runners are all Nervy — traps 1 and 8 do them no favours.' : null,
+          ]}
+        />
+      </Signpost>
+
+      <Panel
+        title="Where to?"
+        sub="GDD §4.2 phase 3 — what is actually in each one this week"
+        actions={
+          <span className="phases">
+            {PHASE_ORDER.map((p) => (
+              <span
+                key={p}
+                className={
+                  p === s.phase
+                    ? 'now'
+                    : PHASE_ORDER.indexOf(p) < PHASE_ORDER.indexOf(s.phase)
+                      ? 'done'
+                      : ''
+                }
+              >
+                {PHASE_LABEL[p]}
+              </span>
+            ))}
+          </span>
+        }
+      >
+        <div className="venue-list">
+          {HOTSPOT_VENUES.map((id) => {
+            const v = byId.get(id);
+            if (!v) return null;
+            const st = status[id];
+            return (
+              <div className={st.worth ? 'venue-line worth' : 'venue-line'} key={id}>
+                <NeonButton
+                  variant={st.worth ? 'primary' : 'default'}
+                  disabled={!v.open}
+                  title={v.reason}
+                  onClick={() => setView(id as View)}
+                >
+                  {v.label}
+                </NeonButton>
+                <span className={v.open ? 'muted' : 'shut'}>{v.open ? st.line : v.reason}</span>
+              </div>
+            );
+          })}
         </div>
+        <Notes
+          lines={[
+            `This week costs ${formatBones(bill.total)} — ${
+              [
+                bill.upkeep ? `upkeep ${formatBones(bill.upkeep)}` : null,
+                bill.wages ? `wages ${formatBones(bill.wages)}` : null,
+                bill.fuel ? `fuel ${formatBones(bill.fuel)}` : null,
+                bill.food ? `kibble at the gate ${formatBones(bill.food)}` : null,
+                bill.interest ? `interest ${formatBones(bill.interest)}` : null,
+              ]
+                .filter(Boolean)
+                .join(', ') || 'nothing at all this week'
+            }.`,
+          ]}
+        />
       </Panel>
 
-      <Panel title="Where to?" sub="GDD §4.2 phase 3 — spend your time in turn order">
-        <div className="venues">
-          {venues(s).map((v) => (
-            <button
-              key={v.id}
-              disabled={!v.open || v.id === 'bookie'}
-              title={v.reason}
-              onClick={() => setView(v.id as View)}
+      <h3 className="section">This weekend&apos;s card</h3>
+      <div className="grid3">
+        {RACE_CLASSES.map((cls) => {
+          const purse = purseFor(s, cls);
+          const mineId = s.declarations[cls][me.id];
+          const dog = mineId ? s.dogs[mineId] : undefined;
+          const declared = declaredCount(s, cls);
+          return (
+            <TicketCard
+              key={cls}
+              cls={CLASS_LABEL[cls]}
+              cap={cls === 'gold' ? 'no cap' : `cap ${ratingCap(cls)}`}
+              purse={formatBones(purse[0])}
+              serial={`2nd ${formatBones(purse[1])} · 3rd ${formatBones(purse[2])}`}
             >
-              {v.label}
-            </button>
-          ))}
-        </div>
-        <Notes lines={venues(s).filter((v) => v.reason).map((v) => `${v.label}: ${v.reason}`)} />
-      </Panel>
-
-      <Panel title="This weekend's card" sub="one dog per race, per stable">
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Race</th>
-                <th className="num">Cap</th>
-                <th className="num">Purse 1st/2nd/3rd</th>
-                <th>Your runner</th>
-                <th className="num">Field</th>
-              </tr>
-            </thead>
-            <tbody>
-              {RACE_CLASSES.map((cls) => {
-                const purse = purseFor(s, cls);
-                const mine = s.declarations[cls][me.id];
-                const dog = mine ? s.dogs[mine] : undefined;
-                const declared = declaredCount(s, cls);
-                return (
-                  <tr key={cls}>
-                    <td>
-                      <b>{CLASS_LABEL[cls]}</b>
-                    </td>
-                    <td className="num">{cls === 'gold' ? 'any' : ratingCap(cls)}</td>
-                    <td className="num">
-                      {purse.map((n) => formatBones(n).replace(' Bones', '')).join(' / ')}
-                    </td>
-                    <td>
-                      {dog ? (
-                        `${dog.name} (${dog.rating})`
-                      ) : (
-                        <span className="muted">not declared</span>
-                      )}
-                    </td>
-                    <td className="num">
-                      {declared} stable{declared === 1 ? '' : 's'} + {Math.max(0, TRAPS - declared)}{' '}
-                      locals (rating ≈ {localRatingFor(cls, entry.major)})
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </Panel>
+              <p className="tight-p">
+                {dog ? (
+                  <>
+                    Your runner: <b>{dog.name}</b> ({dog.rating})
+                  </>
+                ) : (
+                  <span className="muted">No runner declared</span>
+                )}
+              </p>
+              <p className="muted flush">
+                {declared} stable{declared === 1 ? '' : 's'} in · {Math.max(0, TRAPS - declared)}{' '}
+                locals at about {localRatingFor(cls, entry.major)}
+              </p>
+            </TicketCard>
+          );
+        })}
+      </div>
 
       <div className="grid2">
         <Panel title="Turn order" sub="ship speed × 10 − cargo ÷ 5 + d10">
@@ -212,7 +229,7 @@ export function PlanetHub({ s, me }: { s: GameState; me: Player }) {
           <div className="log">
             {weekLog.length ? (
               weekLog.map((l, i) => (
-                <p key={i} className={l.playerId === me.id ? '' : 'muted'}>
+                <p key={i} className={l.playerId === me.id ? 'mine' : 'muted'}>
                   {l.text}
                 </p>
               ))
@@ -220,6 +237,13 @@ export function PlanetHub({ s, me }: { s: GameState; me: Player }) {
               <p className="muted">Quiet so far.</p>
             )}
           </div>
+          <KV
+            items={[
+              ['Phase', PHASE_LABEL[s.phase]],
+              ['Cash', formatBones(me.cash)],
+              ['Hold', `${me.cargo} / ${me.ship.cargoCap} crates`],
+            ]}
+          />
         </Panel>
       </div>
     </>

@@ -11,6 +11,7 @@ import {
 } from '@sdr/engine';
 import { Panel } from '../components/Panel';
 import { Gauge, KV, Notes } from '../components/ui';
+import { NeonButton } from '../components/NeonButton';
 import { ownedDogs } from '../lib/selectors';
 import { useGame } from '../store/gameStore';
 
@@ -129,13 +130,13 @@ export function Docks({ s, me }: { s: GameState; me: Player }) {
                   <span className="muted"> (list {formatBones(u.list)})</span>
                 ) : null}
               </span>
-              <button
+              <NeonButton
                 disabled={!!why}
                 title={why ?? undefined}
                 onClick={() => dispatch({ t: 'BuyUpgrade', playerId: me.id, upgrade: u.upgrade })}
               >
                 Buy
-              </button>
+              </NeonButton>
               {why ? <span className="why">{why}</span> : null}
             </div>
           );
@@ -177,7 +178,7 @@ export function Docks({ s, me }: { s: GameState; me: Player }) {
               <b>{units}</b>
             </label>
             <div className="row">
-              <button
+              <NeonButton
                 disabled={!trading || units <= 0 || units > maxBuy}
                 title={
                   tradeShut ??
@@ -190,28 +191,28 @@ export function Docks({ s, me }: { s: GameState; me: Player }) {
                 onClick={() => dispatch({ t: 'TradeFood', playerId: me.id, units })}
               >
                 Buy {units} for {formatBones(units * s.planet.foodBuy)}
-              </button>
-              <button
+              </NeonButton>
+              <NeonButton
                 disabled={!trading || units <= 0 || units > me.cargo}
                 title={tradeShut ?? `Fetches ${formatBones(units * s.planet.foodSell)}`}
                 onClick={() => dispatch({ t: 'TradeFood', playerId: me.id, units: -units })}
               >
                 Sell {units} for {formatBones(units * s.planet.foodSell)}
-              </button>
+              </NeonButton>
             </div>
             <div className="row">
-              <button
+              <NeonButton
                 disabled={!trading || maxBuy <= 0}
                 onClick={() => dispatch({ t: 'TradeFood', playerId: me.id, units: maxBuy })}
               >
                 Fill the hold ({maxBuy})
-              </button>
-              <button
+              </NeonButton>
+              <NeonButton
                 disabled={!trading || me.cargo <= 0}
                 onClick={() => dispatch({ t: 'TradeFood', playerId: me.id, units: -me.cargo })}
               >
                 Sell the lot ({me.cargo})
-              </button>
+              </NeonButton>
             </div>
             <Notes
               lines={[

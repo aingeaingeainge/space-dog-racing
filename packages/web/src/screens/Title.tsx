@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { Difficulty, PlayerSetup, Toggles } from '@sdr/engine';
 import { Panel } from '../components/Panel';
 import { Notes, Swatch } from '../components/ui';
+import { NeonButton } from '../components/NeonButton';
 import { useGame } from '../store/gameStore';
 
 const MAX_STABLES = 8;
@@ -52,7 +53,7 @@ export function Title() {
     <div className="app">
       <div className="centre">
         <h1>Space Dog Racing</h1>
-        <p className="muted">
+        <p className="muted tagline">
           Thirteen weekends on the grimy underground circuit. Richest stable at the Galactic Collar
           wins.
         </p>
@@ -63,9 +64,9 @@ export function Title() {
       {hasSave ? (
         <Panel title="Saved season" sub="the seed and the action log, replayed">
           <div className="row">
-            <button className="primary" onClick={resume}>
+            <NeonButton variant="primary" onClick={resume}>
               Resume season
-            </button>
+            </NeonButton>
             <span className="muted">Picks up exactly where the last save left off.</span>
           </div>
         </Panel>
@@ -75,22 +76,22 @@ export function Title() {
         title="New season"
         sub="hotseat: any mix of human and AI stables"
         actions={
-          <button className="primary" disabled={!canStart} onClick={start}>
+          <NeonButton variant="primary" disabled={!canStart} onClick={start}>
             Start season
-          </button>
+          </NeonButton>
         }
       >
-        <div className="row" style={{ marginBottom: 12 }}>
+        <div className="row gap-b">
           <label>
             Seed{' '}
             <input
               type="number"
               value={seed}
-              style={{ width: 120 }}
+              className="seed"
               onChange={(e) => setSeed(Number(e.target.value) || 0)}
             />
           </label>
-          <button onClick={() => setSeed(randomSeed())}>Roll a new seed</button>
+          <NeonButton onClick={() => setSeed(randomSeed())}>Roll a new seed</NeonButton>
           <span className="muted">Same seed + same choices = the same season, on any machine.</span>
         </div>
 
@@ -142,13 +143,13 @@ export function Title() {
                     )}
                   </td>
                   <td>
-                    <button
-                      className="link"
+                    <NeonButton
+                      variant="link"
                       disabled={roster.length <= 1}
                       onClick={() => setRoster((r) => r.filter((_, j) => j !== i))}
                     >
                       remove
-                    </button>
+                    </NeonButton>
                   </td>
                 </tr>
               ))}
@@ -156,15 +157,15 @@ export function Title() {
           </table>
         </div>
 
-        <div className="row" style={{ marginTop: 12 }}>
-          <button
+        <div className="row gap-t">
+          <NeonButton
             disabled={roster.length >= MAX_STABLES}
             onClick={() =>
               setRoster((r) => [...r, { name: '', kind: 'ai', difficulty: 'normal' as Difficulty }])
             }
           >
             Add stable
-          </button>
+          </NeonButton>
           <span className="muted">
             {roster.length} stables, {humans} human. Easy and Hard play as Normal until M4.
           </span>
@@ -206,11 +207,13 @@ export function Title() {
         />
       </Panel>
 
-      <Panel title="What is in this build" sub="milestone M1, session 2">
-        <p className="muted" style={{ margin: 0 }}>
-          A whole 13-week season: declarations, races, results, events, the leaderboard, and every
-          venue on the planet — Market, Kennels, Docks, Saloon, Bookie and Race Office. The race
-          view and the art arrive in M2 and M3.
+      <Panel title="What is in this build" sub="milestone M3, session 1 — the UI kit">
+        <p className="muted flush">
+          A whole 13-week season with the races watchable: declarations, three races a weekend
+          replayed on the track, results, events, the leaderboard, and every venue on the planet.
+          Every screen is now painted to the art bible and every planet tints its own chrome, but
+          the pictures themselves are stand-ins — hatched slots labelled &ldquo;placeholder&rdquo;.
+          The real backdrops, dog portraits and run cycles land in M3 session 2.
         </p>
       </Panel>
     </div>
@@ -229,7 +232,7 @@ function Toggle({
   blurb: string;
 }) {
   return (
-    <label className="shop-row" style={{ alignItems: 'flex-start' }}>
+    <label className="shop-row toggle">
       <input type="checkbox" checked={on} onChange={(e) => set(e.target.checked)} />
       <span className="what">
         <b>{label}</b>

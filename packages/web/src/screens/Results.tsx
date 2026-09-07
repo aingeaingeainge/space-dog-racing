@@ -8,6 +8,8 @@ import {
 } from '@sdr/engine';
 import { Panel } from '../components/Panel';
 import { Badge, Delta, StableName, Traits } from '../components/ui';
+import { NeonButton } from '../components/NeonButton';
+import { BettingSlip, type SlipRow } from '../components/BettingSlip';
 import { CLASS_LABEL, playerById } from '../lib/selectors';
 import { useGame } from '../store/gameStore';
 
@@ -50,7 +52,7 @@ function RaceTable({ s, r, meId }: { s: GameState; r: RaceResult; meId: string }
                   )}
                 </td>
                 <td className="num">{e.rating}</td>
-                <td style={{ whiteSpace: 'normal' }}>
+                <td className="wrap">
                   <Traits ids={s.dogs[dogId]?.traits ?? []} />
                 </td>
                 <td className="num">
@@ -87,13 +89,13 @@ export function Results({ s, me }: { s: GameState; me: Player }) {
         title={`Week ${s.week} results — ${planet.name}`}
         sub="prize money paid, ratings updated"
         actions={
-          <button className="primary" onClick={ackResults}>
+          <NeonButton variant="primary" onClick={ackResults}>
             Back to the planet
-          </button>
+          </NeonButton>
         }
       >
         {mine.length ? (
-          <p style={{ margin: 0 }}>
+          <p className="flush">
             You picked up <b>{formatBones(won)}</b>:{' '}
             {mine
               .map(
@@ -104,7 +106,7 @@ export function Results({ s, me }: { s: GameState; me: Player }) {
             .
           </p>
         ) : (
-          <p className="muted" style={{ margin: 0 }}>
+          <p className="muted flush">
             Nothing in the money this weekend.
           </p>
         )}
@@ -138,69 +140,26 @@ function BetsSettled({ s, me }: { s: GameState; me: Player }) {
   const returned = bets.reduce((sum, b) => sum + (b.settled?.payout ?? 0), 0);
   const net = returned - staked;
 
+  const rows: SlipRow[] = bets.map((b, i) => ({
+    key: String(i),
+    race: CLASS_LABEL[b.cls],
+    dog: s.dogs[b.dogId]?.name ?? 'that dog',
+    kind: b.kind,
+    stake: b.stake,
+    odds: b.odds,
+    won: b.settled?.won ?? false,
+    payout: b.settled?.payout ?? 0,
+  }));
+
   return (
-    <Panel
-      title="Your bets"
-      sub="nobody else at the table sees these"
-      tight
-      actions={
-        <span className={net > 0 ? 'up' : net < 0 ? 'down' : 'muted'}>
-          {net >= 0 ? '+' : ''}
-          {formatBones(net)} on the day
-        </span>
-      }
-    >
-      <div className="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Race</th>
-              <th>Dog</th>
-              <th>Bet</th>
-              <th className="num">Stake</th>
-              <th className="num">Odds</th>
-              <th>Result</th>
-              <th className="num">Payout</th>
-            </tr>
-          </thead>
-          <tbody>
-            {bets.map((b, i) => (
-              <tr key={i} className={b.settled?.won ? 'me' : 'dim'}>
-                <td>{CLASS_LABEL[b.cls]}</td>
-                <td>{s.dogs[b.dogId]?.name ?? 'that dog'}</td>
-                <td>{b.kind === 'win' ? 'Win' : 'Place'}</td>
-                <td className="num">{formatBones(b.stake)}</td>
-                <td className="num">{b.odds.toFixed(2)}</td>
-                <td>
-                  {b.settled ? (
-                    b.settled.won ? (
-                      <Badge tone="good">won</Badge>
-                    ) : (
-                      <Badge tone="bad">lost</Badge>
-                    )
-                  ) : (
-                    <span className="muted">open</span>
-                  )}
-                </td>
-                <td className="num">{formatBones(b.settled?.payout ?? 0)}</td>
-              </tr>
-            ))}
-            <tr>
-              <td colSpan={3}>
-                <b>Total</b>
-              </td>
-              <td className="num">
-                <b>{formatBones(staked)}</b>
-              </td>
-              <td />
-              <td />
-              <td className="num">
-                <b>{formatBones(returned)}</b>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </Panel>
+    <div className="slip-wrap">
+      <BettingSlip
+        title="Your bets"
+        settled
+        rows={rows}
+        net={`${net >= 0 ? '+' : ''}${formatBones(net)} on the day`}
+      />
+      <p className="muted small-print">Staked {formatBones(staked)}, returned {formatBones(returned)}. Nobody else at the table sees these.</p>
+    </div>
   );
 }

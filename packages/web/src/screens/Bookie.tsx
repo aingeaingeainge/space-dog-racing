@@ -14,6 +14,9 @@ import {
 } from '@sdr/engine';
 import { Panel } from '../components/Panel';
 import { Badge, Notes, StableName, Traits } from '../components/ui';
+import { NeonButton } from '../components/NeonButton';
+import { TicketCard } from '../components/TicketCard';
+import { BettingSlip, type SlipRow } from '../components/BettingSlip';
 import { CLASS_LABEL, playerById } from '../lib/selectors';
 import { useGame } from '../store/gameStore';
 
@@ -38,9 +41,9 @@ export function Bookie({ s, me }: { s: GameState; me: Player }) {
         title="The bookie"
         sub={`${planet.name} · margin ${Math.round(margin * 100)}% · max stake ${Math.round(frac * 100)}% of cash per race`}
         actions={
-          <button className="primary" onClick={() => dispatch({ t: 'EndPhase', playerId: me.id })}>
+          <NeonButton variant="primary" onClick={() => dispatch({ t: 'EndPhase', playerId: me.id })}>
             Run the races
-          </button>
+          </NeonButton>
         }
       >
         <div className="row spread">
@@ -98,12 +101,13 @@ function RaceBetting({
     dispatch({ t: 'PlaceBet', playerId: me.id, cls, dogId, kind, stake: wanted });
 
   return (
-    <Panel
-      key={cls}
-      title={`${CLASS_LABEL[cls]} — ${formatBones(purse[0])}`}
-      sub={`trap draw, odds and your slips · 2nd ${formatBones(purse[1])} · 3rd ${formatBones(purse[2])}`}
+    <TicketCard
+      cls={CLASS_LABEL[cls]}
+      cap="trap draw and odds"
+      purse={formatBones(purse[0])}
+      serial={`2nd ${formatBones(purse[1])} · 3rd ${formatBones(purse[2])}`}
     >
-      <div className="stack" style={{ marginBottom: 8 }}>
+      <div className="stack stake">
         <label>
           <span className="muted">Stake</span>{' '}
           <input
@@ -164,13 +168,13 @@ function RaceBetting({
                       <Badge>local</Badge>
                     )}
                   </td>
-                  <td style={{ whiteSpace: 'normal' }}>
+                  <td className="wrap">
                     <Traits ids={d?.traits ?? []} />
                   </td>
                   <td className="num">{e.rating}</td>
                   <td className="num">{d ? d.fitness : '—'}</td>
                   <td className="num">
-                    <button
+                    <NeonButton
                       disabled={disabled}
                       title={
                         disabled
@@ -180,10 +184,10 @@ function RaceBetting({
                       onClick={() => place(e.dogId, 'win')}
                     >
                       {e.odds.toFixed(2)}
-                    </button>
+                    </NeonButton>
                   </td>
                   <td className="num">
-                    <button
+                    <NeonButton
                       disabled={disabled}
                       title={
                         disabled
@@ -193,7 +197,7 @@ function RaceBetting({
                       onClick={() => place(e.dogId, 'place')}
                     >
                       {placeOdds.toFixed(2)}
-                    </button>
+                    </NeonButton>
                   </td>
                 </tr>
               );
@@ -202,41 +206,20 @@ function RaceBetting({
         </table>
       </div>
 
-      <BetSlips s={s} bets={bets} />
-    </Panel>
+      <BetSlips s={s} bets={bets} cls={cls} />
+    </TicketCard>
   );
 }
 
-function BetSlips({ s, bets }: { s: GameState; bets: Bet[] }) {
-  if (!bets.length)
-    return (
-      <p className="muted" style={{ marginBottom: 0 }}>
-        Nothing on this race.
-      </p>
-    );
-  const total = bets.reduce((sum, b) => sum + b.stake, 0);
-  return (
-    <table>
-      <tbody>
-        {bets.map((b, i) => (
-          <tr key={i}>
-            <td>{s.dogs[b.dogId]?.name ?? 'that dog'}</td>
-            <td className="muted">{b.kind}</td>
-            <td className="num">{formatBones(b.stake)}</td>
-            <td className="num">@ {b.odds.toFixed(2)}</td>
-            <td className="num">{formatBones(Math.round(b.stake * b.odds))}</td>
-          </tr>
-        ))}
-        <tr>
-          <td colSpan={2}>
-            <b>On this race</b>
-          </td>
-          <td className="num">
-            <b>{formatBones(total)}</b>
-          </td>
-          <td colSpan={2} />
-        </tr>
-      </tbody>
-    </table>
-  );
+/** The kit's betting slip, open. The same component shows it settled on the Results screen. */
+function BetSlips({ s, bets, cls }: { s: GameState; bets: Bet[]; cls: RaceClass }) {
+  const rows: SlipRow[] = bets.map((b, i) => ({
+    key: `${cls}-${i}`,
+    race: CLASS_LABEL[cls],
+    dog: s.dogs[b.dogId]?.name ?? 'that dog',
+    kind: b.kind,
+    stake: b.stake,
+    odds: b.odds,
+  }));
+  return <BettingSlip title={`${CLASS_LABEL[cls]} slips`} rows={rows} />;
 }

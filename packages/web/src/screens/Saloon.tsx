@@ -15,6 +15,7 @@ import {
 } from '@sdr/engine';
 import { Panel } from '../components/Panel';
 import { KV, Notes } from '../components/ui';
+import { NeonButton } from '../components/NeonButton';
 import { ownedDogs } from '../lib/selectors';
 import { useGame } from '../store/gameStore';
 
@@ -76,7 +77,7 @@ export function Saloon({ s, me }: { s: GameState; me: Player }) {
 
       <Panel title="For hire" sub="wages are charged every week until you let them go">
         {staffOnOffer.length === 0 ? (
-          <p className="muted" style={{ margin: 0 }}>
+          <p className="muted flush">
             Nobody worth hiring is drinking here this week.
           </p>
         ) : null}
@@ -98,7 +99,7 @@ export function Saloon({ s, me }: { s: GameState; me: Player }) {
                 <span className="muted">{o.quirk ?? ROLE_BLURB[o.role]}</span>
               </span>
               <span className="price">{formatBones(o.wage)}/week</span>
-              <button
+              <NeonButton
                 disabled={!!why}
                 title={why ?? `Hire ${o.name}`}
                 onClick={() =>
@@ -106,7 +107,7 @@ export function Saloon({ s, me }: { s: GameState; me: Player }) {
                 }
               >
                 Hire
-              </button>
+              </NeonButton>
               {why ? <span className="why">{why}</span> : null}
               {o.quirk ? <span className="why">Quirk: {o.quirk}</span> : null}
             </div>
@@ -116,7 +117,7 @@ export function Saloon({ s, me }: { s: GameState; me: Player }) {
 
       <Panel title="Your staff" sub={`${formatBones(wages)} a week`}>
         {employed.length === 0 ? (
-          <p className="muted" style={{ margin: 0 }}>
+          <p className="muted flush">
             You run the whole stable yourself.
           </p>
         ) : null}
@@ -131,9 +132,9 @@ export function Saloon({ s, me }: { s: GameState; me: Player }) {
                 <span className="muted">{o.quirk ?? ROLE_BLURB[role]}</span>
               </span>
               <span className="price">{formatBones(o.wage)}/week</span>
-              <button onClick={() => dispatch({ t: 'FireStaff', playerId: me.id, role })}>
+              <NeonButton onClick={() => dispatch({ t: 'FireStaff', playerId: me.id, role })}>
                 Let them go
-              </button>
+              </NeonButton>
             </div>
           );
         })}
@@ -178,13 +179,13 @@ function TrainingFocus({ s, me }: { s: GameState; me: Player }) {
       sub={trainer ? `${trainer.name} works on one dog, one stat, +${gain} a week` : 'needs a trainer'}
     >
       {!trainer ? (
-        <p className="muted" style={{ margin: 0 }}>
+        <p className="muted flush">
           Hire a trainer and you can point them at a dog and a stat. The gain lands when you jump
           to the next planet.
         </p>
       ) : (
         <>
-          <p style={{ marginTop: 0 }}>
+          <p className="flush-t">
             {current && me.training ? (
               <>
                 Now working on <b>{current.name}</b> — {STAT_LABEL[me.training.stat]} (
@@ -211,19 +212,19 @@ function TrainingFocus({ s, me }: { s: GameState; me: Player }) {
                 </option>
               ))}
             </select>
-            <button
-              className="primary"
+            <NeonButton
+              variant="primary"
               disabled={!dogId}
               onClick={() => dispatch({ t: 'SetTraining', playerId: me.id, dogId, stat })}
             >
               Work on it
-            </button>
-            <button
+            </NeonButton>
+            <NeonButton
               disabled={!me.training}
               onClick={() => dispatch({ t: 'SetTraining', playerId: me.id, dogId: null, stat })}
             >
               Stop training
-            </button>
+            </NeonButton>
           </div>
         </>
       )}
@@ -261,7 +262,7 @@ function Lender({
           ['Room left', formatBones(room)],
         ]}
       />
-      <div className="row" style={{ marginTop: 8 }}>
+      <div className="row gap-t">
         <label>
           <span className="muted">Amount</span>{' '}
           <input
@@ -275,22 +276,22 @@ function Lender({
           <b>{formatBones(amount)}</b>
         </label>
       </div>
-      <div className="row" style={{ marginTop: 8 }}>
-        <button
+      <div className="row gap-t">
+        <NeonButton
           disabled={borrow <= 0}
           title={room <= 0 ? 'Already borrowed to the limit' : undefined}
           onClick={() => dispatch({ t: 'Borrow', playerId: me.id, lender, amount: borrow })}
         >
           Borrow {formatBones(borrow)}
-        </button>
-        <button
+        </NeonButton>
+        <NeonButton
           disabled={repay <= 0}
           title={owed <= 0 ? 'Nothing owed' : me.cash < 100 ? 'No Bones to repay with' : undefined}
           onClick={() => dispatch({ t: 'Repay', playerId: me.id, lender, amount: repay })}
         >
           Repay {formatBones(repay)}
-        </button>
-        <button
+        </NeonButton>
+        <NeonButton
           disabled={owed <= 0 || me.cash <= 0}
           onClick={() =>
             dispatch({
@@ -302,7 +303,7 @@ function Lender({
           }
         >
           Clear what you can
-        </button>
+        </NeonButton>
       </div>
       <Notes lines={[note]} />
     </Panel>

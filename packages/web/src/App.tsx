@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { EventModal } from './components/EventModal';
 import { LeaderboardOverlay } from './components/LeaderboardOverlay';
 import { Nav } from './components/Nav';
@@ -15,6 +16,7 @@ import { Saloon } from './screens/Saloon';
 import { SeasonEnd } from './screens/SeasonEnd';
 import { Stable } from './screens/Stable';
 import { Title } from './screens/Title';
+import { PlanetTheme } from './theme/planetTheme';
 import { screenFor } from './store/loop';
 import { useGame } from './store/gameStore';
 
@@ -33,24 +35,36 @@ export function App() {
   const error = useGame((g) => g.error);
   const clearError = useGame((g) => g.clearError);
 
-  if (!state) return <Title />;
+  if (!state) {
+    return (
+      <PlanetTheme>
+        <Title />
+      </PlanetTheme>
+    );
+  }
 
+  // Every screen sits inside the planet's two accent hues (GDD §16). The wrapper reads them
+  // from Planet.accents, so a screen never knows which rock it is on and a new planet tints
+  // the whole game from its data row alone.
+  const planetId = state.calendar[state.week - 1]?.planetId ?? null;
   const screen = screenFor(state, { racesWatchedWeek, resultsSeenWeek, passAck });
 
-  if (screen.kind === 'seasonEnd') return <SeasonEnd s={state} />;
+  const wrap = (node: ReactNode) => <PlanetTheme planetId={planetId}>{node}</PlanetTheme>;
+
+  if (screen.kind === 'seasonEnd') return wrap(<SeasonEnd s={state} />);
   if (screen.kind === 'noHuman' || !screen.me) {
-    return (
+    return wrap(
       <div className="app">
         <div className="notice error">
           This season has no human stable left to play it. Start a new one.
         </div>
-      </div>
+      </div>,
     );
   }
   const me = screen.me;
-  if (screen.kind === 'race') return <RaceView s={state} me={me} />;
-  if (screen.kind === 'results') return <Results s={state} me={me} />;
-  if (screen.kind === 'pass') return <PassTo s={state} next={me} />;
+  if (screen.kind === 'race') return wrap(<RaceView s={state} me={me} />);
+  if (screen.kind === 'results') return wrap(<Results s={state} me={me} />);
+  if (screen.kind === 'pass') return wrap(<PassTo s={state} next={me} />);
 
   const s = state;
   const inTurn = s.phase === 'planetPre' || s.phase === 'planetPost';
@@ -66,7 +80,7 @@ export function App() {
     return <PlanetHub s={s} me={me} />;
   }
 
-  return (
+  return wrap(
     <>
       <TopBar s={s} me={me} />
       <div className="app">
@@ -87,6 +101,6 @@ export function App() {
       </div>
       {s.pendingEvent ? <EventModal s={s} /> : null}
       {leaderboard ? <LeaderboardOverlay s={s} meId={me.id} /> : null}
-    </>
+    </>,
   );
 }

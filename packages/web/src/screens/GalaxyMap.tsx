@@ -32,7 +32,17 @@ export function GalaxyMap({ s }: { s: GameState }) {
                 <tr key={e.week} className={now ? 'me' : past ? 'dim' : ''}>
                   <td>
                     {e.week}
-                    {e.grandFinal ? ' ★★' : e.major ? ' ★' : ''}
+                    {e.grandFinal ? (
+                      <span className="star" title="Grand Final">
+                        {' '}
+                        ★★
+                      </span>
+                    ) : e.major ? (
+                      <span className="star" title="Major">
+                        {' '}
+                        ★
+                      </span>
+                    ) : null}
                   </td>
                   <td>
                     <b>{p.name}</b>
@@ -43,7 +53,7 @@ export function GalaxyMap({ s }: { s: GameState }) {
                     {p.foodBand[0]}–{p.foodBand[1]}
                   </td>
                   <td className="muted">{p.marketBias}</td>
-                  <td style={{ whiteSpace: 'normal' }}>
+                  <td className="wrap">
                     {specialText(p).map((t) => (
                       <Badge key={t}>{t}</Badge>
                     ))}
