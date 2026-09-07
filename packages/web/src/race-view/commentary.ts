@@ -187,6 +187,12 @@ export interface CommentaryContext {
 }
 
 const MIN_GAP = 1.15;
+/** When the break is called. Late enough that the opening line gets its moment first. */
+const BREAK_CALL_AT = 1.2;
+/** Lead changes inside this many ticks are the boxes sorting themselves out, not a move. */
+const SETTLE_TICKS = 18;
+/** Two runners emptying is a story; five is a list. */
+const MAX_FADES = 2;
 const SPEED_WINDOW = 10;
 
 /** Place of every runner at a tick, by distance. Index-aligned with `result.entries`. */
@@ -231,8 +237,9 @@ export function buildCommentary(ctx: CommentaryContext): CommentaryLine[] {
     if ((early[i] ?? 0) < (early[slow] ?? 0)) slow = i;
   }
   const spread = (early[fast] ?? 0) - (early[slow] ?? 0);
+  // Read off tick 7 but called a beat later, so the opening line is not immediately buried.
   out.push(
-    say('break', secs(breakTick), `${result.cls}:${entries[fast]!.dogId}`, {
+    say('break', BREAK_CALL_AT, `${result.cls}:${entries[fast]!.dogId}`, {
       ...base,
       dog: entries[fast]!.name,
       trap: entries[fast]!.trap,
@@ -240,7 +247,7 @@ export function buildCommentary(ctx: CommentaryContext): CommentaryLine[] {
   );
   if (spread > 1.6) {
     out.push(
-      say('breakSlow', secs(breakTick) + 1.3, `${result.cls}:${entries[slow]!.dogId}`, {
+      say('breakSlow', BREAK_CALL_AT + 1.3, `${result.cls}:${entries[slow]!.dogId}`, {
         ...base,
         dog: entries[slow]!.name,
         trap: entries[slow]!.trap,
@@ -251,6 +258,7 @@ export function buildCommentary(ctx: CommentaryContext): CommentaryLine[] {
   // --- Lead changes and bumps, straight out of the engine's event list ---
   for (const ev of result.events) {
     if (ev.kind === 'leadChange') {
+      if (ev.tick < SETTLE_TICKS) continue;
       out.push(
         say('leadChange', secs(ev.tick), `${result.cls}:${ev.tick}:${ev.dogId}`, {
           ...base,
@@ -340,14 +348,17 @@ export function buildCommentary(ctx: CommentaryContext): CommentaryLine[] {
     }
     // A late run: well beaten at halfway, in the money by the line.
     const finalPlace = result.order.indexOf(id) + 1;
-    let midPlace = n;
+    let midPlace = 0;
     for (const { k, place } of samples) {
-      const frac = (ticks[k]?.[i] ?? 0) / distance;
-      if (frac >= 0.45 && frac <= 0.6) midPlace = Math.min(midPlace, place[i]!);
+      if ((ticks[k]?.[i] ?? 0) / distance >= 0.5) {
+        midPlace = place[i]!;
+        break;
+      }
     }
-    if (finalPlace > 0 && midPlace - finalPlace >= 2 && finalPlace <= 3) {
+    const gained = midPlace - finalPlace;
+    if (finalPlace > 0 && ((gained >= 2 && finalPlace <= 3) || (gained >= 3 && finalPlace <= 4))) {
       closers.push(
-        say('lateRun', Math.max(0, secs(finish) - 2.2), `${result.cls}:${id}`, {
+        say('lateRun', Math.max(0, secs(finish) - 3.4), `${result.cls}:${id}`, {
           ...base,
           dog: entries[i]!.name,
           trap: entries[i]!.trap,
@@ -355,7 +366,8 @@ export function buildCommentary(ctx: CommentaryContext): CommentaryLine[] {
       );
     }
   }
-  out.push(...fades, ...closers);
+  fades.sort((a, b) => a.t - b.t);
+  out.push(...fades.slice(0, MAX_FADES), ...closers);
 
   // --- The line ---
   const winner = result.order[0];
