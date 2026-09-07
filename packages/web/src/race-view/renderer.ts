@@ -76,13 +76,75 @@ function lerp(a: number, b: number, k: number): number {
   return a + (b - a) * k;
 }
 
+/**
+ * Where every runner is at `time`, read straight out of the tick log. No canvas involved, which
+ * is the point: this is the whole of what the race view knows, so it can be checked headlessly.
+ */
+export function sampleAt(
+  result: RaceResult,
+  track: TrackGeometry,
+  tickSeconds: number,
+  time: number,
+): RaceSample {
+  const entries = result.entries;
+  const n = entries.length;
+  const lastTick = Math.max(0, result.ticks.length - 1);
+  const tick = Math.max(0, Math.min(lastTick, time / tickSeconds));
+  const i0 = Math.floor(tick);
+  const i1 = Math.min(lastTick, i0 + 1);
+  const k = tick - i0;
+  const rowA = result.ticks[i0] ?? [];
+  const rowB = result.ticks[i1] ?? rowA;
+  const finishTickOf = (id: Id): number => result.finishTicks[id] ?? lastTick;
+
+  // The finished dogs are always a prefix of `order`: the engine appends to it as they cross.
+  let finishedCount = 0;
+  while (finishedCount < result.order.length && finishTickOf(result.order[finishedCount]!) <= tick)
+    finishedCount++;
+  const placeOf = new Map<Id, number>();
+  for (let i = 0; i < finishedCount; i++) placeOf.set(result.order[i]!, i + 1);
+
+  const runners: RunnerSample[] = [];
+  for (let i = 0; i < n; i++) {
+    const e = entries[i]!;
+    const distance = lerp(rowA[i] ?? 0, rowB[i] ?? 0, k);
+    runners.push({
+      index: i,
+      dogId: e.dogId,
+      trap: e.trap,
+      name: e.name,
+      distance,
+      pose: track.runnerAt(distance, e.trap, n),
+      place: placeOf.get(e.dogId) ?? 0,
+      finished: placeOf.has(e.dogId),
+      behind: 0,
+    });
+  }
+  // Anyone still running is ranked behind everyone who has crossed, by distance.
+  const running = runners.filter((r) => !r.finished).sort((a, b) => b.distance - a.distance);
+  running.forEach((r, i) => {
+    r.place = finishedCount + i + 1;
+  });
+  const standing = [...runners].sort((a, b) => a.place - b.place);
+  const front = Math.max(...runners.map((r) => r.distance));
+  for (const r of runners) r.behind = Math.max(0, front - r.distance);
+
+  return {
+    time,
+    tick,
+    runners,
+    standing,
+    leader: standing[0]!,
+    progress: Math.max(0, Math.min(1, front / track.distance)),
+    finishedCount,
+  };
+}
+
 export function createRenderer(canvas: HTMLCanvasElement, opts: RendererOptions): Renderer {
   const { result, track, tickSeconds } = opts;
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('This browser has no 2D canvas context.');
   const camera: Camera = createCamera();
-  const entries = result.entries;
-  const n = entries.length;
   const lastTick = Math.max(0, result.ticks.length - 1);
   const duration = lastTick * tickSeconds;
 
@@ -116,61 +178,7 @@ export function createRenderer(canvas: HTMLCanvasElement, opts: RendererOptions)
     canvas.height = Math.max(1, Math.round(h * dpr));
   }
 
-  function sample(time: number): RaceSample {
-    const raw = time / tickSeconds;
-    const tick = Math.max(0, Math.min(lastTick, raw));
-    const i0 = Math.floor(tick);
-    const i1 = Math.min(lastTick, i0 + 1);
-    const k = tick - i0;
-    const rowA = result.ticks[i0] ?? [];
-    const rowB = result.ticks[i1] ?? rowA;
-
-    // The finished dogs are always a prefix of `order`: the engine appends to it as they cross.
-    let finishedCount = 0;
-    while (
-      finishedCount < result.order.length &&
-      finishTickOf(result.order[finishedCount]!) <= tick
-    )
-      finishedCount++;
-    const placeOf = new Map<Id, number>();
-    for (let i = 0; i < finishedCount; i++) placeOf.set(result.order[i]!, i + 1);
-
-    const runners: RunnerSample[] = [];
-    for (let i = 0; i < n; i++) {
-      const e = entries[i]!;
-      const distance = lerp(rowA[i] ?? 0, rowB[i] ?? 0, k);
-      runners.push({
-        index: i,
-        dogId: e.dogId,
-        trap: e.trap,
-        name: e.name,
-        distance,
-        pose: track.runnerAt(distance, e.trap, n),
-        place: placeOf.get(e.dogId) ?? 0,
-        finished: placeOf.has(e.dogId),
-        behind: 0,
-      });
-    }
-    // Anyone still running is ranked behind everyone who has crossed, by distance.
-    const running = runners.filter((r) => !r.finished).sort((a, b) => b.distance - a.distance);
-    running.forEach((r, i) => {
-      r.place = finishedCount + i + 1;
-    });
-    const standing = [...runners].sort((a, b) => a.place - b.place);
-    const leader = standing[0]!;
-    const front = Math.max(...runners.map((r) => r.distance));
-    for (const r of runners) r.behind = Math.max(0, front - r.distance);
-
-    return {
-      time,
-      tick,
-      runners,
-      standing,
-      leader,
-      progress: Math.max(0, Math.min(1, front / track.distance)),
-      finishedCount,
-    };
-  }
+  const sample = (time: number): RaceSample => sampleAt(result, track, tickSeconds, time);
 
   function screen(p: { x: number; y: number }): { x: number; y: number } {
     return {
