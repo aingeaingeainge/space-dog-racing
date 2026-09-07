@@ -323,3 +323,73 @@ dl.kv dd {
 .log p {
   margin: 0 0 3px;
 }
+
+/* ---- session 2: shops, gauges, notes ---- */
+.bar.wide {
+  width: 140px;
+  height: 10px;
+}
+.gauge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-variant-numeric: tabular-nums;
+}
+ul.notes {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  color: var(--muted);
+  font-size: 12px;
+}
+ul.notes li {
+  margin-bottom: 2px;
+}
+.shop-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid #34323f;
+}
+.shop-row:last-child {
+  border-bottom: none;
+}
+.shop-row .what {
+  min-width: 190px;
+}
+.shop-row .what b {
+  display: block;
+}
+.shop-row .price {
+  font-variant-numeric: tabular-nums;
+  min-width: 110px;
+  text-align: right;
+  color: var(--hazard);
+}
+.shop-row .why {
+  color: var(--muted);
+  font-size: 12px;
+  flex-basis: 100%;
+}
+input[type='range'] {
+  vertical-align: middle;
+  accent-color: var(--acid);
+  padding: 0;
+  border: none;
+  background: none;
+}
+.venues {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.venues button {
+  min-width: 118px;
+}
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+}

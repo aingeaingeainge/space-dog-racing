@@ -13,7 +13,7 @@ import { clearSave, readSave, writeSave, SAVE_VERSION, type SaveBlob } from './p
 import { applyActions } from './loop';
 
 /** Where the human is looking during their own phase. Never part of game state. */
-export type View = 'hub' | 'stable' | 'office' | 'map';
+export type View = 'hub' | 'stable' | 'market' | 'docks' | 'saloon' | 'office' | 'map';
 
 export interface GameStore {
   setup: SeasonSetup | null;
