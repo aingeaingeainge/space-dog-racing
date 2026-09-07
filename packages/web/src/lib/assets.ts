@@ -8,39 +8,39 @@ import type { Id } from '@sdr/engine';
  * hand-written path that a rename could silently break.
  *
  * The placeholder convention, which is what makes "obviously unfinished" work without a
- * manifest to maintain: **placeholders are `.png`, finished art is `.webp`.** The resolver
+ * manifest to maintain: **placeholders are `.svg`, finished art is `.webp`.** The resolver
  * prefers `.webp`, so dropping the real file in takes over immediately, and anything still
- * showing a `.png` is stamped PLACEHOLDER by whichever component drew it. Delete the `.png`
+ * showing an `.svg` is stamped PLACEHOLDER by whichever component drew it. Delete the `.svg`
  * once the `.webp` is in and nothing changes. See design/ASSET_LIST.md.
  */
 
 type UrlMap = Record<string, string>;
 
-const planets = import.meta.glob('../assets/planets/*/*.{webp,png}', {
+const planets = import.meta.glob('../assets/planets/*/*.{webp,svg}', {
   eager: true,
   query: '?url',
   import: 'default',
 }) as UrlMap;
 
-const events = import.meta.glob('../assets/events/*.{webp,png}', {
+const events = import.meta.glob('../assets/events/*.{webp,svg}', {
   eager: true,
   query: '?url',
   import: 'default',
 }) as UrlMap;
 
-const portraits = import.meta.glob('../assets/portraits/*.{webp,png}', {
+const portraits = import.meta.glob('../assets/portraits/*.{webp,svg}', {
   eager: true,
   query: '?url',
   import: 'default',
 }) as UrlMap;
 
-const dogs = import.meta.glob('../assets/dogs/**/*.{webp,png}', {
+const dogs = import.meta.glob('../assets/dogs/**/*.{webp,svg}', {
   eager: true,
   query: '?url',
   import: 'default',
 }) as UrlMap;
 
-const ui = import.meta.glob('../assets/ui/*.{webp,png}', {
+const ui = import.meta.glob('../assets/ui/*.{webp,svg}', {
   eager: true,
   query: '?url',
   import: 'default',
@@ -56,8 +56,8 @@ export interface Art {
 function resolve(map: UrlMap, stem: string): Art | null {
   const webp = map[`${stem}.webp`];
   if (webp) return { url: webp, placeholder: false };
-  const png = map[`${stem}.png`];
-  if (png) return { url: png, placeholder: true };
+  const svg = map[`${stem}.svg`];
+  if (svg) return { url: svg, placeholder: true };
   return null;
 }
 
