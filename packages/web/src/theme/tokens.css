@@ -1,0 +1,17 @@
+/* GDD §16 palette. Full theme arrives in M3; M0 only needs the page not to be white. */
+:root {
+  --charcoal: #1b1a22;
+  --rust: #6b3a22;
+  --acid: #9be84b;
+  --hazard: #f4c542;
+  --pink: #f04e98;
+  --cyan: #3fd6e0;
+  --text: #f4f4f4;
+}
+html,
+body {
+  margin: 0;
+  background: var(--charcoal);
+  color: var(--text);
+  font-family: 'Space Mono', ui-monospace, Menlo, Consolas, monospace;
+}
