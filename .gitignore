@@ -144,3 +144,6 @@ vite.config.ts.timestamp-*
 
 # Space Dog Racing
 backups/
+
+# Screenshots and files the Claude desktop app drops into the project folder
+Claude outputs/
