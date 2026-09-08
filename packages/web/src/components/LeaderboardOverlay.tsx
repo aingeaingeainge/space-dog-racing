@@ -1,6 +1,7 @@
 import { formatBones, type GameState, type Id } from '@sdr/engine';
 import { standings } from '../lib/selectors';
 import { Modal, StableName } from './ui';
+import { OwnerBlurb, OwnerFace } from './Owner';
 import { useGame } from '../store/gameStore';
 
 /** GDD §15.10 — everything public, reachable from every screen. */
@@ -37,7 +38,13 @@ export function LeaderboardOverlay({ s, meId }: { s: GameState; meId: Id | null 
               >
                 <td>{i + 1}</td>
                 <td>
-                  <StableName player={r.player} me={r.player.id === meId} />
+                  <span className="owner-cell">
+                    <OwnerFace player={r.player} />
+                    <span>
+                      <StableName player={r.player} me={r.player.id === meId} />
+                      <OwnerBlurb player={r.player} />
+                    </span>
+                  </span>
                 </td>
                 <td className="num">{formatBones(r.cash)}</td>
                 <td className="num">{formatBones(r.dogs)}</td>

@@ -10,6 +10,7 @@ import { Panel } from '../components/Panel';
 import { Badge, Delta, StableName, Traits } from '../components/ui';
 import { NeonButton } from '../components/NeonButton';
 import { BettingSlip, type SlipRow } from '../components/BettingSlip';
+import { OwnerFace } from '../components/Owner';
 import { CLASS_LABEL, playerById } from '../lib/selectors';
 import { useGame } from '../store/gameStore';
 
@@ -46,7 +47,10 @@ function RaceTable({ s, r, meId }: { s: GameState; r: RaceResult; meId: string }
                 <td>{e.name}</td>
                 <td>
                   {owner ? (
-                    <StableName player={owner} me={owner.id === meId} />
+                    <span className="owner-cell">
+                      <OwnerFace player={owner} />
+                      <StableName player={owner} me={owner.id === meId} />
+                    </span>
                   ) : (
                     <Badge>local</Badge>
                   )}

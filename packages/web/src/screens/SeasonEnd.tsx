@@ -1,6 +1,7 @@
 import { formatBones, planetOf, type GameState } from '@sdr/engine';
 import { Panel } from '../components/Panel';
 import { StableName } from '../components/ui';
+import { OwnerBlurb, OwnerFace } from '../components/Owner';
 import { NeonButton } from '../components/NeonButton';
 import { standings } from '../lib/selectors';
 import { useGame } from '../store/gameStore';
@@ -26,9 +27,11 @@ export function SeasonEnd({ s }: { s: GameState }) {
           {podium.map((r, i) => (
             <div key={r.player.id} className={i === 0 ? 'first' : undefined}>
               <div className="medal">{['🥇', '🥈', '🥉'][i]}</div>
+              <OwnerFace player={r.player} big />
               <div>
                 <StableName player={r.player} />
               </div>
+              <OwnerBlurb player={r.player} />
               <div className="worth">{formatBones(r.netWorth)}</div>
               <div className="muted">{r.goldWins} Gold wins</div>
             </div>

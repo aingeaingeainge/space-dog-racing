@@ -88,13 +88,20 @@ h3 {
 }
 
 /* ---------------------------------------------------------------- panel: riveted metal */
+/* Every painted surface below names a --art-* custom property with the CSS the kit already had
+   as its fallback, so a finished texture takes over the moment lib/uiFurniture.ts publishes it
+   and nothing moves until one does. */
 .panel {
   position: relative;
   margin-bottom: 14px;
   border: 2px solid var(--ink);
   border-radius: var(--radius);
-  background:
+  background-image:
+    var(--art-plate, none),
     linear-gradient(180deg, var(--plate-hi) 0, var(--plate) 14%, var(--plate-lo) 100%);
+  background-size: 256px 256px, auto;
+  background-repeat: repeat, no-repeat;
+  background-blend-mode: overlay, normal;
   box-shadow:
     inset 0 0 0 1px var(--edge),
     inset 0 1px 0 1px rgba(255, 255, 255, 0.04),
@@ -108,6 +115,10 @@ h3 {
   pointer-events: none;
   border-radius: 2px;
   background-image:
+    var(--art-rivet, none),
+    var(--art-rivet, none),
+    var(--art-rivet, none),
+    var(--art-rivet, none),
     radial-gradient(
       circle at 3px 3px,
       var(--rivet) 0 1.5px,
@@ -132,6 +143,25 @@ h3 {
       var(--rivet-dark) 1.7px 2.4px,
       transparent 2.6px
     );
+  /* Four painted rivets, one per corner, over the four gradients that draw them today. */
+  background-position:
+    0 0,
+    100% 0,
+    0 100%,
+    100% 100%,
+    0 0,
+    0 0,
+    0 0,
+    0 0;
+  background-size:
+    7px 7px,
+    7px 7px,
+    7px 7px,
+    7px 7px,
+    auto,
+    auto,
+    auto,
+    auto;
   background-repeat: no-repeat;
   z-index: 2;
 }
@@ -579,8 +609,15 @@ ul.notes li::before {
   text-align: center;
   padding: 44px 12px 28px;
 }
+/* The painted nameplate is blank by design (ASSET_LIST: "NO letters and NO words"), so it sits
+   behind the lettering rather than replacing it. No file, no plate, no change. */
 .centre h1 {
   margin: 0 0 8px;
+  padding: 10px 26px;
+  background-image: var(--art-logo, none);
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
   font-size: clamp(26px, 6vw, 46px);
   letter-spacing: 0.03em;
   color: var(--accent-1-text);
@@ -654,13 +691,17 @@ ul.notes li::before {
   padding: 0;
   border: 2px solid var(--ink);
   border-radius: 4px;
-  background:
+  background-image:
+    var(--art-ticket, none),
     repeating-linear-gradient(
       -45deg,
       rgba(255, 255, 255, 0.015) 0 10px,
       transparent 10px 20px
     ),
     linear-gradient(180deg, #efe7d4, #d9cfb8);
+  background-size: 512px auto, auto, auto;
+  background-repeat: repeat-y, repeat, no-repeat;
+  background-blend-mode: multiply, normal, normal;
   color: #211d18;
   box-shadow: var(--shadow-drop);
   overflow: hidden;
@@ -774,7 +815,10 @@ ul.notes li::before {
 .slip {
   border: 2px solid var(--ink);
   border-radius: 3px;
-  background: linear-gradient(180deg, #fdfaf2, #eae2cf);
+  background-image: var(--art-slip, none), linear-gradient(180deg, #fdfaf2, #eae2cf);
+  background-size: cover, auto;
+  background-repeat: no-repeat, no-repeat;
+  background-blend-mode: multiply, normal;
   color: #211d18;
   box-shadow: var(--shadow-drop);
   overflow: hidden;
@@ -1011,6 +1055,60 @@ ul.notes li::before {
   vertical-align: -13px;
 }
 
+/* ---------------------------------------------------------------- AI stable owners (GDD §14) */
+.ownerface {
+  display: inline-block;
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--ink);
+  border-radius: 50%;
+  background: var(--pitch);
+  overflow: hidden;
+}
+.ownerface img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.ownerface.big {
+  width: 76px;
+  height: 76px;
+  border-width: 2px;
+  border-radius: 4px;
+  margin: 0 auto 6px;
+}
+.ownerface.big.ph {
+  display: grid;
+  place-items: center;
+  text-align: center;
+  font-size: 9px;
+  line-height: 1.25;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--hazard);
+  border-style: dashed;
+  border-color: rgba(244, 197, 66, 0.5);
+  background-image: repeating-linear-gradient(
+    -45deg,
+    rgba(244, 197, 66, 0.13) 0 7px,
+    transparent 7px 14px
+  );
+}
+.owner-cell {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+.owner-blurb {
+  display: block;
+  font-size: 10px;
+  font-style: italic;
+  color: var(--muted);
+}
+
 /* ---------------------------------------------------------------- signpost */
 .signpost {
   position: relative;
@@ -1018,13 +1116,16 @@ ul.notes li::before {
   padding: 11px 14px 13px;
   border: 3px solid var(--ink);
   border-radius: 4px;
-  background:
+  background-image:
+    var(--art-signpost, none),
     repeating-linear-gradient(
       90deg,
       rgba(0, 0, 0, 0.14) 0 2px,
       transparent 2px 9px
     ),
     linear-gradient(180deg, #7d4527, var(--rust) 55%, #4b2717);
+  background-size: 100% 100%, auto, auto;
+  background-repeat: no-repeat, repeat, no-repeat;
   box-shadow:
     inset 0 0 0 1px rgba(255, 255, 255, 0.07),
     var(--shadow-drop);
@@ -1172,6 +1273,12 @@ ul.notes li::before {
   font-size: 17px;
   line-height: 1;
   filter: drop-shadow(0 0 6px var(--accent-1-glow));
+}
+.hotspot .icon img {
+  display: block;
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
 }
 .hotspot .lab {
   font-family: var(--font-display);
