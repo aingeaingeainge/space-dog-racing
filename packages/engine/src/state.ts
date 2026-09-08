@@ -219,7 +219,11 @@ export function createSeason(setup: SeasonSetup): GameState {
     };
     if (ps.kind === 'ai') {
       p.difficulty = ps.difficulty ?? 'normal';
-      p.personality = rng.pick(AI_PERSONALITIES);
+      // GDD §14 pairs the line with the stable — "Baroness Vex never borrows" — so key it off
+      // the name rather than drawing at random, or Vex gets somebody else's habit every season.
+      // AI_PERSONALITIES is written in the same order as AI_STABLE_NAMES.
+      const known = AI_STABLE_NAMES.indexOf(p.name);
+      p.personality = known >= 0 ? AI_PERSONALITIES[known]! : rng.pick(AI_PERSONALITIES);
     }
     for (let k = 0; k < balance.startDogs; k++) {
       const d = createStartingDog(id, rng, ctx.nextId);

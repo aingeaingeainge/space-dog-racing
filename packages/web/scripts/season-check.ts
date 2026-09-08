@@ -280,13 +280,14 @@ function playSeason(seed: number, toggles?: SeasonSetup['toggles']) {
   const setup: SeasonSetup = {
     seed,
     ...(toggles ? { toggles } : {}),
+    // A mixed field, so the check exercises all three difficulties' action streams (M4).
     players: [
       { name: 'Jesse', kind: 'human' },
+      { name: '', kind: 'ai', difficulty: 'easy' },
       { name: '', kind: 'ai', difficulty: 'normal' },
       { name: '', kind: 'ai', difficulty: 'normal' },
-      { name: '', kind: 'ai', difficulty: 'normal' },
-      { name: '', kind: 'ai', difficulty: 'normal' },
-      { name: '', kind: 'ai', difficulty: 'normal' },
+      { name: '', kind: 'ai', difficulty: 'hard' },
+      { name: '', kind: 'ai', difficulty: 'hard' },
     ],
   };
   const tally: Record<string, number> = {
