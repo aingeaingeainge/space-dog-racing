@@ -52,15 +52,29 @@ export interface RendererOptions {
   tickSeconds: number;
   styleFor(index: number): RunnerStyle;
   /**
-   * M3 hook. Return a sprite for this dog and the renderer draws it, rotated to `heading`,
-   * instead of the placeholder capsule. Until then every runner is a coloured capsule.
+   * Return a sprite for this dog and the renderer draws it, rotated to `heading`, instead of
+   * the placeholder capsule. `distance` is metres run — the frame of a run cycle is chosen
+   * from it and never from the clock, so a replay looks identical at 1×, at 2× and after a
+   * skip. Return null and the runner is a coloured capsule, exactly as M2 drew it.
    */
-  spriteFor?: (dogId: Id, heading: number) => CanvasImageSource | null;
+  spriteFor?: (dogId: Id, heading: number, distance: number) => CanvasImageSource | null;
   /**
    * M3. The planet's track colours, built from Planet.accents in race-view/palette.ts. The
    * geometry does not change — only the paint. Omitted, the track is M2's soot brown.
    */
   palette?: RacePalette;
+  /**
+   * The planet's 2048² ground and scenery, drawn behind the ribbon and positioned from
+   * `track.bounds`. Polled every frame rather than passed once, because the file arrives with
+   * the race view and may land after the first frame; until it does, `palette.ground` is the
+   * whole floor and the view is complete without it.
+   */
+  groundFor?: () => HTMLImageElement | null;
+  /**
+   * The planet's seamless 512² surface tile, painted along the ribbon as a CanvasPattern in
+   * place of the flat `palette.surface`. Polled the same way, and turned into a pattern once.
+   */
+  surfaceFor?: () => HTMLImageElement | null;
 }
 
 export interface Renderer {
@@ -77,6 +91,10 @@ export interface Renderer {
 
 const LURE_LEAD = 7;
 const GROUP_METRES = 24;
+/** How far past the track's own bounds the ground image reaches, as a fraction of its size. */
+const GROUND_MARGIN = 0.14;
+/** How much track one edge of the surface tile covers. Small enough to read as grit at speed. */
+const SURFACE_TILE_METRES = 9;
 
 function lerp(a: number, b: number, k: number): number {
   return a + (b - a) * k;
@@ -194,6 +212,47 @@ export function createRenderer(canvas: HTMLCanvasElement, opts: RendererOptions)
     };
   }
 
+  /**
+   * The planet's scenery, under everything. It is deliberately NOT the track: session 1 kept
+   * the geometry in tracks.ts, so nothing here has to line up with a spline — the image is
+   * simply made to cover the track's bounds with a margin, and the ribbon is drawn on top.
+   */
+  function drawGround(): void {
+    const img = opts.groundFor?.() ?? null;
+    if (!img) return;
+    const iw = img.naturalWidth;
+    const ih = img.naturalHeight;
+    if (!iw || !ih) return;
+    const b = track.bounds;
+    const m = Math.max(b.w, b.h) * GROUND_MARGIN;
+    const x = b.x - m;
+    const y = b.y - m;
+    const w = b.w + m * 2;
+    const h = b.h + m * 2;
+    const k = Math.max(w / iw, h / ih);
+    ctx!.drawImage(img, x + (w - iw * k) / 2, y + (h - ih * k) / 2, iw * k, ih * k);
+  }
+
+  let surfacePattern: CanvasPattern | null = null;
+  let patternFrom: HTMLImageElement | null = null;
+
+  /** The surface tile as a pattern in world metres, or the palette's flat colour if it is absent. */
+  function surfacePaint(): string | CanvasPattern {
+    const img = opts.surfaceFor?.() ?? null;
+    if (!img || !img.naturalWidth) return pal.surface;
+    if (img !== patternFrom) {
+      patternFrom = img;
+      const made = ctx!.createPattern(img, 'repeat');
+      if (made && typeof DOMMatrix !== 'undefined') {
+        // The pattern is in user space, which here is metres — scale a 512 px tile down to 9 m.
+        const k = SURFACE_TILE_METRES / img.naturalWidth;
+        made.setTransform(new DOMMatrix([k, 0, 0, k, 0, 0]));
+      }
+      surfacePattern = made;
+    }
+    return surfacePattern ?? pal.surface;
+  }
+
   function drawTrack(): void {
     if (!path) path = buildPath();
     const w = track.halfWidth * 2;
@@ -203,7 +262,7 @@ export function createRenderer(canvas: HTMLCanvasElement, opts: RendererOptions)
     ctx!.strokeStyle = '#0e0d13';
     ctx!.lineWidth = w + 1.6;
     ctx!.stroke(path);
-    ctx!.strokeStyle = pal.surface;
+    ctx!.strokeStyle = surfacePaint();
     ctx!.lineWidth = w;
     ctx!.stroke(path);
     // The rail the dogs hug.
@@ -271,7 +330,7 @@ export function createRenderer(canvas: HTMLCanvasElement, opts: RendererOptions)
 
   function drawRunner(r: RunnerSample, style: RunnerStyle): void {
     const a = Math.atan2(r.pose.hy, r.pose.hx);
-    const sprite = opts.spriteFor?.(r.dogId, a);
+    const sprite = opts.spriteFor?.(r.dogId, a, r.distance);
     ctx!.save();
     ctx!.translate(r.pose.x, r.pose.y);
     ctx!.rotate(a);
@@ -280,8 +339,8 @@ export function createRenderer(canvas: HTMLCanvasElement, opts: RendererOptions)
     ctx!.ellipse(-0.15, 0.35, 1.35, 0.6, 0, 0, Math.PI * 2);
     ctx!.fill();
     if (sprite) {
-      // M3 drops real run cycles in here; the capsule below is the placeholder until then.
-      ctx!.drawImage(sprite as CanvasImageSource, -1.4, -0.6, 2.8, 1.2);
+      // A run-cycle frame: nose-right and 7:3, drawn at 2.8 m × 1.2 m in world units.
+      ctx!.drawImage(sprite, -1.4, -0.6, 2.8, 1.2);
       ctx!.restore();
       return;
     }
@@ -346,6 +405,7 @@ export function createRenderer(canvas: HTMLCanvasElement, opts: RendererOptions)
     ctx!.save();
     camera.apply(ctx!, view);
 
+    drawGround();
     drawTrack();
     if (!track.closed) drawLine(track.poseAt(0), 'start');
     drawLine(track.poseAt(track.distance), 'finish');

@@ -18,7 +18,10 @@ import { useGame, type RaceSpeed } from '../store/gameStore';
 import { buildCommentary, lineAt, type CommentaryLine } from '../race-view/commentary';
 import { createRenderer, type RaceSample, type RunnerStyle } from '../race-view/renderer';
 import { paletteFor } from '../race-view/palette';
+import { spriteAt } from '../race-view/sprites';
 import { trackBlurb, trackFor } from '../race-view/tracks';
+import { planetGround, planetSurface } from '../lib/assets';
+import { loadImage, peekImage } from '../lib/imageCache';
 
 /**
  * GDD §6.3 — the three races, replayed from the tick logs the engine recorded. Bronze, then
@@ -108,6 +111,45 @@ function RaceReplay({
     });
   }, [result, s, me.id]);
 
+  /**
+   * The planet's ground and its surface tile. Both are fetched here rather than with the app,
+   * so a player who never watches a race never pays for them, and both are polled by the
+   * renderer rather than passed in — the first frame draws on session 1's palette colours and
+   * the art takes over the moment it lands.
+   *
+   * Stand-ins are deliberately not used down here. A hatched 2048² placeholder under the track
+   * would be less readable than the flat colour the palette already gives every planet, and
+   * the hub is where the "art is missing" stamp belongs.
+   */
+  const groundUrl = useMemo(() => {
+    const art = planetGround(result.planetId);
+    return art && !art.placeholder ? art.url : null;
+  }, [result.planetId]);
+  const surfaceUrl = useMemo(() => {
+    const art = planetSurface(result.planetId);
+    return art && !art.placeholder ? art.url : null;
+  }, [result.planetId]);
+
+  useEffect(() => {
+    if (groundUrl) void loadImage(groundUrl);
+    if (surfaceUrl) void loadImage(surfaceUrl);
+  }, [groundUrl, surfaceUrl]);
+
+  /** One row per runner: which base body it wears and what colour its saddle cloth is. */
+  const runners = useMemo(
+    () =>
+      result.entries.map((e, i) => ({
+        // A local with no Dog record still gets a stable body, so its cycle does not flicker.
+        body: s.dogs[e.dogId]?.look.body ?? e.trap % 12,
+        colour: styles[i]!.local ? null : styles[i]!.colour,
+      })),
+    [result, s.dogs, styles],
+  );
+  const runnerIndex = useMemo(
+    () => new Map(result.entries.map((e, i) => [e.dogId, i])),
+    [result],
+  );
+
   const commentary = useMemo(
     () =>
       buildCommentary({
@@ -132,6 +174,14 @@ function RaceReplay({
       tickSeconds: balance.raceTickSeconds,
       styleFor: (i) => styles[i]!,
       palette,
+      groundFor: () => (groundUrl ? peekImage(groundUrl) : null),
+      surfaceFor: () => (surfaceUrl ? peekImage(surfaceUrl) : null),
+      spriteFor: (dogId, _heading, distance) => {
+        const i = runnerIndex.get(dogId);
+        if (i === undefined) return null;
+        const r = runners[i]!;
+        return spriteAt(r.body, r.colour, distance);
+      },
     });
     let raf = 0;
     let last = 0;
@@ -200,7 +250,7 @@ function RaceReplay({
       cancelAnimationFrame(raf);
       globalThis.removeEventListener('resize', onResize);
     };
-  }, [result, track, styles, commentary, palette]);
+  }, [result, track, styles, commentary, palette, groundUrl, surfaceUrl, runners, runnerIndex]);
 
   // --- the result overlay advances itself ------------------------------------------------
   useEffect(() => {
