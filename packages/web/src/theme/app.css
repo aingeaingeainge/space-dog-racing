@@ -1597,6 +1597,10 @@ ul.notes li::before {
   }
   .hub-stage {
     aspect-ratio: 4 / 3;
+    /* The desktop min-height fights the aspect ratio on a narrow screen: 300 px tall at 4:3 is
+       400 px wide, which is wider than the phone, and the whole page scrolls sideways. Let the
+       width lead and the ratio set the height. */
+    min-height: 0;
     max-height: 54vh;
   }
   .hotspot {
