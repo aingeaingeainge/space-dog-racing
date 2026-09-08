@@ -972,6 +972,44 @@ ul.notes li::before {
   width: 132px;
   height: 132px;
 }
+/* The composited body × palette × accessory, drawn at the element's own device resolution. */
+.portrait-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* The same portrait at table size — the Market, the Race Office's runner, the Bookie's field. */
+.dogthumb {
+  display: inline-block;
+  vertical-align: -7px;
+  width: 26px;
+  height: 26px;
+  margin-right: 6px;
+  border: 1px solid var(--ink);
+  border-radius: 3px;
+  background: var(--pitch);
+  overflow: hidden;
+}
+.dogthumb.ph {
+  display: inline-grid;
+  place-items: center;
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--hazard);
+  border-style: dashed;
+  border-color: rgba(244, 197, 66, 0.5);
+  background-image: repeating-linear-gradient(
+    -45deg,
+    rgba(244, 197, 66, 0.13) 0 5px,
+    transparent 5px 10px
+  );
+}
+.dogthumb.big {
+  width: 40px;
+  height: 40px;
+  vertical-align: -13px;
+}
 
 /* ---------------------------------------------------------------- signpost */
 .signpost {

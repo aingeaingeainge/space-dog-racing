@@ -12,6 +12,7 @@ import {
   type Player,
   type UpgradeId,
 } from '@sdr/engine';
+import { DogThumb } from '../components/DogCard';
 import { Panel } from '../components/Panel';
 import { Badge, Notes, StatCells, StatHeads, Traits } from '../components/ui';
 import { NeonButton } from '../components/NeonButton';
@@ -98,6 +99,7 @@ export function Market({ s, me }: { s: GameState; me: Player }) {
                 return (
                   <tr key={d.id}>
                     <td>
+                      <DogThumb dog={d} />
                       <b>{d.name}</b>
                       {d.fellOffAShip ? (
                         <Badge tone="bad" title="20% chance the real owner turns up in 3 weeks">
@@ -161,6 +163,7 @@ export function Market({ s, me }: { s: GameState; me: Player }) {
                 return (
                   <tr key={d.id}>
                     <td>
+                      <DogThumb dog={d} />
                       <b>{d.name}</b>
                       {cls ? <Badge tone="good">{CLASS_LABEL[cls]}</Badge> : null}
                       {d.injuryWeeks ? <Badge tone="bad">injured {d.injuryWeeks}w</Badge> : null}

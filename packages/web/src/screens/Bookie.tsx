@@ -12,6 +12,7 @@ import {
   type Player,
   type RaceClass,
 } from '@sdr/engine';
+import { DogThumb } from '../components/DogCard';
 import { Panel } from '../components/Panel';
 import { Badge, Notes, StableName, Traits } from '../components/ui';
 import { NeonButton } from '../components/NeonButton';
@@ -155,6 +156,7 @@ function RaceBetting({
                 <tr key={e.dogId} className={e.ownerId === me.id ? 'me' : ''}>
                   <td>{e.trap}</td>
                   <td>
+                    {d ? <DogThumb dog={d} /> : null}
                     <b>{e.name}</b>
                     {d && d.ownerId === me.id && d.supplemented ? (
                       <Badge tone="hot" title="you fed this one a supplement — the bookie does not know">

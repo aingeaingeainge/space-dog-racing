@@ -9,6 +9,7 @@ import {
   type Player,
   type RaceClass,
 } from '@sdr/engine';
+import { DogThumb } from '../components/DogCard';
 import { Panel } from '../components/Panel';
 import { TicketCard } from '../components/TicketCard';
 import { Badge, Notes, StableName, Traits } from '../components/ui';
@@ -123,6 +124,7 @@ export function RaceOffice({ s, me }: { s: GameState; me: Player }) {
 
               {mine && s.dogs[mine] ? (
                 <p className="tight-p">
+                  <DogThumb dog={s.dogs[mine]!} big />
                   <Traits ids={s.dogs[mine]!.traits} />
                   <span className="muted">
                     fitness {s.dogs[mine]!.fitness} · form {s.dogs[mine]!.form}
