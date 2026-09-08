@@ -757,12 +757,12 @@ photorealism, 3D render, photograph, text, letters, words, readable signage, wat
 
 ### Dog run cycles — 12 files, ~0.5 MB
 
-One 8-frame top-down sheet per base body, nose-right. RendererOptions.spriteFor draws a frame after translate(x, y); rotate(heading) at 2.8 m × 1.2 m in world units, so a frame must be 7:3 and pointing right — 280×120 each, eight in a row.
+One 8-frame top-down sheet per base body, nose-right. RendererOptions.spriteFor draws a frame after translate(x, y); rotate(heading) at 2.8 m × 1.2 m in world units, so a frame must be 7:3 and pointing right — 280×120 each, eight in a row. The dog has to fill its frame edge to edge: it replaces a capsule that occupied 93% of those 2.8 m × 1.2 m, and a dog drawn with a polite margin arrives on the track at half the weight of the runners beside it. run-00 was generated once with that margin and had to be redrawn; check the framing before generating the other eleven.
 
 **Negative prompt for every file in this group:**
 
 ```text
-photorealism, 3D render, photograph, text, letters, watermark, signature, humans, background, ground, shadow on the ground, drop shadow, cast shadow, cropped limbs, soft gradients, motion blur, side view, perspective, colour, varying scale between frames, gaps, borders
+photorealism, 3D render, photograph, text, letters, watermark, signature, humans, background, ground, shadow on the ground, drop shadow, cast shadow, cropped limbs, soft gradients, motion blur, side view, perspective, colour, varying scale between frames, gaps, borders, empty margins, small subject, dog floating in the middle of the frame
 ```
 
 #### run 0 — `src/assets/dogs/run/run-00.webp`
@@ -770,7 +770,7 @@ photorealism, 3D render, photograph, text, letters, watermark, signature, humans
 2240×120 · WebP with alpha · target 45 kB, cap 80 kB · seeds 2000–2099
 
 ```text
-1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. A horizontal 8-frame sprite sheet of a top-down running cycle for a lean classic greyhound, long muzzle, seen from DIRECTLY ABOVE. Eight equal frames of 280×120 pixels in a single row, each frame one step of a gallop, the dog NOSE-RIGHT and filling its frame nose to tail. Neutral greys and whites only with chunky black outlines — the game tints and rotates this in code. Transparent background, no shadow, no ground, no text, frames identical in scale and centring so the cycle does not wobble.
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. A horizontal 8-frame sprite sheet of a top-down running cycle for a lean classic greyhound, long muzzle, seen from DIRECTLY ABOVE. Eight equal frames of 280×120 pixels in a single row, each frame one step of a gallop, the dog NOSE-RIGHT. THE DOG MUST FILL THE FRAME EDGE TO EDGE: nose within a few pixels of the right edge, tail reaching the left edge, the torso at least two thirds of the frame's height, and the legs touching the top and bottom edges at full stretch. No empty margin on any side. Neutral greys and whites only with chunky black outlines — the game tints and rotates this in code. Transparent background, no shadow, no ground, no text, frames identical in scale and centring so the cycle does not wobble.
 ```
 
 #### run 1 — `src/assets/dogs/run/run-01.webp`
@@ -778,7 +778,7 @@ photorealism, 3D render, photograph, text, letters, watermark, signature, humans
 2240×120 · WebP with alpha · target 45 kB, cap 80 kB · seeds 2100–2199
 
 ```text
-1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. A horizontal 8-frame sprite sheet of a top-down running cycle for a scruffy rough-coated lurcher with a bent ear, seen from DIRECTLY ABOVE. Eight equal frames of 280×120 pixels in a single row, each frame one step of a gallop, the dog NOSE-RIGHT and filling its frame nose to tail. Neutral greys and whites only with chunky black outlines — the game tints and rotates this in code. Transparent background, no shadow, no ground, no text, frames identical in scale and centring so the cycle does not wobble.
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. A horizontal 8-frame sprite sheet of a top-down running cycle for a scruffy rough-coated lurcher with a bent ear, seen from DIRECTLY ABOVE. Eight equal frames of 280×120 pixels in a single row, each frame one step of a gallop, the dog NOSE-RIGHT. THE DOG MUST FILL THE FRAME EDGE TO EDGE: nose within a few pixels of the right edge, tail reaching the left edge, the torso at least two thirds of the frame's height, and the legs touching the top and bottom edges at full stretch. No empty margin on any side. Neutral greys and whites only with chunky black outlines — the game tints and rotates this in code. Transparent background, no shadow, no ground, no text, frames identical in scale and centring so the cycle does not wobble.
 ```
 
 #### run 2 — `src/assets/dogs/run/run-02.webp`
@@ -786,7 +786,7 @@ photorealism, 3D render, photograph, text, letters, watermark, signature, humans
 2240×120 · WebP with alpha · target 45 kB, cap 80 kB · seeds 2200–2299
 
 ```text
-1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. A horizontal 8-frame sprite sheet of a top-down running cycle for a whippet-thin runner with an oversized head, seen from DIRECTLY ABOVE. Eight equal frames of 280×120 pixels in a single row, each frame one step of a gallop, the dog NOSE-RIGHT and filling its frame nose to tail. Neutral greys and whites only with chunky black outlines — the game tints and rotates this in code. Transparent background, no shadow, no ground, no text, frames identical in scale and centring so the cycle does not wobble.
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. A horizontal 8-frame sprite sheet of a top-down running cycle for a whippet-thin runner with an oversized head, seen from DIRECTLY ABOVE. Eight equal frames of 280×120 pixels in a single row, each frame one step of a gallop, the dog NOSE-RIGHT. THE DOG MUST FILL THE FRAME EDGE TO EDGE: nose within a few pixels of the right edge, tail reaching the left edge, the torso at least two thirds of the frame's height, and the legs touching the top and bottom edges at full stretch. No empty margin on any side. Neutral greys and whites only with chunky black outlines — the game tints and rotates this in code. Transparent background, no shadow, no ground, no text, frames identical in scale and centring so the cycle does not wobble.
 ```
 
 #### run 3 — `src/assets/dogs/run/run-03.webp`
@@ -794,7 +794,7 @@ photorealism, 3D render, photograph, text, letters, watermark, signature, humans
 2240×120 · WebP with alpha · target 45 kB, cap 80 kB · seeds 2300–2399
 
 ```text
-1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. A horizontal 8-frame sprite sheet of a top-down running cycle for a barrel-chested bruiser of a hound, seen from DIRECTLY ABOVE. Eight equal frames of 280×120 pixels in a single row, each frame one step of a gallop, the dog NOSE-RIGHT and filling its frame nose to tail. Neutral greys and whites only with chunky black outlines — the game tints and rotates this in code. Transparent background, no shadow, no ground, no text, frames identical in scale and centring so the cycle does not wobble.
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. A horizontal 8-frame sprite sheet of a top-down running cycle for a barrel-chested bruiser of a hound, seen from DIRECTLY ABOVE. Eight equal frames of 280×120 pixels in a single row, each frame one step of a gallop, the dog NOSE-RIGHT. THE DOG MUST FILL THE FRAME EDGE TO EDGE: nose within a few pixels of the right edge, tail reaching the left edge, the torso at least two thirds of the frame's height, and the legs touching the top and bottom edges at full stretch. No empty margin on any side. Neutral greys and whites only with chunky black outlines — the game tints and rotates this in code. Transparent background, no shadow, no ground, no text, frames identical in scale and centring so the cycle does not wobble.
 ```
 
 #### run 4 — `src/assets/dogs/run/run-04.webp`
@@ -802,7 +802,7 @@ photorealism, 3D render, photograph, text, letters, watermark, signature, humans
 2240×120 · WebP with alpha · target 45 kB, cap 80 kB · seeds 2400–2499
 
 ```text
-1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. A horizontal 8-frame sprite sheet of a top-down running cycle for a six-legged alien greyhound, seen from DIRECTLY ABOVE. Eight equal frames of 280×120 pixels in a single row, each frame one step of a gallop, the dog NOSE-RIGHT and filling its frame nose to tail. Neutral greys and whites only with chunky black outlines — the game tints and rotates this in code. Transparent background, no shadow, no ground, no text, frames identical in scale and centring so the cycle does not wobble.
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. A horizontal 8-frame sprite sheet of a top-down running cycle for a six-legged alien greyhound, seen from DIRECTLY ABOVE. Eight equal frames of 280×120 pixels in a single row, each frame one step of a gallop, the dog NOSE-RIGHT. THE DOG MUST FILL THE FRAME EDGE TO EDGE: nose within a few pixels of the right edge, tail reaching the left edge, the torso at least two thirds of the frame's height, and the legs touching the top and bottom edges at full stretch. No empty margin on any side. Neutral greys and whites only with chunky black outlines — the game tints and rotates this in code. Transparent background, no shadow, no ground, no text, frames identical in scale and centring so the cycle does not wobble.
 ```
 
 #### run 5 — `src/assets/dogs/run/run-05.webp`
@@ -810,7 +810,7 @@ photorealism, 3D render, photograph, text, letters, watermark, signature, humans
 2240×120 · WebP with alpha · target 45 kB, cap 80 kB · seeds 2500–2599
 
 ```text
-1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. A horizontal 8-frame sprite sheet of a top-down running cycle for a hound with three eyes in a row down its forehead, seen from DIRECTLY ABOVE. Eight equal frames of 280×120 pixels in a single row, each frame one step of a gallop, the dog NOSE-RIGHT and filling its frame nose to tail. Neutral greys and whites only with chunky black outlines — the game tints and rotates this in code. Transparent background, no shadow, no ground, no text, frames identical in scale and centring so the cycle does not wobble.
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. A horizontal 8-frame sprite sheet of a top-down running cycle for a hound with three eyes in a row down its forehead, seen from DIRECTLY ABOVE. Eight equal frames of 280×120 pixels in a single row, each frame one step of a gallop, the dog NOSE-RIGHT. THE DOG MUST FILL THE FRAME EDGE TO EDGE: nose within a few pixels of the right edge, tail reaching the left edge, the torso at least two thirds of the frame's height, and the legs touching the top and bottom edges at full stretch. No empty margin on any side. Neutral greys and whites only with chunky black outlines — the game tints and rotates this in code. Transparent background, no shadow, no ground, no text, frames identical in scale and centring so the cycle does not wobble.
 ```
 
 #### run 6 — `src/assets/dogs/run/run-06.webp`
@@ -818,7 +818,7 @@ photorealism, 3D render, photograph, text, letters, watermark, signature, humans
 2240×120 · WebP with alpha · target 45 kB, cap 80 kB · seeds 2600–2699
 
 ```text
-1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. A horizontal 8-frame sprite sheet of a top-down running cycle for a hound with two chrome prosthetic hind legs, seen from DIRECTLY ABOVE. Eight equal frames of 280×120 pixels in a single row, each frame one step of a gallop, the dog NOSE-RIGHT and filling its frame nose to tail. Neutral greys and whites only with chunky black outlines — the game tints and rotates this in code. Transparent background, no shadow, no ground, no text, frames identical in scale and centring so the cycle does not wobble.
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. A horizontal 8-frame sprite sheet of a top-down running cycle for a hound with two chrome prosthetic hind legs, seen from DIRECTLY ABOVE. Eight equal frames of 280×120 pixels in a single row, each frame one step of a gallop, the dog NOSE-RIGHT. THE DOG MUST FILL THE FRAME EDGE TO EDGE: nose within a few pixels of the right edge, tail reaching the left edge, the torso at least two thirds of the frame's height, and the legs touching the top and bottom edges at full stretch. No empty margin on any side. Neutral greys and whites only with chunky black outlines — the game tints and rotates this in code. Transparent background, no shadow, no ground, no text, frames identical in scale and centring so the cycle does not wobble.
 ```
 
 #### run 7 — `src/assets/dogs/run/run-07.webp`
@@ -826,7 +826,7 @@ photorealism, 3D render, photograph, text, letters, watermark, signature, humans
 2240×120 · WebP with alpha · target 45 kB, cap 80 kB · seeds 2700–2799
 
 ```text
-1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. A horizontal 8-frame sprite sheet of a top-down running cycle for a translucent hound you can see the ribs through, seen from DIRECTLY ABOVE. Eight equal frames of 280×120 pixels in a single row, each frame one step of a gallop, the dog NOSE-RIGHT and filling its frame nose to tail. Neutral greys and whites only with chunky black outlines — the game tints and rotates this in code. Transparent background, no shadow, no ground, no text, frames identical in scale and centring so the cycle does not wobble.
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. A horizontal 8-frame sprite sheet of a top-down running cycle for a translucent hound you can see the ribs through, seen from DIRECTLY ABOVE. Eight equal frames of 280×120 pixels in a single row, each frame one step of a gallop, the dog NOSE-RIGHT. THE DOG MUST FILL THE FRAME EDGE TO EDGE: nose within a few pixels of the right edge, tail reaching the left edge, the torso at least two thirds of the frame's height, and the legs touching the top and bottom edges at full stretch. No empty margin on any side. Neutral greys and whites only with chunky black outlines — the game tints and rotates this in code. Transparent background, no shadow, no ground, no text, frames identical in scale and centring so the cycle does not wobble.
 ```
 
 #### run 8 — `src/assets/dogs/run/run-08.webp`
@@ -834,7 +834,7 @@ photorealism, 3D render, photograph, text, letters, watermark, signature, humans
 2240×120 · WebP with alpha · target 45 kB, cap 80 kB · seeds 2800–2899
 
 ```text
-1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. A horizontal 8-frame sprite sheet of a top-down running cycle for a long antennaed hound with insect feelers, seen from DIRECTLY ABOVE. Eight equal frames of 280×120 pixels in a single row, each frame one step of a gallop, the dog NOSE-RIGHT and filling its frame nose to tail. Neutral greys and whites only with chunky black outlines — the game tints and rotates this in code. Transparent background, no shadow, no ground, no text, frames identical in scale and centring so the cycle does not wobble.
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. A horizontal 8-frame sprite sheet of a top-down running cycle for a long antennaed hound with insect feelers, seen from DIRECTLY ABOVE. Eight equal frames of 280×120 pixels in a single row, each frame one step of a gallop, the dog NOSE-RIGHT. THE DOG MUST FILL THE FRAME EDGE TO EDGE: nose within a few pixels of the right edge, tail reaching the left edge, the torso at least two thirds of the frame's height, and the legs touching the top and bottom edges at full stretch. No empty margin on any side. Neutral greys and whites only with chunky black outlines — the game tints and rotates this in code. Transparent background, no shadow, no ground, no text, frames identical in scale and centring so the cycle does not wobble.
 ```
 
 #### run 9 — `src/assets/dogs/run/run-09.webp`
@@ -842,7 +842,7 @@ photorealism, 3D render, photograph, text, letters, watermark, signature, humans
 2240×120 · WebP with alpha · target 45 kB, cap 80 kB · seeds 2900–2999
 
 ```text
-1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. A horizontal 8-frame sprite sheet of a top-down running cycle for an ancient grey-muzzled veteran hound, scarred, seen from DIRECTLY ABOVE. Eight equal frames of 280×120 pixels in a single row, each frame one step of a gallop, the dog NOSE-RIGHT and filling its frame nose to tail. Neutral greys and whites only with chunky black outlines — the game tints and rotates this in code. Transparent background, no shadow, no ground, no text, frames identical in scale and centring so the cycle does not wobble.
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. A horizontal 8-frame sprite sheet of a top-down running cycle for an ancient grey-muzzled veteran hound, scarred, seen from DIRECTLY ABOVE. Eight equal frames of 280×120 pixels in a single row, each frame one step of a gallop, the dog NOSE-RIGHT. THE DOG MUST FILL THE FRAME EDGE TO EDGE: nose within a few pixels of the right edge, tail reaching the left edge, the torso at least two thirds of the frame's height, and the legs touching the top and bottom edges at full stretch. No empty margin on any side. Neutral greys and whites only with chunky black outlines — the game tints and rotates this in code. Transparent background, no shadow, no ground, no text, frames identical in scale and centring so the cycle does not wobble.
 ```
 
 #### run 10 — `src/assets/dogs/run/run-10.webp`
@@ -850,7 +850,7 @@ photorealism, 3D render, photograph, text, letters, watermark, signature, humans
 2240×120 · WebP with alpha · target 45 kB, cap 80 kB · seeds 3000–3099
 
 ```text
-1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. A horizontal 8-frame sprite sheet of a top-down running cycle for a leggy vat-grown pup, all knees and ears, seen from DIRECTLY ABOVE. Eight equal frames of 280×120 pixels in a single row, each frame one step of a gallop, the dog NOSE-RIGHT and filling its frame nose to tail. Neutral greys and whites only with chunky black outlines — the game tints and rotates this in code. Transparent background, no shadow, no ground, no text, frames identical in scale and centring so the cycle does not wobble.
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. A horizontal 8-frame sprite sheet of a top-down running cycle for a leggy vat-grown pup, all knees and ears, seen from DIRECTLY ABOVE. Eight equal frames of 280×120 pixels in a single row, each frame one step of a gallop, the dog NOSE-RIGHT. THE DOG MUST FILL THE FRAME EDGE TO EDGE: nose within a few pixels of the right edge, tail reaching the left edge, the torso at least two thirds of the frame's height, and the legs touching the top and bottom edges at full stretch. No empty margin on any side. Neutral greys and whites only with chunky black outlines — the game tints and rotates this in code. Transparent background, no shadow, no ground, no text, frames identical in scale and centring so the cycle does not wobble.
 ```
 
 #### run 11 — `src/assets/dogs/run/run-11.webp`
@@ -858,7 +858,7 @@ photorealism, 3D render, photograph, text, letters, watermark, signature, humans
 2240×120 · WebP with alpha · target 45 kB, cap 80 kB · seeds 3100–3199
 
 ```text
-1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. A horizontal 8-frame sprite sheet of a top-down running cycle for a shaggy tusked hound with a boar-like snout, seen from DIRECTLY ABOVE. Eight equal frames of 280×120 pixels in a single row, each frame one step of a gallop, the dog NOSE-RIGHT and filling its frame nose to tail. Neutral greys and whites only with chunky black outlines — the game tints and rotates this in code. Transparent background, no shadow, no ground, no text, frames identical in scale and centring so the cycle does not wobble.
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. A horizontal 8-frame sprite sheet of a top-down running cycle for a shaggy tusked hound with a boar-like snout, seen from DIRECTLY ABOVE. Eight equal frames of 280×120 pixels in a single row, each frame one step of a gallop, the dog NOSE-RIGHT. THE DOG MUST FILL THE FRAME EDGE TO EDGE: nose within a few pixels of the right edge, tail reaching the left edge, the torso at least two thirds of the frame's height, and the legs touching the top and bottom edges at full stretch. No empty margin on any side. Neutral greys and whites only with chunky black outlines — the game tints and rotates this in code. Transparent background, no shadow, no ground, no text, frames identical in scale and centring so the cycle does not wobble.
 ```
 
 ## Tier 3

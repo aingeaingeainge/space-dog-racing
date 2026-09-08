@@ -300,11 +300,17 @@ const runCycles: AssetSpec[] = BODY_BRIEFS.map((brief, i) => ({
   prompt:
     `${STYLE}. A horizontal 8-frame sprite sheet of a top-down running cycle for ${brief}, ` +
     `seen from DIRECTLY ABOVE. Eight equal frames of 280×120 pixels in a single row, each frame ` +
-    `one step of a gallop, the dog NOSE-RIGHT and filling its frame nose to tail. Neutral greys ` +
-    `and whites only with chunky black outlines — the game tints and rotates this in code. ` +
-    `Transparent background, no shadow, no ground, no text, frames identical in scale and ` +
-    `centring so the cycle does not wobble.`,
-  negative: `${NEG_SPRITE}, side view, perspective, colour, varying scale between frames, gaps, borders`,
+    `one step of a gallop, the dog NOSE-RIGHT. ` +
+    // The framing has to be spelled out. The renderer maps a whole frame to 2.8 m × 1.2 m and
+    // the placeholder capsule it replaces filled 93% of that, so a dog drawn politely inside
+    // its frame arrives on the track at half the weight of the runners beside it.
+    `THE DOG MUST FILL THE FRAME EDGE TO EDGE: nose within a few pixels of the right edge, tail ` +
+    `reaching the left edge, the torso at least two thirds of the frame's height, and the legs ` +
+    `touching the top and bottom edges at full stretch. No empty margin on any side. ` +
+    `Neutral greys and whites only with chunky black outlines — the game tints and rotates this ` +
+    `in code. Transparent background, no shadow, no ground, no text, frames identical in scale ` +
+    `and centring so the cycle does not wobble.`,
+  negative: `${NEG_SPRITE}, side view, perspective, colour, varying scale between frames, gaps, borders, empty margins, small subject, dog floating in the middle of the frame`,
   seeds: `${2000 + i * 100}–${2099 + i * 100}`,
 }));
 
@@ -576,7 +582,11 @@ export const GROUPS: AssetGroup[] = [
     blurb:
       'One 8-frame top-down sheet per base body, nose-right. RendererOptions.spriteFor draws a ' +
       'frame after translate(x, y); rotate(heading) at 2.8 m × 1.2 m in world units, so a frame ' +
-      'must be 7:3 and pointing right — 280×120 each, eight in a row.',
+      'must be 7:3 and pointing right — 280×120 each, eight in a row. The dog has to fill its ' +
+      'frame edge to edge: it replaces a capsule that occupied 93% of those 2.8 m × 1.2 m, and a ' +
+      'dog drawn with a polite margin arrives on the track at half the weight of the runners ' +
+      'beside it. run-00 was generated once with that margin and had to be redrawn; check the ' +
+      'framing before generating the other eleven.',
     assets: runCycles,
   },
   {
