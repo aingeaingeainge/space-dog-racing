@@ -1,7 +1,7 @@
 import { balance } from '../content/balance';
 import { planetOf } from '../content/planets';
 import { winProbabilities } from '../race/odds';
-import { dogValue } from '../economy/dogValue';
+import { baseRating, dogValue } from '../economy/dogValue';
 import { calendarEntry, eligible, player, purseFor } from '../state';
 import {
   RACE_CLASSES,
@@ -38,10 +38,27 @@ export function expectedField(s: GameState, cls: RaceClass, excludePlayer: Id): 
   return ratings;
 }
 
+/**
+ * A dog is only as good as its rating says until you look at the stat bars: a race result moves
+ * the rating, but a trainer's week and a track-day pass move the *stats* and leave the rating
+ * where it was. So a well-drilled dog is quietly better than its number — it still runs in the
+ * class its rating allows, and the bookie still prices the number. Any player can see this on
+ * the DogCard; Hard is the difficulty that acts on it.
+ */
+export function effectiveRating(d: Dog): number {
+  return Math.max(d.rating, baseRating(d));
+}
+
 /** Expected prize money for running `dog` in `cls` (P(win)×1st + P(2nd)×2nd + P(3rd)×3rd, roughly). */
-export function expectedPurse(s: GameState, dog: Dog, cls: RaceClass, playerId: Id): number {
+export function expectedPurse(
+  s: GameState,
+  dog: Dog,
+  cls: RaceClass,
+  playerId: Id,
+  rating: number = dog.rating,
+): number {
   const others = expectedField(s, cls, playerId);
-  const p = winProbabilities([dog.rating, ...others])[0]!;
+  const p = winProbabilities([rating, ...others])[0]!;
   const purse = purseFor(s, cls);
   // Places: a cheap approximation of Harville that keeps the AI fast.
   const p2 = Math.min(1 - p, p * 1.2);
@@ -62,6 +79,11 @@ export interface AssignmentOptions {
   minPurseScale?: number;
   /** Dogs held out of every race this week whatever the numbers say. */
   hold?: ReadonlySet<Id>;
+  /**
+   * How to rate our own dog when working out what a race is worth. Defaults to the public
+   * rating, which is what the bookie and the class caps use; Hard passes `effectiveRating`.
+   */
+  ratingOf?: (d: Dog) => number;
 }
 
 /** Best one-dog-per-class assignment by expected purse (GDD §14 Normal). */
@@ -79,7 +101,11 @@ export function bestAssignment(
   const ev = new Map<string, number>();
   for (const d of dogs) {
     for (const cls of RACE_CLASSES) {
-      if (eligible(d, cls)) ev.set(`${d.id}|${cls}`, expectedPurse(s, d, cls, p.id));
+      if (eligible(d, cls))
+        ev.set(
+          `${d.id}|${cls}`,
+          expectedPurse(s, d, cls, p.id, opts.ratingOf ? opts.ratingOf(d) : d.rating),
+        );
     }
   }
   // Enumerate: each class gets at most one distinct dog (or nobody). ≤5 dogs → tiny search.

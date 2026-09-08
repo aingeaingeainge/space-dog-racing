@@ -2,10 +2,15 @@ import { balance } from '../content/balance';
 import { dogValue } from '../economy/dogValue';
 import { eligible, player } from '../state';
 import { RACE_CLASSES, type Action, type GameState, type Id } from '../types';
-import { hash01, ownDogs, startPlan, weeklyFoodNeed } from './shared';
+import { hash01, startPlan, weeklyFoodNeed } from './shared';
 
-/** About one race in five is left to the locals — enough that Easy fields look careless. */
-const SKIP_RATE = 0.2;
+/**
+ * How often Easy cannot be bothered with a race and leaves the trap to the locals. Half the
+ * card sounds like a lot, but it is the number that lands BUILD_PLAN M4's "Normal beats Easy
+ * ~80% of seasons": below it, Easy's floor is high enough that a Normal stable having a bad
+ * week still finishes under it. Nothing on screen changes — an empty trap is filled by a local.
+ */
+const SKIP_RATE = 0.5;
 
 /**
  * Easy AI (GDD §14): near-random declarations respecting the caps, never bets, buys food only
@@ -35,13 +40,15 @@ export function decideEasy(s: GameState, playerId: Id): Action[] {
       }
     }
 
-    // Food: never a trade, only this week's dinner, and only once the hold is short.
+    // Food: never a trade, and only when the hold is actually empty — which is how a careless
+    // stable ends up buying a week's kibble at a mining colony's prices, or paying the
+    // no-cargo penalty on the way out.
     if (s.toggles.trading) {
       const need = weeklyFoodNeed(s, p);
-      if (plan.cargo < need && s.planet.foodBuy > 0) {
+      if (plan.cargo === 0 && s.planet.foodBuy > 0) {
         const units = Math.min(
-          p.ship.cargoCap - plan.cargo,
-          need - plan.cargo,
+          p.ship.cargoCap,
+          need,
           Math.floor(Math.max(0, plan.cash) / s.planet.foodBuy),
         );
         if (units > 0) {
@@ -55,7 +62,8 @@ export function decideEasy(s: GameState, playerId: Id): Action[] {
     if (s.phase === 'planetPre') {
       // Shuffle the fit dogs by a per-week hash, then walk the three races taking whoever is
       // next in that order and eligible. No expected purse anywhere: that is Normal's job.
-      const fit = ownDogs(s, p).filter((d) => d.injuryWeeks === 0 && d.banWeeks === 0);
+      // plan.kennel, not ownDogs: a dog sold a moment ago is no longer ours to declare.
+      const fit = plan.kennel.filter((d) => d.injuryWeeks === 0 && d.banWeeks === 0);
       const shuffled = [...fit].sort(
         (a, b) =>
           hash01(s.seed, s.week, playerId, a.id) - hash01(s.seed, s.week, playerId, b.id),
