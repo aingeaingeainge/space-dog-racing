@@ -5,7 +5,6 @@ import {
   NAME_SOLO,
   TRAINER_NAMES,
   VET_NAMES,
-  FIXER_NAMES,
 } from '../content/names';
 import { TRAIT_IDS } from '../content/traits';
 import type {
@@ -160,7 +159,7 @@ export function rollMarketDogs(planet: Planet, week: number, rng: Rng, nextId: I
 export function rollStaff(planet: Planet, rng: Rng, nextId: IdGen): StaffOffer[] {
   const offers: StaffOffer[] = [];
   const s = planet.special;
-  // A trainer is usually about; a vet and fixer only where the GDD says so.
+  // A trainer is usually about; a vet only where the GDD says so.
   if (s.trainer || rng.chance(0.6)) {
     const name = rng.pick(TRAINER_NAMES);
     const gristle = name === 'Gristle McGraw';
@@ -179,8 +178,8 @@ export function rollStaff(planet: Planet, rng: Rng, nextId: IdGen): StaffOffer[]
       name: rng.pick(VET_NAMES),
       wage: balance.vetWage,
     });
-  if (s.fixer)
-    offers.push({ id: nextId('staff'), role: 'fixer', name: rng.pick(FIXER_NAMES), wage: 350 });
+  // No fixer. GDD §13's sabotage and steward bribes do not exist as actions yet, so hiring one
+  // was a 350-a-week wage bill for nothing. He comes back with §13 (GDD §19, 2026-09-08).
   return offers;
 }
 

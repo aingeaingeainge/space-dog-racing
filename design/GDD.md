@@ -105,11 +105,11 @@ Rating drives eligibility, market value and bookie odds.
 
 | Class | Eligible ratings | Standard purse (1st / 2nd / 3rd) |
 |---|---|---|
-| Bronze | ≤ 45 | 1,000 / 500 / 250 |
-| Silver | ≤ 70 | 2,500 / 1,250 / 600 |
-| Gold | any | 6,000 / 3,000 / 1,500 |
+| Bronze | ≤ 45 | 1,800 / 900 / 450 |
+| Silver | ≤ 70 | 3,400 / 1,700 / 850 |
+| Gold | any | 5,800 / 2,900 / 1,450 |
 
-Majors multiply purses ×2.5; the Grand Final ×4. So the puzzle each week: a 44-rated dog is a Bronze favourite (≈30% of a 1,750 purse) or a Silver outsider (≈8% of 4,350). A 72 must run Gold. A stable whose dogs have all outgrown Bronze simply leaves that trap to the locals — and can bet on it.
+Majors multiply purses ×2.0; the Grand Final ×3.5. So the puzzle each week: a 44-rated dog is a Bronze favourite (≈30% of a 3,150 purse) or a Silver outsider (≈8% of 5,950). A 72 must run Gold. A stable whose dogs have all outgrown Bronze simply leaves that trap to the locals — and can bet on it.
 
 ### 5.4 Traits
 
@@ -129,7 +129,7 @@ Procedurally generated names from grimy/absurd word lists: *Bin Juice*, *Duchess
 
 ### 6.1 Race parameters
 
-Each planet has one track: **distance** (Sprint 350 m / Standard 480 m / Staying 600 m), **bend tightness** (affects interference and the Railer trait), **surface hazard** (injury multiplier), and a visual theme. 8 traps. Fields shorter than 8 are filled with local dogs whose ratings are drawn around the class midpoint (Bronze ~35, Silver ~57, Gold ~78; Majors +5 and stronger locals).
+Each planet has one track: **distance** (Sprint 350 m / Standard 480 m / Staying 600 m), **bend tightness** (affects interference and the Railer trait), **surface hazard** (injury multiplier), and a visual theme. 8 traps. Fields shorter than 8 are filled with local dogs whose ratings are drawn around the class midpoint (Bronze ~30, Silver ~46, Gold ~58; Majors +5). ⚖️ These are the M4 figures: strong enough that racing a dog up a class is a gamble, weak enough that a starting stable can still win a Gold. The first draft said 35 / 57 / 78, which was measured and rejected — see §19.
 
 ### 6.2 Simulation (deterministic, tick-based)
 
@@ -158,7 +158,7 @@ Top-down track with the pack tracked by a camera, dog sprites with saddle-cloth 
 Currency: **Bones** (₿ is taken; use a small bone glyph or just "B"). All defaults live in the spreadsheet; key ones repeated here.
 
 ### 7.1 Income
-- **Prize money** — the main engine. Season total on offer ≈ 340k across all stables; Majors are ~56% of it ⚖️ (deliberately top-heavy; consider 2.0×/3.5× if Majors feel too decisive).
+- **Prize money** — the main engine. Majors are ~52% of the season's prize money ⚖️ — still top-heavy, at ×2.0 / ×3.5 since the M4 pass (§19, §20 Q2). Note the multiplier is not what decides a season: lowering it alone moved neither when the leader was settled nor how often the Grand Final changed it.
 - **Food trading** — buy low (40) sell high (140); typical realised margin ≈ 45/unit. With a 20-unit hold that's ~700–900/week — a 15–25% supplement, never the main game.
 - **Betting** — zero-EV on paper (15% house margin), positive only with an edge.
 - **Selling dogs** — at 80% of value. Buying a pup, training it and selling at a Major venue (where buyers pay +15%) is a legitimate side hustle.
@@ -182,11 +182,11 @@ Every planet has a market whose stock is rolled on arrival and shared between al
 **Staff (one of each, hired per week, quit-able):**
 - Trainer — assign a training focus (one stat, one dog): +1 stat/week. Named trainers with a quirk (e.g. "Gristle McGraw: +2/week but 5% chance/week a dog gets *Nervy*").
 - Vet — halves injury duration, +10 fitness recovery.
-- Fixer (rare, Lagrange Lows) — unlocks sabotage and steward bribes.
+- Fixer (rare, Lagrange Lows) — unlocks sabotage and steward bribes. **Not built yet, and not hireable until it is** (§19, 8 Sept 2026): the actions in §13 do not exist, so hiring one was a wage bill for nothing.
 
 **Ship (Docks):** Engine tier (speed 1→5, ~3k per tier), Cargo hold (+20 units, 2.5k), Kennel module (5th dog slot, 2k), Cold store (food never spoils — see events, 1.5k).
 
-**Kennel items:** Track-day pass (+3 to one stat, 800) · Racing muzzle (+2 Trap, 600) · "Supplement" (+8 speed for one race, 400; 15% chance the stewards catch it: purse forfeited, rating −5, 1-week ban; 0% on Vatgrown, 40% at Old Wembley).
+**Kennel items:** Track-day pass (+3 to one stat, 800) · Racing muzzle (+2 Trap, 600) · "Supplement" (+12 speed for one race ⚖️, 400; 15% chance the stewards catch it: purse forfeited, rating −5, 1-week ban; 0% on Vatgrown, 30% at Cosmodrome, 40% at Old Wembley).
 
 **Upgrade payback rule** ⚖️: every purchase should pay back within ~5 weeks (see *Upgrades* sheet). Anything that doesn't gets a resale value or a price cut.
 
@@ -251,7 +251,7 @@ Four **Major venues** and fourteen **regular** planets. Each has: name, one-line
 | **Sunbleach** | Desert, twin suns | Standard, hazard ×1.2 | Dear | Fitness −5 for all dogs on arrival; cheap kennel modules |
 | **Tinkertown** | Robot-run workshop planet | Sprint 350 | Mid | Engine upgrades −40%; racing muzzles |
 | **Holy Bark** | Monastery world; monks who worship the Good Boy | Staying 600, serene | Cheap | No betting; no upkeep this week; +5 fitness all dogs |
-| **Lagrange Lows** | Floating slum station | Standard, tight | Dear | Fixer for hire (sabotage/bribes); loan shark; local dogs are *Nervy* |
+| **Lagrange Lows** | Floating slum station | Standard, tight | Dear | Fixer for hire (sabotage/bribes — §13, not built yet); loan shark; local dogs are *Nervy* |
 
 ## 13. Shady options
 
@@ -333,11 +333,15 @@ Lo-fi synthwave loop per planet family, crowd murmur, box-open clang, a bark pal
 | 2026-09-07 | Top-down race view | Matches Death Rally; each planet gets a track |
 | 2026-09-07 | AI-generated art to a style bible | Only realistic pipeline for 18 planets |
 | 2026-09-07 | TypeScript + React + Canvas, pure deterministic engine, Cloudflare Pages hosting (Workers + Durable Objects for M5) | Multiplayer-ready without a server on day one; same account for site and game server later |
+| 2026-09-08 | Local dogs 30 / 46 / 58 (not M0's 28 / 42 / 52, and not §6.1's original 35 / 57 / 78), with Bronze and Silver purses raised to 1,800 and 3,400 to pay for it | PLAYTEST_NOTES finding 1. The autopilot plan — best dog to the biggest race — was the optimal one 59% of weeks and cost only 2.6% when it was not; it is now right 19% of weeks and costs 10.9%. 35 / 57 / 78 was measured and rejected: no stable wins a Gold at all, every dog is forced into its lowest class and mean end worth collapses from 47k to 17k |
+| 2026-09-08 | Majors ×2.0 and the Grand Final ×3.5 (closes §20 Q2) | Adopted **with** the locals change, not instead of it. On today's numbers the multiplier alone moved nothing measurable: the season was already settled by week 6.5 of 13, the Grand Final still changed the result 13% of the time, and the rank gap between Major winners and everyone else was unchanged. With finding 1 fixed it is worth having — the leader is not settled until week 7.6 and the Grand Final flips 18% |
+| 2026-09-08 | Supplement +12 speed (was +8), price, catch rate and penalties unchanged | PLAYTEST_NOTES finding 2. Measured against the race sim rather than the bookie's rating model: at +8 it was worth feeding in 10% of real declarations and 0% under a strict steward, which is a trap rather than a choice. At +12 it pays in about a third, and the punishment — a forfeited purse — still scales with the size of the race |
+| 2026-09-08 | The Fixer is not hireable until §13 exists | Sabotage and the steward bribe were never built: there is no action for either, and nothing read `staff.fixer` except the weekly 350 wage. Charging for a service the game does not provide is a trap, not a difficulty |
 
 ## 20. Open questions ❓
 
 1. ~~Grand Final venue~~ — decided: always Collar Prime.
-2. Major purse share is ~56% of the season. Too swingy? Playtest with 2.0×/3.5× as the alternative.
+2. ~~Major purse share~~ — decided 2026-09-08: ×2.0 / ×3.5, alongside the local-dog change. Measured; on its own the multiplier changes nothing (§19).
 3. Should dogs be *retired* (removed, small stud payment) automatically at age 7, or just decay? Default: decay, player chooses.
 4. Reputation as a visible stat affecting sponsors/steward suspicion — v1 or v2? Default: v2.
 5. ~~Hotseat in v1~~ — decided: yes.

@@ -179,7 +179,7 @@ export function Title() {
             on={toggles.cleanSport}
             set={(v) => setToggles((t) => ({ ...t, cleanSport: v }))}
             label="Clean Sport"
-            blurb="No supplements, no fixers, no sabotage or steward bribes."
+            blurb="No supplements. Sabotage and steward bribes arrive with the Fixer."
           />
           <Toggle
             on={!toggles.betting}

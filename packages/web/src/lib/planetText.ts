@@ -23,7 +23,6 @@ export function specialText(p: Planet): string[] {
   const out: string[] = [];
   if (s.bank) out.push('Bank open');
   if (s.shark) out.push('Fat Tony lends here');
-  if (s.fixer) out.push('Fixer for hire');
   if (s.vet) out.push('Vet for hire');
   if (s.trainer) out.push('Trainer for hire');
   if (s.noBetting) out.push('No betting');
