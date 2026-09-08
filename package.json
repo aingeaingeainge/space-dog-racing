@@ -19,6 +19,7 @@
     "snapshot": "node scripts/snapshot.mjs",
     "placeholders": "tsx packages/web/scripts/make-placeholders.ts",
     "asset-list": "tsx packages/web/scripts/asset-list.ts",
+    "asset-check": "tsx packages/web/scripts/asset-check.ts",
     "dev": "npm run dev -w @sdr/web"
   },
   "devDependencies": {

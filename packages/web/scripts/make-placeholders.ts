@@ -14,7 +14,9 @@
  * The whole set of 149 comes to well under 100 kB, so the placeholders never distort what the
  * real art will cost.
  *
- * Re-running is safe: it only ever writes .svg files, and it never touches a .webp.
+ * Re-running is safe: it only ever writes .svg files, and it never touches a .webp. A slot that
+ * already holds finished art is skipped outright rather than given a stand-in it does not need
+ * — `npm run asset-check -- --prune` deletes those, and this must not put them back.
  */
 import { mkdirSync, writeFileSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -113,12 +115,15 @@ let bytes = 0;
 for (const a of ASSETS) {
   const target = join(ROOT, `${a.stem}.svg`);
   const finished = join(ROOT, `${a.stem}.webp`);
+  if (existsSync(finished)) {
+    skipped++;
+    continue;
+  }
   mkdirSync(dirname(target), { recursive: true });
   const svg = svgFor(a);
   writeFileSync(target, svg, 'utf8');
   bytes += Buffer.byteLength(svg);
   written++;
-  if (existsSync(finished)) skipped++;
 }
 
 console.log(
@@ -126,4 +131,4 @@ console.log(
     `(${(bytes / 1024).toFixed(0)} kB in total).`,
 );
 if (skipped)
-  console.log(`${skipped} of them already have finished .webp art beside them, which still wins.`);
+  console.log(`${skipped} slot${skipped === 1 ? '' : 's'} skipped — finished .webp art is already there.`);
