@@ -65,6 +65,14 @@ interface DiffStats {
   dogsBought: number[];
 }
 
+/** Every stable is in the same season, so a pairing is a like-for-like comparison. */
+interface HeadToHead {
+  wins: number; // the first difficulty finished above the second
+  total: number;
+}
+
+const DIFFICULTY_ORDER: Difficulty[] = ['easy', 'normal', 'hard'];
+
 export function runHarness(args: Args): string {
   const lines: string[] = [];
   const byDiff = new Map<Difficulty, DiffStats>();
@@ -87,6 +95,16 @@ export function runHarness(args: Args): string {
     return s;
   };
   const goldFieldByWeek: number[][] = Array.from({ length: balance.weeks }, () => []);
+  const h2h = new Map<string, HeadToHead>();
+  const pairing = (a: Difficulty, b: Difficulty): HeadToHead => {
+    const key = `${a}|${b}`;
+    let p = h2h.get(key);
+    if (!p) {
+      p = { wins: 0, total: 0 };
+      h2h.set(key, p);
+    }
+    return p;
+  };
   let supplementsUsed = 0;
   let supplementsCaught = 0;
   let actions = 0;
@@ -106,6 +124,7 @@ export function runHarness(args: Args): string {
   function collect(s: GameState) {
     const standings = s.finalStandings ?? [];
     const winner = standings[0]?.playerId;
+    const place = new Map(standings.map((x, i) => [x.playerId, i]));
     for (const p of s.players) {
       const d = p.difficulty ?? 'normal';
       const st = stat(d);
@@ -120,6 +139,20 @@ export function runHarness(args: Args): string {
       if (p.flags.bankrupt) st.bankrupt++;
       supplementsUsed += p.stats.supplementsUsed;
       supplementsCaught += p.stats.supplementsCaught;
+    }
+    // Head to head: every pair of stables of different difficulties, inside the one season.
+    for (const a of s.players) {
+      for (const b of s.players) {
+        const da = a.difficulty ?? 'normal';
+        const db = b.difficulty ?? 'normal';
+        if (DIFFICULTY_ORDER.indexOf(da) <= DIFFICULTY_ORDER.indexOf(db)) continue;
+        const pa = place.get(a.id);
+        const pb = place.get(b.id);
+        if (pa === undefined || pb === undefined) continue;
+        const rec = pairing(da, db);
+        rec.total++;
+        if (pa < pb) rec.wins++;
+      }
     }
     for (const r of s.results) {
       if (r.cls === 'gold') goldFieldByWeek[r.week - 1]!.push(mean(r.entries.map((e) => e.rating)));
@@ -150,6 +183,18 @@ export function runHarness(args: Args): string {
     lines.push(
       `  ${d.padEnd(6)} ${String(st.seasons).padStart(4)} ${fmt(mean(st.worth)).padStart(8)} ${fmt(quantile(sorted, 0.1)).padStart(8)} ${fmt(quantile(sorted, 0.5)).padStart(8)} ${fmt(quantile(sorted, 0.9)).padStart(8)}   ${pct(st.wins / Math.max(1, st.seasons)).padStart(6)}   ${st.bankrupt}`,
     );
+  }
+  if (h2h.size) {
+    lines.push('');
+    lines.push(
+      'Head to head — share of same-season pairings the harder stable finished above (M4 targets: hard>normal ~65%, normal>easy ~80%)',
+    );
+    for (const [key, rec] of h2h) {
+      const [a, b] = key.split('|');
+      lines.push(
+        `  ${`${a} beats ${b}`.padEnd(22)} ${pct(rec.wins / Math.max(1, rec.total)).padStart(6)}   (${rec.total} pairings)`,
+      );
+    }
   }
   lines.push('');
   lines.push(
