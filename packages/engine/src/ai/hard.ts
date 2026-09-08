@@ -191,8 +191,12 @@ function declareForThisWeek(plan: Plan): Assignment {
       if (afterAWeek < MAJOR_FITNESS_FLOOR) hold.add(best.id);
     }
   }
+  // Note the bar on "is this race worth running?" is NOT raised in the week before a Major.
+  // Measured: doing that cost Hard two and a half points of head-to-head, because with Bronze
+  // at 1,800 a skipped race is real money and −12 fitness a run against +15 a week means the
+  // dog was never going to arrive tired anyway. Holding the one dog that would is enough.
   const assignment = bestAssignment(s, plan.p, plan.kennel, {
-    minPurseScale: toMajor === 1 ? 2 : 1,
+    minPurseScale: 1,
     hold,
     ratingOf: effectiveRating,
   });
