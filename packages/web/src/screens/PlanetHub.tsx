@@ -15,6 +15,7 @@ import { NeonButton } from '../components/NeonButton';
 import { Signpost } from '../components/Signpost';
 import { TicketCard } from '../components/TicketCard';
 import { KV, Notes, StableName } from '../components/ui';
+import { uiArt } from '../lib/assets';
 import { specialText, trackText } from '../lib/planetText';
 import { hotspotsFor, HOTSPOT_VENUES, VENUE_ICON } from '../lib/hotspots';
 import { venues } from '../lib/venues';
@@ -32,6 +33,12 @@ import {
 import { useGame, type View } from '../store/gameStore';
 
 const pct = (n: number) => `${Math.round(n * 100)}%`;
+
+/** The painted hotspot icon for a venue, or nothing — in which case the emoji stands. */
+function finishedIcon(id: string) {
+  const art = uiArt(`icon-${id}`);
+  return art && !art.placeholder ? art : null;
+}
 
 /**
  * GDD §15.3 — the painted planet with six hotspots, its rules on a signpost, this weekend's
@@ -80,6 +87,7 @@ export function PlanetHub({ s, me }: { s: GameState; me: Player }) {
               key={id}
               spot={spots[id]}
               icon={VENUE_ICON[id]}
+              iconArt={finishedIcon(id)}
               label={v.label}
               status={st.short}
               detail={st.line}

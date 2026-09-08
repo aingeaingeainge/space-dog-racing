@@ -1,13 +1,18 @@
+import type { Art } from '../lib/assets';
 import type { Spot } from '../lib/hotspots';
 
 /**
  * One clickable place on the hub backdrop (GDD §15.3). Position comes from lib/hotspots.ts, so
  * it is data; everything else is the kit's neon plate. A shut venue stays on the backdrop,
  * dashed and grey with the reason under it — M1 note 2: "a vanished button teaches nothing".
+ *
+ * The icon is an emoji until a painted one lands. `iconArt` is only ever handed finished art,
+ * so an unfinished set is six emoji rather than six hatched squares.
  */
 export function Hotspot({
   spot,
   icon,
+  iconArt,
   label,
   status,
   detail,
@@ -17,6 +22,8 @@ export function Hotspot({
 }: {
   spot: Spot;
   icon: string;
+  /** The painted icon, where one exists. The emoji stays as the fallback. */
+  iconArt?: Art | null;
   label: string;
   /** Two or three words on what is in there this week. */
   status?: string;
@@ -38,7 +45,7 @@ export function Hotspot({
       onClick={onClick}
     >
       <span className="icon" aria-hidden="true">
-        {icon}
+        {iconArt ? <img src={iconArt.url} alt="" decoding="async" loading="lazy" /> : icon}
       </span>
       <span className="lab">{label}</span>
       {reason ? (
