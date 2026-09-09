@@ -6,10 +6,35 @@
  * every planet overrides from its own `Planet.accents` pair (see theme/planetTheme.tsx). A
  * screen never reads a planet's colours: it uses the accent variables and gets tinted for free.
  *
- * Fonts are Bungee for display and Space Mono for numbers, pulled from Google Fonts by a
- * non-blocking link in index.html. Both stacks have real fallbacks and every heading carries a
- * fixed line-height, so a font that never arrives costs the layout nothing.
+ * Fonts are Bungee for display and Space Mono for numbers, both self-hosted from
+ * `assets/fonts/` — 47 kB of woff2 for three faces, and no third-party request at runtime. The
+ * fallback stacks and the fixed line-heights on every heading stay exactly as they were, so a
+ * font that fails to load still costs the layout nothing; that was worth keeping whether the
+ * bytes come from Google or from here.
  */
+
+/* Latin subset, woff2 only. See assets/fonts/README.md for why, and for the OFL licences. */
+@font-face {
+  font-family: 'Bungee';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('../assets/fonts/bungee-latin-400-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Space Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('../assets/fonts/space-mono-latin-400-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Space Mono';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('../assets/fonts/space-mono-latin-700-normal.woff2') format('woff2');
+}
 
 :root {
   /* ---- house palette (GDD §16) ---- */

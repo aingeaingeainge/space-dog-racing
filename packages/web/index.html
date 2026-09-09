@@ -11,25 +11,12 @@
     <title>Space Dog Racing</title>
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <!--
-      GDD §16 type: Bungee for display, Space Mono for numbers. Loaded off the critical path
-      (media="print" until it lands) so a slow or blocked fonts.googleapis.com never holds up
-      first paint. Both stacks have real fallbacks and every heading has a fixed line-height,
-      so if the fetch never completes the layout is unchanged — only the letterforms are.
+      GDD §16 type: Bungee for display, Space Mono for numbers. Both are self-hosted — the
+      @font-face rules and the files are in src/theme/tokens.css and src/assets/fonts — so the
+      game makes no third-party request, needs no preconnect, and cannot be held up or tracked by
+      a font CDN. font-display: swap plus a real fallback stack and fixed line-heights means a
+      face that fails to load still costs the layout nothing; only the letterforms change.
     -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      rel="stylesheet"
-      media="print"
-      onload="this.media='all'"
-      href="https://fonts.googleapis.com/css2?family=Bungee&family=Space+Mono:wght@400;700&display=swap"
-    />
-    <noscript>
-      <link
-        rel="stylesheet"
-        href="https://fonts.googleapis.com/css2?family=Bungee&family=Space+Mono:wght@400;700&display=swap"
-      />
-    </noscript>
   </head>
   <body>
     <div id="root"></div>

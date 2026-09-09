@@ -268,6 +268,7 @@ function meanOf(groupId: string): number {
 let bundleJs = 0;
 let bundleCss = 0;
 let bundleGz = 0;
+let fonts = 0;
 const distAssets = join(DIST, 'assets');
 if (existsSync(distAssets)) {
   for (const f of readdirSync(distAssets)) {
@@ -279,6 +280,11 @@ if (existsSync(distAssets)) {
     } else if (f.endsWith('.css')) {
       bundleCss += size;
       bundleGz += gzipSync(readFileSync(p)).length;
+    } else if (f.endsWith('.woff2')) {
+      // The two typefaces are self-hosted as of M4 session 2, so they are the game's bytes now
+      // and they land on first paint. Already gzip-compressed, so they are not counted into
+      // bundleGz — woff2 does not shrink again.
+      fonts += size;
     }
   }
 }
@@ -300,7 +306,7 @@ const everything = rows.reduce(
 );
 
 const bundle = bundleJs + bundleCss;
-const firstPaint = bundle + backdrop + uiKit;
+const firstPaint = bundle + fonts + backdrop + uiKit;
 const perWeekend = backdrop + ground + surface + card;
 
 console.log('What the site weighs, as it stands');
@@ -314,8 +320,10 @@ if (bundle) {
   console.log('  Bundle              (no dist — run npm run build for the JS and CSS figures)');
 }
 console.log(
-  `  First paint         ${fmtKb(firstPaint)}  — bundle, the UI furniture, and one hub backdrop`,
+  `  First paint         ${fmtKb(firstPaint)}  — bundle, ${fonts ? 'the fonts, ' : ''}the UI ` +
+    `furniture, and one hub backdrop`,
 );
+if (fonts) console.log(`  Fonts               ${fmtKb(fonts)}  — three woff2 faces, self-hosted`);
 console.log(
   `  Per weekend         ${fmtKb(perWeekend)}  — a backdrop, a ground, a surface tile, an event card`,
 );
@@ -324,7 +332,7 @@ console.log(
 );
 console.log(`  Whole library       ${fmtMb(everything)} over ${rows.length} files`);
 console.log(
-  `  Whole site          ${fmtMb(bundle + everything)}  — every byte, if a player visited all 18 planets`,
+  `  Whole site          ${fmtMb(bundle + fonts + everything)}  — every byte, if a player visited all 18 planets`,
 );
 console.log('');
 console.log(
