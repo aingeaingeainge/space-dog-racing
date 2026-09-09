@@ -3,6 +3,7 @@ import type { Difficulty, PlayerSetup, Toggles } from '@sdr/engine';
 import { Panel } from '../components/Panel';
 import { Notes, Swatch } from '../components/ui';
 import { NeonButton } from '../components/NeonButton';
+import { parseSeasonLink } from '../lib/seedLink';
 import { useGame } from '../store/gameStore';
 
 const MAX_STABLES = 8;
@@ -22,16 +23,31 @@ function randomSeed(): number {
   return Math.floor(Math.random() * 1_000_000);
 }
 
+const DEFAULT_TOGGLES: Toggles = {
+  cleanSport: false,
+  betting: true,
+  trading: true,
+  casualEvents: false,
+};
+
 export function Title() {
   const { newSeason, resume, hasSave, error } = useGame();
-  const [seed, setSeed] = useState(randomSeed);
-  const [roster, setRoster] = useState<PlayerSetup[]>(defaultRoster);
-  const [toggles, setToggles] = useState<Toggles>({
-    cleanSport: false,
-    betting: true,
-    trading: true,
-    casualEvents: false,
-  });
+  /**
+   * A shared season link (lib/seedLink.ts), read once. It *fills this screen in* — it does not
+   * start a season and it does not touch the save, so opening someone's link in a tab where a
+   * season is half-played costs nothing until Start is pressed.
+   */
+  const [shared] = useState(() =>
+    parseSeasonLink(typeof window === 'undefined' ? '' : window.location.search),
+  );
+  const [seed, setSeed] = useState(() => shared?.seed ?? randomSeed());
+  const [roster, setRoster] = useState<PlayerSetup[]>(() =>
+    shared && shared.players.length ? shared.players : defaultRoster(),
+  );
+  const [toggles, setToggles] = useState<Toggles>(() => ({
+    ...DEFAULT_TOGGLES,
+    ...shared?.toggles,
+  }));
 
   const update = (i: number, patch: Partial<PlayerSetup>) =>
     setRoster((r) => r.map((p, j) => (i === j ? { ...p, ...patch } : p)));
@@ -60,6 +76,15 @@ export function Title() {
       </div>
 
       {error ? <div className="notice error">{error}</div> : null}
+
+      {shared ? (
+        <div className="notice">
+          Somebody shared <b>seed {shared.seed}</b> with you
+          {shared.players.length ? ` and a table of ${shared.players.length}` : ''}. It is filled in
+          below — press <b>Start season</b> when you are ready.
+          {hasSave ? ' Starting it will replace the season you have saved.' : ''}
+        </div>
+      ) : null}
 
       {hasSave ? (
         <Panel title="Saved season" sub="the seed and the action log, replayed">
@@ -167,7 +192,8 @@ export function Title() {
             Add stable
           </NeonButton>
           <span className="muted">
-            {roster.length} stables, {humans} human. Easy and Hard play as Normal until M4.
+            {roster.length} stables, {humans} human. Easy leaves half the card to the locals; Hard
+            buys gear, prices its own runners and doses where it pays.
           </span>
         </div>
         {!canStart ? <p className="muted">A season needs at least one human stable.</p> : null}
@@ -207,13 +233,14 @@ export function Title() {
         />
       </Panel>
 
-      <Panel title="What is in this build" sub="milestone M3, session 1 — the UI kit">
+      <Panel title="What is in this build" sub="milestone M4 — the whole game">
         <p className="muted flush">
-          A whole 13-week season with the races watchable: declarations, three races a weekend
-          replayed on the track, results, events, the leaderboard, and every venue on the planet.
-          Every screen is now painted to the art bible and every planet tints its own chrome, but
-          the pictures themselves are stand-ins — hatched slots labelled &ldquo;placeholder&rdquo;.
-          The real backdrops, dog portraits and run cycles land in M3 session 2.
+          A whole 13-week season against Easy, Normal and Hard stables: declarations, three races a
+          weekend replayed on the track, results, events, the market, the kibble trade, the bookie,
+          the leaderboard, and a season-end screen that shows you where it was won. Every screen is
+          painted to the art bible and every planet tints its own chrome. Most of the pictures are
+          still stand-ins — hatched slots labelled &ldquo;placeholder&rdquo; — because 11 of the 149
+          files in the art library are real so far.
         </p>
       </Panel>
     </div>
