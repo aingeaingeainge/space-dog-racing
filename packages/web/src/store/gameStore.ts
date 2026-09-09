@@ -36,6 +36,8 @@ export interface GameStore {
   hasSave: boolean;
 
   newSeason: (setup: SeasonSetup) => void;
+  /** The same table and the same seed, from week 1 (GDD §15.11). */
+  playAgain: () => void;
   resume: () => void;
   abandon: () => void;
   dispatch: (...actions: Action[]) => void;
@@ -103,6 +105,17 @@ export const useGame = create<GameStore>((set, get) => {
         passAck: null,
         hasSave: true,
       });
+    },
+
+    /**
+     * Play the season again. A season *is* (setup + log), so the same setup replayed from an empty
+     * log is the same season — there is no new mechanism here and nothing to seed twice. The
+     * finished log goes, which is what makes this different from `resume`.
+     */
+    playAgain: () => {
+      const { setup, newSeason } = get();
+      if (!setup) return;
+      newSeason(setup);
     },
 
     resume: () => {

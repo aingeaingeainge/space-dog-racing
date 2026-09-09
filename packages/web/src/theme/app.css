@@ -1857,3 +1857,107 @@ td.rules {
   min-width: 240px;
   line-height: 2;
 }
+
+/* ------------------------------------------------- season end: the worth chart and the moments */
+
+/* The plot is drawn 1:1 into the measured container width (components/WorthChart.tsx), so the
+   width rule here is only what carries it through the frame before the first measurement — and
+   what stops it ever pushing the page sideways. */
+.worth-chart svg.worth-plot {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-width: 100%;
+}
+.worth-chart text.axis {
+  fill: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.worth-chart text.axis.major {
+  fill: var(--dim);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+}
+.chart-axis-note {
+  margin: 7px 0 12px;
+  font-size: 12px;
+}
+
+/* One row per stable, in finishing order, so the key reads like the standings table above it. */
+ul.chart-key {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 2px 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+ul.chart-key li {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  padding: 3px 6px;
+  border-radius: 2px;
+  font-size: 13px;
+}
+ul.chart-key li.me {
+  background: var(--accent-1-soft);
+  box-shadow: inset 2px 0 0 var(--accent-1);
+}
+ul.chart-key li > b.rank {
+  width: 15px;
+  text-align: right;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+ul.chart-key li .who {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+ul.chart-key li .fig {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* The moments: a label, then the answer, then where it happened. Two columns where there is room
+   for two, one where there is not. */
+dl.moments {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+  gap: 10px 20px;
+  margin: 0;
+}
+dl.moments > div {
+  padding-left: 11px;
+  border-left: 2px solid var(--accent-1-line);
+}
+dl.moments dt {
+  color: var(--muted);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+dl.moments dd {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin: 0;
+}
+dl.moments dd > b {
+  font-size: 15px;
+  line-height: 1.25;
+}
+dl.moments dd > span {
+  font-size: 12px;
+}
+
+/* Shown only when the clipboard refuses, so the link can still be selected by hand. */
+input.seed-link {
+  flex: 1 1 260px;
+  min-width: 0;
+  font-size: 12px;
+}
