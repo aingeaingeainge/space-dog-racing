@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import {
   bettingMargin,
-  decimalOdds,
   formatBones,
   maxStakeFraction,
   planetOf,
@@ -12,13 +11,13 @@ import {
   type Player,
   type RaceClass,
 } from '@sdr/engine';
-import { DogThumb } from '../components/DogCard';
+import { FieldTable } from '../components/FieldTable';
 import { Panel } from '../components/Panel';
-import { Badge, Notes, StableName, Traits } from '../components/ui';
+import { Notes } from '../components/ui';
 import { NeonButton } from '../components/NeonButton';
 import { TicketCard } from '../components/TicketCard';
 import { BettingSlip, type SlipRow } from '../components/BettingSlip';
-import { CLASS_LABEL, playerById } from '../lib/selectors';
+import { CLASS_LABEL } from '../lib/selectors';
 import { useGame } from '../store/gameStore';
 
 /**
@@ -132,82 +131,27 @@ function RaceBetting({
         </span>
       </div>
 
-      <div className="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Trap</th>
-              <th>Dog</th>
-              <th>Stable</th>
-              <th>Traits</th>
-              <th className="num">Rating</th>
-              <th className="num">Fit</th>
-              <th className="num">Win</th>
-              <th className="num">Place</th>
-            </tr>
-          </thead>
-          <tbody>
-            {field.map((e) => {
-              const owner = playerById(s, e.local ? null : e.ownerId);
-              const d = s.dogs[e.dogId];
-              const placeOdds = decimalOdds(e.placeProb, margin);
-              const disabled = wanted < 10;
-              return (
-                <tr key={e.dogId} className={e.ownerId === me.id ? 'me' : ''}>
-                  <td>{e.trap}</td>
-                  <td>
-                    {d ? <DogThumb dog={d} /> : null}
-                    <b>{e.name}</b>
-                    {d && d.ownerId === me.id && d.supplemented ? (
-                      <Badge tone="hot" title="you fed this one a supplement — the bookie does not know">
-                        💉
-                      </Badge>
-                    ) : null}
-                  </td>
-                  <td>
-                    {owner ? (
-                      <StableName player={owner} me={owner.id === me.id} />
-                    ) : (
-                      <Badge>local</Badge>
-                    )}
-                  </td>
-                  <td className="wrap">
-                    <Traits ids={d?.traits ?? []} />
-                  </td>
-                  <td className="num">{e.rating}</td>
-                  <td className="num">{d ? d.fitness : '—'}</td>
-                  <td className="num">
-                    <NeonButton
-                      disabled={disabled}
-                      title={
-                        disabled
-                          ? 'Set a stake first'
-                          : `${formatBones(wanted)} to win — returns ${formatBones(Math.round(wanted * e.odds))}`
-                      }
-                      onClick={() => place(e.dogId, 'win')}
-                    >
-                      {e.odds.toFixed(2)}
-                    </NeonButton>
-                  </td>
-                  <td className="num">
-                    <NeonButton
-                      disabled={disabled}
-                      title={
-                        disabled
-                          ? 'Set a stake first'
-                          : `${formatBones(wanted)} on a top-three finish — returns ${formatBones(Math.round(wanted * placeOdds))}`
-                      }
-                      onClick={() => place(e.dogId, 'place')}
-                    >
-                      {placeOdds.toFixed(2)}
-                    </NeonButton>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+      <FieldTable
+        s={s}
+        meId={me.id}
+        field={field}
+        margin={margin}
+        oddsCell={(e, kind, odds) => (
+          <NeonButton
+            disabled={wanted < 10}
+            title={
+              wanted < 10
+                ? 'Set a stake first'
+                : kind === 'win'
+                  ? `${formatBones(wanted)} to win — returns ${formatBones(Math.round(wanted * odds))}`
+                  : `${formatBones(wanted)} on a top-three finish — returns ${formatBones(Math.round(wanted * odds))}`
+            }
+            onClick={() => place(e.dogId, kind)}
+          >
+            {odds.toFixed(2)}
+          </NeonButton>
+        )}
+      />
 
       <BetSlips s={s} bets={bets} cls={cls} />
     </TicketCard>

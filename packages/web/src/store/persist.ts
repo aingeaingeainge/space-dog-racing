@@ -14,6 +14,10 @@ export interface SaveUi {
    */
   racesWatchedWeek?: number;
   raceSpeed?: number;
+  /** Week whose locked card has been read on a no-bookie weekend, and who has been told they are
+   * bust. Both optional for the same reason as the two above: an M3 save must still load. */
+  fieldsSeenWeek?: number;
+  bustAck?: string[];
 }
 
 export interface SaveBlob {

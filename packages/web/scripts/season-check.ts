@@ -309,7 +309,13 @@ function playSeason(seed: number, toggles?: SeasonSetup['toggles']) {
   let state = createSeason(setup);
   const log: Action[] = [];
   drive(state, log);
-  const ui: ScreenUi = { racesWatchedWeek: 0, resultsSeenWeek: 0, passAck: null };
+  const ui: ScreenUi = {
+    racesWatchedWeek: 0,
+    resultsSeenWeek: 0,
+    fieldsSeenWeek: 0,
+    passAck: null,
+    bustAck: [],
+  };
 
   for (let step = 0; step < 20000; step++) {
     const screen = screenFor(state, ui);
@@ -331,6 +337,15 @@ function playSeason(seed: number, toggles?: SeasonSetup['toggles']) {
     }
     if (screen.kind === 'results') {
       ui.resultsSeenWeek = state.week;
+      continue;
+    }
+    if (screen.kind === 'fields') {
+      // A weekend with no bookie: the locked card is read, then the races run.
+      ui.fieldsSeenWeek = state.week;
+      continue;
+    }
+    if (screen.kind === 'bust') {
+      ui.bustAck = [...ui.bustAck, me.id];
       continue;
     }
     if (screen.kind === 'pass') {

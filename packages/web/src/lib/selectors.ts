@@ -49,6 +49,16 @@ export function humans(s: GameState): Player[] {
   return s.players.filter((p) => p.kind === 'human');
 }
 
+/**
+ * Is there a bookie this week? Two ways there is not: the season's No Betting toggle, and a planet
+ * that has none (Holy Bark). The engine asks the same question in phases/turn.ts to decide whether
+ * to open a betting phase at all; this is the client's copy of it, kept in one place because both
+ * the venue strip and `screenFor` need the answer and neither may import the other.
+ */
+export function bookieOpen(s: GameState): boolean {
+  return s.toggles.betting && !planetOf(s.planet.planetId).special.noBetting;
+}
+
 export function playerById(s: GameState, id: Id | null | undefined): Player | undefined {
   return id ? s.players.find((p) => p.id === id) : undefined;
 }

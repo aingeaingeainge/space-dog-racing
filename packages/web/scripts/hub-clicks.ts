@@ -44,7 +44,15 @@ import { venues } from '../src/lib/venues';
 import { venueStatus } from '../src/lib/venueStatus';
 import { HOTSPOT_VENUES } from '../src/lib/hotspots';
 
-/** Declarations (3) + head to the track + run the races + back to the planet + end turn. */
+/**
+ * Declarations (3) + head to the track + run the races + back to the planet + end turn.
+ *
+ * This is now true of *every* weekend, which it was not before M4 session 2. A weekend with no
+ * bookie — Holy Bark, or a No Betting season — never had a "run the races" button to press, so the
+ * flat 7 used to over-count those weeks by one. The locked-card screen those weekends now get
+ * (screens/LockedField.tsx) ends on "Watch the races", which takes that click's place: the field
+ * finally gets shown and the weekend costs exactly what a betting weekend costs.
+ */
 const FIXED_PER_WEEKEND = 7;
 
 function ownDogs(s: GameState, p: Player): Dog[] {
@@ -132,7 +140,13 @@ function playSeason(seed: number, tally: Tally): void {
   let state = createSeason(setup);
   const log: Action[] = [];
   drive(state, log);
-  const ui: ScreenUi = { racesWatchedWeek: 0, resultsSeenWeek: 0, passAck: null };
+  const ui: ScreenUi = {
+    racesWatchedWeek: 0,
+    resultsSeenWeek: 0,
+    fieldsSeenWeek: 0,
+    passAck: null,
+    bustAck: [],
+  };
   let lastWeek = 0;
 
   for (let step = 0; step < 20000; step++) {
@@ -146,6 +160,14 @@ function playSeason(seed: number, tally: Tally): void {
     }
     if (screen.kind === 'results') {
       ui.resultsSeenWeek = state.week;
+      continue;
+    }
+    if (screen.kind === 'fields') {
+      ui.fieldsSeenWeek = state.week;
+      continue;
+    }
+    if (screen.kind === 'bust') {
+      ui.bustAck = [...ui.bustAck, me.id];
       continue;
     }
     if (screen.kind === 'pass') {

@@ -29,6 +29,10 @@ export interface GameStore {
   racesWatchedWeek: number;
   /** Week whose race results the table has already read. UI only. */
   resultsSeenWeek: number;
+  /** Week whose locked card has been read, on a weekend with no bookie. UI only. */
+  fieldsSeenWeek: number;
+  /** Humans who have been shown the bad news. UI only. */
+  bustAck: Id[];
   /** 1× or 2×. UI only. */
   raceSpeed: RaceSpeed;
   /** The human whose "pass the laptop" screen has been acknowledged. */
@@ -46,7 +50,9 @@ export interface GameStore {
   setRaceSpeed: (speed: RaceSpeed) => void;
   ackRaces: () => void;
   ackResults: () => void;
+  ackFields: () => void;
   ackPass: (playerId: Id) => void;
+  ackBust: (playerId: Id) => void;
   clearError: () => void;
 }
 
@@ -57,6 +63,8 @@ export const useGame = create<GameStore>((set, get) => {
     return {
       resultsSeenWeek: g.resultsSeenWeek,
       racesWatchedWeek: g.racesWatchedWeek,
+      fieldsSeenWeek: g.fieldsSeenWeek,
+      bustAck: g.bustAck,
       raceSpeed: g.raceSpeed,
       ...over,
     };
@@ -77,6 +85,8 @@ export const useGame = create<GameStore>((set, get) => {
     leaderboard: false,
     racesWatchedWeek: 0,
     resultsSeenWeek: 0,
+    fieldsSeenWeek: 0,
+    bustAck: [],
     raceSpeed: 2,
     passAck: null,
     hasSave: readSave() !== null,
@@ -91,7 +101,13 @@ export const useGame = create<GameStore>((set, get) => {
         v: SAVE_VERSION,
         setup,
         log,
-        ui: { resultsSeenWeek: 0, racesWatchedWeek: 0, raceSpeed: speed },
+        ui: {
+          resultsSeenWeek: 0,
+          racesWatchedWeek: 0,
+          fieldsSeenWeek: 0,
+          bustAck: [],
+          raceSpeed: speed,
+        },
       });
       set({
         setup,
@@ -102,6 +118,8 @@ export const useGame = create<GameStore>((set, get) => {
         leaderboard: false,
         racesWatchedWeek: 0,
         resultsSeenWeek: 0,
+        fieldsSeenWeek: 0,
+        bustAck: [],
         passAck: null,
         hasSave: true,
       });
@@ -142,6 +160,8 @@ export const useGame = create<GameStore>((set, get) => {
           leaderboard: false,
           racesWatchedWeek: watched,
           resultsSeenWeek: blob.ui?.resultsSeenWeek ?? 0,
+          fieldsSeenWeek: blob.ui?.fieldsSeenWeek ?? 0,
+          bustAck: blob.ui?.bustAck ?? [],
           raceSpeed: speed,
           passAck: null,
           hasSave: true,
@@ -153,7 +173,16 @@ export const useGame = create<GameStore>((set, get) => {
 
     abandon: () => {
       clearSave();
-      set({ setup: null, state: null, log: [], error: null, hasSave: false, passAck: null });
+      set({
+        setup: null,
+        state: null,
+        log: [],
+        error: null,
+        hasSave: false,
+        passAck: null,
+        bustAck: [],
+        fieldsSeenWeek: 0,
+      });
     },
 
     /**
@@ -205,7 +234,19 @@ export const useGame = create<GameStore>((set, get) => {
       save({ resultsSeenWeek: week });
     },
 
+    ackFields: () => {
+      const week = get().state?.week ?? 0;
+      set({ fieldsSeenWeek: week });
+      save({ fieldsSeenWeek: week });
+    },
+
     ackPass: (playerId) => set({ passAck: playerId }),
+
+    ackBust: (playerId) => {
+      const bustAck = [...get().bustAck, playerId];
+      set({ bustAck });
+      save({ bustAck });
+    },
     clearError: () => set({ error: null }),
   };
 });

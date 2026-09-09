@@ -1,4 +1,5 @@
 import { planetOf, type GameState } from '@sdr/engine';
+import { bookieOpen } from './selectors';
 import type { View } from '../store/gameStore';
 
 export type VenueId = View | 'bookie';
@@ -24,13 +25,16 @@ export function venues(s: GameState): Venue[] {
   const inTurn = pre || post;
   const shut = inTurn ? undefined : 'Not while the races are on';
 
-  const bookie: Venue = !s.toggles.betting
-    ? { id: 'bookie', label: 'Bookie', open: false, reason: 'No betting this season' }
-    : planet.special.noBetting
-      ? { id: 'bookie', label: 'Bookie', open: false, reason: `No bookie on ${planet.name}` }
-      : s.phase === 'betting'
-        ? { id: 'bookie', label: 'Bookie', open: true }
-        : { id: 'bookie', label: 'Bookie', open: false, reason: 'Opens when the card locks' };
+  const bookie: Venue = !bookieOpen(s)
+    ? {
+        id: 'bookie',
+        label: 'Bookie',
+        open: false,
+        reason: s.toggles.betting ? `No bookie on ${planet.name}` : 'No betting this season',
+      }
+    : s.phase === 'betting'
+      ? { id: 'bookie', label: 'Bookie', open: true }
+      : { id: 'bookie', label: 'Bookie', open: false, reason: 'Opens when the card locks' };
 
   return [
     { id: 'hub', label: 'Planet hub', open: true },

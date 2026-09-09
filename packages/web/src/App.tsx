@@ -5,8 +5,10 @@ import { Nav } from './components/Nav';
 import { PassTo } from './components/PassTo';
 import { TopBar } from './components/TopBar';
 import { Bookie } from './screens/Bookie';
+import { Bust } from './screens/Bust';
 import { Docks } from './screens/Docks';
 import { GalaxyMap } from './screens/GalaxyMap';
+import { LockedField } from './screens/LockedField';
 import { Market } from './screens/Market';
 import { PlanetHub } from './screens/PlanetHub';
 import { RaceView } from './screens/RaceView';
@@ -31,7 +33,9 @@ export function App() {
   const leaderboard = useGame((g) => g.leaderboard);
   const racesWatchedWeek = useGame((g) => g.racesWatchedWeek);
   const resultsSeenWeek = useGame((g) => g.resultsSeenWeek);
+  const fieldsSeenWeek = useGame((g) => g.fieldsSeenWeek);
   const passAck = useGame((g) => g.passAck);
+  const bustAck = useGame((g) => g.bustAck);
   const error = useGame((g) => g.error);
   const clearError = useGame((g) => g.clearError);
 
@@ -47,10 +51,17 @@ export function App() {
   // from Planet.accents, so a screen never knows which rock it is on and a new planet tints
   // the whole game from its data row alone.
   const planetId = state.calendar[state.week - 1]?.planetId ?? null;
-  const screen = screenFor(state, { racesWatchedWeek, resultsSeenWeek, passAck });
+  const screen = screenFor(state, {
+    racesWatchedWeek,
+    resultsSeenWeek,
+    fieldsSeenWeek,
+    passAck,
+    bustAck,
+  });
 
   const wrap = (node: ReactNode) => <PlanetTheme planetId={planetId}>{node}</PlanetTheme>;
 
+  if (screen.kind === 'bust' && screen.me) return wrap(<Bust s={state} me={screen.me} />);
   if (screen.kind === 'seasonEnd') return wrap(<SeasonEnd s={state} />);
   if (screen.kind === 'noHuman' || !screen.me) {
     return wrap(
@@ -63,6 +74,15 @@ export function App() {
   }
   const me = screen.me;
   if (screen.kind === 'race') return wrap(<RaceView s={state} me={me} />);
+  if (screen.kind === 'fields')
+    return wrap(
+      <>
+        <TopBar s={state} me={me} />
+        <div className="app">
+          <LockedField s={state} me={me} />
+        </div>
+      </>,
+    );
   if (screen.kind === 'results') return wrap(<Results s={state} me={me} />);
   if (screen.kind === 'pass') return wrap(<PassTo s={state} next={me} />);
 
