@@ -16,6 +16,7 @@ import {
 import { Panel } from '../components/Panel';
 import { KV, Notes } from '../components/ui';
 import { NeonButton } from '../components/NeonButton';
+import { rumours } from '../lib/rumours';
 import { ownedDogs } from '../lib/selectors';
 import { useGame } from '../store/gameStore';
 
@@ -74,6 +75,8 @@ export function Saloon({ s, me }: { s: GameState; me: Player }) {
           ]}
         />
       </Panel>
+
+      <Rumours s={s} />
 
       <Panel title="For hire" sub="wages are charged every week until you let them go">
         {staffOnOffer.length === 0 ? (
@@ -161,6 +164,27 @@ export function Saloon({ s, me }: { s: GameState; me: Player }) {
         />
       ) : null}
     </>
+  );
+}
+
+/**
+ * GDD §9's rumours — the only hint in the game about kibble prices further down the circuit, and
+ * the reason the trade is a judgement rather than a lookup. What is being said is derived from the
+ * calendar and the planets' price bands (lib/rumours.ts); a band is not a price, so the tip can be
+ * wrong.
+ */
+function Rumours({ s }: { s: GameState }) {
+  const heard = rumours(s);
+  return (
+    <Panel title="What they're saying" sub="kibble prices further up the circuit">
+      {heard.length ? (
+        <Notes lines={heard.map((r) => r.text)} />
+      ) : (
+        <p className="muted flush">
+          Nothing but the racing tonight. Nobody has a word to say about the price of kibble.
+        </p>
+      )}
+    </Panel>
   );
 }
 
