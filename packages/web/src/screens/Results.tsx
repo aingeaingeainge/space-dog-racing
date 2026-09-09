@@ -11,6 +11,7 @@ import { Badge, Delta, StableName, Traits } from '../components/ui';
 import { NeonButton } from '../components/NeonButton';
 import { BettingSlip, type SlipRow } from '../components/BettingSlip';
 import { OwnerFace } from '../components/Owner';
+import { useKeys } from '../lib/keys';
 import { CLASS_LABEL, playerById } from '../lib/selectors';
 import { useGame } from '../store/gameStore';
 
@@ -80,6 +81,7 @@ function RaceTable({ s, r, meId }: { s: GameState; r: RaceResult; meId: string }
 /** GDD §15.9 without the canvas: who won, what it paid, what it did to the ratings. */
 export function Results({ s, me }: { s: GameState; me: Player }) {
   const ackResults = useGame((g) => g.ackResults);
+  useKeys({ Enter: ackResults, ' ': ackResults });
   if (!s.races) return null;
   const planet = planetOf(s.planet.planetId);
   const mine = RACE_CLASSES.flatMap((cls) =>
@@ -93,7 +95,7 @@ export function Results({ s, me }: { s: GameState; me: Player }) {
         title={`Week ${s.week} results — ${planet.name}`}
         sub="prize money paid, ratings updated"
         actions={
-          <NeonButton variant="primary" onClick={ackResults}>
+          <NeonButton variant="primary" onClick={ackResults} title="key: Enter">
             Back to the planet
           </NeonButton>
         }

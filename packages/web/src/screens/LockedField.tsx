@@ -12,6 +12,7 @@ import { Panel } from '../components/Panel';
 import { Notes } from '../components/ui';
 import { NeonButton } from '../components/NeonButton';
 import { TicketCard } from '../components/TicketCard';
+import { useKeys } from '../lib/keys';
 import { CLASS_LABEL } from '../lib/selectors';
 import { useGame } from '../store/gameStore';
 
@@ -26,6 +27,7 @@ import { useGame } from '../store/gameStore';
  */
 export function LockedField({ s, me }: { s: GameState; me: Player }) {
   const ackFields = useGame((g) => g.ackFields);
+  useKeys({ Enter: ackFields, ' ': ackFields });
   const planet = planetOf(s.planet.planetId);
   // The same margin lockDeclarations priced this field with, so these are the stored odds and not
   // a second opinion.
@@ -38,7 +40,7 @@ export function LockedField({ s, me }: { s: GameState; me: Player }) {
         title="The card is locked"
         sub={`${planet.name} · week ${s.week} — no bookie here`}
         actions={
-          <NeonButton variant="primary" onClick={ackFields}>
+          <NeonButton variant="primary" onClick={ackFields} title="key: Enter">
             Watch the races
           </NeonButton>
         }

@@ -2,6 +2,7 @@ import { EVENT_BY_ID, type GameState } from '@sdr/engine';
 import { Modal } from './ui';
 import { NeonButton } from './NeonButton';
 import { eventArt } from '../lib/assets';
+import { useKeys } from '../lib/keys';
 import { playerById } from '../lib/selectors';
 import { useGame } from '../store/gameStore';
 
@@ -16,6 +17,16 @@ import { useGame } from '../store/gameStore';
 export function EventModal({ s }: { s: GameState }) {
   const dispatch = useGame((g) => g.dispatch);
   const pending = s.pendingEvent;
+  const choose = (choice: number) => {
+    if (!pending || choice < 0 || choice >= pending.choices.length) return;
+    dispatch({ t: 'ResolveEvent', playerId: pending.playerId, choice });
+  };
+  // 1, 2, 3 … answer the card, and Enter takes the first choice — one key per choice the card
+  // actually offers, so a two-way card cannot be told to take a third option. There is
+  // deliberately no Escape: GDD §11 says the phase cannot move on until the player has chosen.
+  const keys: Record<string, () => void> = { Enter: () => choose(0) };
+  for (let i = 0; i < (pending?.choices.length ?? 0); i++) keys[String(i + 1)] = () => choose(i);
+  useKeys(keys);
   if (!pending) return null;
   const card = EVENT_BY_ID[pending.eventId];
   const who = playerById(s, pending.playerId);
@@ -37,7 +48,8 @@ export function EventModal({ s }: { s: GameState }) {
           <NeonButton
             key={i}
             variant={i === 0 ? 'primary' : 'default'}
-            onClick={() => dispatch({ t: 'ResolveEvent', playerId: pending.playerId, choice: i })}
+            title={`key: ${i + 1}`}
+            onClick={() => choose(i)}
           >
             {label}
           </NeonButton>

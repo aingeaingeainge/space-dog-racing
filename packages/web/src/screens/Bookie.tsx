@@ -17,6 +17,7 @@ import { Notes } from '../components/ui';
 import { NeonButton } from '../components/NeonButton';
 import { TicketCard } from '../components/TicketCard';
 import { BettingSlip, type SlipRow } from '../components/BettingSlip';
+import { useKeys } from '../lib/keys';
 import { CLASS_LABEL } from '../lib/selectors';
 import { useGame } from '../store/gameStore';
 
@@ -27,6 +28,8 @@ import { useGame } from '../store/gameStore';
  */
 export function Bookie({ s, me }: { s: GameState; me: Player }) {
   const dispatch = useGame((g) => g.dispatch);
+  const runRaces = () => dispatch({ t: 'EndPhase', playerId: me.id });
+  useKeys({ Enter: runRaces });
   if (!s.fields) return null;
   const planet = planetOf(s.planet.planetId);
   const margin = bettingMargin(s);
@@ -41,7 +44,7 @@ export function Bookie({ s, me }: { s: GameState; me: Player }) {
         title="The bookie"
         sub={`${planet.name} · margin ${Math.round(margin * 100)}% · max stake ${Math.round(frac * 100)}% of cash per race`}
         actions={
-          <NeonButton variant="primary" onClick={() => dispatch({ t: 'EndPhase', playerId: me.id })}>
+          <NeonButton variant="primary" onClick={runRaces} title="key: Enter">
             Run the races
           </NeonButton>
         }

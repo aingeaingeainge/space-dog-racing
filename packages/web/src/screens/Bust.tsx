@@ -3,6 +3,7 @@ import { Panel } from '../components/Panel';
 import { OwnerFace } from '../components/Owner';
 import { NeonButton } from '../components/NeonButton';
 import { StableName } from '../components/ui';
+import { useKeys } from '../lib/keys';
 import { humans, standings } from '../lib/selectors';
 import { useGame } from '../store/gameStore';
 
@@ -17,6 +18,7 @@ import { useGame } from '../store/gameStore';
  */
 export function Bust({ s, me }: { s: GameState; me: Player }) {
   const ackBust = useGame((g) => g.ackBust);
+  useKeys({ Enter: () => ackBust(me.id) });
   const owed = outstanding(me, 'bank') + outstanding(me, 'shark');
   const mine = s.eventLog.filter(
     (l) => l.playerId === me.id && (l.text.includes('Forced sale') || l.text.includes('bankrupt')),
@@ -70,7 +72,7 @@ export function Bust({ s, me }: { s: GameState; me: Player }) {
           ) : null}
         </p>
         <div className="row gap-t">
-          <NeonButton variant="primary" onClick={() => ackBust(me.id)}>
+          <NeonButton variant="primary" onClick={() => ackBust(me.id)} title="key: Enter">
             {over ? 'See how it finished' : 'Carry on'}
           </NeonButton>
         </div>

@@ -1,12 +1,15 @@
 import { formatBones, type GameState, type Id } from '@sdr/engine';
+import { useKeys } from '../lib/keys';
 import { standings } from '../lib/selectors';
 import { Modal, StableName } from './ui';
 import { OwnerBlurb, OwnerFace } from './Owner';
 import { useGame } from '../store/gameStore';
 
-/** GDD §15.10 — everything public, reachable from every screen. */
+/** GDD §15.10 — everything public, reachable from every screen. Escape shuts it, like any modal. */
 export function LeaderboardOverlay({ s, meId }: { s: GameState; meId: Id | null }) {
   const setLeaderboard = useGame((g) => g.setLeaderboard);
+  const close = () => setLeaderboard(false);
+  useKeys({ Escape: close, l: close });
   const rows = standings(s);
   return (
     <Modal

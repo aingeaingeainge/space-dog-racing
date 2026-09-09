@@ -1961,3 +1961,37 @@ input.seed-link {
   min-width: 0;
   font-size: 12px;
 }
+
+/* ------------------------------------------------------- keyboard: focus, and the shortcut hint */
+
+/*
+ * The hazard ring, as a net under everything. `button:focus-visible` and the input/select rule
+ * above already cover every interactive element the game has today — they are all real buttons,
+ * inputs and selects, none of them a div with a click handler — but enumerating elements is how a
+ * screen ends up with one that has no ring at all. This is the same ring in the same colour, not a
+ * second one: it never fires where a rule above already matched, and it does not depend on colour
+ * alone, since an outline changes the shape of what is focused.
+ */
+:focus-visible {
+  outline: 3px solid var(--hazard);
+  outline-offset: 2px;
+}
+
+/* A ring on a control inside a scrolling table would otherwise be clipped by the scroll box. */
+.table-wrap :focus-visible {
+  outline-offset: 0;
+}
+
+/* What the keys are, under the venue strip. Hidden on a phone, where there is no keyboard and the
+   line would cost two rows of a small screen to say so. */
+p.keyhint {
+  margin: -4px 0 12px;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  color: var(--dim);
+}
+@media (max-width: 760px) {
+  p.keyhint {
+    display: none;
+  }
+}
