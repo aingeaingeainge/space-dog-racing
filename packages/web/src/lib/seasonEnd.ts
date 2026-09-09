@@ -102,7 +102,9 @@ function bestDog(s: GameState): Moment | null {
     if (!best || dogValue(d) > dogValue(best)) best = d;
   }
   if (!best) return null;
-  const record = best.runs ? `${best.wins} wins from ${best.runs} runs` : 'never ran';
+  const record = best.runs
+    ? `${best.wins} win${best.wins === 1 ? '' : 's'} from ${best.runs} run${best.runs === 1 ? '' : 's'}`
+    : 'never ran';
   return {
     key: 'dog',
     label: 'Most valuable dog',

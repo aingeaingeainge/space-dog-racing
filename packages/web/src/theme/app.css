@@ -1631,6 +1631,31 @@ ul.notes li::before {
   .race-canvas {
     height: min(46vh, 360px);
   }
+  /*
+   * The result strip under a finished race is a flex row of name, stable, rating change and
+   * prize. A flex item defaults to min-width: auto, so the two text cells refused to shrink below
+   * their longest word and pushed the page 12 px sideways on a 390 px screen — the only horizontal
+   * scroll left in the game, and it only appeared for the second or two the result is up, which is
+   * why it outlived M3 session 2's sweep. They may now ellipse instead. Nothing is dropped: all
+   * four cells stay, and the numbers keep their own column.
+   */
+  .race-result li {
+    gap: 6px;
+    font-size: 12px;
+  }
+  .race-result .nm,
+  .race-result .own {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .race-result .own {
+    flex: 0 1 auto;
+  }
+  .race-result .num {
+    min-width: 52px;
+  }
   .shop-row .price {
     min-width: 0;
     text-align: left;
@@ -1888,7 +1913,9 @@ td.rules {
 /* One row per stable, in finishing order, so the key reads like the standings table above it. */
 ul.chart-key {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  /* Wide enough that a stable's name is not ellipsed on a laptop, where there is plainly room for
+     it — three columns of a full name beats four of "The Widow Cr…". */
+  grid-template-columns: repeat(auto-fit, minmax(310px, 1fr));
   gap: 2px 14px;
   margin: 0;
   padding: 0;
