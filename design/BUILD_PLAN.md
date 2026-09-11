@@ -4,6 +4,8 @@ Companion to `GDD.md`. This is the *how*: architecture, repo layout, milestones,
 
 **Working assumption:** Jesse reviews and playtests between milestones; the builder model works one milestone per session with the GDD, this plan, and the spreadsheet in the repo. Nothing below assumes the builder remembers a previous session.
 
+> **Where things stand, 11 September 2026.** v1 is shipped and tagged `m4`. §6 is history — it is kept because its acceptance criteria are still the regression floor. **The live plan is §6b (the four v2 phases) and §7a (the rebuilt harness).** Online multiplayer was M5 and is now M6, behind v2.
+
 ---
 
 ## 1. Architecture
@@ -45,7 +47,7 @@ Rules that make multiplayer cheap later:
 | Tests | Vitest | Engine has ≥80% coverage; UI smoke tests only |
 | Lint/format | ESLint + Prettier | Pre-commit via `lint-staged` |
 | Hosting | Cloudflare Pages (Git-connected) | Build command `npm run build`, output `packages/web/dist`; every push to `main` deploys, every PR gets a preview URL |
-| Multiplayer (M5) | Cloudflare Workers + Durable Objects (one object per game room), via PartyKit or raw | Same Cloudflare account as hosting; runs the same engine package server-side |
+| Multiplayer (M6) | Cloudflare Workers + Durable Objects (one object per game room), via PartyKit or raw | Same Cloudflare account as hosting; runs the same engine package server-side |
 
 ## 3. Repository layout
 
@@ -84,31 +86,19 @@ space-dog-racing/
 │     └─ index.html
 ├─ .github/workflows/ci.yml       ← tests on push (deploys are Cloudflare's job)
 ├─ scripts/snapshot.mjs           ← dated local backup of the repo (see §7b)
-├─ wrangler.toml                  ← M5: Workers/Durable Objects config
+├─ wrangler.toml                  ← M6: Workers/Durable Objects config
 └─ package.json              (npm workspaces)
 ```
 
-## 4. `CLAUDE.md` for the repo (paste as-is)
+## 4. `CLAUDE.md` for the repo
 
-```markdown
-# Space Dog Racing — builder notes
+The live copy is `CLAUDE.md` at the repo root and it has moved on since M0 — it gained the `Math.pow`/`exp`/`log` prohibition in M1 after Node 22 and Node 24 disagreed about every stored odds value. **Read the file, not this section.** The only thing worth repeating here is why the rule that matters most is there:
 
-Read design/GDD.md and design/BUILD_PLAN.md before any change. The GDD is the source of truth for rules; the spreadsheet is the source of truth for numbers (packages/engine/src/content/balance.json is generated from it — never hand-edit).
+> Same seed + same action log must reproduce the same season, **on any machine and any JS engine**. `test/golden.test.ts` guards the rules; `test/determinism.test.ts` guards the arithmetic.
 
-## Non-negotiables
-- packages/engine has no DOM, React, Date, or Math.random. All randomness via rng.ts. If you need a random number, thread the rng through.
-- Every state change is an Action handled in reduce.ts. UI never mutates state directly.
-- Same seed + same action log must reproduce the same season. test/golden.test.ts guards this; update the golden file only when a rule deliberately changes and say so in the commit.
-- Races return a tick log; the renderer replays it and never re-simulates.
-- Keep TypeScript strict; no `any` in engine.
-- Run `npm test` and `npm run harness -- --seasons 50` before declaring a milestone done; paste the harness summary into the PR description.
+**v2 adds one line to it**, in Phase A:
 
-## Conventions
-- Currency is "Bones"; format with formatBones().
-- Ratings, stats 0–99 integers in state (floats only inside a race).
-- Content (planets/events/traits) is data, not code: add a row, not a branch.
-- Commit small, message in imperative mood.
-```
+> Content is data. A race type, a good, a tier and a staff member are all *rows*. Adding the ninth race type or the thirteenth feed is not a code change — if it is, the shape is wrong.
 
 ## 5. Core data model (sketch — the builder finalises)
 
@@ -190,7 +180,116 @@ Each milestone ends with: tests green, harness run, a short demo Jesse can click
 **Deliverables:** Easy and Hard AI; balance pass using the harness (target: Hard beats Normal ~65% of seasons, Normal beats Easy ~80%, human-with-a-clue beats Normal ~50% after two plays); Majors purse-share decision (§20 Q2); season-end moments and worth chart; sound (optional); keyboard shortcuts; mobile-width layout check; Cloudflare Pages deploy; README with a play link; seed sharing ("challenge a friend to the same season").
 **Accept when:** deployed URL works from a phone and a laptop; harness targets met; no console errors across a season.
 
-### M5 — Online multiplayer (2–3 sessions, later)
+### M5 — ~~Online multiplayer~~ → **renumbered M6 and moved behind v2** (GDD §19, D16)
+
+**M5 no longer exists.** Online multiplayer is now M6 and runs *after* the four v2 phases below. Building a server for rules that are about to change is the wrong order: v2 rewrites declarations, eligibility, the goods market, staff, and adds a whole information layer, and every one of those is protocol surface. Nothing in v2 breaks the engine's purity, so M6 is exactly the job it always was — just later. Its spec is kept verbatim at §6b.9 for when it comes round.
+
+---
+
+## 6b. V2 — the mechanics rethink
+
+v1 shipped at tag `m4` on 9 September 2026: a whole 13-week season against three AI difficulties, deployed and correct. The problem it has is that there are not enough decisions in it. GDD 0.2 is the answer; this section is how it gets built.
+
+**Four phases, in dependency order** (GDD §19, D9). Each moves the golden snapshot exactly once, the way M4 session 1 did, and each ends with Jesse playing a season before the next begins.
+
+**The specifications for C and D are provisional on purpose.** This design has grown a great deal on paper and none of it has been played. Expect Phase A's playtest to change them, and do not let the volume of decisions substitute for that.
+
+### Phase A — the training game (2 sessions)
+
+**Goal:** a stable you raise. Pups, Race/Train/Rest, fitness that reads, a kennel worth filling, and a bankruptcy that can happen.
+
+**Deliverables**
+1. **The race rebalance (GDD §6.2 / D12) — first commit, on its own.** `balance.json` only: `raceBaseSpeed` 13.75, `raceSpeedCoef` 4.5, `raceFadePenalty` 0.50, `raceAccelBase` 2.0, `raceAccelCoef` 5.5, `raceBreakMetres` 7, `raceBumpChance` 0.30, `raceBumpPenalty` 0.30, `raceBumpDistance` 1.2. Mirror into the spreadsheet. Re-fit `oddsScale` (GDD §20 Q4) and say what was chosen and why.
+2. **The fitness softening (D13):** `fitScale` becomes `0.90 + 0.10 × fitness/100`. This is a *code* constant in `simulateRace` today — move it to `balance.json` as part of this change.
+3. **Race / Train / Rest (GDD §5.7).** A new per-dog weekly state, set in the Kennels. New action `SetDogState`. Race −25, Train +8, Rest +30. Layoff is imposed by injury or ban, not chosen.
+4. **Pups (GDD §5.6).** Market stock weighted to age-1; growth becomes +2/week at age 1, +1 at age 2, −1 at age 5+. Kennel slots 4 → 6 at the top ship tier.
+5. **Bankruptcy reachable (D6).** No new mechanism — verify the above reaches 5–10% on the careless agent, and adjust upkeep or the forced-sale floor only if it does not.
+6. **AI:** every difficulty needs a Race/Train/Rest policy. Normal: a fitness rule. Hard: a policy that values a Train week against the purse it is passing up.
+7. **Harness rebuild, part 1** — §7 below. The careless agent and the new core measures ship in this phase, because nothing after it can be judged without them.
+
+**Accept when**
+| Measure | Target |
+|---|---|
+| `+10` to one stat, from a balanced rating-50 dog | speed 21–25%, stamina 18–22%, accel 14–18%, trap 12–16% |
+| accel's edge on a 350 m track vs a 600 m | measurably larger; same for trap on tight bends and stamina on stayers |
+| §6.2 calibration (balanced 65 vs seven 50s) | 45–60% |
+| mean fitness at declaration | 60–80 (v1: 96) |
+| share of declarations below 60 fitness | 10–25% (v1: 0%) |
+| races per dog per season | 7–9 |
+| mean dogs owned at week 13 | ≥ 4.5 (v1: ~3.4) |
+| bankruptcies, careless agent | 5–10% |
+| bankruptcies, Normal | ≤ 2% |
+| a pup bought week 1, trained throughout | reaches par in The Open between weeks 9 and 11 |
+| `npm test` | green, golden snapshot moved **once**, in the commit that says so |
+
+### Phase B — the card and the fog (1–2 sessions)
+
+**Goal:** you do not know what is coming, and the races you can enter depend on what you have raised.
+
+**Deliverables**
+1. **The race card (GDD §6.3).** `RaceClass` is replaced by a `RaceType` **row** — id, label, an eligibility predicate keyed off fields already in `Dog`, and a purse tier. Seven types plus The Open. Two drawn per weekend. ⚠️ `RaceClass` is threaded through `declarations`, `fields`, `races`, `Bet`, `RaceResult`, the AI's `bestAssignment`, and four web screens — this is the largest refactor in v2 and most of Phase B's cost.
+2. **Purses (GDD §6.4)** and the 27% pool cut (D15).
+3. **The fog (D5).** The Galaxy Map shows this planet in full, next week by name and Major status, and nothing else. Dossiers as a market good; the Tipster's reach; event cards that sell information.
+4. **Re-tune `lib/rumours.ts`** — its four-week horizon is far too generous once the map is dark.
+5. **Harness rebuild, part 2**: per-type entry counts, the concentration measure.
+
+**Accept when**
+| Measure | Target |
+|---|---|
+| broad 5-dog stable fills all three races | 55–70% of weeks |
+| one-dog-concentrated stable fills all three | ≤ 20% |
+| each race type used | ≥ 8% of all races run |
+| a maiden win visibly costs future eligibility | the harness reports maiden entries falling after a first win |
+| prize share of a stable's income | falls from 87% toward 65% |
+| season "decided by" week | later than v1's 7.6 |
+
+### Phase C — the economy (2 sessions)
+
+**Goal:** something worth spending money on, three ways.
+
+**Deliverables**
+1. **Goods (GDD §8.2):** kibble as the staple plus four stat feeds × three tiers. `cargo: number` becomes a per-good record — a save-format change, so bump `STATE_VERSION`.
+2. **The tier ladder (D11):** Rough / Proper / Prime, one vocabulary, chevron glyphs, the ship's five engine tiers folded to three.
+3. **Staff (D7):** three slots, any mix, six roles × three tiers, wages per GDD §7.2.
+4. **A busier market (D10)**, inside the 13.3-click budget.
+5. **The trader's road:** hold capacity and fuel re-priced so a cargo upgrade pays back inside a season (GDD §20 Q6).
+6. **Harness rebuild, part 3**: a row per good and tier in the income split; the trainer and trader agents; the lead-conversion measure.
+
+**Accept when**
+| Measure | Target |
+|---|---|
+| trade income, Normal | positive, and 8–15k for the trader agent |
+| a +20-unit cargo upgrade | pays back inside one season |
+| stacking three of one staff role | does not beat a mixed three by more than 5 points of head-to-head |
+| Prime offers seen per season | 2–5 |
+| lead conversion: a Prime offer taken by a stable ahead at week 6 vs one behind | the gap it creates is no larger for the leader |
+| `hub-clicks.ts` | ≤ 14.5 |
+
+### Phase D — the dark side and the scoreboard (1–2 sessions)
+
+**Goal:** the third road exists, and all three are worth the same.
+
+**Deliverables**
+1. **GDD §13 built:** the Fixer returns to hire; steward bribe; sabotage at −25 fitness; detection, fines, the season ban, and telling the wronged stable who did it.
+2. **A flat stake ceiling** alongside the fractional one (GDD §20 Q7).
+3. **Championship points and the purse at the Collar (D3).**
+4. **The three-path balance pass** — the whole point of the phase.
+5. **Harness rebuild, part 4**: the crook agent; the three-way comparison as a first-class printout.
+
+**Accept when**
+| Measure | Target |
+|---|---|
+| trainer / trader / crook agent mean end worth | within 15% of each other |
+| each path's p90/p10 spread | distinct — the crook widest, the trainer narrowest |
+| crook agent caught at least once | 40–70% of seasons |
+| a caught crook's mean end worth | below the trainer agent's |
+| a mixed agent (all three) | not worse than the best single path |
+| Hard beats Normal | 63–68% |
+
+### 6b.9 — M6, online multiplayer (2–3 sessions, after v2)
+
+Unchanged from the old M5 in every respect; see §9's Prompt M6. `Action` gains `SetDogState` and the goods record, and `RaceClass` becomes `RaceType`, so the protocol surface is larger than it was — but it is still just the action log.
+
 **Goal:** a lobby code, 2–8 people, same engine.
 **Deliverables:** `packages/server` as a Cloudflare Worker + Durable Object per room running the engine authoritatively (PartyKit optional); lobby (create/join by code, fill with AI); simultaneous planet phases with a 90 s timer and turn-order-resolved contention; action log sync + reconnect; spectator/replay of finished seasons; optional async "play-by-link" mode.
 **Accept when:** two browsers on different machines finish a season together; a refresh mid-season rejoins with no state loss.
@@ -198,9 +297,84 @@ Each milestone ends with: tests green, harness run, a short demo Jesse can click
 ## 7. Testing and balance strategy
 
 - **Golden seed tests:** seed 42 + a scripted action list ⇒ snapshot of final state. Any rule change must update the snapshot deliberately.
-- **Property tests (engine):** cash never negative except via loans; a dog is never in two races; declared dogs respect caps; net worth formula equals sum of parts.
-- **Harness:** `harness.ts --seasons N --ai normal,normal,hard,easy` prints: mean/p10/p90 end worth per difficulty, win rate per difficulty, prize vs trade vs betting income split, bankruptcies, average Gold field rating by week, supplement catch rate. This is the balance instrument; the spreadsheet is the design instrument. When they disagree, the harness wins and the spreadsheet gets updated.
-- **Playtest checklist (Jesse, after M1 and M4):** Did the Bronze/Silver decision ever feel hard? Did you ever want to bet against yourself? Did any purchase feel pointless after week 8? Did a Major swing the season? Was there a week where nothing happened?
+- **Property tests (engine):** cash never negative except via loans; a dog is never in two races; declared dogs meet their race's entry criterion; net worth formula equals sum of parts; **every dog has exactly one weekly state**; **every good in a hold is non-negative and the hold never exceeds capacity**.
+- **The harness is the balance instrument**; the spreadsheet is the design instrument. When they disagree the harness wins and the spreadsheet gets updated.
+- **Playtest checklist (Jesse, after every v2 phase):** Did any week present a choice you had to think about? Did you ever leave a race to the locals on purpose? Did you ever want to buy information? Did any purchase feel pointless after week 8? Was there a week where nothing happened?
+
+**A methodology warning that still stands.** Pairings inside a season are correlated — two Hards against three Normals is six pairings but one season — so the effective sample is the *season* count. At 200 seasons the standard error on a head-to-head is about **3.5 points**, not 1.4. **Use 800 seasons for any decision worth under 5 points.** M4 session 1 lost an hour tuning against 200-season runs and watched a "+5 point" change evaporate when the RNG stream shifted underneath it.
+
+### 7a. The rebuilt harness — specification
+
+⚠️ **Every v2 change invalidates part of the current instrument.** "Average Gold field rating by week" is meaningless with no Gold. The income split needs a row per good and tier. And `naive%` — the single measure that made M4's balance tractable — assumed one decision a week and there are now up to six. This is the deliverable most likely to be skipped and the most expensive to skip, so it is specified here rather than left to the builder.
+
+#### 7a.1 What survives unchanged
+Mean / p10 / p50 / p90 end worth and win rate by difficulty; head-to-head by difficulty; elapsed time and actions per season; supplement use and catch rate; the calibration mode (`--calibrate`).
+
+#### 7a.2 What is replaced
+
+| v1 measure | v2 replacement | Why |
+|---|---|---|
+| `average Gold field rating by week` | **`field strength by week, per race type`** — mean entrant rating for The Open and for each drawn type | There is no Gold. The Open's curve is the one that reports the same thing (are stables racing up?), and the per-type rows are how you see a type going unused |
+| `income split: prize / trade / bet / costs` | **a row per good and tier** for trade, and a **road split**: prize / trade / betting / information bought / dog trading | §7.1's whole problem is that these three numbers are 87 / −9 / −1. You cannot balance three roads on one trade column |
+| `naive%` / `nLoss%` | **`autoplan%` / `apLoss%`** — see 7a.3 | Race/Train/Rest replaced a one-decision week with a six-decision one |
+| `seasons where the champion won a Major Gold` | **`seasons where the champion won a Major Open`**, plus **`champion's prize share of end worth`** | The second is the one that actually reports whether racing is still the only road |
+
+#### 7a.3 `autoplan%` — the redefinition
+
+`naive%` asked: how often is "best dog to the biggest race, next to the next" *exactly* the EV-optimal assignment? It ran 59% before M4's purse change and 19% after, and that number is why the change was made.
+
+The v2 equivalent has to cover a stable's whole week: a state for every dog, then an entry for every race it is eligible for. Define the **autoplan** as:
+
+> every fit dog Races if it is eligible for anything; the best eligible dog goes into the richest race it can enter; anything under 50 fitness Rests; nobody Trains.
+
+That is the v2 shape of "just enter everything", and it is what a player does before they have understood the game.
+
+- **`autoplan%`** — share of stable-weeks where the autoplan is exactly the optimal plan.
+- **`apLoss%`** — expected worth given up, over the *rest of the season*, by playing it. ⚠️ Unlike `nLoss%` this cannot be a one-week expected-purse figure: a Train week pays off in weeks 9–13, so the loss has to be evaluated against season-end worth. The honest implementation is a **rollout**: from the state at that week, play the season out twice — once with the autoplan forced for that week, once with the agent's own plan — on the same downstream seed, and difference the end worth. Expensive, so sample it (one week in four is enough) and say so in the printout.
+
+**Target: `autoplan%` between 15% and 30%.** Above 40% the week is making itself. Below 10% the player cannot find the plan at all and it reads as noise rather than depth.
+
+#### 7a.4 New measures
+
+**`bankruptRate` (D6), as a first-class number, per agent.** Reported for the careless agent, where the 5–10% target lives, *and* for each difficulty, where it should stay near zero. v1's "0 bankrupt" was quietly reporting that the economy could not kill you.
+
+**`concentration`** — Herfindahl index over each stable's dog values at week 13 (`Σ (value_i / Σvalue)²`). 1.0 is one dog, 0.2 is five equal dogs. R1 says v1 rewards the top end; v2 should push the champion's mean below 0.4.
+
+**`leadConversion` (GDD §20 Q3)** — the Prime-tier amplification test, and the reason it needs its own machinery: take every season, split stables into *ahead at week 6* and *behind at week 6* by net worth rank, and for each, record the change in worth rank from week 6 to 13 **conditional on having taken a Prime offer**. Report the two deltas side by side. **If the leader's gain from a Prime offer is larger than the trailer's, D11's consumable/wage guards are not strong enough.** Requires the engine to log Prime acquisitions; a two-field addition to `PlayerSeasonStats`.
+
+**`cardCoverage`** — for each race type, the share of weekends where the stable had an eligible, fit dog. This is the number that says whether the fog plus fact-gating is a decision or a lottery (GDD §20 Q5).
+
+**`infoSpend` and `infoROI`** — Bones spent on dossiers, tipsters and information events, and the trade profit on the legs that information covered, minus the same stable's profit on uncovered legs. Prices the information economy directly (GDD §9.2).
+
+#### 7a.5 The four new agents
+
+The existing `easy` / `normal` / `hard` measure *difficulty*. These measure *strategy*, and they are what open questions Q2 and Q3 need. They live alongside the difficulties in `ai/` and are selectable by `--ai`, but they are **not offered to players** — a player picking "Trader" as an opponent would be picking an opponent that is deliberately bad at two thirds of the game.
+
+| Agent | Plays | Exists to answer |
+|---|---|---|
+| **`careless`** | enters everything, never rests, never trains, hires whatever is offered, never repays a loan, buys the dearest dog it can reach | **D6**: is the bankruptcy rate 5–10%? Nothing else can measure it, because a competent agent never goes bust |
+| **`trainer`** | buys pups, trains them, keeps a trainer and a vet, does not trade beyond eating, never bets | **Q2**, road 1 |
+| **`trader`** | keeps three cheap dogs, buys hold and information, works the spread, races only when the purse is free money | **Q2**, road 2 |
+| **`crook`** | keeps a mid stable, hires a Fixer, sabotages the favourite in the richest race it is in, backs its own dog | **Q2**, road 3, and it is the only way to price §13 before it ships |
+
+Each takes the same `Plan` steps in `ai/shared.ts` with a different options object — the M4 session 1 refactor already made every step configurable, and that is the shape this depends on.
+
+**The three-way printout is the deliverable**, not the agents: mean / p10 / p90 end worth for `trainer`, `trader`, `crook` in the same seasons, with the road split beside it. **Target: within 15% of each other on the mean, and visibly different in spread.**
+
+⚠️ **A caveat to state in the printout.** Three hand-written agents measure whether three roads *can* pay, not whether they are *balanced against a good player*. Jesse beat three Hard and three Normal stables with a line no agent plays. The agents are a floor test, not a proof.
+
+#### 7a.6 Invocation
+
+```
+npm run harness -- --seasons 800 --ai easy,normal,normal,hard,hard,normal
+npm run harness -- --seasons 800 --ai trainer,trainer,trader,trader,crook,crook   # Q2
+npm run harness -- --seasons 400 --ai careless,normal,normal,normal               # D6
+npm run harness -- --seasons 400 --leadConversion                                 # Q3
+npm run harness -- --seasons 200 --autoplan                                       # the rollout, sampled
+npm run harness -- --calibrate
+```
+
+At v1's ~77 ms a season, 800 seasons is about a minute. The rollout mode is roughly 4× that and should say so.
 
 ## 7b. Local backups and rollback
 
@@ -290,11 +464,11 @@ Task: milestone M4 — AI, balance, polish, ship.
 Acceptance: deployed URL works on phone and laptop; harness targets met and pasted into the PR; npm test green.
 ```
 
-### Prompt M5
+### Prompt M6 (after v2)
 ```
-Read CLAUDE.md, design/GDD.md §18, design/BUILD_PLAN.md (milestone M5), and the whole codebase. The engine is already pure and action-driven — do not fork it.
+Read CLAUDE.md, design/GDD.md §18, design/BUILD_PLAN.md (§6b.9), and the whole codebase. The engine is already pure and action-driven — do not fork it.
 
-Task: milestone M5 — online multiplayer.
+Task: milestone M6 — online multiplayer.
 - packages/server: a Cloudflare Worker with one Durable Object per game room running @sdr/engine authoritatively (use PartyKit on top of Durable Objects if it simplifies the WebSocket/room plumbing — justify the choice in one paragraph before coding). Deploy with wrangler to the same Cloudflare account as the Pages site. Rooms by 6-letter code; host sets player count and fills empties with AI; seed generated server-side.
 - Protocol: clients send Actions; server validates via engine.reduce, appends to the log, broadcasts the action (not the state). Clients reduce locally and must converge; add a periodic state-hash check and a resync path that replays the log.
 - Simultaneous planet phases with a 90 s timer; contested market purchases resolve by turn order at receipt; race day broadcasts the tick log.
@@ -305,21 +479,45 @@ Acceptance: two browsers on different machines finish a season; refresh mid-seas
 
 ## 10. Effort estimate
 
+### v1 — done, 9 September 2026
+
 | Milestone | Builder sessions | Jesse's time |
 |---|---|---|
 | M0 | 1 | 30 min review |
 | M1 | 1–2 | 2 × 1 hr playtests |
 | M2 | 1 | 30 min |
 | M3 | 2 (+ art generation time) | 2–4 hr generating/curating images |
-| M4 | 1–2 | 2 × 1 hr playtests |
-| M5 | 2–3 | testing with a friend |
+| M4 | 2 | 2 × 1 hr playtests |
 
-Roughly 8–11 builder sessions to a shippable single-player v1 (M0–M4), with M5 as a separate project once people are asking for it.
+Roughly 8–11 builder sessions to the shipped v1.
+
+### v2 — the estimate, and where it is soft
+
+| Phase | Builder sessions | Jesse's time | Confidence |
+|---|---|---|---|
+| **A** — the training game | **2** | 1 hr playtest + 1 hr re-baseline review | **good.** Mostly `balance.json` plus one new per-dog field and one new action. The unknown is how far the §6.2 rebalance moves the rest of the economy |
+| **B** — the card and the fog | **1–2** | 1 hr playtest | **weakest.** `RaceClass` is a union type threaded through nine engine files, four screens, `Bet`, `RaceResult` and the AI's assignment search. The design is cheap; the refactor is not |
+| **C** — the economy | **2** | 1–2 hr playtest | **fair.** Data-heavy and therefore cheap per rule, but `cargo: number` → a per-good record is a save-format break, and the market and Docks screens are substantially new |
+| **D** — the dark side | **1–2** | 1 hr playtest | **fair on the build, poor on the balance.** §13 itself is small. The three-path balance pass is the part that could run long, because it is the first time anything has been measured against anything other than itself |
+| **Harness rebuild** | **spread across all four**, ~0.5 a phase | — | `autoplan%`'s rollout is the one piece that might want a session of its own |
+
+**Total: 6–8 builder sessions**, plus M6 (2–3) after. That is two thirds of what v1 cost, for a game that plays differently.
+
+**Where the estimate is least trustworthy, in order:** (1) Phase B's `RaceClass` refactor — every other v2 change is additive and that one is not; (2) Phase A's re-baseline, because every measured number below the race level was taken on constants that are about to change; (3) Phase D's balance pass, which has no precedent in this project.
 
 ## 11. Risks and mitigations
 
-- **Race sim feels random.** Mitigation: calibration test in M0, commentary that names causes ("faded — low stamina on a 600 m track"), rating deltas shown after each race.
-- **Bronze/Silver decision collapses** (everyone always races up). Mitigation: harness tracks average Gold field rating by week; if Gold fields are stacked by week 5, lower Gold purses or raise Silver.
-- **Majors decide everything.** Mitigation: §20 Q2, harness measures variance of final rank by Major results.
-- **Art inconsistency across 18 planets.** Mitigation: one prompt template, locked negative list, generate in one sitting, ASSET_LIST.md as the contract.
-- **Scope creep** (reputation, breeding, sponsors, more commodities). Mitigation: v2 list in the GDD; nothing enters v1 without a decision-log row.
+### Carried from v1
+- **Race sim feels random.** Mitigation: the calibration test, commentary that names causes, rating deltas shown after each race. v2 note: after §6.2 the commentary can finally say "faded — no stamina over 600" *truthfully*.
+- **Art inconsistency across 18 planets.** Mitigation: one prompt template, locked negative list, ASSET_LIST.md as the contract.
+- **Scope creep.** Mitigation: the v2 list at GDD §21; nothing enters without a decision-log row.
+
+### New in v2, worst first
+
+- **⚠️ The §6.2 rebalance invalidates every measured number below the race level.** Purses, dog values, the AI's whole EV model and the three difficulty targets were all fitted to constants that are about to move. *Mitigation:* it is Phase A's first commit, alone, with a full re-baseline immediately after and before anything else in Phase A lands. If the economy moves more than ~20%, re-fit purses before building on top.
+- **⚠️ The pup band is narrow.** 4 points a week and the mechanic is dead; 8 and the season is over by week 10 (GDD §5.6). *Mitigation:* the acceptance criterion is the *week a pup reaches par*, not a stat number, so the builder tunes toward the outcome. Report the whole curve, not the single figure.
+- **⚠️ Three roads is arithmetic, and the arithmetic is brutal.** Trading needs 4× and betting 45× (GDD §7.1). *Mitigation:* the purse cut is in Phase B, not deferred; the three path agents exist from Phase C; and if the gap does not close, the honest fallback is two roads plus a side hustle, said out loud, rather than three roads claimed and not delivered.
+- **The Prime tier amplifies the leader.** *Mitigation:* consumable food, wage-not-purchase staff, and `leadConversion` measuring it directly from Phase C. If the guards fail, the next lever is making Prime offers preferentially reach trailing stables — an ugly rubber band, and the reason it is not the first answer.
+- **The fog reads as arbitrary rather than fresh.** *Mitigation:* the pool of race types stays small and memorable; `cardCoverage` measures it; and it is the first thing on the Phase B playtest checklist. This one cannot be settled by the harness — it is an experience question and only Jesse can answer it.
+- **Pace.** v2 adds a per-dog weekly decision across up to six dogs, a busier market and an information layer, to a season already running an hour. *Mitigation:* 13.3 clicks a weekend is a budget with a number on it; `venueStatus` and the Kennels summary are where the difference gets spent; and if Phase C breaches it, the fix is summaries, not fewer decisions.
+- **Phase B's refactor runs long.** *Mitigation:* land `RaceType` as a row-shaped replacement in one commit with the golden snapshot moved once, before any new type is added. Seven types is a data change on top of a type change, and mixing them is how that session overruns.

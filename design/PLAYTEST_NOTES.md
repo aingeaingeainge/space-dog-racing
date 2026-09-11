@@ -69,3 +69,75 @@ the Market rather than at the Race Office.
 
 Seeds, cash by week, and the prize / trade / betting income split were not recorded. Worth
 capturing on the next two seasons so the playthroughs can be compared with the harness directly.
+
+---
+
+## After M4 — one season against the balance pass, 9 September 2026 (Jesse)
+
+Written up 11 September, in the v2 design session. **These findings were given in chat on 9
+September and never made it into this file**, which BUILD_PLAN §8.3 asks for and which both M4
+session notes flagged as outstanding. They are recorded here verbatim in substance so the trail is
+complete; they are also what the v2 rethink was built from.
+
+Setup: 1 human against **3 Hard and 3 Normal**, all toggles default, with the M2 race view on.
+Jesse **won comfortably**, by selling the stable down, taking a bank loan, buying one very good
+dog, dominating Gold with it, then putting the winnings into a very large hold and making more
+money trading kibble.
+
+### R1. One-dog concentration beats a balanced stable, and beats Hard
+
+This is M1 finding 3 and GDD §20 Q2 again, but sharper: it is not only that Gold snowballs, it is
+that **liquidating into a single asset is the dominant line**, and that a human playing it beats a
+difficulty measured at 35% richer than Normal.
+
+The harness could not simulate it — it has no concentrating agent — but the supporting numbers are
+that Hard buys 3.4 dogs a season and Normal 2.0, so neither AI concentrates, and the champion won
+a Major Gold in 83.3% of 800 mixed seasons.
+
+Any fix has to not simply re-flatten the purse ladder M4 session 1 had just tuned.
+
+### R2. Fitness never bites
+
+Jesse pointed straight at the item already queued in `claude/M4_NOTES.md`. −12 fitness a race
+against +15 a week means a dog racing every weekend *gains* 3 a week; mean fitness at declaration
+is 96 and **0%** of declarations land under the 60 threshold. *"Still felt like the best decision
+was to enter as many races as I could… I think adjustments to fitness will help."* That is not a
+misread — it is correct play against these numbers.
+
+Session 1 measured a candidate fix at −18 a race / +10 a week: autopilot-right falls 59% → 47%
+without touching a purse, but it costs about 35% of the economy and starts producing
+bankruptcies.
+
+> **Postscript, 11 September: the diagnosis was right and the direction of the fix was backwards.**
+> Fitness is not a weak lever, it is a violent one — at equal ratings a dog at 90 wins 13.0%, at 80
+> 7.0%, at 70 3.0%, at 60 1.3%. Its whole usable range is 85–100, which is *why* nothing ever
+> reached the threshold. See GDD §5.2 and decision D13.
+
+### R3. The kibble trade is a net cost to every AI and a profit to a human
+
+New information, and the most surprising thing in the playtest. Across 800 mixed seasons, mean
+trade income is **Easy −3,990, Normal −3,584, Hard −3,334** — every difficulty *loses* three to
+four thousand a season on kibble, because they buy it to eat and never work the spread. Jesse made
+money at it with a big hold.
+
+Session 1 separately measured Hard *losing seven points of head-to-head* when it bought ship
+upgrades, and concluded GDD §8's "every purchase pays back within ~5 weeks" is not true of the
+ship. Both can be true at once: the hold only pays if you can time two markets, which no AI does.
+
+> **Postscript, 11 September: it was worse than that.** Carrying kibble to the next planet loses
+> **9.5 Bones a unit on an average leg**, measured over 72,000 legs — the trade was a losing game
+> and every stable was forced to play it. Knowing only *next week's planet* turns the same trade
+> into **+23.6 a unit on the 40% of legs worth acting on**, which is why the v2 answer is to hide
+> the circuit and sell the map rather than to re-price the kibble. See GDD §9 and decision D5.
+
+### Confirmation, no action
+
+**The assignment decision improved, exactly as session 1's purse change predicted** —
+autopilot-right 59% → 19%, and in play, *"was improved over last games with the purse changes —
+was running my 2nd best dog in bronze when I could"*. This is the one thing in the playtest that
+says a change worked.
+
+### What Jesse said about what to do next
+
+*"Will need to rethink a lot of mechanics, but can do that later once everything is built."* That
+conversation happened on 11 September and became GDD 0.2 and BUILD_PLAN §6b.
