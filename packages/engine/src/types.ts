@@ -11,7 +11,19 @@ export const RACE_CLASSES: readonly RaceClass[] = ['bronze', 'silver', 'gold'] a
 export type StatKey = 'speed' | 'accel' | 'stamina' | 'trap';
 export const STAT_KEYS: readonly StatKey[] = ['speed', 'accel', 'stamina', 'trap'] as const;
 
+/** The three a player can pick. GDD §14: difficulty is decision quality, never a stat bonus. */
 export type Difficulty = 'easy' | 'normal' | 'hard';
+export const DIFFICULTIES: readonly Difficulty[] = ['easy', 'normal', 'hard'] as const;
+
+/**
+ * Measurement agents (BUILD_PLAN §7a.5). These play *strategies* rather than difficulties and
+ * exist so the harness can price something no competent agent ever reaches — `careless` is the
+ * only way to measure the bankruptcy rate D6 asks for, because a stable that plays well never
+ * goes bust. They are deliberately **not offered to players**: Title.tsx and lib/seedLink.ts
+ * both enumerate the three difficulties by hand, so nothing here can leak into a season setup.
+ */
+export type MeasurementAgent = 'careless';
+export type AiAgent = Difficulty | MeasurementAgent;
 
 export type Phase =
   | 'arrival' // system: roll turn order, planet stock and food prices
@@ -151,7 +163,7 @@ export interface Player {
   name: string;
   colour: number; // saddle-cloth colour index 0..7
   kind: 'human' | 'ai';
-  difficulty?: Difficulty;
+  difficulty?: AiAgent;
   personality?: string;
   cash: number;
   dogIds: Id[];
@@ -316,7 +328,7 @@ export interface GameState {
 export interface PlayerSetup {
   name: string;
   kind: 'human' | 'ai';
-  difficulty?: Difficulty;
+  difficulty?: AiAgent;
   colour?: number;
 }
 
