@@ -24,12 +24,22 @@ function assert(cond: unknown, msg: string): void {
 
 function checkInvariants(s: GameState, lastAction: Action): void {
   const owners = new Map<string, string>();
+  // Solvency is promised at the week boundary, not inside the week. An event card charges what
+  // it charges the moment it is drawn — "Lost luggage: −300" does not stop to ask whether you
+  // have 300 — and the machinery that answers for it all lives in endTurn: Fat Tony covers the
+  // shortfall, then repossesses, then the cheapest dogs are sold, and only then are you bust.
+  // So a stable may be overdrawn between the event phase and endTurn, and must not be once
+  // endTurn has run (phase 'arrival', or 'seasonEnd' in week 13). Asserting it after every
+  // action instead was asserting something the engine has never promised: the same trip happens
+  // on v1's constants at seeds outside this test's range, and clamping the charge would be a new
+  // rule — one that quietly protects a careless stable from the bankruptcy GDD §7.5 wants.
+  const settled = s.phase === 'arrival' || s.phase === 'seasonEnd';
   for (const p of s.players) {
-    // Cash is never negative except through Fat Tony's tab or outright bankruptcy.
-    if (p.cash < 0) {
+    // Cash is never negative at a week boundary except through Fat Tony's tab or bankruptcy.
+    if (p.cash < 0 && settled) {
       assert(
         p.flags.bankrupt || p.loans.length > 0,
-        `negative cash without a loan after ${lastAction.t}`,
+        `negative cash without a loan at a week boundary after ${lastAction.t}`,
       );
     }
     assert(p.cargo >= 0, 'p.cargo >= 0');
