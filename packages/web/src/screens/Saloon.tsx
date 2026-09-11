@@ -7,34 +7,26 @@ import {
   planetOf,
   weeklyInterest,
   PLANETS,
-  STAT_KEYS,
   type GameState,
   type Player,
   type StaffRole,
-  type StatKey,
 } from '@sdr/engine';
 import { Panel } from '../components/Panel';
 import { KV, Notes } from '../components/ui';
 import { NeonButton } from '../components/NeonButton';
 import { rumours } from '../lib/rumours';
-import { ownedDogs } from '../lib/selectors';
 import { useGame } from '../store/gameStore';
 
 const ROLE_BLURB: Record<StaffRole, string> = {
-  trainer: `+${balance.trainerStatPerWeek} to one stat of one dog every week`,
-  vet: `Halves injury weeks and recovers ${balance.fitnessRecoveryVet} fitness a week instead of ${balance.fitnessRecovery}`,
+  trainer: `+${balance.trainerStatPerWeek} to the chosen stat of every dog you put on a Train week`,
+  vet: `Halves injury weeks and a rest week returns ${balance.fitnessRestVet} fitness instead of ${balance.fitnessRest}`,
   fixer: 'Sabotage and steward bribes (GDD §13)',
 };
 
-const STAT_LABEL: Record<StatKey, string> = {
-  speed: 'Speed',
-  accel: 'Acceleration',
-  stamina: 'Stamina',
-  trap: 'Trap',
-};
-
 function planetsWith(kind: 'bank' | 'shark'): string {
-  return PLANETS.filter((p) => p.special[kind]).map((p) => p.name).join(', ');
+  return PLANETS.filter((p) => p.special[kind])
+    .map((p) => p.name)
+    .join(', ');
 }
 
 /** GDD §8 and §7.4 — who you can hire, what they cost, and who will lend you money here. */
@@ -69,9 +61,12 @@ export function Saloon({ s, me }: { s: GameState; me: Player }) {
             sp.trainer && 'A trainer is always drinking here.',
             sp.vet && 'A vet works out of the back room.',
             sp.fixer && 'A fixer is at the far table, if you are that sort of stable.',
-            sp.bank && `The bank lends up to ${formatBones(balance.bankMax)} at ${Math.round(balance.bankRate * 100)}% a week.`,
+            sp.bank &&
+              `The bank lends up to ${formatBones(balance.bankMax)} at ${Math.round(balance.bankRate * 100)}% a week.`,
             sp.shark && 'Fat Tony Nebula is holding court in the corner.',
-            !sp.bank && !sp.shark && `Nobody lends money here. Banks: ${planetsWith('bank')}. Fat Tony: ${planetsWith('shark')}.`,
+            !sp.bank &&
+              !sp.shark &&
+              `Nobody lends money here. Banks: ${planetsWith('bank')}. Fat Tony: ${planetsWith('shark')}.`,
           ]}
         />
       </Panel>
@@ -80,9 +75,7 @@ export function Saloon({ s, me }: { s: GameState; me: Player }) {
 
       <Panel title="For hire" sub="wages are charged every week until you let them go">
         {staffOnOffer.length === 0 ? (
-          <p className="muted flush">
-            Nobody worth hiring is drinking here this week.
-          </p>
+          <p className="muted flush">Nobody worth hiring is drinking here this week.</p>
         ) : null}
         {staffOnOffer.map((o) => {
           const why =
@@ -120,9 +113,7 @@ export function Saloon({ s, me }: { s: GameState; me: Player }) {
 
       <Panel title="Your staff" sub={`${formatBones(wages)} a week`}>
         {employed.length === 0 ? (
-          <p className="muted flush">
-            You run the whole stable yourself.
-          </p>
+          <p className="muted flush">You run the whole stable yourself.</p>
         ) : null}
         {employed.map((role) => {
           const o = me.staff[role]!;
@@ -142,8 +133,6 @@ export function Saloon({ s, me }: { s: GameState; me: Player }) {
           );
         })}
       </Panel>
-
-      <TrainingFocus s={s} me={me} />
 
       {sp.bank ? (
         <Lender
@@ -183,74 +172,6 @@ function Rumours({ s }: { s: GameState }) {
         <p className="muted flush">
           Nothing but the racing tonight. Nobody has a word to say about the price of kibble.
         </p>
-      )}
-    </Panel>
-  );
-}
-
-function TrainingFocus({ s, me }: { s: GameState; me: Player }) {
-  const dispatch = useGame((g) => g.dispatch);
-  const dogs = ownedDogs(s, me);
-  const trainer = me.staff.trainer;
-  const [dogId, setDogId] = useState(me.training?.dogId ?? dogs[0]?.id ?? '');
-  const [stat, setStat] = useState<StatKey>(me.training?.stat ?? 'speed');
-  const current = me.training ? s.dogs[me.training.dogId] : undefined;
-  const gain = balance.trainerStatPerWeek + (trainer?.name === 'Gristle McGraw' ? 1 : 0);
-
-  return (
-    <Panel
-      title="Training focus"
-      sub={trainer ? `${trainer.name} works on one dog, one stat, +${gain} a week` : 'needs a trainer'}
-    >
-      {!trainer ? (
-        <p className="muted flush">
-          Hire a trainer and you can point them at a dog and a stat. The gain lands when you jump
-          to the next planet.
-        </p>
-      ) : (
-        <>
-          <p className="flush-t">
-            {current && me.training ? (
-              <>
-                Now working on <b>{current.name}</b> — {STAT_LABEL[me.training.stat]} (
-                {current[me.training.stat]} → {Math.min(99, current[me.training.stat] + gain)} at the
-                end of the week).
-              </>
-            ) : (
-              <span className="muted">Nobody is being worked on.</span>
-            )}
-          </p>
-          <div className="row">
-            <select value={dogId} onChange={(e) => setDogId(e.target.value)}>
-              {dogs.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.name} · rating {d.rating}
-                </option>
-              ))}
-            </select>
-            <select value={stat} onChange={(e) => setStat(e.target.value as StatKey)}>
-              {STAT_KEYS.map((k) => (
-                <option key={k} value={k}>
-                  {STAT_LABEL[k]}
-                  {dogs.find((d) => d.id === dogId) ? ` (${dogs.find((d) => d.id === dogId)![k]})` : ''}
-                </option>
-              ))}
-            </select>
-            <NeonButton
-              variant="primary"
-              disabled={!dogId}
-              onClick={() => dispatch({ t: 'SetTraining', playerId: me.id, dogId, stat })}
-            >
-              Work on it
-            </NeonButton>
-            <NeonButton
-              disabled={!me.training}
-              onClick={() => dispatch({ t: 'SetTraining', playerId: me.id, dogId: null, stat })}
-            >
-              Stop training
-            </NeonButton>
-          </div>
-        </>
       )}
     </Panel>
   );

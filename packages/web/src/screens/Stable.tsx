@@ -6,10 +6,16 @@ import {
   netWorthBreakdown,
   planetOf,
   upgradePrice,
+  weekStatusOf,
+  weeklyFitnessDelta,
+  STAT_KEYS,
+  WEEK_STATES,
   type Dog,
   type GameState,
   type Player,
+  type StatKey,
   type UpgradeId,
+  type WeekState,
 } from '@sdr/engine';
 import { DogCard } from '../components/DogCard';
 import { NeonButton } from '../components/NeonButton';
@@ -25,6 +31,33 @@ function status(d: Dog): { text: string; tone?: 'bad' | 'hot' } {
   return { text: 'fit' };
 }
 
+const STATE_LABEL: Record<WeekState, string> = {
+  race: 'Race',
+  train: 'Train',
+  rest: 'Rest',
+};
+
+const STAT_LABEL: Record<StatKey, string> = {
+  speed: 'Speed',
+  accel: 'Acceleration',
+  stamina: 'Stamina',
+  trap: 'Trap',
+};
+
+/** What this dog's week will cost or return in fitness, for the line under the buttons. */
+function fitnessLine(d: Dog, me: Player, declared: boolean): string {
+  const status = weekStatusOf(d);
+  if (status === 'layoff')
+    return `on layoff, +${weeklyFitnessDelta(d, !!me.staff.vet, false)} fitness`;
+  if (status === 'race')
+    return declared
+      ? `racing: −${balance.fitnessPerRace} fitness`
+      : `set to race but not entered — it will take the week off (+${weeklyFitnessDelta(d, !!me.staff.vet, false)})`;
+  if (status === 'train')
+    return `training ${STAT_LABEL[d.trainStat]}: +${balance.fitnessTrain} fitness, one crate of kibble`;
+  return `resting: +${weeklyFitnessDelta(d, !!me.staff.vet, false)} fitness`;
+}
+
 /**
  * GDD §15.4 — "your dogs as cards: portrait, stats bars, rating, fitness, form arrows, age,
  * traits, value, training focus". M1 laid this out as a table because there was no card to put
@@ -35,9 +68,10 @@ function status(d: Dog): { text: string; tone?: 'bad' | 'hot' } {
 export function Stable({ s, me }: { s: GameState; me: Player }) {
   const dogs = ownedDogs(s, me);
   const worth = netWorthBreakdown(s, me);
-  const trained = me.training ? s.dogs[me.training.dogId] : undefined;
   const bill = weeklyBill(s, me);
   const inTurn = s.phase === 'planetPre' || s.phase === 'planetPost';
+  const plans = dogs.map((d) => weekStatusOf(d));
+  const count = (k: string) => plans.filter((x) => x === k).length;
 
   return (
     <>
@@ -61,7 +95,10 @@ export function Stable({ s, me }: { s: GameState; me: Player }) {
                       .join(', ')
                   : 'none',
               ],
-              ['Training', trained && me.training ? `${trained.name}: ${me.training.stat}` : 'none'],
+              [
+                'This week',
+                `${count('race')} racing · ${count('train')} training · ${count('rest')} resting${count('layoff') ? ` · ${count('layoff')} on layoff` : ''}`,
+              ],
             ]}
           />
           <KV
@@ -80,12 +117,13 @@ export function Stable({ s, me }: { s: GameState; me: Player }) {
         <Notes
           lines={[
             `This week's bill: ${formatBones(bill.total)} — upkeep ${formatBones(bill.upkeep)}, wages ${formatBones(bill.wages)}, fuel ${formatBones(bill.fuel)}, kibble ${bill.foodNeeded} crate${bill.foodNeeded === 1 ? '' : 's'} (${bill.foodFromHold} from the hold${bill.food ? `, ${formatBones(bill.food)} bought at the gate` : ''})${bill.interest ? `, interest ${formatBones(bill.interest)}` : ''}.`,
-            `Fitness below ${balance.fitnessScaleBelow} scales every stat down; a race costs ${balance.fitnessPerRace} and a week recovers ${balance.fitnessRecovery} (${balance.fitnessRecoveryVet} with a vet).`,
+            `Every dog does exactly one of three things with the week. Race costs ${balance.fitnessPerRace} fitness, Train returns ${balance.fitnessTrain} and eats a second crate of kibble, Rest returns ${balance.fitnessRest} (${balance.fitnessRestVet} with a vet). Fitness multiplies every stat at every level — a dog at 60 is slower than a dog at 90, but it is still a runner.`,
           ]}
         />
       </Panel>
 
       <Panel title="Dogs" sub="ratings and stats are public — everyone can see them">
+        <PlanTheWeek s={s} me={me} dogs={dogs} inTurn={inTurn} />
         <div className="dogcards">
           {dogs.map((d) => {
             const st = status(d);
@@ -103,8 +141,13 @@ export function Stable({ s, me }: { s: GameState; me: Player }) {
                         {CLASS_LABEL[cls]}
                       </Badge>
                     ) : null}
-                    {me.training?.dogId === d.id ? (
-                      <Badge title={`in training: ${me.training.stat}`}>training</Badge>
+                    {weekStatusOf(d) === 'train' ? (
+                      <Badge title={`on a training week: ${STAT_LABEL[d.trainStat]}`}>
+                        training {STAT_LABEL[d.trainStat].toLowerCase()}
+                      </Badge>
+                    ) : null}
+                    {weekStatusOf(d) === 'rest' ? (
+                      <Badge title="resting this week">resting</Badge>
                     ) : null}
                     {st.tone ? <Badge tone={st.tone}>{st.text}</Badge> : null}
                     {d.supplemented ? (
@@ -115,12 +158,147 @@ export function Stable({ s, me }: { s: GameState; me: Player }) {
                   </>
                 }
                 actions={<Gear s={s} me={me} d={d} inTurn={inTurn} />}
-              />
+              >
+                <WeekPlan me={me} d={d} inTurn={inTurn} declared={!!cls} />
+              </DogCard>
             );
           })}
         </div>
       </Panel>
     </>
+  );
+}
+
+/**
+ * GDD §5.7's control, and the centre of the v2 game: Race, Train or Rest, one per dog per week.
+ *
+ * Layoff is shown rather than offered — an injured or banned dog is on Layoff whatever the
+ * Kennels says — but the three buttons stay live underneath it, because what a dog does the week
+ * it comes sound is a decision worth taking early.
+ *
+ * Standing a declared dog down is refused by the engine (withdraw it from its race first), so the
+ * button says so rather than throwing an ActionError at the player.
+ */
+function WeekPlan({
+  me,
+  d,
+  inTurn,
+  declared,
+}: {
+  me: Player;
+  d: Dog;
+  inTurn: boolean;
+  declared: boolean;
+}) {
+  const dispatch = useGame((g) => g.dispatch);
+  const status = weekStatusOf(d);
+  const laidOff = status === 'layoff';
+
+  return (
+    <div className="weekplan">
+      <div className="row tight">
+        {WEEK_STATES.map((state) => {
+          const why = !inTurn
+            ? 'Not while the races are on'
+            : state !== 'race' && declared
+              ? `Withdraw ${d.name} from its race first`
+              : null;
+          return (
+            <NeonButton
+              key={state}
+              small
+              variant={status === state ? 'primary' : undefined}
+              disabled={!!why}
+              title={why ?? `${STATE_LABEL[state]} this week`}
+              onClick={() => dispatch({ t: 'SetDogState', playerId: me.id, dogId: d.id, state })}
+            >
+              {STATE_LABEL[state]}
+            </NeonButton>
+          );
+        })}
+        {d.weekState === 'train' ? (
+          <select
+            aria-label={`What ${d.name} works on`}
+            value={d.trainStat}
+            disabled={!inTurn}
+            onChange={(e) =>
+              dispatch({
+                t: 'SetDogState',
+                playerId: me.id,
+                dogId: d.id,
+                state: 'train',
+                stat: e.target.value as StatKey,
+              })
+            }
+          >
+            {STAT_KEYS.map((k) => (
+              <option key={k} value={k}>
+                {STAT_LABEL[k]} ({d[k]})
+              </option>
+            ))}
+          </select>
+        ) : null}
+      </div>
+      <span className="muted small">
+        {laidOff ? `Out for ${Math.max(d.injuryWeeks, d.banWeeks)} more week(s). ` : ''}
+        {fitnessLine(d, me, declared)}
+      </span>
+      {!me.staff.trainer && d.weekState === 'train' ? (
+        <span className="muted small">
+          No trainer, so a Train week is plain kibble alone: +{balance.trainKibbleMin}–
+          {balance.trainKibbleMax} to a stat of its own choosing.
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * The click budget's answer to a per-dog decision (GDD §15.3, BUILD_PLAN §11). Six dogs × one
+ * decision is six clicks a weekend on top of the thirteen there already were, and the fix the
+ * plan asks for is a summary rather than fewer decisions — so one button sets the whole yard to
+ * the sensible default and the player overrides the dogs they care about.
+ */
+function PlanTheWeek({
+  s,
+  me,
+  dogs,
+  inTurn,
+}: {
+  s: GameState;
+  me: Player;
+  dogs: Dog[];
+  inTurn: boolean;
+}) {
+  const dispatch = useGame((g) => g.dispatch);
+  const restBelow = balance.fitnessScaleBelow - 15;
+  const plan = (d: Dog): WeekState =>
+    d.fitness >= 65 ? 'race' : d.fitness >= restBelow ? 'train' : 'rest';
+  const todo = dogs.filter(
+    (d) =>
+      weekStatusOf(d) !== 'layoff' && !declaredClass(s, me.id, d.id) && d.weekState !== plan(d),
+  );
+
+  return (
+    <div className="row">
+      <NeonButton
+        disabled={!inTurn || !todo.length}
+        title={
+          !todo.length
+            ? 'Every dog already has the week it would be given'
+            : `Race anything over 65 fitness, train anything over ${restBelow}, rest the rest — then change your mind about the ones that matter`
+        }
+        onClick={() => {
+          for (const d of todo)
+            dispatch({ t: 'SetDogState', playerId: me.id, dogId: d.id, state: plan(d) });
+        }}
+      >
+        Plan the week ({todo.length})
+      </NeonButton>
+      <span className="muted small">
+        Sets every undeclared dog by fitness. It is a starting point, not advice.
+      </span>
+    </div>
   );
 }
 

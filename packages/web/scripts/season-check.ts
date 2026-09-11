@@ -30,10 +30,22 @@ import {
   type Player,
   type RaceClass,
   type SeasonSetup,
+  type WeekState,
 } from '@sdr/engine';
 import { applyActions, screenFor, type ScreenUi } from '../src/store/loop';
 
 const HUMAN = 'p1';
+
+/**
+ * Action counters. `Record<string, number>` plus `noUncheckedIndexedAccess` means every read is
+ * `number | undefined`, so counting goes through here rather than through twenty non-null
+ * assertions. (This file was never typechecked before v2 Phase A — `packages/web/tsconfig.json`
+ * only covered `src` — which is how a `SetTraining` survived in it after the action was deleted.)
+ */
+type Tally = Record<string, number>;
+function bump(tally: Tally, key: string, by = 1): void {
+  tally[key] = (tally[key] ?? 0) + by;
+}
 
 function ownDogs(s: GameState, p: Player): Dog[] {
   return p.dogIds.map((id) => s.dogs[id]).filter((d): d is Dog => !!d);
@@ -61,7 +73,7 @@ function declarations(kennel: Dog[], p: Player): Action[] {
 }
 
 /** Everything a human can do at the planet's venues, with the screens' own guards. */
-function planetTurn(s: GameState, p: Player, tally: Record<string, number>): Action[] {
+function planetTurn(s: GameState, p: Player, tally: Tally): Action[] {
   const out: Action[] = [];
   const planet = planetOf(s.planet.planetId);
   const sp = planet.special;
@@ -72,39 +84,42 @@ function planetTurn(s: GameState, p: Player, tally: Record<string, number>): Act
   const kennel = [...dogs]; // what we will own once this turn's buys and sells have landed
   let slots = p.kennelSlots - dogs.length;
 
-  // --- Saloon: staff, training, credit ---
+  // --- Saloon: staff and credit; the training focus moved to the Kennels with §5.7 ---
   const trainerOffer = s.planet.staff.find((o) => o.role === 'trainer');
   if (pre && !p.staff.trainer && trainerOffer && cash > trainerOffer.wage * 4) {
     out.push({ t: 'HireStaff', playerId: p.id, role: 'trainer', staffId: trainerOffer.id });
-    tally.HireStaff++;
+    bump(tally, 'HireStaff');
   }
   const vetOffer = s.planet.staff.find((o) => o.role === 'vet');
   if (pre && !p.staff.vet && vetOffer && cash > 8000) {
     out.push({ t: 'HireStaff', playerId: p.id, role: 'vet', staffId: vetOffer.id });
-    tally.HireStaff++;
+    bump(tally, 'HireStaff');
   }
   const fixerOffer = s.planet.staff.find((o) => o.role === 'fixer');
   if (pre && !p.staff.fixer && fixerOffer && !s.toggles.cleanSport && cash > 12000) {
     out.push({ t: 'HireStaff', playerId: p.id, role: 'fixer', staffId: fixerOffer.id });
-    tally.HireStaff++;
+    bump(tally, 'HireStaff');
   }
   // Week 9: the wage bill bites and the staff go, trainer first.
   if (pre && s.week === 9) {
     for (const role of ['vet', 'trainer'] as const) {
       if (p.staff[role]) {
         out.push({ t: 'FireStaff', playerId: p.id, role });
-        tally.FireStaff++;
+        bump(tally, 'FireStaff');
       }
     }
   }
-  const willHaveTrainer =
-    (!!p.staff.trainer && !out.some((a) => a.t === 'FireStaff' && a.role === 'trainer')) ||
-    out.some((a) => a.t === 'HireStaff' && a.role === 'trainer');
-  if (pre && willHaveTrainer) {
-    const best = [...kennel].sort((a, b) => b.rating - a.rating)[0];
-    if (best && p.training?.dogId !== best.id) {
-      out.push({ t: 'SetTraining', playerId: p.id, dogId: best.id, stat: 'speed' });
-      tally.SetTraining++;
+  // GDD §5.7: the walk-through player plans every dog's week the way the Kennels' own "Plan the
+  // week" button does — race anything fresh, train the middle, rest the tired. The declarations
+  // below then flip whatever they enter back to 'race', which is the friendly implication in
+  // action and the reason this runs first.
+  if (pre) {
+    for (const d of kennel) {
+      if (d.injuryWeeks > 0 || d.banWeeks > 0) continue;
+      const state: WeekState = d.fitness >= 65 ? 'race' : d.fitness >= 45 ? 'train' : 'rest';
+      if (d.weekState === state) continue;
+      out.push({ t: 'SetDogState', playerId: p.id, dogId: d.id, state });
+      bump(tally, 'SetDogState');
     }
   }
   for (const lender of ['bank', 'shark'] as const) {
@@ -115,12 +130,12 @@ function planetTurn(s: GameState, p: Player, tally: Record<string, number>): Act
     if (pre && room >= 1000 && (cash < 2500 || (owed === 0 && s.week <= 6))) {
       out.push({ t: 'Borrow', playerId: p.id, lender, amount: 1000 });
       cash += 1000;
-      tally.Borrow++;
+      bump(tally, 'Borrow');
     } else if (owed > 0 && cash > owed + 3000) {
       const amount = Math.min(owed, Math.floor(cash));
       out.push({ t: 'Repay', playerId: p.id, lender, amount });
       cash -= amount;
-      tally.Repay++;
+      bump(tally, 'Repay');
     }
   }
 
@@ -137,7 +152,7 @@ function planetTurn(s: GameState, p: Player, tally: Record<string, number>): Act
     cash += dogSalePrice(worst, sp.buyerBonus ?? 0, sp.dogValueMod ?? 1);
     kennel.splice(kennel.indexOf(worst), 1);
     slots++;
-    tally.SellDog++;
+    bump(tally, 'SellDog');
   }
   if (pre) {
     const forSale = s.planet.marketDogIds
@@ -152,7 +167,7 @@ function planetTurn(s: GameState, p: Player, tally: Record<string, number>): Act
       cash -= price;
       kennel.push(d);
       slots--;
-      tally.BuyDog++;
+      bump(tally, 'BuyDog');
       break;
     }
   }
@@ -165,7 +180,7 @@ function planetTurn(s: GameState, p: Player, tally: Record<string, number>): Act
       if (price <= cash - 2000) {
         out.push({ t: 'BuyUpgrade', playerId: p.id, upgrade: 'trackDay', dogId: target.id });
         cash -= price;
-        tally.BuyUpgrade++;
+        bump(tally, 'BuyUpgrade');
       }
     }
     if (s.planet.muzzlesInStock) {
@@ -173,7 +188,7 @@ function planetTurn(s: GameState, p: Player, tally: Record<string, number>): Act
       if (price <= cash - 2000) {
         out.push({ t: 'BuyUpgrade', playerId: p.id, upgrade: 'muzzle', dogId: target.id });
         cash -= price;
-        tally.BuyUpgrade++;
+        bump(tally, 'BuyUpgrade');
       }
     }
     if (pre && !s.toggles.cleanSport && !target.supplemented) {
@@ -182,7 +197,7 @@ function planetTurn(s: GameState, p: Player, tally: Record<string, number>): Act
       if (rate <= 0.15 && price <= cash - 3000) {
         out.push({ t: 'BuyUpgrade', playerId: p.id, upgrade: 'supplement', dogId: target.id });
         cash -= price;
-        tally.BuyUpgrade++;
+        bump(tally, 'BuyUpgrade');
       }
     }
   }
@@ -196,7 +211,7 @@ function planetTurn(s: GameState, p: Player, tally: Record<string, number>): Act
     if (price > cash - 9000) continue;
     out.push({ t: 'BuyUpgrade', playerId: p.id, upgrade });
     cash -= price;
-    tally.BuyUpgrade++;
+    bump(tally, 'BuyUpgrade');
     break;
   }
   if (s.toggles.trading) {
@@ -220,20 +235,20 @@ function planetTurn(s: GameState, p: Player, tally: Record<string, number>): Act
       out.push({ t: 'TradeFood', playerId: p.id, units });
       cash -= units * (units > 0 ? s.planet.foodBuy : s.planet.foodSell);
       cargo += units;
-      tally.TradeFood++;
+      bump(tally, 'TradeFood');
     }
   }
 
   if (pre) {
     out.push(...declarations(kennel, p));
-    tally.Declare += RACE_CLASSES.length;
+    bump(tally, 'Declare', RACE_CLASSES.length);
   }
   out.push({ t: 'EndPhase', playerId: p.id });
   return out;
 }
 
 /** The Bookie screen: a stake inside the planet's cap, on the favourite and one outsider. */
-function bettingTurn(s: GameState, p: Player, tally: Record<string, number>): Action[] {
+function bettingTurn(s: GameState, p: Player, tally: Tally): Action[] {
   const out: Action[] = [];
   if (!s.fields) return [{ t: 'EndPhase', playerId: p.id }];
   const frac = maxStakeFraction(s);
@@ -252,7 +267,7 @@ function bettingTurn(s: GameState, p: Player, tally: Record<string, number>): Ac
     if (fav) {
       out.push({ t: 'PlaceBet', playerId: p.id, cls, dogId: fav.dogId, kind: 'win', stake });
       cash -= stake;
-      tally.PlaceBet++;
+      bump(tally, 'PlaceBet');
     }
     const room2 = Math.max(
       0,
@@ -269,7 +284,7 @@ function bettingTurn(s: GameState, p: Player, tally: Record<string, number>): Ac
         stake: stake2,
       });
       cash -= stake2;
-      tally.PlaceBet++;
+      bump(tally, 'PlaceBet');
     }
   }
   out.push({ t: 'EndPhase', playerId: p.id });
@@ -290,7 +305,7 @@ function playSeason(seed: number, toggles?: SeasonSetup['toggles']) {
       { name: '', kind: 'ai', difficulty: 'hard' },
     ],
   };
-  const tally: Record<string, number> = {
+  const tally: Tally = {
     BuyDog: 0,
     SellDog: 0,
     Declare: 0,
@@ -298,7 +313,7 @@ function playSeason(seed: number, toggles?: SeasonSetup['toggles']) {
     TradeFood: 0,
     HireStaff: 0,
     FireStaff: 0,
-    SetTraining: 0,
+    SetDogState: 0,
     BuyUpgrade: 0,
     Borrow: 0,
     Repay: 0,
@@ -361,7 +376,7 @@ function playSeason(seed: number, toggles?: SeasonSetup['toggles']) {
           choice: state.week % state.pendingEvent.choices.length,
         },
       ];
-      tally.ResolveEvent++;
+      bump(tally, 'ResolveEvent');
     } else if (screen.kind === 'betting') {
       actions = bettingTurn(state, me, tally);
     } else {

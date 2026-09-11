@@ -45,7 +45,15 @@ import { venueStatus } from '../src/lib/venueStatus';
 import { HOTSPOT_VENUES } from '../src/lib/hotspots';
 
 /**
- * Declarations (3) + head to the track + run the races + back to the planet + end turn.
+ * Declarations (3) + **plan the week** + head to the track + run the races + back to the planet +
+ * end turn.
+ *
+ * "Plan the week" is v2 Phase A's addition and it is counted here deliberately. GDD §5.7 gives
+ * every dog a weekly state, which is six decisions for a full kennel; the Kennels' summary button
+ * (screens/Stable.tsx) sets the whole yard by fitness in one press and the player then overrides
+ * the dogs they care about. So the mechanic costs **one** click a weekend rather than six, which
+ * is the summary BUILD_PLAN §11 asks for when a per-dog decision meets a click budget. A player
+ * who never touches it pays nothing and gets v1's behaviour — every dog pointed at a race.
  *
  * This is now true of *every* weekend, which it was not before M4 session 2. A weekend with no
  * bookie — Holy Bark, or a No Betting season — never had a "run the races" button to press, so the
@@ -53,7 +61,7 @@ import { HOTSPOT_VENUES } from '../src/lib/hotspots';
  * (screens/LockedField.tsx) ends on "Watch the races", which takes that click's place: the field
  * finally gets shown and the weekend costs exactly what a betting weekend costs.
  */
-const FIXED_PER_WEEKEND = 7;
+const FIXED_PER_WEEKEND = 8;
 
 function ownDogs(s: GameState, p: Player): Dog[] {
   return p.dogIds.map((id) => s.dogs[id]).filter((d): d is Dog => !!d);
@@ -76,8 +84,17 @@ function planetTurn(s: GameState, p: Player): Action[] {
     out.push({ t: 'HireStaff', playerId: p.id, role: 'trainer', staffId: trainer.id });
     cash -= trainer.wage;
   }
-  if (pre && p.staff.trainer && !p.training && dogs[0])
-    out.push({ t: 'SetTraining', playerId: p.id, dogId: dogs[0].id, stat: 'speed' });
+  // GDD §5.7's per-dog decision, counted honestly: the hub player plans every dog's week the way
+  // the Kennels' "Plan the week" button does. That is *one* click for the yard, not one per dog —
+  // the summary BUILD_PLAN §11 asks for when a per-dog decision meets a click budget — so the
+  // weekend costs one more decision than it did, not six.
+  if (pre) {
+    for (const d of dogs) {
+      if (d.injuryWeeks > 0 || d.banWeeks > 0) continue;
+      const state = d.fitness >= 65 ? 'race' : d.fitness >= 45 ? 'train' : 'rest';
+      if (d.weekState !== state) out.push({ t: 'SetDogState', playerId: p.id, dogId: d.id, state });
+    }
+  }
 
   if (dogs.length < p.kennelSlots) {
     const buy = s.planet.marketDogIds
@@ -175,9 +192,7 @@ function playSeason(seed: number, tally: Tally): void {
       continue;
     }
     if (state.pendingEvent && state.pendingEvent.playerId === me.id) {
-      const applied = applyActions(state, [
-        { t: 'ResolveEvent', playerId: me.id, choice: 0 },
-      ]);
+      const applied = applyActions(state, [{ t: 'ResolveEvent', playerId: me.id, choice: 0 }]);
       state = applied.state;
       log.push(...applied.added);
       continue;
@@ -229,4 +244,6 @@ console.log(`  before : ${before.toFixed(1)}`);
 console.log(`  after  : ${after.toFixed(1)}   (${(100 * (1 - after / before)).toFixed(0)}% fewer)`);
 console.log(`\nClicks a ${balance.weeks}-week season`);
 console.log(`  before : ${Math.round(seasonBefore)}`);
-console.log(`  after  : ${Math.round(seasonAfter)}   (${Math.round(seasonBefore - seasonAfter)} fewer)`);
+console.log(
+  `  after  : ${Math.round(seasonAfter)}   (${Math.round(seasonBefore - seasonAfter)} fewer)`,
+);

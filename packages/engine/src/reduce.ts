@@ -97,6 +97,15 @@ export function reduceMut(s: GameState, action: Action): GameState {
     case 'Repay':
       repay(ctx, action);
       break;
+    default:
+      // An action this engine does not know. The switch is exhaustive over the union, so the only
+      // way here is a log written by an older engine — a v1 save with a `SetTraining` in it, say.
+      // Silently doing nothing was worse than failing: a stale log would replay as a *different*
+      // season rather than as an error, which is exactly what STATE_VERSION exists to prevent.
+      throw new ActionError(
+        `Unknown action ${(action as { t: string }).t} — this log was written by a different version`,
+        action,
+      );
   }
   return commitCtx(ctx);
 }

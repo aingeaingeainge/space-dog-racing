@@ -6,6 +6,7 @@ import {
   outstanding,
   planetOf,
   upgradePrice,
+  weekStatusOf,
   RACE_CLASSES,
   type GameState,
   type Player,
@@ -65,12 +66,17 @@ export function venueStatus(s: GameState, me: Player): Record<VenueId, VenueStat
     : canBuy.length || gearInStock.length
       ? {
           line: [
-            canBuy.length ? `${canBuy.length} dog${canBuy.length === 1 ? '' : 's'} you can afford, from ${formatBones(cheapest)}` : null,
+            canBuy.length
+              ? `${canBuy.length} dog${canBuy.length === 1 ? '' : 's'} you can afford, from ${formatBones(cheapest)}`
+              : null,
             gearInStock.length ? gearInStock.join(', ') : null,
           ]
             .filter(Boolean)
             .join(' · '),
-          short: [canBuy.length ? `${canBuy.length} dog${canBuy.length === 1 ? '' : 's'}` : null, gearInStock.length ? 'gear' : null]
+          short: [
+            canBuy.length ? `${canBuy.length} dog${canBuy.length === 1 ? '' : 's'}` : null,
+            gearInStock.length ? 'gear' : null,
+          ]
             .filter(Boolean)
             .join(' + '),
           worth: true,
@@ -84,15 +90,51 @@ export function venueStatus(s: GameState, me: Player): Record<VenueId, VenueStat
         );
 
   // --- Kennels: gear you can put on a dog, and anything wrong with one.
-  const wrong = mine.filter((d) => d.injuryWeeks > 0 || d.banWeeks > 0 || d.fitness < balance.fitnessScaleBelow);
+  const wrong = mine.filter(
+    (d) => d.injuryWeeks > 0 || d.banWeeks > 0 || d.fitness < balance.fitnessScaleBelow,
+  );
+  // GDD §5.7 made the Kennels the centre of the game, so its hotspot now answers the question
+  // the screen exists for: is every dog's week decided? A stable whose plan is already set can
+  // walk past, which is the whole point of §15.3's click budget — the decision is per dog, the
+  // *visit* is not.
+  const plans = mine.map((d) => weekStatusOf(d));
+  const racing = plans.filter((x) => x === 'race').length;
+  const training = plans.filter((x) => x === 'train').length;
+  const resting = plans.filter((x) => x === 'rest').length;
+  const layoff = plans.filter((x) => x === 'layoff').length;
+  // "Unplanned" is a dog set to race that nothing has entered yet — it will idle the week away.
+  const unplanned =
+    inTurn && pre
+      ? mine.filter(
+          (d) =>
+            weekStatusOf(d) === 'race' &&
+            !RACE_CLASSES.some((c) => s.declarations[c][me.id] === d.id),
+        ).length
+      : 0;
+  const plan = [
+    racing ? `${racing} racing` : null,
+    training ? `${training} training` : null,
+    resting ? `${resting} resting` : null,
+    layoff ? `${layoff} on layoff` : null,
+  ]
+    .filter(Boolean)
+    .join(', ');
   const kennels: VenueStatus =
-    inTurn && gearInStock.length
-      ? { line: `${mine.length} dogs · ${gearInStock.join(', ')} to fit`, short: 'gear to fit', worth: true }
+    inTurn && (unplanned || gearInStock.length)
+      ? {
+          line: [
+            plan,
+            unplanned ? `${unplanned} with no race and no plan` : null,
+            gearInStock.length ? `${gearInStock.join(', ')} to fit` : null,
+          ]
+            .filter(Boolean)
+            .join(' · '),
+          short: unplanned ? `${unplanned} undecided` : 'gear to fit',
+          worth: true,
+        }
       : nothing(
-          wrong.length
-            ? `${mine.length} dogs · ${wrong.length} off colour`
-            : `${mine.length} dogs, all sound`,
-          wrong.length ? `${wrong.length} off colour` : `${mine.length} sound`,
+          wrong.length ? `${plan} · ${wrong.length} off colour` : plan || `${mine.length} dogs`,
+          wrong.length ? `${wrong.length} off colour` : plan || `${mine.length} dogs`,
         );
 
   // --- Docks: an upgrade you can pay for, or a kibble trade with somewhere to go.
@@ -122,7 +164,9 @@ export function venueStatus(s: GameState, me: Player): Record<VenueId, VenueStat
             .filter(Boolean)
             .join(' · '),
           short: [
-            upgrades.length ? `${upgrades.length} upgrade${upgrades.length === 1 ? '' : 's'}` : null,
+            upgrades.length
+              ? `${upgrades.length} upgrade${upgrades.length === 1 ? '' : 's'}`
+              : null,
             worthBuying ? 'kibble cheap' : null,
             worthSelling ? 'kibble dear' : null,
           ]
@@ -144,20 +188,15 @@ export function venueStatus(s: GameState, me: Player): Record<VenueId, VenueStat
   const lender =
     (planet.special.bank && outstanding(me, 'bank') < loanCap('bank')) ||
     (planet.special.shark && outstanding(me, 'shark') < loanCap('shark'));
-  const idleTrainer = !!me.staff.trainer && !me.training;
+
   const saloon: VenueStatus = !inTurn
     ? nothing('Shut while the races are on')
-    : hireable.length || idleTrainer
+    : hireable.length
       ? {
-          line: [
-            hireable.length ? hireable.map((o) => `${o.role} ${formatBones(o.wage)}/wk`).join(', ') : null,
-            idleTrainer ? 'your trainer has nothing to work on' : null,
-          ]
-            .filter(Boolean)
-            .join(' · '),
-          short: hireable.length
-            ? `${hireable.length} to hire`
-            : 'trainer idle',
+          // The training focus used to live here; §5.7 moved it to the Kennels, so the Saloon is
+          // back to being about people — somebody to hire, somebody to lend.
+          line: hireable.map((o) => `${o.role} ${formatBones(o.wage)}/wk`).join(', '),
+          short: `${hireable.length} to hire`,
           worth: true,
         }
       : nothing(

@@ -27,7 +27,14 @@ export interface SaveBlob {
   ui: SaveUi;
 }
 
-export const SAVE_VERSION = 1;
+/**
+ * 2 for v2 Phase A. The blob itself is unchanged in shape — it is still seed + action log — but
+ * the log is no longer replayable: `SetTraining` is not an action any more, and every rule the
+ * log's outcomes depended on has moved. A v1 save now fails the version check in `readSave`,
+ * which returns null, which lands the player on the title screen with a new season rather than
+ * half a season that no longer means what it meant.
+ */
+export const SAVE_VERSION = 2;
 const KEY = 'sdr.save.v1';
 
 export function writeSave(blob: SaveBlob): void {
