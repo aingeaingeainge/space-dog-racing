@@ -57,6 +57,17 @@ const LABELS: Record<string, string> = {
   'Age factor: 6+ (retire soon)': 'ageFactor6',
   'House margin (overround)': 'bettingMargin',
   'Max stake per race (% of cash)': 'maxStakeFraction',
+  // The race simulation (GDD §6.2). These nine decide which stats matter, so they belong in the
+  // design instrument rather than in extras — D12 was found by sweeping exactly these.
+  'Race: base speed (m/s)': 'raceBaseSpeed',
+  'Race: speed coefficient (m/s per 100 Speed)': 'raceSpeedCoef',
+  'Race: fade penalty past the stamina point': 'raceFadePenalty',
+  'Race: acceleration base (m/s²)': 'raceAccelBase',
+  'Race: acceleration coefficient (m/s² per 100 Accel)': 'raceAccelCoef',
+  'Race: break from the boxes (metres at 100 Trap)': 'raceBreakMetres',
+  'Race: bump chance on a bend': 'raceBumpChance',
+  'Race: bump speed penalty': 'raceBumpPenalty',
+  'Race: bump distance (metres)': 'raceBumpDistance',
 };
 
 const wb = XLSX.read(readFileSync(xlsxPath));
