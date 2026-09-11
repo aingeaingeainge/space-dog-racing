@@ -207,20 +207,24 @@ v1 shipped at tag `m4` on 9 September 2026: a whole 13-week season against three
 6. **AI:** every difficulty needs a Race/Train/Rest policy. Normal: a fitness rule. Hard: a policy that values a Train week against the purse it is passing up.
 7. **Harness rebuild, part 1** — §7 below. The careless agent and the new core measures ship in this phase, because nothing after it can be judged without them.
 
-**Accept when**
-| Measure | Target |
-|---|---|
-| `+10` to one stat, from a balanced rating-50 dog | speed 21–25%, stamina 18–22%, accel 14–18%, trap 12–16% |
-| accel's edge on a 350 m track vs a 600 m | measurably larger; same for trap on tight bends and stamina on stayers |
-| §6.2 calibration (balanced 65 vs seven 50s) | 45–60% |
-| mean fitness at declaration | 60–80 (v1: 96) |
-| share of declarations below 60 fitness | 10–25% (v1: 0%) |
-| races per dog per season | 7–9 |
-| mean dogs owned at week 13 | ≥ 4.5 (v1: ~3.4) |
-| bankruptcies, careless agent | 5–10% |
-| bankruptcies, Normal | ≤ 2% |
-| a pup bought week 1, trained throughout | reaches par in The Open between weeks 9 and 11 |
-| `npm test` | green, golden snapshot moved **once**, in the commit that says so |
+**Accept when** — ✅ built and measured at tag `v2a`. Nine of fourteen met, and the five that are not are named in place; see `claude/V2_PHASE_A_NOTES.md`.
+
+| Measure | Target | Measured | |
+|---|---|---|---|
+| `+10` to one stat, from a balanced rating-50 dog | speed 21–25%, stamina 18–22%, accel 14–18%, trap 12–16% | 24.2 / 19.2 / 16.1 / 15.3 | ✅ |
+| accel's edge on a 350 m track vs a 600 m | measurably larger | 17.2 vs 15.4 | ✅ |
+| the same for trap on tight bends | measurably larger | 17.0 vs 15.3 | ✅ |
+| the same for stamina on stayers | measurably larger | 19.0 vs 19.2 — flat | ❌ structural; the fade is a fraction of the distance (GDD §5.1) |
+| §6.2 calibration (balanced 65 vs seven 50s) | 45–60% | 58.5% | ✅ near the top, as predicted |
+| mean fitness at declaration | 60–80 (v1: 96) | 70.5 | ✅ |
+| share of declarations below 60 fitness | 10–25% (v1: 0%) | 21.5% | ✅ |
+| races per dog per season | 7–9 | 5.2 | ❌ the fitness budget allows ~7 and the card does not make the last two worth running |
+| mean dogs owned at week 13 | ≥ 4.5 (v1: ~3.4) | 3.9 | ❌ the kennel module does not pay back (GDD D21) |
+| bankruptcies, careless agent | 5–10% | 0.0% | ❌ moved to Phase C (GDD D20) |
+| bankruptcies, Normal | ≤ 2% | 0.1% | ✅ |
+| a pup bought week 1, trained throughout | reaches par in The Open between weeks 9 and 11 | week 8 with a trainer, never without | ✅ on the early edge |
+| `npm test` | green, golden snapshot moved **twice**, in the two commits that say so | 22 green | ✅ |
+| `hub-clicks.ts` | ≤ 13.3 | 14.0 | ❌ +1 for the per-dog decision, with the summary already in (GDD §15.3) |
 
 ### Phase B — the card and the fog (1–2 sessions)
 

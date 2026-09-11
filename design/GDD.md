@@ -1,10 +1,18 @@
 # Space Dog Racing — Game Design Document
 
 **Working title:** Space Dog Racing
-**Version:** 0.2 — 11 September 2026 (v1 shipped at tag `m4`, 9 September 2026)
+**Version:** 0.3 — 11 September 2026 (v1 shipped at tag `m4`; v2 Phase A at tag `v2a`)
 **Author:** Jesse Colbert, with Claude as design partner
 **Status:** v2 design. ⚖️ marks a tunable that lives in `space_dog_racing_economy.xlsx`; ❓ marks an open decision; **[measured]** marks a number this design was tested against and **[estimate]** one that is a starting point for the phase that builds it.
 
+> **What changed in 0.3, in one paragraph.** Phase A is built. §5.1's stat table, §5.2's curve,
+> §5.7's states, §5.6's pups and §6.2's constants are now what the game does rather than what it
+> intended, and every ⚖️ in those sections is a cell in the spreadsheet. Three numbers moved that
+> the plan did not anticipate — the local dogs' rating and fitness, and Easy's skip rate — all for
+> the same reason, recorded as D17. Two targets are missed and said so in place: bankruptcy is
+> still structurally unreachable until Phase C's wage ladder exists (§7.5), and stamina still
+> reads the same at every track length because the fade is a fraction of the distance (§6.2).
+>
 > **What changed in 0.2, in one paragraph.** v1 is a finished, correct, deterministic game that does not have enough decisions in it. The fix is not more racing — it is three ways to get rich (§2.1) and a stable you raise rather than buy (§5.6). This rewrite hangs on eleven decisions recorded in §19 and on a measurement pass whose results are in §20. Two of those results changed the plan rather than confirming it: the race simulation turned out to be an almost pure speed contest, which would have made three of the four new feeds worthless (§6.2), and fitness turned out to be far *too* violent rather than too weak, which is why it never bit (§5.2).
 
 ---
@@ -94,22 +102,26 @@ Highest net worth wins. Tie-break: most Open wins, then most Majors.
 
 | Stat | Race effect | Marginal worth **[measured]** |
 |---|---|---|
-| **Speed** | Top speed. | +10 → win rate 13.3% → **23.0%** |
-| **Stamina** | How late the dog fades; best on 600 m. | +10 → **20.4%**, and 21.0% on a stayer |
-| **Acceleration** | How fast it reaches top speed; best on 350 m. | +10 → **15.8%**, and 17.6% on a sprint |
-| **Trap** | Break out of the boxes and bend craft. | +10 → **14.4%**, and 15.3% on tight bends |
+| **Speed** | Top speed. | +10 → win rate 12.8% → **24.2%** |
+| **Stamina** | How late the dog fades. | +10 → **19.2%** |
+| **Acceleration** | How fast it reaches top speed; best on 350 m. | +10 → **16.1%**, and 17.2% on a sprint |
+| **Trap** | Break out of the boxes and bend craft; best on tight bends. | +10 → **15.3%**, and 17.0% on tight bends |
 
 Rating weights: `0.40 speed + 0.20 accel + 0.25 stamina + 0.15 trap`, then adjusted by results (§5.3).
 
-⚠️ **Those figures are the v2 targets, not v1's behaviour, and they require the §6.2 rebalance.** On v1's constants the same test gives speed 27.6%, stamina 17.9%, accel 14.6% and **trap 11.6% — worse than not feeding at all**, at every track length. Four stat feeds on v1's race sim would be one good and three traps, so §8.2's goods depend on §6.2 shipping first. This is the single most load-bearing dependency in the v2 plan.
+✅ **Built and measured** (tag `v2a`, `npm run harness -- --stats`, 3,000 races a cell, standard 480 m against a 12.8% baseline). On v1's constants the same test gave speed 28.8%, stamina 16.5%, accel 13.9% and **trap 13.4% against a 12.7% baseline — worth nothing at all**, identically at every track length. All four now sit inside BUILD_PLAN §6b's bands and in rating-weight order, which is what §8.2's four stat feeds need in order to be four goods rather than one good and three traps.
+
+⚠️ **Stamina is the exception and it is structural.** It reads 19.0% on a sprint and 19.2% on a stayer — no edge on the longer track, at any constant. `fadeStart` is a *fraction* of the distance, so the fade window is proportionally identical at 350 m and 600 m and stamina is distance-invariant by construction. Making a stayer favour stamina needs the model's shape changed — the fade expressed in metres rather than in fractions — which §6.2 deliberately does not do. Until then *Stayer* is a flat 3% bonus on long tracks (§5.4) rather than a stat interaction, and **§8.2 should price stamina feed on its flat 19% and not on a distance story.** Phase B's to take or leave.
 
 ### 5.2 Condition
 
-- **Fitness 0–100.** Multiplies every stat: `fitScale = 0.90 + 0.10 × fitness/100` ⚖️.
+- **Fitness 0–100.** Multiplies every stat, at every level: `fitScale = 0.90 + 0.10 × fitness/100` ⚖️ (`fitScaleBase`, `fitScaleCoef`). ✅ Built.
   ⚠️ **This is a deliberate softening, and it is the fix for "fitness never bites".** v1 used `0.80 + 0.20 × fitness/100`, which sounds gentler and is savage: at equal ratings a dog at 90 fitness wins 13.0%, at 80 wins 7.0%, at 70 wins 3.0% and at 60 wins 1.3% **[measured]**. The whole meaningful range was 85–100, which is precisely why nothing ever fell to the threshold — there was no room to fall. Flattened to `0.90 + 0.10`, the curve reads across the range a player can actually reach: 100 → 26.1%, 80 → 16.6%, 60 → 8.8%, 40 → 5.4% **[measured]**. *Then* the weekly swings can be large enough to see.
-- **Weekly fitness by state** (§5.7): **Race −25, Train +8, Rest +30** ⚖️ **[estimate, sized against the curve above]**. A dog racing two weeks in three holds station; three weeks running does not. Over 13 weeks a dog can take about **8 races**, which is why a 3-race card wants **5 dogs** to fill it (§6.4).
+- **Weekly fitness by state** (§5.7): **Race −25, Train +8, Rest +30**, and **+40 resting with a vet** ⚖️. ✅ Built.
+  ⚠️ **The arithmetic in 0.2 was wrong and the correction matters.** Two weeks racing in three is −25 −25 +30 = **−20**, not station-holding. A dog that rests every week it does not race can take `390 ÷ 55 ≈ 7` races in thirteen weeks, not 8, and fewer if it ever trains. **[measured]** a Normal stable's dogs take **5.2**, and the difference is the races the card does not make worth running. So a 3-race card wants five dogs for the *eligibility* reason of §6.3, not for this one.
+- **Local dogs run at fitness 75** ⚖️ (`localFitness`). v1 left them on the dog factory's default of 90, which cost nothing while campaigning stables declared at a mean fitness of 96 — and became a standing handicap the moment this section put them in the 60–80 band. See D17.
 - **Form −10…+10.** Momentum from recent results. Decays 2/week toward 0.
-- **Age 1–7 (seasons).** Age **1: +2 stat points a week; age 2: +1; ages 3–4: none; age 5+: −1** ⚖️. This is a change from v1's "+1 every second week", and it is what makes a pup visibly a pup: raising one is now a real compounding curve rather than a rounding error (§5.6). Value multiplier by age: 1.15 / 1.10 / 1.00 / 0.85 / 0.65 / 0.45 / 0.30. Age ticks once per season (week 7).
+- **Age 1–7 (seasons).** Age **1: +2 stat points a week; age 2: +1; ages 3–4: none; age 5+: −1** ⚖️. ✅ Built. This is a change from v1's "+1 every second week", and it is what makes a pup visibly a pup: raising one is now a real compounding curve rather than a rounding error (§5.6). Value multiplier by age: 1.15 / 1.10 / 1.00 / 0.85 / 0.65 / 0.45 / 0.30. Age ticks once per season (week 7).
 - **Injury.** Base 4% per race, ×2 if fitness < 50, ×2 with *Fragile*, ×1.5 on hazardous tracks. Duration 1–3 weeks (a Vet shortens it). Injured dogs cannot be declared; value ×0.7 while injured.
 
 ### 5.3 Rating
@@ -139,7 +151,9 @@ Unchanged: procedurally generated grimy/absurd names, greyhound silhouettes with
 
 ### 5.6 The stable, and the pup problem
 
-**Starting stable:** 3 dogs, ratings ≈ 38–48, mixed ages 2–4, **4 kennel slots**, 6,000 Bones, basic ship. Kennel slots rise to **6** at the top ship tier ⚖️.
+**Starting stable:** 3 dogs, ratings ≈ 38–48, mixed ages 2–4, **4 kennel slots**, 6,000 Bones, basic ship. Kennel slots rise to **6** at the top ship tier ⚖️. ✅ Built.
+
+⚠️ **The sixth slot is not worth buying, measured.** A kennel module costs 2,000 and the fifth dog's upkeep another 1,950 over a season, against roughly 3,000 of extra prize money — the races a fifth dog adds are the *cheapest* five, because the good ones were already covered. Teaching the Normal AI to buy one cost it 5,000 Bones of end worth and nine points of head-to-head. This is M4's ship-upgrade finding surviving the rules that were supposed to overturn it, and it is why `dogs owned at week 13` comes in at **3.9 against a target of 4.5**. The lever is ship economics, which §9.2 and §20 Q6 hand to Phase C — the module has to get cheaper or the fifth runner has to be worth more.
 
 **The market mostly sells pups.** v1's flaw, in Jesse's words, was that "the best strategy is to just wait for a great dog in the market". So the market's stock is weighted heavily to **age-1 pups** — cheap, useless now, and worth something only if you spend a season on them. Finished dogs still appear, rarely and dearly, and at Major venues.
 
@@ -157,11 +171,27 @@ Unchanged: procedurally generated grimy/absurd names, greyhound silhouettes with
 
 So **a pup needs 5–6 raw stat points a week to arrive around week 10**, which is the target. Below 4 it never arrives at all; at 8 it is a monster by week 10 and the season is over. The band is narrow, which is a risk worth naming: the difference between 4 and 6 points a week is the difference between a dead mechanic and a dominant one.
 
+✅ **Measured in the live engine** (`npm run harness -- --pups`), against the rating-50 Gold locals the game now fields. Par is 12.5%:
+
+| trainer | trains | pts/train-week | pts/week | week it reaches par |
+|---|---|---|---|---|
+| none | 13/13 | 3.5 | 3.5 | 13 |
+| none | 8/13 | 4.5 | 2.8 | **never** |
+| **Rough +1** | **13/13** | **4.5** | **4.5** | **8** |
+| **Rough +1** | **8/13** | **5.5** | **3.4** | **8** |
+| Rough +1 | 6/13 | 6.3 | 2.9 | never |
+| Gristle +2 | 8/13 | 6.5 | 4.0 | 6 |
+| Prime (Phase C) +4 | 8/13 | 8.5 | 5.2 | 4 |
+
+**The trainer is what makes the pup road exist.** With one, a pup arrives at week 8 — a week early against the 9–11 target, and on the line rather than clear of it (12.6% at week 8 against par 12.5). Without one it arrives in week 13 or not at all, whatever it does with its weeks. And a pup that has to race to pay its way — six training weeks out of thirteen — **never arrives**, which is §5.6's own sentence, now measured rather than asserted.
+
+Two honest caveats. The target is met partly because the locals came down to rating 50 (D17); against 0.2's rating-57 field the same pup would be a fortnight short. And the Prime row is what §8.2 and §8.3 promise in Phase C, priced here so the gap is visible before it is built — it is a *monster*, and the tier numbers will want trimming rather than hitting.
+
 **Under Race/Train/Rest, those are not calendar weeks.** A dog only gains from feed on a **Train** week, so a pup that trains 8 of 13 weeks needs **7–9 points per training week**, plus growth. That arithmetic is what sets the tier numbers in §8.2 and §8.3, and it is the trainer's road in one sentence: *a pup that has to race to pay its way arrives late or never.*
 
 ### 5.7 Race, Train or Rest
 
-Each week, in the Kennels, every dog is set to exactly one of three states. This is the decision the two reserve slots always wanted and never got.
+Each week, in the Kennels, every dog is set to exactly one of three states. This is the decision the two reserve slots always wanted and never got. ✅ Built: `Dog.weekState`, the `SetDogState` action, resolved at end of turn.
 
 | State | Fitness | Stats | Money |
 |---|---|---|---|
@@ -169,13 +199,21 @@ Each week, in the Kennels, every dog is set to exactly one of three states. This
 | **Train** | +8 | consumes one unit of feed; gains the feed's and the trainer's points | nothing, and the feed cost |
 | **Rest** | +30 | none | nothing |
 
-A dog that is injured or banned is in a fourth state, **Layoff**, which is imposed rather than chosen and does all of Rest's recovery. There is deliberately no chosen fourth state: three is the number a player can hold in their head across six dogs, and everything a fourth might do (light work, a trial) is a tier of Train.
+A dog that is injured or banned is in a fourth state, **Layoff**, which is imposed rather than chosen and does all of Rest's recovery. It is **derived, never stored**, so a dog that comes sound again is still set to whatever its owner chose. There is deliberately no chosen fourth state: three is the number a player can hold in their head across six dogs, and everything a fourth might do (light work, a trial) is a tier of Train.
+
+**Which way the dependency runs.** Declaring a dog implies it races — the Race Office sets the state for you. Standing a *declared* dog down is refused and asks you to withdraw it from its race first, exactly as selling one does. The friendly implication runs from the specific act to the general state and never the other way, where it would quietly bin an entry.
+
+A dog **set to race that nothing enters** does not run and takes Rest's recovery. The Kennels says so on the card, because otherwise a stable would lose a week to a state it thought was doing something.
+
+**A Train week eats a second crate of kibble** on top of the week's dinner, so training has a running cost from the first week (§7.2). In Phase A the feed is plain kibble and the gain is the trainer's points plus **+1–3 to a random stat** ⚖️; Phase C's four feeds × three tiers (§8.2) are what aim those points at the stat the player chose.
+
+⚠️ **Training does not yet pay for itself, and that is expected rather than broken.** A Train week on plain kibble is worth about 0.75 rating points, against a race worth hundreds of Bones — so a Hard stable asked to price the two never once chose the yard over the track **[measured, ±0 in ablation]**. It starts choosing it at roughly Prime-feed strength. Until Phase C, the Kennels' real decision is Race against Rest, and Train is where a pup goes.
 
 ## 6. Races
 
 ### 6.1 Race parameters
 
-Each planet has one track: **distance** (Sprint 350 m / Standard 480 m / Staying 600 m), **bend tightness**, **surface hazard**, and a visual theme. 8 traps. Short fields are filled with local dogs drawn around each race's own level.
+Each planet has one track: **distance** (Sprint 350 m / Standard 480 m / Staying 600 m), **bend tightness**, **surface hazard**, and a visual theme. 8 traps. Short fields are filled with local dogs drawn around each race's own level: **22 / 38 / 50** ⚖️ (+5 at a Major), at **fitness 75** ⚖️. See D17 for why those fell from 30/46/58.
 
 ### 6.2 Simulation — and the rebalance v2 depends on
 
@@ -198,6 +236,8 @@ The constants above were found by sweep and give **speed 23.0% / stamina 20.4% /
 **Costs of the change, honestly:** the §6.2 calibration moves from 52.4% to 57.9% (a balanced 65 against seven 50s; the target band is 45–60%, so it holds but sits near the top), a 480 m race runs 33.8 s instead of 31.6 s, and the bookie's `oddsScale` will want refitting — the sim now runs slightly hotter than the model at every rating. **That last one is a feature if it is chosen and a bug if it is not:** a known, small, stable divergence between the sim and the bookie is exactly the edge the crook's road needs, and Phase A should decide its size deliberately rather than inherit it.
 
 **Everything in this block is `balance.json` — no code changes.** It moves the golden snapshot once and shifts the whole economy, which is why it is Phase A's first commit and not a corner of a later one.
+
+✅ **Shipped, and it cost the economy 7.7%** — mean end worth 40,696 → 37,554 over 800 all-Normal seasons, with p90 falling furthest (−9.8%), which is the change doing what it was for: with Speed no longer the only stat a very good dog beats the field less often. Well inside the 20% that would have forced a purse re-fit. `oddsScale` settled at **15.5** — see §20 Q4.
 
 ### 6.3 The race card
 
@@ -284,6 +324,10 @@ Target **5–10% of carelessly played seasons** ⚖️, reported by the harness 
 v1's rate is not low, it is **structurally zero**: 22 deliberate attempts in M4 session 2 — including selling down to the one dog the engine will not let you sell, hiring staff purely for the wages, borrowing from every lender on the circuit and entering no races — all finished solvent, the closest at 1,719 Bones. The forced-sale loop at end of turn sells your cheapest dogs to cover the bills, so going bust requires one week's deficit to outrun the sale value of the whole kennel.
 
 Three v2 changes reach it without touching that loop: pups are worth little, so the forced sale raises little; Prime wages are a large fixed weekly commitment; and Race/Train/Rest means a stable can be simultaneously expensive and earning nothing. The Bust screen already exists and is correct — it has been waiting for a trigger that can fire.
+
+⚠️ **Phase A measured it and did not reach it: the careless agent goes bust in 0.0% of 400 seasons.** Only the first of those three changes exists yet, and it is the weakest of them. Raising `upkeepPerDog` was tried first, as the plan asks: **150 → 200 → 250 → 300** takes the careless rate to 0.5 / 1.5 / 1.0% and costs a Normal stable **27% of its end worth** on the way. That is a bad trade for a target it still misses, so upkeep stays at 150.
+
+**The blocker is arithmetic, not tuning.** A careless stable owns about ten dogs across a season and each is worth thousands on a forced sale, so one bad week is covered by selling one dog, and thirteen weeks is not long enough to bleed out at 150 or even 300 a dog. §7.5's own answer is the one that has not been built: **three Prime staff at 1,400 a week is 4,200 a week and 54,600 a season**, against a careless stable's 43,600 of prize money — that is a stable that is underwater by construction, and the careless agent's "hires whatever is offered" was written for exactly it. **D6 is therefore a Phase C acceptance row, not a Phase A one**, and the forced-sale loop was left alone, as the plan asks.
 
 ## 8. Marketplace, upgrades and the tier ladder
 
@@ -461,11 +505,17 @@ All shady options are off under the **Clean Sport** toggle.
 
 AI plays by the same rules with no stat bonuses. Difficulty changes decision quality only.
 
-- **Easy** — near-random declarations respecting entry criteria; never bets; buys food only when out; never hires; sells only when broke.
-- **Normal** — declares to maximise `Σ P(win) × purse`; keeps a Rough or Proper trainer; **sets Race/Train/Rest by a simple fitness rule**; trades on a visible spread; bets small on favourites.
-- **Hard** — as Normal, plus: prices its own dogs by `effectiveRating` rather than rating (the §5.3 edge, which any player can also see); raises a pup when the market offers a good one; **buys information when its hold is big enough to pay for it**; uses supplements where the stewards are lax; uses the Fixer when the numbers say so.
+- **Easy** — near-random declarations respecting entry criteria; **rests anything under 40 and never trains**; never bets; buys food only when out; never hires; sells only when broke. It also leaves **85%** of the card to the locals ⚖️ — see D17.
+- **Normal** — declares to maximise `Σ P(win) × purse`; keeps a Rough or Proper trainer; **races above 65 fitness, rests below 45 and trains in between**; trades on a visible spread; bets small on favourites.
+- **Hard** — as Normal, plus: prices its own dogs by `effectiveRating` rather than rating (the §5.3 edge, which any player can also see); **races a little deeper into the fitness range (58)**; **prices a Train week against the purse it is passing up**; raises a pup when the market offers a good one; **buys information when its hold is big enough to pay for it**; uses supplements where the stewards are lax; uses the Fixer when the numbers say so.
 
-⚠️ **v2 gives every difficulty a new decision it does not have: Race/Train/Rest.** That is the AI work in Phase A, and `naive%` — the measure that made v1's balance tractable — has to be redefined around it (§20 Q11).
+✅ Built. Two notes worth keeping:
+
+**A fitness threshold is a preference, not a rule.** Every difficulty offers its tired dogs to any race the fit ones left empty, above a floor of 50 where the injury roll doubles. A flat threshold would have left a trap to the locals rather than run a dog at 60 — deleting the exact choice §5.2 says the softened curve exists to create.
+
+**Hard's "value the training against the purse" is worth ±0.0 today, and it is in anyway.** It compares the purse a dog would pass up against the uplift its training buys on every remaining race, and at Phase A's feed strength that comparison is never close — so it never fires. It starts firing at roughly Prime-feed strength. Like M4's Bronze throw, §14 asks for it, it is free rather than good, and the ablation is recorded rather than the behaviour quietly dropped.
+
+⚠️ **`naive%` still has no replacement.** BUILD_PLAN §7a.3's `autoplan%` is specified and deferred to Phase B with the race card it needs (§20 Q11).
 
 Each AI stable keeps its name, colour, portrait and one-line personality.
 
@@ -484,7 +534,7 @@ Each AI stable keeps its name, colour, portrait and one-line personality.
 11. **Season end** — podium, worth chart, moments, championship purse.
 
 ### 15.3 The click budget
-13.3 decisions a weekend, measured. It is a budget, not a reading.
+13.3 decisions a weekend in v1. **Phase A measures 14.0** ⚠️ — §5.7's per-dog state is six decisions for a full kennel, and the Kennels' **"Plan the week"** button sets the whole yard by fitness in one press, so the mechanic costs one click a weekend rather than six. A player who never touches it pays nothing and gets v1's behaviour, every dog pointed at a race. 14.0 is over v1's budget and inside the 14.5 BUILD_PLAN sets for Phase C. It is a budget, not a reading.
 
 ## 16. Art bible
 
@@ -534,16 +584,21 @@ Moved to **M6, behind v2**. Building a server for rules that are about to change
 | **2026-09-11** | **D14 — pups compound at 5–6 raw stat points a week, delivered only on Train weeks; age 1 grows +2 a week and age 2 +1** | Measured: below 4 points a week a pup never arrives, at 8 it is a monster by week 10. The band is narrow and that is a named risk |
 | **2026-09-11** | **D15 — the purse pool is cut about 27%** | Prize money is 87% of v1's economy (35,766 against trade −3,747 and betting −325). Three roughly equal roads is arithmetic: the other two need to be worth 12–15k, which cannot be reached by making racing better |
 | **2026-09-11** | **D16 — M5 online multiplayer moves behind v2, becoming M6** | No sense building a server for rules about to change |
+| **2026-09-11** | **D17 — ⚠️ the local dogs and Easy's skip rate are re-fitted to the game §5.7 made: locals 30/46/58 → 22/38/50 at fitness 90 → 75, Easy's skip rate 0.5 → 0.85** | **The one unplanned change in Phase A, and all of it is one cause.** The locals are a fixed benchmark and Race/Train/Rest changed what a stable can field against it: a campaigning kennel's mean declared rating fell 47.9 → 42.3 as the good dogs started needing weeks off, while the locals stood still. The share of the purse reaching players collapsed **54% → 30%** and a Normal stable's racing ran at a loss. The same cause hit Easy's handicap from the other side — fitness rations races for everybody now, so skipping them is far less of a penalty, and at 0.5 Normal beat Easy 55.5%. This is M4's finding-1 lever pulled the other way, for the same reason it was pulled the first time. **Phase B re-fits all three again** with the new card (§6.3) and the purse cut (D15) |
+| **2026-09-11** | **D18 — declaring a dog implies it races; standing a declared dog down asks you to withdraw it first** | The friendly implication runs from the specific act to the general state. The other direction would quietly bin an entry from another screen |
+| **2026-09-11** | **D19 — `Player.training` and the `SetTraining` action are retired; a trainer's points land on every dog on a Train week, on that dog's own stat** | §5.7 and §8.3 both describe per-dog training. One dog, one stat, stable-wide was a second system saying something different, and the Kennels is where the decision belongs |
+| **2026-09-11** | **D20 — D6's bankruptcy target moves to Phase C** | Measured at 0.0% of careless seasons. Two of §7.5's own three mechanisms are Phase C, and the one that does the work is the Prime wage bill. Raising upkeep to 300 reaches 1% and costs a Normal stable 27% of its worth — a bad trade for a target it still misses |
+| **2026-09-11** | **D21 — the kennel module stays unbought by the AI, and `dogs owned at week 13` misses its target** | Measured: teaching Normal to buy one cost 5,000 Bones and nine points of head-to-head. M4's ship-upgrade finding survives the rules meant to overturn it; the lever is Phase C's ship economics (§20 Q6) |
 
 ## 20. Open questions ❓
 
 1. ~~Grand Final venue~~ — decided: always Collar Prime.
 2. ~~Major purse share~~ — decided 2026-09-08.
 3. ~~Hotseat in v1~~ — decided: yes.
-4. **Q1 — How much does the §6.2 rebalance cost the rest of the economy?** Every measured number in this document below the race level was taken on v1's constants. The rebalance moves them all. Phase A's first job after the change is a full re-baseline.
+4. ~~**Q1 — How much does the §6.2 rebalance cost the rest of the economy?**~~ — **answered: 7.7%.** Mean end worth 40,696 → 37,554 over 800 all-Normal seasons; p10 −5.0%, p50 −6.3%, p90 −9.8%; costs flat; head-to-head unmoved. Well inside the 20% that would have forced a purse re-fit. The *mechanics* of §5.7 then cost a further 13% on top (37,554 → 32,674), most of which was the local re-fit of D17 winning back a much larger fall.
 5. **Q2 — Are the three roads actually equal?** Nothing measures it yet. Needs the three path agents in the rebuilt harness (BUILD_PLAN §7). §7.1's arithmetic says the gap to close is 4× on trading and 45× on betting.
 6. **Q3 — Does the Prime tier amplify the runaway?** D11's guard is specified and unmeasured. Test it directly: does a stable ahead at week 6 convert a Prime offer into a bigger lead than a stable behind? If yes, the consumable/wage shapes are not strong enough.
-7. **Q4 — What is the right `oddsScale` after D12?** The sim now runs hotter than the bookie at every rating. A small, deliberate, stable divergence is the crook's edge; an accidental one is a bug.
+7. ~~**Q4 — What is the right `oddsScale` after D12?**~~ — **answered: 15.5** (from 17.5; the least-squares best fit is 15.25 and the bowl is flat between 15.0 and 15.5). 15.5 minimises the *worst-case* error across ratings 35–75 at 2.1 points. It leaves the bookie under-pricing the very best dogs by that 2.1 — a deliberate, stable divergence in the direction §6.2 wants, and small enough that backing favourites blind still loses to the 15% margin. **At 17.5 the gap was 8.4 points at rating 65**, which is a standing overlay big enough to beat the margin: free money for anyone who noticed, and Phase D's crook would have been balanced against a bug. The edge the crook's road needs comes from what the bookie *cannot see* — a fed dog, a supplement, a sabotage — not from a mis-fitted scale.
 8. **Q5 — Does the fact-gated card feel arbitrary under the fog?** Measured to work structurally (§6.3); untested as an experience.
 9. **Q6 — How big does the hold have to be, and how cheap the fuel, before the trader's road pays?** §9.2 names the two levers and neither is sized.
 10. **Q7 — What flat stake ceiling keeps the crook's road from scaling with the leader's bankroll?** (§10)
