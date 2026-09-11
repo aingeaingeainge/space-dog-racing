@@ -31,6 +31,8 @@
   "fitnessRecovery": 15,
   "fitnessRecoveryVet": 25,
   "fitnessScaleBelow": 60,
+  "fitScaleBase": 0.8,
+  "fitScaleCoef": 0.2,
   "foodDrift": 0.15,
   "foodNoCargoPenalty": 1.5,
   "foodPerDog": 1,

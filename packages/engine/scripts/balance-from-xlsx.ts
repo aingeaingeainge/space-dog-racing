@@ -68,6 +68,10 @@ const LABELS: Record<string, string> = {
   'Race: bump chance on a bend': 'raceBumpChance',
   'Race: bump speed penalty': 'raceBumpPenalty',
   'Race: bump distance (metres)': 'raceBumpDistance',
+  // Condition (GDD §5.2). fitScale multiplies every stat in the race, so it is the most violent
+  // lever in the game and the one D13 softens — it does not belong buried in simulateRace.ts.
+  'Fitness multiplier: floor': 'fitScaleBase',
+  'Fitness multiplier: range': 'fitScaleCoef',
 };
 
 const wb = XLSX.read(readFileSync(xlsxPath));

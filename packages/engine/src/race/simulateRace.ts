@@ -117,7 +117,8 @@ export function simulateRace(runners: readonly Runner[], ctx: RaceContext, rng: 
     for (let i = 0; i < n; i++) {
       if (finished[i]) continue;
       const r = runners[i]!;
-      const fit = 0.8 + (0.2 * r.fitness) / 100;
+      // GDD §5.2: fitness multiplies every stat, at every fitness — not only below a threshold.
+      const fit = balance.fitScaleBase + (balance.fitScaleCoef * r.fitness) / 100;
       const speedStat = Math.min(120, r.speed + (r.speedBonus ?? 0));
       let top =
         (balance.raceBaseSpeed +
