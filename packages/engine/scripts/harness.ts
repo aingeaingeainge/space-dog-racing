@@ -5,6 +5,7 @@
  *   npm run harness -- --seasons 400 --ai careless,normal,normal,normal   # D6, bankruptRate
  *   npm run harness -- --calibrate        # race-sim win rates vs rating gap + oddsScale fit
  *   npm run harness -- --stats            # D12 regression: +10 to one stat, at three lengths
+ *   npm run harness -- --pups             # D14: what a Train week is worth, and when a pup arrives
  *
  * ## Why this drives the season itself rather than calling runSeason
  *
@@ -17,8 +18,9 @@
  */
 import { balance } from '../src/content/balance';
 import { createDog, fitRating } from '../src/economy/market';
+import { baseRating } from '../src/economy/dogValue';
 import { netWorth } from '../src/economy/netWorth';
-import { mulberry32 } from '../src/rng';
+import { clamp, mulberry32 } from '../src/rng';
 import { createSeason, player } from '../src/state';
 import { decide } from '../src/ai';
 import { isSeasonOver, needsAdvance, reduceMut } from '../src/reduce';
@@ -26,6 +28,7 @@ import { simulateRace, type Runner } from '../src/race/simulateRace';
 import { winProbabilities } from '../src/race/odds';
 import {
   RACE_CLASSES,
+  STAT_KEYS,
   type AiAgent,
   type GameState,
   type Id,
@@ -40,6 +43,7 @@ interface Args {
   seed: number;
   calibrate: boolean;
   stats: boolean;
+  pups: boolean;
   quiet: boolean;
 }
 
@@ -50,6 +54,7 @@ function parseArgs(argv: string[]): Args {
     seed: 1,
     calibrate: false,
     stats: false,
+    pups: false,
     quiet: false,
   };
   for (let i = 0; i < argv.length; i++) {
@@ -63,6 +68,7 @@ function parseArgs(argv: string[]): Args {
     else if (a === '--seed') args.seed = Number(next());
     else if (a === '--calibrate') args.calibrate = true;
     else if (a === '--stats') args.stats = true;
+    else if (a === '--pups') args.pups = true;
     else if (a === '--quiet') args.quiet = true;
   }
   return args;
@@ -520,10 +526,169 @@ export function runStatLeverage(n = 3000, seed = 20260911): string {
   return lines.join('\n');
 }
 
+/**
+ * The D14 pup curve (GDD §5.6). BUILD_PLAN §11 names this phase's narrowest band and says the
+ * acceptance criterion is the *week a pup reaches par*, not a stat number, and that the whole
+ * curve gets reported rather than a pass or a fail — so it is an instrument, not a script that
+ * was run once. Phase C changes both inputs (real feeds, a trainer ladder) and will want it again.
+ *
+ * A pup at age 1 with all stats ≈ 37, trained for N of the 13 weeks, against the Gold locals.
+ * Averaged over many pups because the points land on random stats and one pup is noise.
+ */
+export function runPupCurve(pups = 200, racesPerCell = 900, seed = 4242): string {
+  const track: Track = { distance: 480, length: 'standard', bends: 'medium', hazard: 1 };
+  const field = balance.localRatingGold;
+  // Weekly around the target band, because the acceptance row is a *week* and 4/8/10/13 cannot
+  // tell 8 from 9.
+  const checkpoints = [4, 6, 8, 9, 10, 11, 13];
+  const lines: string[] = [
+    `Pup curve — age-1 pup (all stats ≈ 37, rating 37) against seven rating-${field} locals at fitness ${balance.localFitness}.`,
+    `Par is 12.5%. Plain kibble +${balance.trainKibbleMin}–${balance.trainKibbleMax} a Train week, growth +${balance.growthAge1}/week at age 1 and +${balance.growthAge2} at age 2.`,
+    `Target (BUILD_PLAN §6b): a pup bought in week 1 and trained throughout reaches par between weeks 9 and 11.`,
+    '',
+    `trainer          train  pts/train-wk  pts/wk  |  win% at weeks ${checkpoints.join(' · ')}  | par`,
+  ];
+
+  const raise = (trainWeeks: number, trainerPoints: number) => {
+    const rng = mulberry32(seed);
+    let counter = 0;
+    const nextId = (p: string) => `${p}${counter++}`;
+    const at = new Map<number, { speed: number; accel: number; stamina: number; trap: number }>();
+    for (const w of checkpoints) at.set(w, { speed: 0, accel: 0, stamina: 0, trap: 0 });
+    let gain = 0;
+    for (let n = 0; n < pups; n++) {
+      const pup = fitRating(
+        createDog({ quality: 37, age: 1, owner: 'p1', traits: [] }, rng, nextId),
+        37,
+        37,
+      );
+      const start = pup.speed + pup.accel + pup.stamina + pup.trap;
+      for (let week = 1; week <= balance.weeks; week++) {
+        if (week <= trainWeeks) {
+          if (trainerPoints > 0)
+            pup[pup.trainStat] = clamp(pup[pup.trainStat] + trainerPoints, 1, 99);
+          const kibble = rng.int(balance.trainKibbleMin, balance.trainKibbleMax);
+          const stat = rng.pick(STAT_KEYS);
+          pup[stat] = clamp(pup[stat] + kibble, 1, 99);
+        }
+        const g = pup.age <= 1 ? balance.growthAge1 : pup.age === 2 ? balance.growthAge2 : 0;
+        for (let i = 0; i < g; i++) {
+          const stat = rng.pick(STAT_KEYS);
+          pup[stat] = clamp(pup[stat] + 1, 1, 99);
+        }
+        if (week === balance.ageTickWeek) pup.age = Math.min(7, pup.age + 1);
+        const slot = at.get(week);
+        if (slot) {
+          slot.speed += pup.speed;
+          slot.accel += pup.accel;
+          slot.stamina += pup.stamina;
+          slot.trap += pup.trap;
+        }
+      }
+      gain += pup.speed + pup.accel + pup.stamina + pup.trap - start;
+    }
+    for (const slot of at.values()) {
+      slot.speed /= pups;
+      slot.accel /= pups;
+      slot.stamina /= pups;
+      slot.trap /= pups;
+    }
+    return { at, gain: gain / pups };
+  };
+
+  const winRate = (
+    line: { speed: number; accel: number; stamina: number; trap: number },
+    s2: number,
+  ) => {
+    const rng = mulberry32(s2);
+    let counter = 0;
+    const nextId = (p: string) => `${p}${counter++}`;
+    let wins = 0;
+    for (let i = 0; i < racesPerCell; i++) {
+      const runners: Runner[] = [
+        {
+          id: 'hero',
+          trap: 1,
+          speed: Math.round(line.speed),
+          accel: Math.round(line.accel),
+          stamina: Math.round(line.stamina),
+          trapStat: Math.round(line.trap),
+          fitness: 90,
+          form: 0,
+          traits: [],
+        },
+      ];
+      for (let k = 0; k < 7; k++) {
+        const r = fitRating(
+          createDog({ quality: field, age: 3, owner: 'local', traits: [] }, rng, nextId),
+          field,
+          field,
+        );
+        runners.push({
+          id: `r${k}`,
+          trap: k + 2,
+          speed: r.speed,
+          accel: r.accel,
+          stamina: r.stamina,
+          trapStat: r.trap,
+          fitness: balance.localFitness,
+          form: 0,
+          traits: [],
+        });
+      }
+      const draw = rng.shuffle(runners).map((x, idx) => ({ ...x, trap: idx + 1 }));
+      const res = simulateRace(draw, { track, major: false }, mulberry32(rng.int(0, 2 ** 31)));
+      if (res.order[0] === 'hero') wins++;
+    }
+    return wins / racesPerCell;
+  };
+
+  const trainers: [string, number][] = [
+    ['none          ', 0],
+    [`Rough      +${balance.trainerStatPerWeek} `, balance.trainerStatPerWeek],
+    ['Gristle    +2 ', balance.trainerStatPerWeek + 1],
+    ['Prime (C)  +4 ', 4],
+  ];
+  for (const [label, points] of trainers) {
+    for (const trainWeeks of [13, 10, 8, 6]) {
+      const { at, gain } = raise(trainWeeks, points);
+      const cells: string[] = [];
+      let par = 0;
+      for (const w of checkpoints) {
+        const line = at.get(w)!;
+        const rating = baseRating({
+          speed: Math.round(line.speed),
+          accel: Math.round(line.accel),
+          stamina: Math.round(line.stamina),
+          trap: Math.round(line.trap),
+        });
+        // One rival seed for every checkpoint, so the curve reads as a curve: a fresh field per
+        // week adds ±3 points of noise and makes week 9 look worse than week 8.
+        const win = winRate(line, 1000);
+        void rating;
+        cells.push(`${(win * 100).toFixed(1).padStart(4)}`);
+        if (!par && win > 0.125) par = w;
+      }
+      lines.push(
+        `${label}  ${String(trainWeeks).padStart(2)}/13  ` +
+          `${(gain / trainWeeks).toFixed(1).padStart(11)}  ` +
+          `${(gain / balance.weeks).toFixed(1).padStart(6)}  |  ${cells.join('  ')}  | ${par ? 'wk ' + par : 'never'}`,
+      );
+    }
+    lines.push('');
+  }
+  lines.push(
+    'Phase A has only the Rough trainer and plain kibble; the Prime row is what GDD §8.2 and §8.3',
+  );
+  lines.push('promise in Phase C, and is here so the two can be compared before it is built.');
+  return lines.join('\n');
+}
+
 if (process.argv[1]?.endsWith('harness.ts')) main();
 function main() {
   const args = parseArgs(process.argv.slice(2));
   if (args.calibrate) console.log(runCalibration());
   else if (args.stats) console.log(runStatLeverage());
+  else if (args.pups) console.log(runPupCurve());
   else console.log(runHarness(args));
 }
