@@ -80,6 +80,16 @@ export interface AssignmentOptions {
   /** Dogs held out of every race this week whatever the numbers say. */
   hold?: ReadonlySet<Id>;
   /**
+   * Dogs the state policy would rather rest or train, but which will take a trap the first pass
+   * left empty. GDD §5.2: "a dog at 60 is now a dog you might *choose* to run when you are short
+   * of runners, which is the decision Race/Train/Rest exists to create." A flat fitness threshold
+   * would delete that decision — it would leave a trap to the locals rather than run a tired dog,
+   * whatever the race was worth.
+   */
+  reserve?: ReadonlySet<Id>;
+  /** Below this fitness a dog is not worth running at all: the injury roll doubles (GDD §5.2). */
+  reserveFloor?: number;
+  /**
    * How to rate our own dog when working out what a race is worth. Defaults to the public
    * rating, which is what the bookie and the class caps use; Hard passes `effectiveRating`.
    */
@@ -94,12 +104,13 @@ export function bestAssignment(
   opts: AssignmentOptions = {},
 ): Assignment {
   const scale = opts.minPurseScale ?? 1;
-  const dogs = candidates.filter(
+  const available = candidates.filter(
     (d) => d.injuryWeeks === 0 && d.banWeeks === 0 && !opts.hold?.has(d.id),
   );
+  const dogs = available.filter((d) => !opts.reserve?.has(d.id));
   let best: Assignment = { plan: {}, value: 0 };
   const ev = new Map<string, number>();
-  for (const d of dogs) {
+  for (const d of available) {
     for (const cls of RACE_CLASSES) {
       if (eligible(d, cls))
         ev.set(
@@ -137,6 +148,33 @@ export function bestAssignment(
     }
   };
   recurse(0, new Set(), {}, 0);
+
+  // Short of runners: offer the reserve to whatever the first pass left to the locals. They are
+  // still priced by the same EV bar and still carry the fatigue discount, so a jaded dog takes a
+  // trap only when the race is worth more than the week off — which is the choice GDD §5.2 wants
+  // a player weighing, and the reason the fitness floor is a preference rather than a rule.
+  const floor = opts.reserveFloor ?? balance.injuryLowFitnessBelow;
+  const spare = available.filter((d) => opts.reserve?.has(d.id) && d.fitness >= floor);
+  if (spare.length) {
+    const taken = new Set<Id>(Object.values(best.plan));
+    for (const cls of RACE_CLASSES) {
+      if (best.plan[cls]) continue;
+      let pick: { d: Dog; v: number } | null = null;
+      for (const d of spare) {
+        if (taken.has(d.id)) continue;
+        const v = ev.get(`${d.id}|${cls}`);
+        if (v === undefined || v < (balance.aiMinExpectedPurse + 0.012 * dogValue(d)) * scale)
+          continue;
+        const fatigue = d.fitness < balance.fitnessScaleBelow ? 0.8 : 1;
+        if (!pick || v * fatigue > pick.v) pick = { d, v: v * fatigue };
+      }
+      if (pick) {
+        best.plan[cls] = pick.d.id;
+        best.value += pick.v;
+        taken.add(pick.d.id);
+      }
+    }
+  }
   return best;
 }
 
@@ -240,22 +278,136 @@ export function startPlan(s: GameState, playerId: Id): Plan {
   };
 }
 
-/** Keep a trainer on the best dog's weakest stat (GDD §14 Normal). */
+/**
+ * Keep a trainer (GDD §14 Normal). Which dog he works on is no longer a stable-wide setting —
+ * under GDD §5.7 every dog on a Train week gets his points, on the stat its own `trainStat`
+ * names, so `setStates` picks that and this only decides whether to employ him at all.
+ */
 export function keepTrainer(plan: Plan): void {
   const { s, p, playerId, out } = plan;
-  if (!p.staff.trainer) {
-    const offer = s.planet.staff.find((o) => o.role === 'trainer');
-    if (offer && plan.cash > plan.reserve + offer.wage * 3)
-      out.push({ t: 'HireStaff', playerId, role: 'trainer', staffId: offer.id });
-  }
-  const best = [...plan.kennel].sort((a, b) => b.rating - a.rating)[0];
-  if ((p.staff.trainer || out.some((a) => a.t === 'HireStaff')) && best) {
-    const stat = weakestWeightedStat(best);
-    if (!p.training || p.training.dogId !== best.id || p.training.stat !== stat) {
-      out.push({ t: 'SetTraining', playerId, dogId: best.id, stat });
+  if (p.staff.trainer) return;
+  const offer = s.planet.staff.find((o) => o.role === 'trainer');
+  if (offer && plan.cash > plan.reserve + offer.wage * 3)
+    out.push({ t: 'HireStaff', playerId, role: 'trainer', staffId: offer.id });
+}
+
+/** Rating points one Train week is worth: the trainer's plus plain kibble, over four stats. */
+export function ratingPerTrainWeek(p: Player): number {
+  const trainer = p.staff.trainer ? balance.trainerStatPerWeek : 0;
+  const kibble = (balance.trainKibbleMin + balance.trainKibbleMax) / 2;
+  const meanWeight =
+    (balance.ratingWeightSpeed +
+      balance.ratingWeightAccel +
+      balance.ratingWeightStamina +
+      balance.ratingWeightTrap) /
+    4;
+  return (trainer + kibble) * meanWeight;
+}
+
+export interface StateOptions {
+  /** Fitness at or above which a dog is offered to the race card at all. */
+  raceAbove?: number;
+  /** Below this, a dog that is not racing rests rather than trains. */
+  restBelow?: number;
+  /** Whether the stable trains at all. Easy does not. */
+  train?: boolean;
+  /**
+   * Hard only: hold a dog out of a cheap week because the training is worth more than the purse
+   * it is passing up. The first behaviour in the game that reasons about *later*, so it is a
+   * flag rather than a constant, and the ablation table in the notes is what it is for.
+   */
+  trainThroughCheapWeeks?: boolean;
+}
+
+/**
+ * Dogs the state policy will not offer to the race card this week (GDD §14). Fed to
+ * `bestAssignment` as its `hold`, so the fitness rule decides what races before the expected
+ * purse does — which is what makes "race above 65, rest below 45, train in between" a policy
+ * rather than a label.
+ */
+export function stateHold(plan: Plan, opts: StateOptions = {}): Set<Id> {
+  const { s, p } = plan;
+  const raceAbove = opts.raceAbove ?? 65;
+  const hold = new Set<Id>();
+  const weeksLeft = balance.weeks - s.week;
+  const gain = ratingPerTrainWeek(p);
+  for (const d of plan.kennel) {
+    if (d.injuryWeeks > 0 || d.banWeeks > 0) continue; // Layoff decides for itself
+    if (d.fitness < raceAbove) {
+      hold.add(d.id);
+      continue;
     }
+    if (
+      opts.trainThroughCheapWeeks &&
+      weeksLeft > 0 &&
+      trainingBeatsRacing(plan, d, gain, weeksLeft)
+    )
+      hold.add(d.id);
+  }
+  return hold;
+}
+
+/**
+ * Is a week in the yard worth more than the week's best purse? (GDD §14 Hard.)
+ *
+ * The purse passed up is what the dog would expect to win in the best race it can enter now.
+ * The training is worth the *uplift* those rating points buy on every remaining race — priced
+ * with the same `expectedPurse` the assignment search uses, so the two sides of the comparison
+ * are measured with one instrument. It comes out true for a young or weak dog in a cheap week
+ * and false in a Major, which is the behaviour §14 asks for and not a rule about ages.
+ */
+function trainingBeatsRacing(plan: Plan, d: Dog, gain: number, weeksLeft: number): boolean {
+  const { s, p } = plan;
+  let now = 0;
+  let better = 0;
+  for (const cls of RACE_CLASSES) {
+    if (!eligible(d, cls)) continue;
+    const rating = effectiveRating(d);
+    now = Math.max(now, expectedPurse(s, d, cls, p.id, rating));
+    better = Math.max(better, expectedPurse(s, d, cls, p.id, rating + gain));
+  }
+  if (now <= 0) return false;
+  // It will not run every remaining week — two in three is what the fitness cycle allows.
+  return (better - now) * weeksLeft * 0.66 > now;
+}
+
+/**
+ * Set every dog that is not racing to Train or Rest (GDD §5.7). Run *after* the declarations,
+ * because Declare already sets a runner to 'race' — so this only ever touches the dogs left in
+ * the yard, and never trips setDogState's "withdraw it from its race first".
+ */
+export function setStates(plan: Plan, racing: ReadonlySet<Id>, opts: StateOptions = {}): void {
+  const { playerId, out } = plan;
+  const restBelow = opts.restBelow ?? 45;
+  const mayTrain = opts.train ?? true;
+  for (const d of plan.kennel) {
+    if (racing.has(d.id)) continue;
+    if (d.injuryWeeks > 0 || d.banWeeks > 0) continue; // Layoff: nothing to choose
+    const train = mayTrain && d.fitness >= restBelow;
+    const state = train ? 'train' : 'rest';
+    const stat = weakestWeightedStat(d);
+    if (d.weekState === state && (!train || d.trainStat === stat)) continue;
+    out.push({
+      t: 'SetDogState',
+      playerId,
+      dogId: d.id,
+      state,
+      ...(train ? { stat } : {}),
+    });
+    d.weekState = state;
+    if (train) d.trainStat = stat;
   }
 }
+
+// Measured and rejected, again (v2 Phase A). GDD §5.2 and §6.4 reason that a dog takes about
+// seven races in thirteen weeks and a three-race card has thirty-nine traps, so a stable wants
+// five dogs — and the kennel module is how you get a fifth. The harness disagrees: buying it
+// costs Normal five thousand Bones of end worth and nine points of head-to-head against Easy.
+// The module is 2,000, the extra dog's upkeep another 1,950 over a season, and the five extra
+// races it buys are the *cheapest* five, because the good races were already covered. This is
+// M4's ship-upgrade finding surviving the rules that were supposed to overturn it, and it is
+// why `dogs owned at week 13` comes in under its target: owning 4.5 dogs is not yet worth it.
+// The lever is ship economics, which GDD §9.2 and §20 Q6 hand to Phase C.
 
 /** Repay Fat Tony first, then the bank, out of anything above the reserve. */
 export function repayLoans(plan: Plan): void {
@@ -282,6 +434,8 @@ export interface MarketOptions {
   bargainFactor?: number;
   /** Never spend the reserve. */
   keepReserve?: boolean;
+  /** Buy into an empty kennel slot without the rating comparison. Defaults to true. */
+  fillEmptySlots?: boolean;
 }
 
 /** Buy a better dog when the stable can plainly afford one (GDD §14 Normal). */
@@ -297,12 +451,17 @@ export function dogMarket(plan: Plan, opts: MarketOptions = {}): void {
     .filter((d): d is Dog => !!d && !d.fellOffAShip)
     .sort((a, b) => b.rating - a.rating);
   const slotsFree = p.dogIds.length < p.kennelSlots;
+  // An empty kennel is its own reason to buy. GDD §5.2 and §6.4: a dog can take about seven races
+  // in thirteen weeks, so a three-race card wants five dogs, and a stable of three leaves a third
+  // of the card to the locals however good those three are. Under v1's fitness numbers a fourth
+  // dog was only ever an upgrade; under §5.7 it is a runner.
+  const needBodies = opts.fillEmptySlots !== false && slotsFree;
   for (const d of forSale) {
     const price = d.askingPrice ?? dogValue(d);
     const bargain = opts.bargainFactor !== undefined && price <= dogValue(d) * opts.bargainFactor;
     if (plan.cash < price * cashMultiple) continue;
     if (opts.keepReserve && plan.cash - price < plan.reserve) continue;
-    if (worst && d.rating <= worst.rating + gain && !bargain) continue;
+    if (worst && d.rating <= worst.rating + gain && !bargain && !needBodies) continue;
     if (!slotsFree) {
       if (!worst || dogs.length <= 1 || d.rating < worst.rating + swapGain) continue;
       out.push({ t: 'SellDog', playerId, dogId: worst.id });
@@ -359,6 +518,16 @@ export function tradeFoodPlan(plan: Plan, opts: FoodOptions = {}): void {
     plan.cash -= units * (units > 0 ? buyHere : sellHere);
     plan.cargo += units;
   }
+}
+
+/** The dogs an assignment actually runs — what `setStates` treats as spoken for. */
+export function racingDogs(assignment: Assignment): Set<Id> {
+  const out = new Set<Id>();
+  for (const cls of RACE_CLASSES) {
+    const id = assignment.plan[cls];
+    if (id) out.add(id);
+  }
+  return out;
 }
 
 /** Turn a chosen assignment into Declare actions, skipping the ones already standing. */

@@ -3,7 +3,15 @@ import { dogSalePrice, dogValue } from '../economy/dogValue';
 import { fuelCost } from '../economy/food';
 import { outstanding, weeklyInterest } from '../economy/loans';
 import { netWorth } from '../economy/netWorth';
-import { currentPlanet, log, player, type Ctx } from '../state';
+import {
+  currentPlanet,
+  log,
+  player,
+  ranThisWeek,
+  weeklyFitnessDelta,
+  weekStatusOf,
+  type Ctx,
+} from '../state';
 import { clamp } from '../rng';
 import { STAT_KEYS, type Dog, type GameState, type Player } from '../types';
 import { mostValuableDog } from './raceDay';
@@ -14,16 +22,37 @@ function ownDogs(s: GameState, p: Player): Dog[] {
 
 function removeDog(s: GameState, p: Player, d: Dog): void {
   p.dogIds = p.dogIds.filter((id) => id !== d.id);
-  if (p.training?.dogId === d.id) delete p.training;
   if (p.fanClubDogId === d.id) delete p.fanClubDogId;
   delete s.dogs[d.id];
 }
 
-/** GDD §4.2 step 7: weekly costs, training, recovery, then jump. */
+/**
+ * Stat points a dog gains from one Train week (GDD §5.7, §8.2, §8.3).
+ *
+ * Phase A's feed is a **placeholder**: plain kibble, +1–3 to a random stat, which GDD §8.2 calls
+ * the floor of improvement and the reason a stable that spends nothing still drifts upward very
+ * slowly. Phase C builds the four stat feeds × three tiers on top, and *that* is what aims the
+ * points at the stat the player chose. Until then `trainStat` is carried on the Dog and only the
+ * trainer's points land on it, so the choice is recorded and visible rather than ignored.
+ */
+function trainOneWeek(ctx: Ctx, p: Player, d: Dog): void {
+  const { rng } = ctx;
+  const trainer = p.staff.trainer;
+  if (trainer) {
+    const gristle = trainer.name === 'Gristle McGraw';
+    const gain = balance.trainerStatPerWeek + (gristle ? 1 : 0);
+    d[d.trainStat] = clamp(d[d.trainStat] + gain, 1, 99);
+  }
+  // Plain kibble: the floor, on whichever stat it lands.
+  const kibble = rng.int(balance.trainKibbleMin, balance.trainKibbleMax);
+  const stat = rng.pick(STAT_KEYS);
+  d[stat] = clamp(d[stat] + kibble, 1, 99);
+}
+
+/** GDD §4.2 step 7: weekly costs, then each dog's chosen state resolves, then the jump. */
 export function runEndTurn(ctx: Ctx): void {
   const { s, rng } = ctx;
   const planet = currentPlanet(s);
-  const evenWeek = s.week % balance.growthEveryWeeks === 0;
 
   for (const p of s.players) {
     if (p.flags.bankrupt) continue;
@@ -41,8 +70,12 @@ export function runEndTurn(ctx: Ctx): void {
     if (s.week < balance.weeks) costs += fuelCost(p.cargo);
 
     let foodNeeded = 0;
-    for (const d of dogs)
+    for (const d of dogs) {
       foodNeeded += d.traits.includes('glutton') ? 2 * balance.foodPerDog : balance.foodPerDog;
+      // GDD §5.7: a Train week eats a unit of feed on top of the week's dinner. In Phase A the
+      // feed is kibble out of the same hold, so training has a real running cost from day one.
+      if (weekStatusOf(d) === 'train') foodNeeded += balance.foodPerDog;
+    }
     if (p.sponsorWeeks > 0) foodNeeded *= 2;
     const fromHold = Math.min(p.cargo, foodNeeded);
     p.cargo -= fromHold;
@@ -99,27 +132,20 @@ export function runEndTurn(ctx: Ctx): void {
       log(s, `${p.name} is bankrupt.`, p.id);
     }
 
-    // ---- Training and recovery ----
+    // ---- Each dog's week resolves (GDD §5.7) ----
+    // Race has already happened at race day; Train works and eats; Rest and Layoff recover.
     const remaining = ownDogs(s, p);
-    if (p.staff.trainer && p.training) {
-      const d = s.dogs[p.training.dogId];
-      if (d) {
-        const gristle = p.staff.trainer.name === 'Gristle McGraw';
-        const gain = balance.trainerStatPerWeek + (gristle ? 1 : 0);
-        d[p.training.stat] = clamp(d[p.training.stat] + gain, 1, 99);
-        if (gristle && rng.chance(0.05)) {
-          const victim = rng.pick(dogs);
-          if (!victim.traits.includes('nervy')) {
-            victim.traits.push('nervy');
-            log(s, `Gristle McGraw's methods have made ${victim.name} Nervy.`, p.id);
-          }
-        }
-      }
-    }
+    const trainedThisWeek: Dog[] = [];
     for (const d of remaining) {
-      let recover = p.staff.vet ? balance.fitnessRecoveryVet : balance.fitnessRecovery;
-      if (d.traits.includes('bouncesBack')) recover += 5;
-      d.fitness = clamp(d.fitness + recover, 0, 100);
+      if (weekStatusOf(d) === 'train') {
+        trainOneWeek(ctx, p, d);
+        trainedThisWeek.push(d);
+      }
+      d.fitness = clamp(
+        d.fitness + weeklyFitnessDelta(d, !!p.staff.vet, ranThisWeek(s, d.id)),
+        0,
+        100,
+      );
       if (d.form > 0) d.form = Math.max(0, d.form - balance.formDecay);
       else if (d.form < 0) d.form = Math.min(0, d.form + balance.formDecay);
       if (d.injuryWeeks > 0) d.injuryWeeks--;
@@ -129,19 +155,33 @@ export function runEndTurn(ctx: Ctx): void {
         const lesser = remaining.filter((o) => o.id !== d.id && o.rating < d.rating).length;
         d.form = clamp(d.form - 2 * lesser, -balance.formMax, balance.formMax);
       }
-      // Growth and decline every second week.
-      if (evenWeek) {
-        const effectiveAge = d.traits.includes('oldSoul') ? d.age - 1 : d.age;
-        if (effectiveAge <= balance.growthMaxAge) {
-          const stat = rng.pick(STAT_KEYS);
-          d[stat] = clamp(d[stat] + 1, 1, 99);
-        } else if (effectiveAge >= balance.declineMinAge) {
-          const stat = rng.pick(STAT_KEYS);
-          d[stat] = clamp(d[stat] - 1, 1, 99);
-        }
+      // Growth and decline, every week and by age (GDD §5.6 / D14). v1 ticked one point every
+      // second week for anything under 3, which is a rounding error over a season; a pup now
+      // compounds at 2 a week, which is what makes raising one a real curve.
+      const effectiveAge = d.traits.includes('oldSoul') ? d.age - 1 : d.age;
+      const growth =
+        effectiveAge <= 1
+          ? balance.growthAge1
+          : effectiveAge === 2
+            ? balance.growthAge2
+            : effectiveAge >= balance.declineMinAge
+              ? -balance.declinePerWeek
+              : 0;
+      for (let i = 0; i < Math.abs(growth); i++) {
+        const stat = rng.pick(STAT_KEYS);
+        d[stat] = clamp(d[stat] + Math.sign(growth), 1, 99);
       }
       if (s.week === balance.ageTickWeek && !d.traits.includes('oldSoul'))
         d.age = Math.min(7, d.age + 1);
+    }
+    // Gristle McGraw's methods, once a week rather than once a dog: the quirk is about the yard,
+    // and rolling it per trainee would make hiring him worse the more dogs you put in his hands.
+    if (p.staff.trainer?.name === 'Gristle McGraw' && trainedThisWeek.length && rng.chance(0.05)) {
+      const victim = rng.pick(remaining);
+      if (!victim.traits.includes('nervy')) {
+        victim.traits.push('nervy');
+        log(s, `Gristle McGraw's methods have made ${victim.name} Nervy.`, p.id);
+      }
     }
     if (p.sponsorWeeks > 0) p.sponsorWeeks--;
     p.stats.worthByWeek.push(netWorth(s, p));

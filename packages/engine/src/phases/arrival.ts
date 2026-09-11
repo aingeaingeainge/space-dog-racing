@@ -83,7 +83,6 @@ export function runArrival(ctx: Ctx): void {
       if (d?.fellOffAShip === s.week) {
         if (rng.chance(0.2)) {
           p.dogIds = p.dogIds.filter((x) => x !== id);
-          if (p.training?.dogId === id) delete p.training;
           delete s.dogs[id];
           log(s, `${d.name}'s real owner turned up with paperwork and a large friend.`, p.id);
         } else {

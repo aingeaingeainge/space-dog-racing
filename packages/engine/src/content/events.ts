@@ -185,7 +185,6 @@ export const EVENTS: readonly EventCard[] = [
           ctx.p.stats.dogsSold++;
           ctx.p.dogIds = ctx.p.dogIds.filter((id) => id !== d.id);
           delete ctx.s.dogs[d.id];
-          if (ctx.p.training?.dogId === d.id) delete ctx.p.training;
           ctx.log(`Sold ${d.name} to the scout for ${offer}.`);
         },
       },
@@ -275,7 +274,6 @@ export const EVENTS: readonly EventCard[] = [
           if (!d) return;
           ctx.p.dogIds = ctx.p.dogIds.filter((id) => id !== d.id);
           delete ctx.s.dogs[d.id];
-          if (ctx.p.training?.dogId === d.id) delete ctx.p.training;
           ctx.log(`Fat Tony’s boys walk off with ${d.name}.`);
         },
       },
@@ -411,7 +409,6 @@ export const EVENTS: readonly EventCard[] = [
           ctx.p.stats.dogsSold++;
           ctx.p.dogIds = ctx.p.dogIds.filter((id) => id !== d.id);
           delete ctx.s.dogs[d.id];
-          if (ctx.p.training?.dogId === d.id) delete ctx.p.training;
           ctx.log(`${d.name} retires to the stud farm for ${offer}.`);
         },
       },
@@ -468,7 +465,6 @@ export const EVENTS: readonly EventCard[] = [
         label: 'Let them go',
         apply: (ctx) => {
           delete ctx.p.staff.trainer;
-          delete ctx.p.training;
           ctx.log('Your trainer leaves for a rival stable.');
         },
       },

@@ -72,6 +72,19 @@ const LABELS: Record<string, string> = {
   // lever in the game and the one D13 softens — it does not belong buried in simulateRace.ts.
   'Fitness multiplier: floor': 'fitScaleBase',
   'Fitness multiplier: range': 'fitScaleCoef',
+  // Race, Train or Rest (GDD §5.7) and growth by age (§5.6). The whole of Phase A's training
+  // game is these eleven numbers, and D14's pup band is narrow enough to want sweeping.
+  'Fitness: cost of a race': 'fitnessPerRace',
+  'Fitness: gain from a training week': 'fitnessTrain',
+  'Fitness: gain from a rest week': 'fitnessRest',
+  'Fitness: gain from a rest week with a vet': 'fitnessRestVet',
+  'Training: plain kibble, minimum stat points': 'trainKibbleMin',
+  'Training: plain kibble, maximum stat points': 'trainKibbleMax',
+  'Growth: stat points a week at age 1': 'growthAge1',
+  'Growth: stat points a week at age 2': 'growthAge2',
+  'Decline: stat points a week at age 5+': 'declinePerWeek',
+  'Kennel slots at the top ship tier': 'kennelSlotsMax',
+  'Local dog fitness': 'localFitness',
 };
 
 const wb = XLSX.read(readFileSync(xlsxPath));

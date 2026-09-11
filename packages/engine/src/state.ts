@@ -18,10 +18,17 @@ import type {
   Player,
   RaceClass,
   SeasonSetup,
+  WeekStatus,
 } from './types';
 import { ActionError } from './types';
 
-export const STATE_VERSION = 1;
+/**
+ * Bumped for v2 Phase A: every Dog carries a `weekState`, `Player.training` is gone and
+ * `SetTraining` is no longer an action, so a v1 action log cannot replay on this engine.
+ * The web save is seed + log (store/persist.ts), which is why SAVE_VERSION moves with it and
+ * an old save fails soft to the title screen rather than replaying into a different game.
+ */
+export const STATE_VERSION = 2;
 export const MAJOR_WEEKS: readonly number[] = [4, 7, 10];
 
 /** Mutable working view of a state inside the reducer: the rng is materialised once per reduce. */
@@ -94,6 +101,41 @@ export function ratingCap(cls: RaceClass): number {
 
 export function eligible(d: Dog, cls: RaceClass): boolean {
   return d.rating <= ratingCap(cls) && d.injuryWeeks === 0 && d.banWeeks === 0;
+}
+
+/**
+ * What a dog is actually doing this week (GDD §5.7). The stored `weekState` is the player's
+ * answer; an injury or a stewards' ban overrides it with **Layoff**, which recovers like Rest.
+ * Derived rather than stored, so that clearing an injury hands the dog back whatever the player
+ * had already chosen instead of silently leaving it resting.
+ */
+export function weekStatusOf(d: Dog): WeekStatus {
+  return d.injuryWeeks > 0 || d.banWeeks > 0 ? 'layoff' : d.weekState;
+}
+
+/** Did this dog actually get a run this weekend? Set to race is not the same as having raced. */
+export function ranThisWeek(s: GameState, dogId: Id): boolean {
+  if (!s.races) return false;
+  for (const r of Object.values(s.races)) if (r.order.includes(dogId)) return true;
+  return false;
+}
+
+/**
+ * Fitness a dog gains (or loses) for what it did with its week (GDD §5.7).
+ *
+ * A **race** is charged where it happens, in applyRaceOutcome, so a dog that ran gains nothing
+ * more here — it has already paid its 25. A dog *set* to race that never got a run has had the
+ * week off whatever the Kennels says, so it takes Rest's recovery; otherwise the friendly
+ * "declaring implies racing" rule would quietly punish a stable for pointing a dog at a card
+ * that turned out not to want it. **Train** is work rather than rest and pays its own small
+ * gain. **Rest** and the imposed **Layoff** both recover in full.
+ */
+export function weeklyFitnessDelta(d: Dog, hasVet: boolean, ran: boolean): number {
+  const status = weekStatusOf(d);
+  if (status === 'race' && ran) return 0;
+  if (status === 'train') return balance.fitnessTrain;
+  const rest = hasVet ? balance.fitnessRestVet : balance.fitnessRest;
+  return rest + (d.traits.includes('bouncesBack') ? 5 : 0);
 }
 
 export function assertPhase(s: GameState, ...phases: Phase[]): void {

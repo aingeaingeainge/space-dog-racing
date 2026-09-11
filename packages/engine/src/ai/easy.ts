@@ -2,7 +2,7 @@ import { balance } from '../content/balance';
 import { dogValue } from '../economy/dogValue';
 import { eligible, player } from '../state';
 import { RACE_CLASSES, type Action, type GameState, type Id } from '../types';
-import { hash01, startPlan, weeklyFoodNeed } from './shared';
+import { hash01, setStates, startPlan, weeklyFoodNeed } from './shared';
 
 /**
  * How often Easy cannot be bothered with a race and leaves the trap to the locals. Half the
@@ -10,11 +10,20 @@ import { hash01, startPlan, weeklyFoodNeed } from './shared';
  * ~80% of seasons": below it, Easy's floor is high enough that a Normal stable having a bad
  * week still finishes under it. Nothing on screen changes — an empty trap is filled by a local.
  */
-const SKIP_RATE = 0.5;
+const SKIP_RATE = 0.85;
 
 /**
- * Easy AI (GDD §14): near-random declarations respecting the caps, never bets, buys food only
- * when the hold will not cover the week, never hires staff, sells a dog only when broke.
+ * Easy's Race/Train/Rest rule (GDD §14): it races anything fit enough and rests anything under
+ * 40, and it never trains — a training week is an investment, and Easy does not make those.
+ * That is the whole of the difference, and it is the cheapest way for Normal's rule to be worth
+ * something.
+ */
+const EASY_REST_BELOW = 40;
+
+/**
+ * Easy AI (GDD §14): near-random declarations respecting the caps, rests anything under 40 and
+ * never trains, never bets, buys food only when the hold will not cover the week, never hires
+ * staff, sells a dog only when broke.
  *
  * "Near-random" is `hash01` of the season seed, the week and the ids — never `Math.random` and
  * never the state's rng, which the reducer owns. So Easy is unpredictable to a player and still
@@ -63,10 +72,11 @@ export function decideEasy(s: GameState, playerId: Id): Action[] {
       // Shuffle the fit dogs by a per-week hash, then walk the three races taking whoever is
       // next in that order and eligible. No expected purse anywhere: that is Normal's job.
       // plan.kennel, not ownDogs: a dog sold a moment ago is no longer ours to declare.
-      const fit = plan.kennel.filter((d) => d.injuryWeeks === 0 && d.banWeeks === 0);
+      const fit = plan.kennel.filter(
+        (d) => d.injuryWeeks === 0 && d.banWeeks === 0 && d.fitness >= EASY_REST_BELOW,
+      );
       const shuffled = [...fit].sort(
-        (a, b) =>
-          hash01(s.seed, s.week, playerId, a.id) - hash01(s.seed, s.week, playerId, b.id),
+        (a, b) => hash01(s.seed, s.week, playerId, a.id) - hash01(s.seed, s.week, playerId, b.id),
       );
       const used = new Set<Id>();
       for (const cls of RACE_CLASSES) {
@@ -81,6 +91,7 @@ export function decideEasy(s: GameState, playerId: Id): Action[] {
         if ((s.declarations[cls][playerId] ?? null) !== chosen)
           out.push({ t: 'Declare', playerId, cls, dogId: chosen });
       }
+      setStates(plan, used, { train: false });
     }
   }
 

@@ -11,6 +11,19 @@ export const RACE_CLASSES: readonly RaceClass[] = ['bronze', 'silver', 'gold'] a
 export type StatKey = 'speed' | 'accel' | 'stamina' | 'trap';
 export const STAT_KEYS: readonly StatKey[] = ['speed', 'accel', 'stamina', 'trap'] as const;
 
+/**
+ * What a dog does with its week (GDD §5.7). Exactly one of the three, set in the Kennels, and
+ * the centre of the v2 game: Race −25 fitness, Train +8 and a feed's stat points, Rest +30.
+ *
+ * There is deliberately no fourth. A dog that is injured or banned is on **Layoff**, which is
+ * imposed rather than chosen and recovers like Rest — so it is derived by `weekStateOf()` and
+ * never stored, or the state on the Dog would stop being the player's answer to the question.
+ */
+export type WeekState = 'race' | 'train' | 'rest';
+export const WEEK_STATES: readonly WeekState[] = ['race', 'train', 'rest'] as const;
+/** What the Kennels shows: the three a player can pick, plus the one the stewards pick for them. */
+export type WeekStatus = WeekState | 'layoff';
+
 /** The three a player can pick. GDD §14: difficulty is decision quality, never a stat bonus. */
 export type Difficulty = 'easy' | 'normal' | 'hard';
 export const DIFFICULTIES: readonly Difficulty[] = ['easy', 'normal', 'hard'] as const;
@@ -139,6 +152,8 @@ export interface Dog {
   goldWins: number;
   supplemented: boolean; // supplement fed this weekend (cleared after the race)
   raceBonus: number; // temporary speed-stat bonus for this weekend's race (supplement, lucky bone)
+  weekState: WeekState; // GDD §5.7 — what this dog is doing with the week
+  trainStat: StatKey; // which stat a Train week works on; ignored in the other two states
   askingPrice?: number; // while ownerId === 'market'
   fellOffAShip?: number; // week the real owner may turn up (Hushmarket)
   look: { body: number; palette: number; accessory: number };
@@ -171,7 +186,6 @@ export interface Player {
   ship: Ship;
   cargo: number; // food units aboard
   staff: Partial<Record<StaffRole, StaffOffer>>;
-  training?: { dogId: Id; stat: StatKey };
   loans: Loan[];
   flags: {
     caughtDoping: boolean;
@@ -349,7 +363,7 @@ export type Action =
   | { t: 'TradeFood'; playerId: Id; units: number } // +buy / −sell
   | { t: 'HireStaff'; playerId: Id; role: StaffRole; staffId: StaffId }
   | { t: 'FireStaff'; playerId: Id; role: StaffRole }
-  | { t: 'SetTraining'; playerId: Id; dogId: Id | null; stat: StatKey }
+  | { t: 'SetDogState'; playerId: Id; dogId: Id; state: WeekState; stat?: StatKey }
   | { t: 'BuyUpgrade'; playerId: Id; upgrade: UpgradeId; dogId?: Id }
   | { t: 'Borrow'; playerId: Id; lender: 'bank' | 'shark'; amount: number }
   | { t: 'Repay'; playerId: Id; lender: 'bank' | 'shark'; amount: number }

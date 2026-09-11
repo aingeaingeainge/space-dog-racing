@@ -12,7 +12,10 @@ import {
   shipValue,
   debt,
   ratingCap,
+  weekStatusOf,
   RACE_CLASSES,
+  STAT_KEYS,
+  WEEK_STATES,
   type Action,
   type GameState,
 } from '../src/index';
@@ -61,6 +64,15 @@ function checkInvariants(s: GameState, lastAction: Action): void {
       }
       assert(d!.fitness >= 0, 'd!.fitness >= 0');
       assert(d!.fitness <= 100, 'd!.fitness <= 100');
+      // BUILD_PLAN §7: every dog has exactly one weekly state, and Layoff is never stored — an
+      // injured dog keeps the state its owner chose and `weekStatusOf` overrides it.
+      assert(WEEK_STATES.includes(d!.weekState), `weekState ${d!.weekState} is not one of three`);
+      assert(STAT_KEYS.includes(d!.trainStat), `trainStat ${d!.trainStat} is not a stat`);
+      if (d!.injuryWeeks > 0 || d!.banWeeks > 0)
+        assert(weekStatusOf(d!) === 'layoff', 'an injured or banned dog is on layoff');
+      // A declared dog is racing. Declare sets it, and setDogState refuses to unset it.
+      if (!s.locked && RACE_CLASSES.some((c) => s.declarations[c][p.id] === id))
+        assert(d!.weekState === 'race', `declared dog ${id} is set to ${d!.weekState}`);
       assert(Math.abs(d!.form) <= balance.formMax, 'Math.abs(d!.form) <= balance.formMax');
     }
     // Net worth equals the sum of its parts.

@@ -2,13 +2,7 @@ import { balance } from '../content/balance';
 import { dogSalePrice, dogValue } from '../economy/dogValue';
 import { upgradePrice } from '../economy/market';
 import { decimalOdds, placeProbabilities, winProbabilities } from '../race/odds';
-import {
-  bettingMargin,
-  currentPlanet,
-  dopingCatchRate,
-  maxStakeFraction,
-  player,
-} from '../state';
+import { bettingMargin, currentPlanet, dopingCatchRate, maxStakeFraction, player } from '../state';
 import { RACE_CLASSES, type Action, type GameState, type Id } from '../types';
 import {
   bestAssignment,
@@ -20,13 +14,17 @@ import {
   hash01,
   keepTrainer,
   planetAhead,
+  racingDogs,
   repayLoans,
+  setStates,
   startPlan,
+  stateHold,
   tradeFoodPlan,
   weeksToMajor,
   type Assignment,
   type MarketOptions,
   type Plan,
+  type StateOptions,
 } from './shared';
 
 /** How often Hard leaves the Bronze to the locals and backs its Silver runner instead. */
@@ -35,7 +33,25 @@ const THROW_BRONZE_RATE = 0.15;
 const MAJOR_FITNESS_FLOOR = balance.fitnessScaleBelow + 20;
 
 /**
- * Hard AI (GDD §14): Normal, plus — it holds a dog back rather than arrive at a Major tired,
+ * Hard's Race/Train/Rest policy (GDD §14). Normal's fitness rule with one addition:
+ * `trainThroughCheapWeeks` prices a week in the yard against the purse the dog is passing up,
+ * so a young or outclassed dog spends a quiet weekend training and turns up for the Major. It
+ * is the first behaviour in the game that reasons about *later*, so it is a flag rather than a
+ * number and the notes carry its ablation.
+ *
+ * It also races a little deeper into the fitness range than Normal: with the vet it keeps and
+ * the §5.2 curve softened, a dog at 60 is a dog you might choose to run.
+ */
+const HARD_STATES: StateOptions = {
+  raceAbove: 58,
+  restBelow: 45,
+  train: true,
+  trainThroughCheapWeeks: true,
+};
+
+/**
+ * Hard AI (GDD §14): Normal, plus — it spends a cheap weekend training a dog that would earn
+ * little by running, holds a dog back rather than arrive at a Major tired,
  * spends down to its reserve late on to own the best dog it can (net worth is the score), sells
  * a dog before the age tick takes a chunk out of its value, dopes where the stewards do not
  * look, fills the hold before Blackreach so the black hole drags it in first, and now and then
@@ -176,28 +192,27 @@ function declareForThisWeek(plan: Plan): Assignment {
   const { s, playerId } = plan;
   const toMajor = weeksToMajor(s);
 
-  // A Major next weekend: raise the bar on what is worth a run, and sit the best dog out of
-  // anything that would leave it short of fit when it matters.
+  // The state policy decides what is offered to the card at all: anything too tired to run, and
+  // anything whose week is worth more in the yard than on the track (GDD §5.7).
+  const reserve = stateHold(plan, HARD_STATES);
   const hold = new Set<Id>();
-  // Below this, the injury roll doubles (GDD §5.2) and the stats are already being scaled down.
-  // A week off is cheaper than three.
-  for (const d of plan.kennel) {
-    if (d.fitness < balance.injuryLowFitnessBelow) hold.add(d.id);
-  }
+  // A Major next weekend: sit the best dog out of anything that would leave it short of fit
+  // when it matters. Under §5.7 that is a live worry rather than the formality it was in v1 —
+  // a race costs 25 and a rest returns 30, so one hard weekend really does cost the next.
   if (toMajor === 1) {
     const best = [...plan.kennel].sort((a, b) => b.rating - a.rating)[0];
     if (best) {
-      const afterAWeek = best.fitness - balance.fitnessPerRace + balance.fitnessRecovery;
+      const afterAWeek = best.fitness - balance.fitnessPerRace + balance.fitnessRest;
       if (afterAWeek < MAJOR_FITNESS_FLOOR) hold.add(best.id);
     }
   }
   // Note the bar on "is this race worth running?" is NOT raised in the week before a Major.
-  // Measured: doing that cost Hard two and a half points of head-to-head, because with Bronze
-  // at 1,800 a skipped race is real money and −12 fitness a run against +15 a week means the
-  // dog was never going to arrive tired anyway. Holding the one dog that would is enough.
+  // Measured in M4: doing that cost Hard two and a half points of head-to-head, because a
+  // skipped Bronze is real money. Holding the one dog that would arrive tired is enough.
   const assignment = bestAssignment(s, plan.p, plan.kennel, {
     minPurseScale: 1,
     hold,
+    reserve,
     ratingOf: effectiveRating,
   });
 
@@ -207,15 +222,13 @@ function declareForThisWeek(plan: Plan): Assignment {
     const silverId = assignment.plan.silver;
     const silver = silverId ? s.dogs[silverId] : undefined;
     if (silver) {
-      const p = winProbabilities([
-        silver.rating,
-        ...expectedField(s, 'silver', playerId),
-      ])[0]!;
+      const p = winProbabilities([silver.rating, ...expectedField(s, 'silver', playerId)])[0]!;
       if (p >= 0.35) delete assignment.plan.bronze;
     }
   }
 
   emitDeclarations(plan, assignment);
+  setStates(plan, racingDogs(assignment), HARD_STATES);
   return assignment;
 }
 

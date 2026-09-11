@@ -1,11 +1,5 @@
 import { balance } from '../content/balance';
-import {
-  NAME_FIRST,
-  NAME_SECOND,
-  NAME_SOLO,
-  TRAINER_NAMES,
-  VET_NAMES,
-} from '../content/names';
+import { NAME_FIRST, NAME_SECOND, NAME_SOLO, TRAINER_NAMES, VET_NAMES } from '../content/names';
 import { TRAIT_IDS } from '../content/traits';
 import type {
   Dog,
@@ -64,6 +58,11 @@ export function createDog(spec: DogSpec, rng: Rng, nextId: IdGen): Dog {
     goldWins: 0,
     supplemented: false,
     raceBonus: 0,
+    // GDD §5.7: every dog starts the week pointed at a race. That is the state a player who
+    // touches nothing gets, and it is v1's behaviour, so the Kennels is a decision you may
+    // take rather than a form you must fill in.
+    weekState: 'race',
+    trainStat: 'speed',
     look: { body: rng.int(0, 11), palette: rng.int(0, 5), accessory: rng.int(0, 7) },
   };
   dog.rating = baseRating(dog);
@@ -127,6 +126,11 @@ export function createLocalDog(
     rng,
     nextId,
   );
+  // A local turns up fresh but not perfect. v1 left every dog on createDog's 90, which cost
+  // nothing while campaigning stables declared at a mean fitness of 96 — and became a standing
+  // handicap the moment §5.7 put them in the 60–80 band the design asks for. Locals now run at
+  // the top of that band: still the fresher home team, no longer a rating class better.
+  dog.fitness = balance.localFitness;
   return fitRating(dog, Math.max(15, target - 3), Math.min(cap, target + 3));
 }
 
@@ -138,16 +142,43 @@ export function askingPrice(dog: Dog, planet: Planet, rng: Rng): number {
   );
 }
 
+/**
+ * The age a planet's market offers, weighted (GDD §5.6 / D14). v1 drew flat over 1–5, which is
+ * why "wait for a great dog in the market" was the strongest line in the game — a finished
+ * four-year-old turned up as often as a pup. The circuit now mostly sells **pups**: cheap,
+ * useless this week, and worth something only if you spend a season on them.
+ *
+ * Finished dogs still appear, rarely, and more often where the GDD says they should — Majors
+ * sell them (`marketQualityBonus`), Rustgut sells knackered old ones and Vatgrown sells nothing
+ * else but pups.
+ */
+function rollMarketAge(planet: Planet, rng: Rng): number {
+  const bias = planet.special.marketAgeBias;
+  if (bias === 'old') return rng.int(5, 7);
+  if (bias === 'pups') return 1;
+  // 60% pups, 20% two-year-olds, 20% a finished dog of 3–5. A Major doubles the finished share:
+  // it is where you go to buy a runner rather than a project.
+  const finished = planet.special.marketQualityBonus ? 0.4 : 0.2;
+  const roll = rng.next();
+  if (roll < 1 - finished - 0.2) return 1;
+  if (roll < 1 - finished) return 2;
+  return rng.int(3, 5);
+}
+
 /** Roll a planet's market dogs for the week (GDD §8). */
 export function rollMarketDogs(planet: Planet, week: number, rng: Rng, nextId: IdGen): Dog[] {
   const count = rng.int(balance.marketDogsMin, balance.marketDogsMax);
   const dogs: Dog[] = [];
   for (let i = 0; i < count; i++) {
     const bias = planet.special.marketAgeBias;
-    const age = bias === 'old' ? rng.int(5, 7) : bias === 'pups' ? 1 : rng.int(1, 5);
+    const age = rollMarketAge(planet, rng);
     let quality = rng.gauss(45 + (planet.special.marketQualityBonus ?? 0), 10);
+    // A pup is raw, and the market prices what it is rather than what it might be: GDD §5.6's
+    // pup is rating ≈ 37 and worth ≈ 3,900. v1 rolled every age around the same 45, which is
+    // half of why waiting for a good dog in the market beat raising one.
+    if (age === 1) quality -= 8;
+    else if (age === 2) quality -= 4;
     if (bias === 'old') quality += 12; // knackered but once good — cheap by age factor
-    if (bias === 'pups') quality -= 8;
     const dog = createDog({ quality: clamp(quality, 22, 95), age, owner: 'market' }, rng, nextId);
     if (planet.special.fellOffAShip && rng.chance(0.5)) dog.fellOffAShip = week + 3;
     dog.askingPrice = askingPrice(dog, planet, rng);

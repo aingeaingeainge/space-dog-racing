@@ -75,7 +75,6 @@ export function sellDog(ctx: Ctx, action: Extract<Action, { t: 'SellDog' }>): vo
   p.cash += price;
   p.stats.dogsSold++;
   p.dogIds = p.dogIds.filter((id) => id !== d.id);
-  if (p.training?.dogId === d.id) delete p.training;
   if (p.fanClubDogId === d.id) delete p.fanClubDogId;
   delete s.dogs[d.id];
   log(s, `Sold ${d.name} for ${price}.`, p.id);
@@ -114,6 +113,8 @@ export function declare(ctx: Ctx, action: Extract<Action, { t: 'Declare' }>): vo
     if (cls !== action.cls && s.declarations[cls][p.id] === d.id) delete s.declarations[cls][p.id];
   }
   s.declarations[action.cls][p.id] = d.id;
+  // Declaring implies racing (GDD §5.7). See setDogState for why the implication runs this way.
+  d.weekState = 'race';
 }
 
 export function placeBet(ctx: Ctx, action: Extract<Action, { t: 'PlaceBet' }>): void {
@@ -190,21 +191,35 @@ export function fireStaff(ctx: Ctx, action: Extract<Action, { t: 'FireStaff' }>)
   const p = activeOrFail(s, action.playerId, action);
   if (!p.staff[action.role]) fail(`You have no ${action.role}`, action);
   delete p.staff[action.role];
-  if (action.role === 'trainer') delete p.training;
 }
 
-export function setTraining(ctx: Ctx, action: Extract<Action, { t: 'SetTraining' }>): void {
+/**
+ * Set what a dog does with its week (GDD §5.7). Legal in both planet phases and validated the
+ * way Declare is — same phases, same ownership check.
+ *
+ * **Which way the dependency runs, and why.** Declaring a dog implies it races: the Race Office
+ * sets `weekState` for you, because a player who has just put a dog in the Gold and then finds
+ * it did not run because a radio button in another screen said "rest" has been told off by the
+ * game for no reason. The other direction refuses instead: standing a declared dog down asks
+ * you to withdraw it from its race first, which is exactly what selling one already does. So
+ * the friendly implication runs from the specific act to the general state, and never the other
+ * way round, where it would quietly bin an entry.
+ *
+ * Layoff is not settable — an injured or banned dog is on Layoff whatever the Kennels says, and
+ * `weekStatusOf` derives it. Setting the state of a dog that is on Layoff is allowed and useful:
+ * it is how you say what the dog should do the week it comes back.
+ */
+export function setDogState(ctx: Ctx, action: Extract<Action, { t: 'SetDogState' }>): void {
   const { s } = ctx;
   planetPhase(s, action, 'planetPre', 'planetPost');
   const p = activeOrFail(s, action.playerId, action);
-  if (action.dogId === null) {
-    delete p.training;
-    return;
-  }
-  if (!p.staff.trainer) fail('Hire a trainer first', action);
   const d = dog(s, action.dogId);
   if (d.ownerId !== p.id) fail('Not your dog', action);
-  p.training = { dogId: d.id, stat: action.stat };
+  if (action.state !== 'race' && declaredDogs(s, p.id).includes(d.id)) {
+    fail(`Withdraw ${d.name} from its race first`, action);
+  }
+  d.weekState = action.state;
+  if (action.stat) d.trainStat = action.stat;
 }
 
 export function buyUpgrade(ctx: Ctx, action: Extract<Action, { t: 'BuyUpgrade' }>): void {

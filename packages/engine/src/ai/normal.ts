@@ -5,15 +5,26 @@ import {
   declareBest,
   dogMarket,
   keepTrainer,
+  racingDogs,
   repayLoans,
+  setStates,
+  stateHold,
   startPlan,
   tradeFoodPlan,
 } from './shared';
 
 /**
- * Normal AI (GDD §14): declares to maximise expected purse, keeps a trainer, trades food when
- * the spread beats aiFoodSpreadMin, bets small on favourites, buys a dog when cash is plentiful
- * and the dog beats its worst. Deterministic: no randomness, so replays never diverge.
+ * Normal's Race/Train/Rest rule (GDD §14): race above 65 fitness, rest below 45, train in
+ * between. Deliberately a single readable line — it is what a player works out in their first
+ * season, and Hard's job is to beat it by reasoning about later rather than by knowing more.
+ */
+const NORMAL_STATES = { raceAbove: 65, restBelow: 45, train: true } as const;
+
+/**
+ * Normal AI (GDD §14): declares to maximise expected purse, keeps a trainer, sets every dog to
+ * Race, Train or Rest by a fitness rule, trades food when the spread beats aiFoodSpreadMin, bets
+ * small on favourites, buys a dog when cash is plentiful and the dog beats its worst.
+ * Deterministic: no randomness, so replays never diverge.
  *
  * Every step lives in ai/shared.ts so Easy and Hard change the decisions rather than the plumbing.
  */
@@ -30,7 +41,10 @@ export function decideNormal(s: GameState, playerId: Id): Action[] {
     // The dog market is pre-race only, so anything bought can run this weekend.
     if (s.phase === 'planetPre') dogMarket(plan);
     tradeFoodPlan(plan);
-    if (s.phase === 'planetPre') declareBest(plan);
+    if (s.phase === 'planetPre') {
+      const assignment = declareBest(plan, { reserve: stateHold(plan, NORMAL_STATES) });
+      setStates(plan, racingDogs(assignment), NORMAL_STATES);
+    }
   }
 
   if (s.phase === 'betting' && s.fields) betFavourites(plan);

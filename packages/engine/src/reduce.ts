@@ -11,7 +11,7 @@ import {
   placeBet,
   repay,
   sellDog,
-  setTraining,
+  setDogState,
   tradeFood,
 } from './phases/planet';
 import { lockDeclarations, runRaces } from './phases/raceDay';
@@ -85,8 +85,8 @@ export function reduceMut(s: GameState, action: Action): GameState {
     case 'FireStaff':
       fireStaff(ctx, action);
       break;
-    case 'SetTraining':
-      setTraining(ctx, action);
+    case 'SetDogState':
+      setDogState(ctx, action);
       break;
     case 'BuyUpgrade':
       buyUpgrade(ctx, action);
