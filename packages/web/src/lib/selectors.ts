@@ -1,5 +1,7 @@
 import {
   balance,
+  vetRestBonus,
+  wageBill,
   cargoTotal,
   kibbleAboard,
   KIBBLE_ID,
@@ -187,7 +189,9 @@ export interface FitnessOutlook {
 
 export function fitnessOutlook(d: Dog, me: Player): FitnessOutlook {
   const bounce = d.traits.includes('bouncesBack') ? 5 : 0;
-  const rest = (me.staff.vet ? balance.fitnessRestVet : balance.fitnessRest) + bounce;
+  // The vet's contribution is a number now, not a yes/no: nothing from a Rough one, +5 Proper,
+  // +10 Prime (GDD §8.3).
+  const rest = balance.fitnessRest + vetRestBonus(me) + bounce;
   const cap = (n: number) => Math.max(0, Math.min(100, Math.round(n)));
   return {
     now: d.fitness,
@@ -275,10 +279,7 @@ export function weeklyBill(s: GameState, p: Player): WeeklyBill {
   if (!planet.special.noUpkeep)
     for (const d of dogs)
       upkeep += d.traits.includes('cheapDate') ? balance.upkeepPerDog / 2 : balance.upkeepPerDog;
-  let wages = 0;
-  if (p.staff.trainer) wages += balance.trainerWage;
-  if (p.staff.vet) wages += balance.vetWage;
-  if (p.staff.fixer) wages += 350;
+  const wages = wageBill(p);
   const fuel = s.week < balance.weeks ? fuelCost(cargoTotal(p.cargo)) : 0;
   let foodNeeded = 0;
   for (const d of dogs)

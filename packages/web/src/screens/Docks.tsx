@@ -1,11 +1,16 @@
 import { useState } from 'react';
 import {
   balance,
+  buyPriceFor,
+  cargoCap,
   cargoTotal,
   formatBones,
   fuelCost,
+  GOODS,
   KIBBLE_ID,
   planetOf,
+  TIER_GLYPH,
+  TIER_LABEL,
   upgradePrice,
   type GameState,
   type Player,
@@ -15,7 +20,7 @@ import { Panel } from '../components/Panel';
 import { Gauge, KV, Notes } from '../components/ui';
 import { NeonButton } from '../components/NeonButton';
 import { ownedDogs } from '../lib/selectors';
-import { holdEconomics } from '../lib/priceTag';
+import { cratesForTrainees, feedEffect, holdEconomics, STAT_LABEL } from '../lib/priceTag';
 import { useGame } from '../store/gameStore';
 
 const pct = (n: number) => `${Math.round(n * 100)}%`;
@@ -27,6 +32,159 @@ function weeklyFood(s: GameState, p: Player): number {
     need += d.traits.includes('glutton') ? 2 * balance.foodPerDog : balance.foodPerDog;
   return p.sponsorWeeks > 0 ? need * 2 : need;
 }
+
+/**
+ * The feed counter (GDD §8.2) — and the screen this whole phase is answerable to.
+ *
+ * Every row names what the crate does to **the dog in the dropdown**, in that dog's own numbers,
+ * next to what it costs. That is the Phase B lesson applied to a market: the fitness rules landed
+ * in Phase A and could not be felt until the Race Office printed "74 → 49", and a goods table that
+ * printed only "Proper speed feed, 900" would be the same mistake with a bigger price tag.
+ *
+ * The shelf is shared with the whole table and turn order is first look, so the stock column is a
+ * real constraint rather than decoration — and anything a Trader has put aside for you is shown on
+ * the same row, because it spends the same and nobody else can reach it.
+ */
+function FeedCounter({ s, me }: { s: GameState; me: Player }) {
+  const dispatch = useGame((g) => g.dispatch);
+  const dogs = ownedDogs(s, me);
+  // Default to a dog that is actually training: the crate is eaten on a Train week, so that is
+  // whose numbers the table should be speaking in.
+  const [dogId, setDogId] = useState('');
+  const chosen =
+    dogs.find((d) => d.id === dogId) ?? dogs.find((d) => d.weekState === 'train') ?? dogs[0];
+  const mineFinds = s.planet.finds[me.id];
+  const crates = cargoTotal(me.cargo);
+  const room = cargoCap(me) - crates;
+  const { trainees, covered } = cratesForTrainees(s, me);
+  const trading = s.toggles.trading;
+
+  const rows = GOODS.filter((g) => g.tier).map((g) => {
+    const m = s.planet.goods[g.id];
+    const consigned = mineFinds?.goods[g.id] ?? 0;
+    return { g, m, consigned, available: m.stock + consigned, aboard: me.cargo[g.id] };
+  });
+  const onOffer = rows.filter((r) => r.available > 0 || r.aboard > 0);
+
+  return (
+    <Panel
+      title="Feed"
+      sub={
+        trainees
+          ? `${trainees} dog${trainees === 1 ? '' : 's'} on a Train week, ${covered} of them with the right feed aboard — one crate each, eaten at the end of the week`
+          : 'nobody is training this week, so nothing here will be eaten'
+      }
+      tight
+      actions={
+        dogs.length ? (
+          <label>
+            <span className="muted">for </span>
+            <select value={chosen?.id ?? ''} onChange={(e) => setDogId(e.target.value)}>
+              {dogs.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.name} · {STAT_LABEL[d.trainStat]} · {d.rating}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : undefined
+      }
+    >
+      {onOffer.length === 0 ? (
+        <p className="muted flush">
+          Nothing but kibble on this rock this week. Feed is rolled per planet — Rough is common,
+          Prime is not.
+        </p>
+      ) : (
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Feed</th>
+                <th>Tier</th>
+                <th className="num">Buy</th>
+                <th className="num">Sell</th>
+                <th className="num">On the shelf</th>
+                <th className="num">Aboard</th>
+                <th>What it does</th>
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              {onOffer.map(({ g, m, consigned, available, aboard }) => {
+                const price = buyPriceFor(me, m.buy);
+                const why =
+                  available <= 0
+                    ? 'None left here'
+                    : room <= 0
+                      ? 'Hold is full'
+                      : price > me.cash
+                        ? `Short by ${formatBones(price - me.cash)}`
+                        : null;
+                return (
+                  <tr key={g.id}>
+                    <td>
+                      <b>{g.short} feed</b>
+                    </td>
+                    <td>
+                      <span className={`tier tier-${g.tier}`}>
+                        {TIER_GLYPH[g.tier!]} {TIER_LABEL[g.tier!]}
+                      </span>
+                    </td>
+                    <td className="num">
+                      {formatBones(price)}
+                      {price !== m.buy ? (
+                        <div className="why up">your trader's {formatBones(m.buy)} price</div>
+                      ) : null}
+                    </td>
+                    <td className="num muted">{formatBones(m.sell)}</td>
+                    <td className="num">
+                      {m.stock}
+                      {consigned ? <div className="why up">+{consigned} yours</div> : null}
+                    </td>
+                    <td className="num">{aboard}</td>
+                    <td className="wrap muted">{chosen ? feedEffect(s, g, chosen) : '—'}</td>
+                    <td>
+                      <NeonButton
+                        disabled={!trading || !!why}
+                        title={tradeShutTitle(trading) ?? why ?? `Buy a crate of ${g.label}`}
+                        onClick={() =>
+                          dispatch({ t: 'TradeFood', playerId: me.id, good: g.id, units: 1 })
+                        }
+                      >
+                        Buy 1
+                      </NeonButton>
+                      {aboard > 0 ? (
+                        <NeonButton
+                          disabled={!trading}
+                          title={`Sell a crate for ${formatBones(m.sell)}`}
+                          onClick={() =>
+                            dispatch({ t: 'TradeFood', playerId: me.id, good: g.id, units: -1 })
+                          }
+                        >
+                          Sell 1
+                        </NeonButton>
+                      ) : null}
+                      {why ? <div className="why">{why}</div> : null}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <Notes
+        lines={[
+          'A dog on a Train week eats one crate of the best feed you carry for the stat it is on. With none aboard it eats kibble and gains 1–3 on a random stat instead.',
+          'Prime feed is a supply, not an upgrade: the crates are spent and the advantage goes with them.',
+        ]}
+      />
+    </Panel>
+  );
+}
+
+const tradeShutTitle = (trading: boolean) => (trading ? null : 'No Trading is on this season');
 
 /** GDD §15.6 — ship upgrades and the kibble trade, with the fuel each crate costs on show. */
 export function Docks({ s, me }: { s: GameState; me: Player }) {
@@ -295,6 +453,8 @@ export function Docks({ s, me }: { s: GameState; me: Player }) {
           </div>
         </div>
       </Panel>
+
+      <FeedCounter s={s} me={me} />
     </>
   );
 }

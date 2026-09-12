@@ -27,6 +27,7 @@
  */
 import {
   balance,
+  cargoCap,
   cargoTotal,
   KIBBLE_ID,
   createSeason,
@@ -82,10 +83,17 @@ function planetTurn(s: GameState, p: Player): Action[] {
   const dogs = ownDogs(s, p);
   let cash = p.cash;
 
-  const trainer = s.planet.staff.find((o) => o.role === 'trainer');
-  if (pre && !p.staff.trainer && trainer && cash > trainer.wage * 5) {
-    out.push({ t: 'HireStaff', playerId: p.id, role: 'trainer', staffId: trainer.id });
-    cash -= trainer.wage;
+  // The hub player keeps a trainer and a vet — Normal's own line (GDD §14) — at whatever tier it
+  // can cover, so the Saloon is worth a walk on the weeks something good is drinking there.
+  if (pre) {
+    for (const role of ['trainer', 'vet'] as const) {
+      if (p.staff.length >= balance.staffSlots) break;
+      if (p.staff.some((o) => o.role === role)) continue;
+      const offer = s.planet.staff.find((o) => o.role === role && cash > o.wage * 5);
+      if (!offer) continue;
+      out.push({ t: 'HireStaff', playerId: p.id, staffId: offer.id });
+      cash -= offer.wage;
+    }
   }
   // GDD §5.7's per-dog decision, counted honestly: the hub player plans every dog's week the way
   // the Kennels' "Plan the week" button does. That is *one* click for the yard, not one per dog —
@@ -112,7 +120,7 @@ function planetTurn(s: GameState, p: Player): Action[] {
 
   if (s.toggles.trading && p.cargo[KIBBLE_ID] < dogs.length * 2) {
     const units = Math.min(
-      p.ship.cargoCap - cargoTotal(p.cargo),
+      cargoCap(p) - cargoTotal(p.cargo),
       dogs.length * 2,
       Math.floor(Math.max(0, cash - 1500) / Math.max(1, s.planet.goods[KIBBLE_ID].buy)),
     );

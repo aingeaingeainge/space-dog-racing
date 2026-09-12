@@ -20,6 +20,7 @@
  */
 import {
   balance,
+  bestFeedAboard,
   cargoTotal,
   dogValue,
   fuelCost,
@@ -27,6 +28,7 @@ import {
   weakestStat,
   type Dog,
   type GameState,
+  type Good,
   type Id,
   type Player,
   type StatKey,
@@ -140,6 +142,49 @@ export function askVsBook(d: Dog): { book: number; ask: number; pct: number } {
   const book = dogValue(d);
   const ask = d.askingPrice ?? 0;
   return { book, ask, pct: book > 0 ? Math.round((100 * (ask - book)) / book) : 0 };
+}
+
+/**
+ * What one crate of a feed would do to one dog, in that dog's own numbers (GDD §8.2).
+ *
+ * **This is the sentence Phase C exists for.** A goods table that says "Proper speed feed, 900" is
+ * Phase A's Kennels again: a correct rule with no price on it. What a player needs is
+ *
+ *   Rosco · Speed 54 → 57 next Train week · rating 47 → 48 · 61 by week 13 if he keeps eating it
+ *
+ * so the three numbers that decide the purchase — what it does now, what that is worth in rating,
+ * and where a season of it lands — are all on the row with the price.
+ */
+export function feedEffect(s: GameState, g: Good, d: Dog): string {
+  if (!g.stat) {
+    return `The staple. A Train week on kibble alone gains ${g.gainMin}–${g.gainMax} on a random stat`;
+  }
+  const mid = Math.round((g.gainMin + g.gainMax) / 2);
+  const oneWeek = ratingWith(d, g.stat, mid);
+  const weeks = weeksLeft(s);
+  const far = projectTrain(d, g.stat, mid, weeks);
+  const label = STAT_LABEL[g.stat];
+  return (
+    `${d.name}: ${label} ${d[g.stat]} → ${Math.min(99, d[g.stat] + g.gainMin)}–${Math.min(99, d[g.stat] + g.gainMax)} next Train week, ` +
+    `rating ${d.rating} → ${oneWeek}` +
+    (weeks > 0
+      ? ` · ${label} ${far.statThen} and rating ${far.ratingThen} by week ${Math.min(balance.weeks, s.week + weeks)} if he ate it every week`
+      : '')
+  );
+}
+
+/** One crate per dog per Train week — so how many Train weeks the hold currently covers. */
+export function cratesForTrainees(s: GameState, me: Player): { trainees: number; covered: number } {
+  let trainees = 0;
+  let covered = 0;
+  for (const id of me.dogIds) {
+    const d = s.dogs[id];
+    if (!d || d.weekState !== 'train' || d.injuryWeeks > 0) continue;
+    trainees++;
+    const g = bestFeedAboard(me.cargo, d.trainStat);
+    if (g && me.cargo[g.id] > 0) covered++;
+  }
+  return { trainees, covered };
 }
 
 export interface HoldEconomics {

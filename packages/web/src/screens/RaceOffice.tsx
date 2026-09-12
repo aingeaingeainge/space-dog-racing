@@ -1,4 +1,5 @@
 import {
+  vetRestBonus,
   balance,
   formatBones,
   planetOf,
@@ -142,7 +143,7 @@ export function RaceOffice({ s, me }: { s: GameState; me: Player }) {
             sp.purseMult ? `${planet.name} adds ×${sp.purseMult} to every purse.` : null,
             sp.winningsTax ? `${pct(sp.winningsTax)} of any prize money is taxed here.` : null,
             sp.localsNervy ? 'The locals are Nervy: they lose 5% in traps 1 and 8.' : null,
-            `A run costs ${balance.fitnessPerRace} fitness and a rest returns ${balance.fitnessRest}${me.staff.vet ? ` (${balance.fitnessRestVet} with your vet)` : ''}; below ${balance.fitnessScaleBelow} every stat is scaled down. What you enter this weekend is what you cannot enter next.`,
+            `A run costs ${balance.fitnessPerRace} fitness and a rest returns ${balance.fitnessRest}${vetRestBonus(me) ? ` (${balance.fitnessRest + vetRestBonus(me)} with your vet)` : ''}; below ${balance.fitnessScaleBelow} every stat is scaled down. What you enter this weekend is what you cannot enter next.`,
           ]}
         />
         <WeekLedger s={s} me={me} dogs={dogs} />

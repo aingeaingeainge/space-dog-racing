@@ -1,4 +1,6 @@
 import {
+  hasStaff,
+  vetRestBonus,
   balance,
   dogValue,
   dopingCatchRate,
@@ -63,14 +65,14 @@ function fitnessLine(d: Dog, me: Player, declared: boolean): string {
   const status = weekStatusOf(d);
   const f = fitnessOutlook(d, me);
   if (status === 'layoff')
-    return `on layoff, +${weeklyFitnessDelta(d, !!me.staff.vet, false)} fitness (${f.now} → ${f.resting})`;
+    return `on layoff, +${weeklyFitnessDelta(d, vetRestBonus(me), false)} fitness (${f.now} → ${f.resting})`;
   if (status === 'race')
     return declared
       ? `racing: −${balance.fitnessPerRace} fitness (${f.now} → ${f.racing}; ${f.resting} if you rest it instead)`
       : `set to race but not entered — it will take the week off (${f.now} → ${f.resting})`;
   if (status === 'train')
     return `training ${STAT_LABEL[d.trainStat]}: +${balance.fitnessTrain} fitness (${f.now} → ${f.training}), one crate of kibble`;
-  return `resting: +${weeklyFitnessDelta(d, !!me.staff.vet, false)} fitness (${f.now} → ${f.resting})`;
+  return `resting: +${weeklyFitnessDelta(d, vetRestBonus(me), false)} fitness (${f.now} → ${f.resting})`;
 }
 
 /**
@@ -132,7 +134,7 @@ export function Stable({ s, me }: { s: GameState; me: Player }) {
         <Notes
           lines={[
             `This week's bill: ${formatBones(bill.total)} — upkeep ${formatBones(bill.upkeep)}, wages ${formatBones(bill.wages)}, fuel ${formatBones(bill.fuel)}, kibble ${bill.foodNeeded} crate${bill.foodNeeded === 1 ? '' : 's'} (${bill.foodFromHold} from the hold${bill.food ? `, ${formatBones(bill.food)} bought at the gate` : ''})${bill.interest ? `, interest ${formatBones(bill.interest)}` : ''}.`,
-            `Every dog does exactly one of three things with the week. Race costs ${balance.fitnessPerRace} fitness, Train returns ${balance.fitnessTrain} and eats a second crate of kibble, Rest returns ${balance.fitnessRest} (${balance.fitnessRestVet} with a vet). Fitness multiplies every stat at every level — a dog at 60 is slower than a dog at 90, but it is still a runner.`,
+            `Every dog does exactly one of three things with the week. Race costs ${balance.fitnessPerRace} fitness, Train returns ${balance.fitnessTrain} and eats a second crate of kibble, Rest returns ${balance.fitnessRest} (${balance.fitnessRest + vetRestBonus(me)} with your vet). Fitness multiplies every stat at every level — a dog at 60 is slower than a dog at 90, but it is still a runner.`,
           ]}
         />
       </Panel>
@@ -274,7 +276,7 @@ function WeekPlan({
       {barred && !laidOff ? (
         <span className="muted small">Cannot run this weekend — {barred}.</span>
       ) : null}
-      {!me.staff.trainer && d.weekState === 'train' ? (
+      {!hasStaff(me, 'trainer') && d.weekState === 'train' ? (
         <span className="muted small">
           No trainer, so a Train week is plain kibble alone: +{balance.trainKibbleMin}–
           {balance.trainKibbleMax} to a stat of its own choosing.

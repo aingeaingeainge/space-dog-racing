@@ -10,8 +10,12 @@
  */
 import {
   balance,
+  buyPriceFor,
+  cargoCap,
   cargoTotal,
+  GOODS,
   KIBBLE_ID,
+  TIER_ORDER,
   bettingMargin,
   createSeason,
   drive,
@@ -91,30 +95,30 @@ function planetTurn(s: GameState, p: Player, tally: Tally): Action[] {
   const dogs = ownDogs(s, p);
   const kennel = [...dogs]; // what we will own once this turn's buys and sells have landed
   let slots = p.kennelSlots - dogs.length;
+  let hires = 0;
 
-  // --- Saloon: staff and credit; the training focus moved to the Kennels with §5.7 ---
-  const trainerOffer = s.planet.staff.find((o) => o.role === 'trainer');
-  if (pre && !p.staff.trainer && trainerOffer && cash > trainerOffer.wage * 4) {
-    out.push({ t: 'HireStaff', playerId: p.id, role: 'trainer', staffId: trainerOffer.id });
-    bump(tally, 'HireStaff');
+  // --- Saloon: staff and credit. Three slots, any mix (GDD §8.3, D7), so the walk-through fills
+  // them with whatever is drinking here and then lets them all go in week 9 — which is what walks
+  // both the slot limit and the FireStaff refusal that guards a Trader's hold.
+  if (pre) {
+    for (const offer of s.planet.staff) {
+      // Two of the three slots, so there is cash left for dogs and feed — and one slot free, which
+      // is what lets a later week walk the "slots are full" refusal when a third is taken.
+      if (p.staff.length + hires >= balance.staffSlots - 1) break;
+      if (offer.role === 'fixer') continue; // not hireable until GDD §13 exists
+      if (cash <= offer.wage * 4) continue;
+      out.push({ t: 'HireStaff', playerId: p.id, staffId: offer.id });
+      cash -= offer.wage;
+      hires++;
+      bump(tally, 'HireStaff');
+    }
   }
-  const vetOffer = s.planet.staff.find((o) => o.role === 'vet');
-  if (pre && !p.staff.vet && vetOffer && cash > 8000) {
-    out.push({ t: 'HireStaff', playerId: p.id, role: 'vet', staffId: vetOffer.id });
-    bump(tally, 'HireStaff');
-  }
-  const fixerOffer = s.planet.staff.find((o) => o.role === 'fixer');
-  if (pre && !p.staff.fixer && fixerOffer && !s.toggles.cleanSport && cash > 12000) {
-    out.push({ t: 'HireStaff', playerId: p.id, role: 'fixer', staffId: fixerOffer.id });
-    bump(tally, 'HireStaff');
-  }
-  // Week 9: the wage bill bites and the staff go, trainer first.
+  // Week 9: the wage bill bites and everybody goes. A Trader's hold goes with him, so this is also
+  // the check that a stable carrying more than its ship can hold is refused rather than spilled.
   if (pre && s.week === 9) {
-    for (const role of ['vet', 'trainer'] as const) {
-      if (p.staff[role]) {
-        out.push({ t: 'FireStaff', playerId: p.id, role });
-        bump(tally, 'FireStaff');
-      }
+    for (const o of p.staff) {
+      out.push({ t: 'FireStaff', playerId: p.id, staffId: o.id });
+      bump(tally, 'FireStaff');
     }
   }
   // GDD §5.7: the walk-through player plans every dog's week the way the Kennels' own "Plan the
@@ -234,6 +238,32 @@ function planetTurn(s: GameState, p: Player, tally: Tally): Action[] {
     bump(tally, 'BuyUpgrade');
     break;
   }
+  /**
+   * The feed counter (GDD §8.2). The walkthrough buys a crate for every dog it has set to Train,
+   * taking the best tier it can pay for — which is what walks the shelf limit, the consignment path,
+   * a Trader's discount and the "one crate per dog per Train week" consumption rule. A run that only
+   * bought kibble would be *surviving* the goods market rather than exercising it.
+   */
+  if (s.toggles.trading && pre) {
+    const wanted = new Set(
+      kennel.filter((d) => d.weekState === 'train' && d.injuryWeeks === 0).map((d) => d.trainStat),
+    );
+    for (const stat of wanted) {
+      const options = GOODS.filter(
+        (g) =>
+          g.stat === stat &&
+          (s.planet.goods[g.id].stock > 0 || (s.planet.finds[p.id]?.goods[g.id] ?? 0) > 0),
+      ).sort((a, b) => TIER_ORDER.indexOf(b.tier!) - TIER_ORDER.indexOf(a.tier!));
+      const pick = options.find(
+        (g) => buyPriceFor(p, s.planet.goods[g.id].buy) <= cash - 1500 && cargoCap(p) - cargo > 0,
+      );
+      if (!pick) continue;
+      out.push({ t: 'TradeFood', playerId: p.id, good: pick.id, units: 1 });
+      cash -= buyPriceFor(p, s.planet.goods[pick.id].buy);
+      cargo += 1;
+      bump(tally, 'TradeFood');
+    }
+  }
   if (s.toggles.trading) {
     const need = kennel.length;
     const next = s.calendar[s.week];
@@ -244,10 +274,10 @@ function planetTurn(s: GameState, p: Player, tally: Tally): Action[] {
     if (m.sell > nextMid + 20 && kibble > need) units = -(kibble - need);
     else if (nextMid - m.buy > 20) {
       const spend = Math.max(0, cash - 2500);
-      units = Math.min(p.ship.cargoCap - cargo, Math.floor(spend / m.buy));
+      units = Math.min(cargoCap(p) - cargo, Math.floor(spend / m.buy));
     } else if (kibble < need) {
       units = Math.min(
-        p.ship.cargoCap - cargo,
+        cargoCap(p) - cargo,
         need - kibble,
         Math.floor(Math.max(0, cash - 500) / m.buy),
       );

@@ -7,10 +7,17 @@ import {
   planetOf,
   weeklyInterest,
   PLANETS,
+  staffRole,
+  wageBill,
+  TIER_GLYPH,
+  TIER_LABEL,
+  TIER_WAGE,
+  TRAINER_POINTS,
   type Dog,
   type GameState,
+  type GoodTier,
   type Player,
-  type StaffRole,
+  type StaffOffer,
 } from '@sdr/engine';
 import { Panel } from '../components/Panel';
 import { KV, Notes } from '../components/ui';
@@ -19,23 +26,31 @@ import { rumours } from '../lib/rumours';
 import { bestEarner, wageWeeks } from '../lib/priceTag';
 import { useGame } from '../store/gameStore';
 
-const ROLE_BLURB: Record<StaffRole, string> = {
-  trainer: `+${balance.trainerStatPerWeek} to the chosen stat of every dog you put on a Train week`,
-  vet: `Halves injury weeks and a rest week returns ${balance.fitnessRestVet} fitness instead of ${balance.fitnessRest}`,
-  fixer: 'Sabotage and steward bribes (GDD §13)',
-};
+/** A tier, as a word and as chevrons — one vocabulary, read everywhere (GDD §8.1). */
+function Tier({ tier }: { tier: GoodTier }) {
+  return (
+    <span className={`tier tier-${tier}`} title={`${TIER_LABEL[tier]} — ${TIER_WAGE[tier]}/week`}>
+      <span className="chev">{TIER_GLYPH[tier]}</span> {TIER_LABEL[tier]}
+    </span>
+  );
+}
 
-/** What the role is worth over the weeks that are left, rather than in the abstract. */
-function roleValue(s: GameState, role: StaffRole): string | null {
+/**
+ * What this hire is worth over the weeks that are left, from the role's own row (GDD §8.3).
+ *
+ * The row in `content/staff.ts` carries one line per tier, so the Saloon prints the engine's own
+ * description of what it is about to charge for rather than a second copy that can drift from it.
+ * And the trainer's line is turned into a season: "+4 a Train week" is a rule, "at most 44 stat
+ * points on one dog" is a decision.
+ */
+function roleValue(s: GameState, o: StaffOffer): string {
   const weeks = wageWeeks(s);
-  switch (role) {
-    case 'trainer':
-      return `At most ${balance.trainerStatPerWeek * weeks} stat points on one dog if you train it every week left — and they land on the stat you chose, not a random one.`;
-    case 'vet':
-      return `Every rest week is worth ${balance.fitnessRestVet - balance.fitnessRest} more fitness, so a dog comes back a week sooner each time you stand it down.`;
-    case 'fixer':
-      return null;
+  const base = staffRole(o.role).effect[o.tier];
+  if (o.role === 'trainer') {
+    const points = TRAINER_POINTS[o.tier] * weeks;
+    return `${base} — at most ${points} points on one dog if you train it every week left, and they land on the stat you chose rather than a random one.`;
   }
+  return base;
 }
 
 /**
@@ -72,11 +87,7 @@ export function Saloon({ s, me }: { s: GameState; me: Player }) {
   const planet = planetOf(s.planet.planetId);
   const sp = planet.special;
   const staffOnOffer = s.planet.staff;
-  const employed = (Object.keys(me.staff) as StaffRole[]).filter((r) => me.staff[r]);
-  const wages = employed.reduce((sum, r) => {
-    const o = me.staff[r];
-    return sum + (o ? o.wage : 0);
-  }, 0);
+  const wages = wageBill(me);
   // A wage is a weekly number and a season-long commitment, and only the second is a decision
   // (GDD §7.2, §7.5). The Saloon prints both, against what the stable's best dog has actually won.
   const weeks = wageWeeks(s);
@@ -112,7 +123,8 @@ export function Saloon({ s, me }: { s: GameState; me: Player }) {
           lines={[
             sp.trainer && 'A trainer is always drinking here.',
             sp.vet && 'A vet works out of the back room.',
-            sp.fixer && 'A fixer is at the far table, if you are that sort of stable.',
+            sp.fixer &&
+              'A fixer is at the far table — nothing for him to do until the dark side is built.',
             sp.bank &&
               `The bank lends up to ${formatBones(balance.bankMax)} at ${Math.round(balance.bankRate * 100)}% a week.`,
             sp.shark && 'Fat Tony Nebula is holding court in the corner.',
@@ -134,20 +146,22 @@ export function Saloon({ s, me }: { s: GameState; me: Player }) {
         ) : null}
         {staffOnOffer.map((o) => {
           const why =
-            o.role === 'fixer' && s.toggles.cleanSport
-              ? 'Clean Sport is on this season'
-              : me.staff[o.role]
-                ? `You already employ a ${o.role}`
-                : me.cash < o.wage
-                  ? `You cannot cover the first week's ${formatBones(o.wage)}`
-                  : null;
+            me.staff.length >= balance.staffSlots
+              ? `All ${balance.staffSlots} slots are full — let somebody go first`
+              : me.cash < o.wage
+                ? `You cannot cover the first week's ${formatBones(o.wage)}`
+                : null;
+          const already = me.staff.filter((x) => x.role === o.role);
           return (
             <div className="shop-row" key={o.id}>
               <span className="what">
                 <b>
-                  {o.name} <span className="muted">— {o.role}</span>
+                  {o.name}{' '}
+                  <span className="muted">
+                    — <Tier tier={o.tier} /> {staffRole(o.role).label.toLowerCase()}
+                  </span>
                 </b>
-                <span className="muted">{o.quirk ?? ROLE_BLURB[o.role]}</span>
+                <span className="muted">{staffRole(o.role).blurb}</span>
               </span>
               <span className="price">
                 {formatBones(o.wage)}/week
@@ -156,15 +170,20 @@ export function Saloon({ s, me }: { s: GameState; me: Player }) {
               <NeonButton
                 disabled={!!why}
                 title={why ?? `Hire ${o.name}`}
-                onClick={() =>
-                  dispatch({ t: 'HireStaff', playerId: me.id, role: o.role, staffId: o.id })
-                }
+                onClick={() => dispatch({ t: 'HireStaff', playerId: me.id, staffId: o.id })}
               >
                 Hire
               </NeonButton>
               {why ? <span className="why">{why}</span> : null}
+              <span className="why">{roleValue(s, o)}</span>
               <span className="why">{hireContext(s, me, o.wage, best)}</span>
-              {roleValue(s, o.role) ? <span className="why">{roleValue(s, o.role)}</span> : null}
+              {already.length ? (
+                <span className="why">
+                  You already employ {already.length} {staffRole(o.role).label.toLowerCase()}
+                  {already.length > 1 ? 's' : ''} — the best of them is the one who acts, so a
+                  second is a second wage for nothing unless this one is better.
+                </span>
+              ) : null}
               {o.quirk ? <span className="why">Quirk: {o.quirk}</span> : null}
             </div>
           );
@@ -175,30 +194,39 @@ export function Saloon({ s, me }: { s: GameState; me: Player }) {
         title="Your staff"
         sub={
           wages
-            ? `${formatBones(wages)} a week · ${formatBones(wages * weeks)} still to be charged`
-            : 'nobody on the books'
+            ? `${me.staff.length} of ${balance.staffSlots} slots · ${formatBones(wages)} a week · ${formatBones(wages * weeks)} still to be charged`
+            : `nobody on the books — ${balance.staffSlots} slots free`
         }
       >
-        {employed.length === 0 ? (
-          <p className="muted flush">You run the whole stable yourself.</p>
+        {me.staff.length === 0 ? (
+          <p className="muted flush">
+            You run the whole stable yourself. {balance.staffSlots} slots, any mix — three trainers
+            is allowed, though only the best of them would actually train.
+          </p>
         ) : null}
-        {employed.map((role) => {
-          const o = me.staff[role]!;
-          return (
-            <div className="shop-row" key={role}>
-              <span className="what">
-                <b>
-                  {o.name} <span className="muted">— {role}</span>
-                </b>
-                <span className="muted">{o.quirk ?? ROLE_BLURB[role]}</span>
-              </span>
-              <span className="price">{formatBones(o.wage)}/week</span>
-              <NeonButton onClick={() => dispatch({ t: 'FireStaff', playerId: me.id, role })}>
-                Let them go
-              </NeonButton>
-            </div>
-          );
-        })}
+        {me.staff.map((o) => (
+          <div className="shop-row" key={o.id}>
+            <span className="what">
+              <b>
+                {o.name}{' '}
+                <span className="muted">
+                  — <Tier tier={o.tier} /> {staffRole(o.role).label.toLowerCase()}
+                </span>
+              </b>
+              <span className="muted">{roleValue(s, o)}</span>
+            </span>
+            <span className="price">
+              {formatBones(o.wage)}/week
+              <div className="why">{formatBones(o.wage * weeks)} still to come</div>
+            </span>
+            <NeonButton
+              onClick={() => dispatch({ t: 'FireStaff', playerId: me.id, staffId: o.id })}
+            >
+              Let them go
+            </NeonButton>
+            {o.quirk ? <span className="why">Quirk: {o.quirk}</span> : null}
+          </div>
+        ))}
       </Panel>
 
       {sp.bank ? (
