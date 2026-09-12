@@ -6,6 +6,7 @@
  *   npm run harness -- --calibrate        # race-sim win rates vs rating gap + oddsScale fit
  *   npm run harness -- --stats            # D12 regression: +10 to one stat, at three lengths
  *   npm run harness -- --pups             # D14: what a Train week is worth, and when a pup arrives
+ *   npm run harness -- --card             # D2: can a broad stable fill the card, and a narrow one?
  *
  * ## Why this drives the season itself rather than calling runSeason
  *
@@ -18,21 +19,23 @@
  */
 import { balance } from '../src/content/balance';
 import { createDog, fitRating } from '../src/economy/market';
-import { baseRating } from '../src/economy/dogValue';
+import { baseRating, dogValue } from '../src/economy/dogValue';
 import { netWorth } from '../src/economy/netWorth';
 import { clamp, mulberry32 } from '../src/rng';
-import { createSeason, player } from '../src/state';
+import { createSeason, eligible, player, thisWeeksCard } from '../src/state';
 import { decide } from '../src/ai';
 import { isSeasonOver, needsAdvance, reduceMut } from '../src/reduce';
 import { simulateRace, type Runner } from '../src/race/simulateRace';
 import { winProbabilities } from '../src/race/odds';
-import { OPEN_TYPE_ID, raceType } from '../src/content/raceTypes';
+import { DRAWN_PER_WEEKEND, OPEN_TYPE_ID, RACE_TYPES, raceType } from '../src/content/raceTypes';
 import {
   RACE_TYPE_IDS,
   STAT_KEYS,
   type AiAgent,
+  type Dog,
   type GameState,
   type Id,
+  type Player,
   type RaceTypeId,
   type StatKey,
   type Track,
@@ -45,6 +48,7 @@ interface Args {
   calibrate: boolean;
   stats: boolean;
   pups: boolean;
+  card: boolean;
   quiet: boolean;
 }
 
@@ -56,6 +60,7 @@ function parseArgs(argv: string[]): Args {
     calibrate: false,
     stats: false,
     pups: false,
+    card: false,
     quiet: false,
   };
   for (let i = 0; i < argv.length; i++) {
@@ -70,6 +75,7 @@ function parseArgs(argv: string[]): Args {
     else if (a === '--calibrate') args.calibrate = true;
     else if (a === '--stats') args.stats = true;
     else if (a === '--pups') args.pups = true;
+    else if (a === '--card') args.card = true;
     else if (a === '--quiet') args.quiet = true;
   }
   return args;
@@ -101,6 +107,15 @@ interface AgentStats {
   entries: number[];
   dogsOwned: number[];
   dogsAtEnd: number[];
+  /** §6.3: how many of the weekend's three races the stable filled, every stable-week. */
+  filled: number[];
+  /** §7a.4: Herfindahl over the stable's dog values at week 13. 1.0 is one dog, 0.2 is five. */
+  concentration: number[];
+  /** §7.1: gross income by road, so "prize is 87% of it" is a number rather than a claim. */
+  grossPrize: number[];
+  grossFood: number[];
+  grossDogs: number[];
+  grossBets: number[];
 }
 
 /** Every stable is in the same season, so a pairing is a like-for-like comparison. */
@@ -111,12 +126,33 @@ interface HeadToHead {
 
 const AGENT_ORDER: AiAgent[] = ['careless', 'easy', 'normal', 'hard'];
 
+/** Per-race-type counters, kept as one object so a new type never needs a new field. */
+type ByType<T> = Map<RaceTypeId, T>;
+const byType = <T>(make: () => T): ByType<T> => new Map(RACE_TYPE_IDS.map((r) => [r, make()]));
+
 /** Per-season sampling that only exists while declarations are locked (see the file header). */
 interface SeasonSample {
   declFitness: Map<Id, number[]>;
   entries: Map<Id, number>;
   dogsSeen: Map<Id, Set<Id>>;
-  fieldByWeek: Map<RaceTypeId, number[][]>;
+  fieldByWeek: ByType<number[][]>;
+  /** §7a.4 cardCoverage: weekends a type was on the card, and weekends a stable could fill it. */
+  coverOffered: ByType<number>;
+  coverHad: ByType<number>;
+  /** Player entries and races run, per type — §7a.2's replacement for the Gold field row. */
+  entriesByType: ByType<number>;
+  racesByType: ByType<number>;
+  /** How many of the weekend's three races each stable actually declared into. */
+  filled: Map<Id, number[]>;
+  /** GDD §7.1: the posted purse pool against what actually reached a player's pocket. */
+  poolPosted: number;
+  poolToPlayers: number;
+  /** D2's "a maiden win costs you the next Maiden": entries per Maiden run, by week. */
+  maidenEntries: number[];
+  maidenRuns: number[];
+  /** Gross income by road, tallied from the cash each action moves (see grossFrom). */
+  grossFood: Map<Id, number>;
+  grossDogs: Map<Id, number>;
 }
 
 function emptySample(): SeasonSample {
@@ -124,10 +160,61 @@ function emptySample(): SeasonSample {
     declFitness: new Map(),
     entries: new Map(),
     dogsSeen: new Map(),
-    fieldByWeek: new Map(
-      RACE_TYPE_IDS.map((r) => [r, Array.from({ length: balance.weeks }, () => [] as number[])]),
-    ),
+    fieldByWeek: byType(() => Array.from({ length: balance.weeks }, () => [] as number[])),
+    coverOffered: byType(() => 0),
+    coverHad: byType(() => 0),
+    entriesByType: byType(() => 0),
+    racesByType: byType(() => 0),
+    filled: new Map(),
+    poolPosted: 0,
+    poolToPlayers: 0,
+    maidenEntries: Array.from({ length: balance.weeks }, () => 0),
+    maidenRuns: Array.from({ length: balance.weeks }, () => 0),
+    grossFood: new Map(),
+    grossDogs: new Map(),
   };
+}
+
+const bumpMap = <K>(m: Map<K, number>, k: K, by = 1) => m.set(k, (m.get(k) ?? 0) + by);
+
+/**
+ * Is this dog one the stable could actually put in this race? The eligibility predicate plus the
+ * fitness floor below which the injury roll doubles (GDD §5.2) — a dog it *could* enter but never
+ * would is not coverage, and cardCoverage is meant to answer "was there a decision here".
+ */
+function couldEnter(d: Dog, race: RaceTypeId): boolean {
+  return eligible(d, race) && d.fitness >= balance.injuryLowFitnessBelow;
+}
+
+/**
+ * §7a.4 `concentration`: the Herfindahl index over a stable's dog values, `Σ (vᵢ / Σv)²`. One dog
+ * is 1.0, five equal dogs 0.2. R1 says v1 rewarded the top end; the target is the champion's
+ * mean below 0.4, which is another way of saying a champion should own a *stable*.
+ */
+function herfindahl(s: GameState, p: Player): number | null {
+  const values = p.dogIds
+    .map((id) => (s.dogs[id] ? dogValue(s.dogs[id]!) : 0))
+    .filter((v) => v > 0);
+  const total = values.reduce((a, b) => a + b, 0);
+  if (!total) return null;
+  return values.reduce((sum, v) => sum + (v / total) * (v / total), 0);
+}
+
+/**
+ * The week the season stopped changing hands: the earliest week from which the eventual champion
+ * led on net worth and never lost the lead again. v1 ran 7.6, which is a procession — half the
+ * season played out after the answer was known. Later is better.
+ */
+function decidedByWeek(s: GameState, winner: Id): number {
+  const worth = (p: Player, w: number) => p.stats.worthByWeek[w] ?? -Infinity;
+  const champ = s.players.find((p) => p.id === winner);
+  if (!champ) return balance.weeks;
+  let decided = 1;
+  for (let w = 0; w < balance.weeks; w++) {
+    const led = s.players.every((p) => p.id === winner || worth(champ, w) >= worth(p, w));
+    if (!led) decided = w + 2;
+  }
+  return Math.min(decided, balance.weeks);
 }
 
 /**
@@ -145,6 +232,7 @@ function playSeason(
   });
   let actions = 0;
   let sampledWeek = 0;
+  let paidWeek = 0;
   let guard = 0;
   while (!isSeasonOver(s) && guard++ < 200_000) {
     // Own the stable's dogs before anything sells them on.
@@ -156,6 +244,27 @@ function playSeason(
     // The one instant the card is known and nothing has run: fitness here is pre-race.
     if (s.fields && !s.races && sampledWeek !== s.week) {
       sampledWeek = s.week;
+      const card = thisWeeksCard(s);
+      for (const race of card) {
+        bumpMap(sample.racesByType, race);
+        if (race === 'maiden') sample.maidenRuns[s.week - 1]!++;
+      }
+      // §7a.4 cardCoverage and the fill rate, per stable: could you have filled this race, and
+      // did you? Read off the stable's own kennel rather than off the field, because a race a
+      // stable left to the locals is exactly what these two measures are for.
+      for (const p of s.players) {
+        if (p.flags.bankrupt) continue;
+        const kennel = p.dogIds.map((id) => s.dogs[id]).filter((d): d is Dog => !!d);
+        let filled = 0;
+        for (const race of card) {
+          bumpMap(sample.coverOffered, race);
+          if (kennel.some((d) => couldEnter(d, race))) bumpMap(sample.coverHad, race);
+          if (s.declarations[race][p.id]) filled++;
+        }
+        const list = sample.filled.get(p.id) ?? [];
+        list.push(filled);
+        sample.filled.set(p.id, list);
+      }
       for (const { race, entries: field } of s.fields) {
         sample.fieldByWeek.get(race)![s.week - 1]!.push(mean(field.map((e) => e.rating)));
         for (const e of field) {
@@ -165,8 +274,19 @@ function playSeason(
           const list = sample.declFitness.get(e.ownerId) ?? [];
           list.push(d.fitness);
           sample.declFitness.set(e.ownerId, list);
-          sample.entries.set(e.ownerId, (sample.entries.get(e.ownerId) ?? 0) + 1);
+          bumpMap(sample.entries, e.ownerId);
+          bumpMap(sample.entriesByType, race);
+          if (race === 'maiden') sample.maidenEntries[s.week - 1]!++;
         }
+      }
+    }
+    // §7.1: the share of the posted purse pool that reaches a player. The rest leaves the economy
+    // with the local dogs, and Phase A found it had collapsed to 30% without anything noticing.
+    if (s.races && paidWeek !== s.week) {
+      paidWeek = s.week;
+      for (const r of s.races) {
+        sample.poolPosted += r.purse[0] + r.purse[1] + r.purse[2];
+        for (const pay of r.payouts) sample.poolToPlayers += pay.amount;
       }
     }
     if (needsAdvance(s)) {
@@ -179,7 +299,16 @@ function playSeason(
     const p = player(s, who);
     if (p.kind === 'human') throw new Error('The harness plays AI stables only');
     for (const a of decide(s, who, p.difficulty)) {
+      // Gross rather than net income by road (GDD §7.1). `stats.tradeIncome` is sold minus
+      // bought, which cannot answer "what share of a stable's income is prize money"; the cash
+      // an action moves can, and reading it here keeps the instrument out of the engine.
+      const before = p.cash;
       reduceMut(s, a);
+      const gained = p.cash - before;
+      if (gained > 0) {
+        if (a.t === 'TradeFood') bumpMap(sample.grossFood, who, gained);
+        else if (a.t === 'SellDog') bumpMap(sample.grossDogs, who, gained);
+      }
       actions++;
     }
   }
@@ -207,6 +336,12 @@ export function runHarness(args: Args): string {
         entries: [],
         dogsOwned: [],
         dogsAtEnd: [],
+        filled: [],
+        concentration: [],
+        grossPrize: [],
+        grossFood: [],
+        grossDogs: [],
+        grossBets: [],
       };
       byAgent.set(d, st);
     }
@@ -229,6 +364,16 @@ export function runHarness(args: Args): string {
   let supplementsCaught = 0;
   let actions = 0;
   let championWonAMajor = 0;
+  const coverOffered = byType(() => 0);
+  const coverHad = byType(() => 0);
+  const entriesByType = byType(() => 0);
+  const racesByType = byType(() => 0);
+  const maidenEntries = Array.from({ length: balance.weeks }, () => 0);
+  const maidenRuns = Array.from({ length: balance.weeks }, () => 0);
+  let poolPosted = 0;
+  let poolToPlayers = 0;
+  const championConcentration: number[] = [];
+  const decidedBy: number[] = [];
 
   const t0 = performance.now();
   for (let i = 0; i < args.seasons; i++) {
@@ -265,6 +410,38 @@ export function runHarness(args: Args): string {
       st.entries.push(sample.entries.get(p.id) ?? 0);
       st.dogsOwned.push(sample.dogsSeen.get(p.id)?.size ?? 0);
       st.dogsAtEnd.push(p.dogIds.length);
+      for (const f of sample.filled.get(p.id) ?? []) st.filled.push(f);
+      const h = herfindahl(s, p);
+      if (h !== null) st.concentration.push(h);
+      // Gross, by road. Bet returns come off the settled slips rather than `betIncome`, which is
+      // returns minus stakes and so answers a different question.
+      const betReturns = s.bets
+        .filter((b) => b.playerId === p.id)
+        .reduce((sum, b) => sum + (b.settled?.payout ?? 0), 0);
+      st.grossPrize.push(p.stats.prizeIncome);
+      st.grossFood.push(sample.grossFood.get(p.id) ?? 0);
+      st.grossDogs.push(sample.grossDogs.get(p.id) ?? 0);
+      st.grossBets.push(betReturns);
+    }
+    for (const race of RACE_TYPE_IDS) {
+      bumpMap(coverOffered, race, sample.coverOffered.get(race) ?? 0);
+      bumpMap(coverHad, race, sample.coverHad.get(race) ?? 0);
+      bumpMap(entriesByType, race, sample.entriesByType.get(race) ?? 0);
+      bumpMap(racesByType, race, sample.racesByType.get(race) ?? 0);
+    }
+    for (let w = 0; w < balance.weeks; w++) {
+      maidenEntries[w]! += sample.maidenEntries[w]!;
+      maidenRuns[w]! += sample.maidenRuns[w]!;
+    }
+    poolPosted += sample.poolPosted;
+    poolToPlayers += sample.poolToPlayers;
+    if (winner) {
+      const champ = s.players.find((p) => p.id === winner);
+      if (champ) {
+        const h = herfindahl(s, champ);
+        if (h !== null) championConcentration.push(h);
+      }
+      decidedBy.push(decidedByWeek(s, winner));
     }
     for (const a of s.players) {
       for (const b of s.players) {
@@ -358,6 +535,85 @@ export function runHarness(args: Args): string {
         .join(' ')}`,
     );
   }
+
+  // §7a.4 cardCoverage, and the two numbers that say whether the card is a decision or a lottery.
+  const totalRaces = RACE_TYPE_IDS.reduce((sum, r) => sum + (racesByType.get(r) ?? 0), 0);
+  const totalEntries = RACE_TYPE_IDS.reduce((sum, r) => sum + (entriesByType.get(r) ?? 0), 0);
+  lines.push('');
+  lines.push('The card (GDD §6.3) — how often each type runs, and whether a stable can fill it');
+  lines.push('  type            share of races   share of entries   cardCoverage   entries/race');
+  for (const race of RACE_TYPE_IDS) {
+    const runs = racesByType.get(race) ?? 0;
+    const ent = entriesByType.get(race) ?? 0;
+    const offered = coverOffered.get(race) ?? 0;
+    const cover = offered ? (coverHad.get(race) ?? 0) / offered : 0;
+    lines.push(
+      `  ${raceType(race).label.padEnd(14)} ${pct(runs / Math.max(1, totalRaces)).padStart(13)} ` +
+        `${pct(ent / Math.max(1, totalEntries)).padStart(18)} ${pct(cover).padStart(14)} ` +
+        `${(ent / Math.max(1, runs)).toFixed(2).padStart(14)}`,
+    );
+  }
+  lines.push(
+    '  cardCoverage: share of the weekends it ran where a stable had a fit, eligible dog.',
+  );
+  lines.push('  Target (BUILD_PLAN §6b): every type ≥ 8% of all races run.');
+
+  lines.push('');
+  lines.push('Filling the card — how many of the weekend’s three races a stable declares into');
+  for (const [d, st] of byAgent) {
+    const n = Math.max(1, st.filled.length);
+    const share = (k: number) => pct(st.filled.filter((x) => x === k).length / n);
+    lines.push(
+      `  ${d.padEnd(8)} all three ${share(3).padStart(6)} · two ${share(2).padStart(6)} · one ${share(1).padStart(6)} · none ${share(0).padStart(6)}   (mean ${mean(st.filled).toFixed(2)})`,
+    );
+  }
+
+  // GDD §7.1 / D15. The pool is what the card posts; the share is what a player actually banks.
+  lines.push('');
+  lines.push(
+    `Purse pool: ${fmt(poolPosted / Math.max(1, args.seasons))} posted a season, ` +
+      `${pct(poolToPlayers / Math.max(1, poolPosted))} of it reaching a player ` +
+      `(v1 54%, Phase A 52%; the rest leaves the economy with the local dogs)`,
+  );
+
+  lines.push('');
+  lines.push('Gross income by road per stable-season, and prize as a share of it (GDD §7.1)');
+  lines.push('  agent       prize     food sold   dogs sold   bets returned   prize share');
+  for (const [d, st] of byAgent) {
+    const prize = mean(st.grossPrize);
+    const total = prize + mean(st.grossFood) + mean(st.grossDogs) + mean(st.grossBets);
+    lines.push(
+      `  ${d.padEnd(8)} ${fmt(prize).padStart(9)} ${fmt(mean(st.grossFood)).padStart(11)} ` +
+        `${fmt(mean(st.grossDogs)).padStart(11)} ${fmt(mean(st.grossBets)).padStart(15)} ` +
+        `${pct(prize / Math.max(1, total)).padStart(13)}`,
+    );
+  }
+  lines.push('  Target (BUILD_PLAN §6b): prize share falls toward 65%. Gross, not net — the');
+  lines.push('  question is where the money came in, not whether the road turned a profit.');
+
+  lines.push('');
+  lines.push(
+    `Concentration (Herfindahl over dog values at week ${balance.weeks}): champion ${mean(championConcentration).toFixed(3)}, ` +
+      `all stables ${mean([...byAgent.values()].flatMap((st) => st.concentration)).toFixed(3)} — target: champion below 0.400`,
+  );
+  lines.push(
+    `Season decided by week ${mean(decidedBy).toFixed(1)} — the earliest week the champion led and never lost the lead (v1: 7.6, later is better)`,
+  );
+
+  // D2's own claim, measured: winning a Maiden costs you the next one.
+  const third = (from: number, to: number) => {
+    let e = 0;
+    let r = 0;
+    for (let w = from; w <= to; w++) {
+      e += maidenEntries[w - 1]!;
+      r += maidenRuns[w - 1]!;
+    }
+    return r ? (e / r).toFixed(2) : 'n/a';
+  };
+  lines.push(
+    `Maiden entries per Maiden run: weeks 1–4 ${third(1, 4)}, 5–9 ${third(5, 9)}, 10–13 ${third(10, balance.weeks)} — ` +
+      `it should fall, because winning one is what bars you from the next`,
+  );
   lines.push(
     `Supplements: ${supplementsUsed} used, ${supplementsCaught} caught (${supplementsUsed ? pct(supplementsCaught / supplementsUsed) : 'n/a'})`,
   );
@@ -527,6 +783,114 @@ export function runStatLeverage(n = 3000, seed = 20260911): string {
 }
 
 /**
+ * D2's structural claim, measured directly (GDD §6.3, BUILD_PLAN §6b Phase B).
+ *
+ * This is not a season — it is the eligibility arithmetic on its own, which is the honest way to
+ * answer "does keeping a broad stable let you fill the card?". A season's fill rate mixes the
+ * question with fitness, cash and whether the AI thought the race was worth entering; this asks
+ * only whether the dogs *qualify*. The two acceptance rows are read off it.
+ *
+ * The stables are **rolled fresh for every draw** rather than hand-built once. A single
+ * hand-picked stable answers the question you designed it to answer: pick one dog per criterion
+ * and it fills the card every week, which says more about the picker than about the card. Rolling
+ * age, wins, runs and rating from the archetype's own distribution gives the spread a real stable
+ * has, and the answer is a distribution rather than a fact about one kennel.
+ *
+ *  - **broad**: dogs spread over the facts the card gates on, ages 1–6, wins and runs growing
+ *    with age, ratings around the middle of the field.
+ *  - **concentrated**: one very good, well-raced four-year-old plus cheap fillers — v1's optimal
+ *    stable, and the one D2 exists to punish.
+ */
+export function runCardProbe(draws = 20000, seed = 20260912): string {
+  const rng = mulberry32(seed);
+  let counter = 0;
+  const nextId = () => `d${counter++}`;
+  const shape = (quality: number, age: number, wins: number, runs: number, oom = false): Dog => {
+    const q = clamp(Math.round(rng.gauss(quality, 7)), 20, 92);
+    const d = fitRating(createDog({ quality: q, age, owner: 'p1', traits: [] }, rng, nextId), q, q);
+    d.wins = wins;
+    d.runs = runs;
+    d.outOfMoneyLastWeek = oom;
+    return d;
+  };
+  /** A dog of no particular plan: any age, a career that fits its age, a middling rating. */
+  const anyDog = (): Dog => {
+    const age = rng.int(1, 6);
+    const runs = age === 1 ? rng.int(0, 4) : rng.int(2, 6 * age);
+    return shape(46, age, Math.min(runs, rng.int(0, age)), runs, rng.chance(0.35));
+  };
+  const goodDog = (): Dog => shape(70, 4, rng.int(4, 8), rng.int(14, 26));
+  const filler = (): Dog => shape(34, 4, rng.int(1, 3), rng.int(8, 20), rng.chance(0.35));
+
+  const stables: { label: string; roll: () => Dog[] }[] = [
+    { label: 'broad, 5 dogs   ', roll: () => [anyDog(), anyDog(), anyDog(), anyDog(), anyDog()] },
+    { label: 'broad, 3 dogs   ', roll: () => [anyDog(), anyDog(), anyDog()] },
+    { label: 'one good + 2    ', roll: () => [goodDog(), filler(), filler()] },
+    {
+      label: 'one good + 4    ',
+      roll: () => [goodDog(), filler(), filler(), filler(), filler()],
+    },
+    {
+      label: 'four good dogs  ',
+      roll: () => [goodDog(), goodDog(), goodDog(), goodDog()],
+    },
+  ];
+
+  const pool = RACE_TYPES.filter((t) => t.drawn).map((t) => t.id);
+  const lines: string[] = [
+    `Race card coverage (GDD §6.3 / D2) — ${draws} rolled stables against ${draws} random cards`,
+    'A card is The Open plus two types drawn from the pool of seven. "Fills" means the stable owns',
+    'a distinct qualifying dog for every race, one dog per race — the same one-per-race rule the',
+    'Race Office enforces. Fitness, cash and whether the race looked worth entering are all out of',
+    'it: this is what the stable is *allowed* to do, and the season fill rate in the main printout',
+    'is what it actually does.',
+    '',
+    'Targets (BUILD_PLAN §6b): a broad five-dog stable fills all three 55–70% of weeks; a stable',
+    'built around one good dog fills all three no more than 20% of the time.',
+    '',
+    '  stable             all three      two or more        just one           none',
+  ];
+
+  for (const { label, roll } of stables) {
+    const counts = [0, 0, 0, 0];
+    for (let i = 0; i < draws; i++) {
+      const card = [...rng.shuffle([...pool]).slice(0, DRAWN_PER_WEEKEND), OPEN_TYPE_ID];
+      counts[maxFilled(roll(), card)]!++;
+    }
+    const share = (k: number) => pct(counts[k]! / draws);
+    const atLeast = (k: number) => pct(counts.slice(k).reduce((a, b) => a + b, 0) / draws);
+    lines.push(
+      `  ${label} ${share(3).padStart(12)} ${atLeast(2).padStart(16)} ${share(1).padStart(17)} ${share(0).padStart(14)}`,
+    );
+  }
+  return lines.join('\n');
+}
+
+/**
+ * The most races this stable could fill, one dog per race. Three races and at most six dogs, so
+ * the exhaustive search is free and a greedy one would under-count — a dog that fits two races
+ * has to go in the one nothing else can fill.
+ */
+function maxFilled(dogs: readonly Dog[], card: readonly RaceTypeId[]): number {
+  let best = 0;
+  const walk = (i: number, used: Set<string>, filled: number) => {
+    if (i === card.length) {
+      if (filled > best) best = filled;
+      return;
+    }
+    walk(i + 1, used, filled);
+    for (const d of dogs) {
+      if (used.has(d.id) || !raceType(card[i]!).eligible(d)) continue;
+      used.add(d.id);
+      walk(i + 1, used, filled + 1);
+      used.delete(d.id);
+    }
+  };
+  walk(0, new Set(), 0);
+  return best;
+}
+
+/**
  * The D14 pup curve (GDD §5.6). BUILD_PLAN §11 names this phase's narrowest band and says the
  * acceptance criterion is the *week a pup reaches par*, not a stat number, and that the whole
  * curve gets reported rather than a pass or a fail — so it is an instrument, not a script that
@@ -690,5 +1054,6 @@ function main() {
   if (args.calibrate) console.log(runCalibration());
   else if (args.stats) console.log(runStatLeverage());
   else if (args.pups) console.log(runPupCurve());
+  else if (args.card) console.log(runCardProbe());
   else console.log(runHarness(args));
 }
