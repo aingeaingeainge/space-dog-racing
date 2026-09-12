@@ -52,13 +52,14 @@ function finishedIcon(id: string) {
  */
 export function PlanetHub({ s, me }: { s: GameState; me: Player }) {
   const setView = useGame((g) => g.setView);
+  const log = useGame((g) => g.log);
   const entry = s.calendar[s.week - 1]!;
   const planet = planetOf(entry.planetId);
   const sp = planet.special;
   const rules = specialText(planet);
   const bill = weeklyBill(s, me);
   const spots = hotspotsFor(planet.id);
-  const status = venueStatus(s, me);
+  const status = venueStatus(s, me, log);
   const byId = new Map(venues(s).map((v) => [v.id, v]));
   const weekLog = s.eventLog.filter(
     (l) => l.week === s.week && (!l.playerId || l.playerId === me.id),

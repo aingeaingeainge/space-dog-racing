@@ -207,6 +207,18 @@ function planetTurn(s: GameState, p: Player, tally: Tally): Action[] {
     }
   }
 
+  // --- Galaxy map: buy your way out of the fog (GDD §9.3). Every other week, so the action
+  // and its refusals both get walked, and the trader has a leg it can actually price.
+  const scoutWeek = s.week + balance.dossierReach;
+  if (pre && s.week % 2 === 1 && scoutWeek <= s.calendar.length) {
+    const price = upgradePrice('dossier', planet, p);
+    if (price <= cash - 4000) {
+      out.push({ t: 'BuyUpgrade', playerId: p.id, upgrade: 'dossier', week: scoutWeek });
+      cash -= price;
+      bump(tally, 'BuyUpgrade');
+    }
+  }
+
   // --- Docks: ship, then kibble ---
   for (const upgrade of ['engine', 'cargo', 'kennel', 'coldStore'] as const) {
     if (upgrade === 'engine' && p.ship.speed >= balance.shipMaxSpeed) continue;

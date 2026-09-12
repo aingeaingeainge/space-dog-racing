@@ -254,6 +254,8 @@ export function upgradePrice(upgrade: UpgradeId, planet: Planet, player: Player)
       return Math.round(
         balance.itemSupplementCost * markup * (player.flags.caughtDoping ? 1.5 : 1),
       );
+    case 'dossier':
+      return Math.round(balance.dossierCost * markup);
   }
 }
 

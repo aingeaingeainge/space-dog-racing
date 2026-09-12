@@ -32,8 +32,9 @@ export function Nav({ s, me }: { s: GameState; me: Player }) {
   const dispatch = useGame((g) => g.dispatch);
   const leaderboard = useGame((g) => g.leaderboard);
   const setLeaderboard = useGame((g) => g.setLeaderboard);
+  const log = useGame((g) => g.log);
   const pre = s.phase === 'planetPre';
-  const status = venueStatus(s, me);
+  const status = venueStatus(s, me, log);
   const list = venues(s);
   const endPhase = () => dispatch({ t: 'EndPhase', playerId: me.id });
 

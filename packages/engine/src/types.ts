@@ -421,7 +421,21 @@ export interface SeasonSetup {
 }
 
 export type UpgradeId =
-  'engine' | 'cargo' | 'kennel' | 'coldStore' | 'trackDay' | 'muzzle' | 'supplement';
+  | 'engine'
+  | 'cargo'
+  | 'kennel'
+  | 'coldStore'
+  | 'trackDay'
+  | 'muzzle'
+  | 'supplement'
+  /**
+   * A dossier on a planet the fog is hiding (GDD §9.3). Bought for one named week, and what it
+   * buys is a **log line**, not a field on the Player: the circuit is already in `calendar`, so
+   * the only question is who is allowed to look, and that is answered by whether the purchase is
+   * in the action log. Keeping it out of GameState is what lets the fog land without moving the
+   * golden snapshot a third time.
+   */
+  | 'dossier';
 
 export type Action =
   | { t: 'BuyDog'; playerId: Id; dogId: Id }
@@ -439,7 +453,7 @@ export type Action =
   | { t: 'HireStaff'; playerId: Id; role: StaffRole; staffId: StaffId }
   | { t: 'FireStaff'; playerId: Id; role: StaffRole }
   | { t: 'SetDogState'; playerId: Id; dogId: Id; state: WeekState; stat?: StatKey }
-  | { t: 'BuyUpgrade'; playerId: Id; upgrade: UpgradeId; dogId?: Id }
+  | { t: 'BuyUpgrade'; playerId: Id; upgrade: UpgradeId; dogId?: Id; week?: number }
   | { t: 'Borrow'; playerId: Id; lender: 'bank' | 'shark'; amount: number }
   | { t: 'Repay'; playerId: Id; lender: 'bank' | 'shark'; amount: number }
   | { t: 'ResolveEvent'; playerId: Id; choice: number }

@@ -1,4 +1,5 @@
 import { balance } from '../content/balance';
+import { planetOf } from '../content/planets';
 import { raceType } from '../content/raceTypes';
 import { dogSalePrice } from '../economy/dogValue';
 import { loanCap, outstanding } from '../economy/loans';
@@ -278,6 +279,38 @@ export function buyUpgrade(ctx: Ctx, action: Extract<Action, { t: 'BuyUpgrade' }
       pay(p, price, action);
       d.trap = clamp(d.trap + balance.itemMuzzleBonus, 1, 99);
       s.planet.muzzlesInStock = false;
+      break;
+    }
+    /**
+     * A dossier on a week the fog is hiding (GDD §9.3, D5). It buys **one week's** entry in the
+     * circuit, `dossierReach` weeks out — next week is free, so what you are paying for is the
+     * week after that: one extra leg to price a hold against (§9.2).
+     *
+     * What it writes is a log line addressed to the buyer, not a field on the Player. The whole
+     * circuit is already in `calendar`; the fog is a rule about who may look, and the action log
+     * is where "this stable paid to look" already lives. So the information economy lands without
+     * adding anything to GameState — which is also why the golden snapshot does not move for it.
+     */
+    case 'dossier': {
+      const week = action.week;
+      if (week === undefined) fail('Which week?', action);
+      if (week !== s.week + balance.dossierReach) {
+        fail(
+          `Dossiers only cover week ${s.week + balance.dossierReach} from here — next week is public anyway`,
+          action,
+        );
+      }
+      const entry = s.calendar[week - 1];
+      if (!entry) fail('The season ends before then', action);
+      pay(p, price, action);
+      const ahead = planetOf(entry.planetId);
+      log(
+        s,
+        `Dossier on week ${week}: ${ahead.name}${entry.major ? ` — ${ahead.event}` : ''}. ` +
+          `Kibble ${ahead.foodBand[0]}–${ahead.foodBand[1]}. ` +
+          `Card: ${entry.card.map((r) => raceType(r).label).join(', ')}.`,
+        p.id,
+      );
       break;
     }
     case 'supplement': {

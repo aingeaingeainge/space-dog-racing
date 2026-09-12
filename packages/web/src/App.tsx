@@ -92,7 +92,7 @@ export function App() {
   /** The venue the player picked, falling back to the hub when it is shut. */
   function venue() {
     if (view === 'stable') return <Stable s={s} me={me} />;
-    if (view === 'map') return <GalaxyMap s={s} />;
+    if (view === 'map') return <GalaxyMap s={s} me={me} />;
     if (view === 'office' && s.phase === 'planetPre') return <RaceOffice s={s} me={me} />;
     if (inTurn && view === 'market') return <Market s={s} me={me} />;
     if (inTurn && view === 'docks') return <Docks s={s} me={me} />;

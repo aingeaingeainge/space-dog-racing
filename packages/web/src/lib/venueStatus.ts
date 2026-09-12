@@ -10,11 +10,20 @@ import {
   thisWeeksCard,
   OPEN_TYPE_ID,
   RACE_TYPE_IDS,
+  type Action,
   type GameState,
   type Player,
   type RaceTypeId,
 } from '@sdr/engine';
-import { ineligibleReason, ownedDogs, declaredCount, raceLabel, TRAPS } from './selectors';
+import {
+  declaredCount,
+  dossierWeek,
+  dossierWeeks,
+  ineligibleReason,
+  ownedDogs,
+  raceLabel,
+  TRAPS,
+} from './selectors';
 import type { VenueId } from './venues';
 
 export interface VenueStatus {
@@ -42,7 +51,16 @@ const nothing = (line: string, short = 'nothing today'): VenueStatus => ({
  * What each venue has for this player right now. One source of truth for the hub hotspots,
  * the venue tab strip and scripts/hub-clicks.ts, which counts what a weekend costs.
  */
-export function venueStatus(s: GameState, me: Player): Record<VenueId, VenueStatus> {
+export function venueStatus(
+  s: GameState,
+  me: Player,
+  /**
+   * The season's action log. Only the fog needs it: what a stable has paid to see lives in the
+   * log rather than in GameState (GDD §9.3), so the map's hint cannot be read off the state
+   * alone. Optional because the headless click budget does not buy dossiers.
+   */
+  log: readonly Action[] = [],
+): Record<VenueId, VenueStatus> {
   const planet = planetOf(s.planet.planetId);
   const pre = s.phase === 'planetPre';
   const inTurn = pre || s.phase === 'planetPost';
@@ -240,9 +258,24 @@ export function venueStatus(s: GameState, me: Player): Record<VenueId, VenueStat
           `${declaredMine} declared`,
         );
 
+  const buyable = dossierWeek(s);
+  const haveIt = buyable !== null && dossierWeeks(log, me.id).has(buyable);
+  const map: VenueStatus =
+    buyable === null
+      ? nothing('The last stop is the Collar. Nothing left to scout', 'circuit done')
+      : haveIt
+        ? nothing(`You have the file on week ${buyable}`, `wk ${buyable} known`)
+        : {
+            line: `Week ${buyable} is dark — a dossier names the planet, its kibble and its card`,
+            short: `wk ${buyable} for sale`,
+            worth: pre && me.cash >= upgradePrice('dossier', planet, me),
+          };
+
   return {
     hub: { line: '', short: '', worth: false },
-    map: nothing('The whole circuit, from week 1', '13 stops'),
+    // GDD §9.3: the map is a fog now, and it is the one venue where a purchase buys information
+    // rather than a thing. It is worth the walk while there is a week you have not paid to see.
+    map,
     market,
     stable: kennels,
     docks,

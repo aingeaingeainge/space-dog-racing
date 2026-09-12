@@ -25,6 +25,8 @@
   "declineMinAge": 5,
   "declinePerWeek": 1,
   "dogStatSd": 8,
+  "dossierCost": 650,
+  "dossierReach": 2,
   "eloScale": 15,
   "finalMult": 3.5,
   "fitnessPerRace": 25,

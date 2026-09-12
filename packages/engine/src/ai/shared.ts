@@ -3,7 +3,7 @@ import { planetOf } from '../content/planets';
 import { LOCAL_RATING_BY_TIER, raceType } from '../content/raceTypes';
 import { winProbabilities } from '../race/odds';
 import { baseRating, dogValue } from '../economy/dogValue';
-import { calendarEntry, eligible, player, purseFor, thisWeeksCard } from '../state';
+import { calendarEntry, eligible, FREE_HORIZON, player, purseFor, thisWeeksCard } from '../state';
 import type { Action, Dog, GameState, Id, Planet, Player, RaceTypeId, StatKey } from '../types';
 
 export function ownDogs(s: GameState, p: Player): Dog[] {
@@ -236,8 +236,22 @@ export function weeksToMajor(s: GameState): number {
   return Number.POSITIVE_INFINITY;
 }
 
-/** The planet the calendar says we reach in `weeksAhead` weeks, or null past the Grand Final. */
+/**
+ * The planet the calendar says we reach in `weeksAhead` weeks, or null past the Grand Final.
+ *
+ * ⚠️ **This is the AI's only window onto the circuit, and it is deliberately narrow.** GDD §9.3
+ * hides everything past next week, and §14 requires every difficulty to see exactly what a player
+ * sees. `GameState.calendar` carries the whole season because it has to — the reducer builds it
+ * once — so nothing but this guard stops an AI reading week 11 in week 3 and nothing would *fail*
+ * if it did: Hard would just quietly stay too good. Asking beyond the free horizon throws rather
+ * than returning null, so the mistake is loud.
+ */
 export function planetAhead(s: GameState, weeksAhead: number): Planet | null {
+  if (weeksAhead > FREE_HORIZON) {
+    throw new Error(
+      `The circuit is dark past ${FREE_HORIZON} week ahead (GDD §9.3) — the AI may not read week ${s.week + weeksAhead}`,
+    );
+  }
   const e = s.calendar[s.week - 1 + weeksAhead];
   return e ? planetOf(e.planetId) : null;
 }

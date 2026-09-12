@@ -9,10 +9,12 @@ import {
   shipValue,
   weeklyInterest,
   thisWeeksCard,
+  FREE_HORIZON,
   raceType,
   LOCAL_RATING_BY_TIER,
   OPEN_TYPE_ID,
   RACE_TYPE_IDS,
+  type Action,
   type Dog,
   type GameState,
   type Id,
@@ -190,6 +192,39 @@ export function fitnessOutlook(d: Dog, me: Player): FitnessOutlook {
     training: cap(d.fitness + balance.fitnessTrain),
     resting: cap(d.fitness + rest),
   };
+}
+
+/**
+ * The fog (GDD §9.3, D5). What this stable is allowed to see of the circuit, week by week.
+ *
+ * You know the planet you are standing on completely, and next week's by name and Major status.
+ * Beyond that, nothing — unless you bought a dossier on it, which is why this reads the action
+ * log rather than the state: the whole circuit is in `calendar` because the reducer had to build
+ * it, and the fog is a rule about who may look. A purchase is in the log, so the log is the
+ * answer, and nothing had to be added to GameState to hold it.
+ */
+export type FogLevel = 'here' | 'named' | 'bought' | 'dark' | 'past';
+
+export function dossierWeeks(log: readonly Action[], playerId: Id): Set<number> {
+  const out = new Set<number>();
+  for (const a of log) {
+    if (a.t === 'BuyUpgrade' && a.upgrade === 'dossier' && a.playerId === playerId && a.week)
+      out.add(a.week);
+  }
+  return out;
+}
+
+export function fogLevel(s: GameState, week: number, bought: ReadonlySet<number>): FogLevel {
+  if (week < s.week) return 'past';
+  if (week === s.week) return 'here';
+  if (week <= s.week + FREE_HORIZON) return 'named';
+  return bought.has(week) ? 'bought' : 'dark';
+}
+
+/** The week a dossier can be bought for from here, or null if the season ends first. */
+export function dossierWeek(s: GameState): number | null {
+  const week = s.week + balance.dossierReach;
+  return week <= s.calendar.length ? week : null;
 }
 
 /** Typical rating of the local dogs that will fill the empty traps (GDD §6.1). */

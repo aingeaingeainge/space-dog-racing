@@ -435,6 +435,17 @@ tr.me:hover td {
 tr.dim td {
   color: var(--dim);
 }
+/* A stop the fog is still hiding (GDD §9.3): hatched like a redacted line rather than merely
+   greyed, so an unknown week reads as withheld instead of as unimportant. */
+tr.fog td {
+  color: var(--dim);
+  font-style: italic;
+  background-image: repeating-linear-gradient(
+    -45deg,
+    rgba(255, 255, 255, 0.028) 0 6px,
+    transparent 6px 12px
+  );
+}
 
 /* ---------------------------------------------------------------- badges, bars, atoms */
 .badge {

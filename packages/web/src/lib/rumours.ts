@@ -18,6 +18,10 @@ import { planetOf, type GameState } from '@sdr/engine';
  * uses for its own coin flips in spirit, written out here because `hash01` is internal to the
  * engine and the engine is closed for v1. No rng is touched — the reducer owns the only one there
  * is, and the Saloon must not move it.
+ *
+ * ⚠️ A rumour names a planet the fog is hiding, and that is deliberate: §9.3 lists the Saloon as
+ * the free carrier in the information economy, reaching 1–2 weeks and *able to be wrong*. It is
+ * still only the kibble band, never the card or the track — those are what the dossier sells.
  */
 
 export interface Rumour {
@@ -51,12 +55,27 @@ const CHEAP = [
   (name: string) => `Somebody over-ordered on ${name}. Kibble's going for a song.`,
 ];
 
-/** How far ahead the gossip reaches. Four weeks is a hint; thirteen would be the forecast §9 forbids. */
-const HORIZON = 4;
-/** Bones away from the circuit's average band before it is worth talking about. */
-const NOTABLE = 14;
-/** Roughly how often a given planet is actually being talked about this week. */
-const CHATTER = 0.55;
+/**
+ * How far ahead the gossip reaches (GDD §9.3).
+ *
+ * ⚠️ **Re-tuned for the fog.** Four weeks was written when the Galaxy Map printed every planet's
+ * band for the whole season, so a rumour was near-redundant — it hinted at something already in a
+ * table. With the map dark, a rumour is the *only* free look past next week, and four weeks of
+ * them would hand back most of what D5 just took away. Two weeks is §9.3's own "1–2 weeks", it
+ * leaves the dossier something to sell, and it makes the Saloon worth the walk for the first time.
+ */
+const HORIZON = 2;
+/**
+ * Bones away from the circuit's average band before it is worth talking about. Lowered with the
+ * horizon: over two weeks rather than four there are half as many planets to gossip about, and at
+ * 14 the Saloon was silent most weeks.
+ */
+const NOTABLE = 10;
+/**
+ * Roughly how often a given planet is actually being talked about this week. Raised for the same
+ * reason — a rumour you get one week in three is a curiosity; the fog needs it to be a habit.
+ */
+const CHATTER = 0.75;
 
 function bandMid(planetId: string): number {
   const [lo, hi] = planetOf(planetId).foodBand;
@@ -79,8 +98,7 @@ export function rumours(s: GameState): Rumour[] {
     const pick = Math.floor(hash01(s.seed, s.week, entry.planetId, 'line') * lines.length);
     const name = planetOf(entry.planetId).name;
     const away = entry.week - s.week;
-    const when =
-      away === 1 ? "and you're there next week" : `and you're there in ${away} weeks`;
+    const when = away === 1 ? "and you're there next week" : `and you're there in ${away} weeks`;
     out.push({
       key: entry.planetId,
       text: `${lines[Math.min(pick, lines.length - 1)]!(name)} — ${when}.`,

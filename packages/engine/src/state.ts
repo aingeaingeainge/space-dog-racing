@@ -40,6 +40,16 @@ import { ActionError, RACE_TYPE_IDS } from './types';
 export const STATE_VERSION = 3;
 export const MAJOR_WEEKS: readonly number[] = [4, 7, 10];
 
+/**
+ * How far ahead the circuit is free to look (GDD §9.3, D5). This planet in full, and next week's
+ * by name and Major status — nothing beyond, unless you have bought it.
+ *
+ * The Majors themselves are *not* hidden: §4.1 fixes them at weeks 4, 7, 10 and 13 and the Grand
+ * Final at Collar Prime, so the rhythm of the season stays plannable while its content does not.
+ * That is why `weeksToMajor` may still scan the whole calendar and `planetAhead` may not.
+ */
+export const FREE_HORIZON = 1;
+
 /** Mutable working view of a state inside the reducer: the rng is materialised once per reduce. */
 export interface Ctx {
   s: GameState;

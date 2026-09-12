@@ -89,6 +89,9 @@ const LABELS: Record<string, string> = {
   // Locals are priced by the purse tier of the race they fill, not by a class (D17).
   'Local dog rating: The Open': 'localRatingOpen',
   'Local dog rating: a drawn race': 'localRatingDrawn',
+  // The information economy (GDD §9.3). The fog is free; buying your way out of it is not.
+  'Dossier price': 'dossierCost',
+  'Dossier reach (weeks ahead)': 'dossierReach',
 };
 
 const wb = XLSX.read(readFileSync(xlsxPath));
