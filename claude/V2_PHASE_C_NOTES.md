@@ -1,13 +1,26 @@
 # V2 Phase C build notes — the economy (12 September 2026)
 
-**Status: Phase C complete, tagged `v2c`.** Four commits on `main` after `8c1c263`, **not pushed** —
-the bundle and the commands are at the end.
+**Status: Phase C complete, tagged `v2c`.** Seven commits on `main` after `8c1c263`, **not pushed** —
+the bundle and the commands are at the end. `v2c` marks the documentation commit, `a7cd36a`; the tip
+is one commit further on and carries nothing but a `.gitignore` line.
 
 The golden snapshot moved **exactly twice**, as the brief required: `671ec44` for the goods-record
-shape change and `5a09c5f` for the content on top of it. The other two commits leave it
+shape change and `5a09c5f` for the content on top of it. The other five commits leave it
 byte-identical and `npm test` is 22 green at each. `determinism.test.ts` needed no changes;
 `properties.test.ts` gained two invariants and **re-expressed two** — the reason is below, because
 the brief asked me to stop and work out whether I had broken something.
+
+### The seven commits, in order
+
+| | |
+|---|---|
+| `69a57cd` | Item 0: the price printed on the Market, the Docks and the Saloon, before the refactor |
+| `671ec44` | **The hold becomes a record of crates per good — snapshot move 1**, kibble only |
+| `5a09c5f` | **The ladder: twelve feeds, six roles, three slots — snapshot move 2**, and the balance sweeps |
+| `dc474e9` | Harness part 3: a row per good, `leadConversion`, `--roads`, `--holdPayback`, `--stacking` |
+| `50f74de` | The screens: the feed counter, the Saloon's tiers, and a stricter hotspot |
+| `a7cd36a` | GDD 0.5, eight decision-log rows, Q2/Q3/Q6 answered — **tagged `v2c`** |
+| `8560b4d` | Ignore hand-off bundles (housekeeping; a bundle of this repo does not belong in it) |
 
 ---
 
@@ -330,8 +343,9 @@ Your `main` should be at `8c1c263` with a clean tree:
 ```powershell
 git status                                  # expect nothing modified
 git fetch phase-c.bundle "refs/heads/main:refs/heads/phase-c" "refs/tags/v2c:refs/tags/v2c"
-git merge --ff-only phase-c                 # fast-forwards main onto the commits
+git merge --ff-only phase-c                 # fast-forwards main onto the seven commits
 git branch -d phase-c
+git log --oneline -1                        # expect 8560b4d "Ignore hand-off bundles"
 ```
 
 Then check it is what these notes describe, and push:
