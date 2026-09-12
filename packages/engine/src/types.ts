@@ -189,12 +189,17 @@ export interface Dog {
   /** Wins in the headline race of the weekend — the season's first tie-break (GDD §4.3). */
   openWins: number;
   /**
-   * Ran last weekend and finished out of the money — the Consolation's entry criterion
-   * (GDD §6.3). A stored fact rather than a lookup into `results`, so that a local dog generated
-   * for the race can carry it and satisfy the same predicate every declared dog is held to.
-   * Set for every owned dog at end of turn, so it clears itself for a dog that did not run.
+   * Weekends of Consolation eligibility this dog has left after a run out of the money
+   * (GDD §6.3). Set to `consolationReach` the week it finishes out of the money and counted down
+   * every week after, so "ran and finished out of the money in the last two weekends" is a fact
+   * on the dog rather than a lookup into `results` — which is what lets a local generated for the
+   * race carry it and satisfy the same predicate every declared dog is held to.
+   *
+   * A counter rather than a boolean because the reach is a tunable (Q12): at one weekend the only
+   * dog that qualified was the one that had just raced and was 25 fitness down, so the catch-up
+   * race was enterable on 29% of the weekends it ran.
    */
-  outOfMoneyLastWeek: boolean;
+  outOfMoneyFor: number;
   supplemented: boolean; // supplement fed this weekend (cleared after the race)
   raceBonus: number; // temporary speed-stat bonus for this weekend's race (supplement, lucky bone)
   weekState: WeekState; // GDD §5.7 — what this dog is doing with the week

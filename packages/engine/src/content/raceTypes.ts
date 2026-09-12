@@ -33,7 +33,7 @@ export interface LocalSpec {
   /** Rating is drawn around the tier's level and then squeezed into this window. */
   ratingMin?: number;
   ratingMax?: number;
-  /** Ran last week and finished out of the money — the Consolation's own fact. */
+  /** Ran recently and finished out of the money — the Consolation's own fact. */
   outOfMoney?: boolean;
 }
 
@@ -131,14 +131,17 @@ export const RACE_TYPES: readonly RaceType[] = [
   {
     id: 'consolation',
     label: 'Consolation',
-    criterion: 'ran last week and finished out of the money',
+    criterion:
+      balance.consolationReach > 1
+        ? `ran out of the money in the last ${balance.consolationReach} weekends`
+        : 'ran last week and finished out of the money',
     tier: 'drawn',
     drawn: true,
     // Nobody ran in week 0, so there is nobody to console until week 2.
     minWeek: 2,
-    // The one deliberate catch-up mechanic. `outOfMoneyLastWeek` is a stored fact like `wins`
-    // rather than a lookup into last week's results, so a local can carry it too.
-    eligible: (d) => d.outOfMoneyLastWeek,
+    // The one deliberate catch-up mechanic. `outOfMoneyFor` is a stored fact like `wins` rather
+    // than a lookup into recent results, so a local can carry it too.
+    eligible: (d) => d.outOfMoneyFor > 0,
     local: { outOfMoney: true },
   },
 ];

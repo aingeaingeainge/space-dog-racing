@@ -1038,7 +1038,7 @@ export function runCardProbe(draws = 20000, seed = 20260912): string {
     const d = fitRating(createDog({ quality: q, age, owner: 'p1', traits: [] }, rng, nextId), q, q);
     d.wins = wins;
     d.runs = runs;
-    d.outOfMoneyLastWeek = oom;
+    d.outOfMoneyFor = oom ? balance.consolationReach : 0;
     return d;
   };
   /** A dog of no particular plan: any age, a career that fits its age, a middling rating. */

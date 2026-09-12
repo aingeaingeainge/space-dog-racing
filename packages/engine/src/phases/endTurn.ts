@@ -143,11 +143,13 @@ export function runEndTurn(ctx: Ctx): void {
         trainOneWeek(ctx, p, d);
         trainedThisWeek.push(d);
       }
-      // GDD §6.3: the Consolation's entry criterion, stored on the dog rather than looked up,
-      // so a local generated for the race can carry the same fact. Written for every dog every
-      // week, so a dog that did not run clears itself.
+      // GDD §6.3: the Consolation's entry criterion, stored on the dog rather than looked up, so
+      // a local generated for the race can carry the same fact. A run out of the money refills the
+      // counter; every other week counts it down, so it expires on its own after `consolationReach`
+      // weekends without anything having to remember when it was set.
       const place = placeThisWeek(s, d.id);
-      d.outOfMoneyLastWeek = place !== null && place > 3;
+      d.outOfMoneyFor =
+        place !== null && place > 3 ? balance.consolationReach : Math.max(0, d.outOfMoneyFor - 1);
       d.fitness = clamp(
         d.fitness + weeklyFitnessDelta(d, !!p.staff.vet, ranThisWeek(s, d.id)),
         0,

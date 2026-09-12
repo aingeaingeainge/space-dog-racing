@@ -58,7 +58,7 @@ export function createDog(spec: DogSpec, rng: Rng, nextId: IdGen): Dog {
     wins: 0,
     runs: 0,
     openWins: 0,
-    outOfMoneyLastWeek: false,
+    outOfMoneyFor: 0,
     supplemented: false,
     raceBonus: 0,
     // GDD §5.7: every dog starts the week pointed at a race. That is the state a player who
@@ -149,7 +149,7 @@ export function createLocalDog(
   // handicap the moment §5.7 put them in the 60–80 band the design asks for. Locals now run at
   // the top of that band: still the fresher home team, no longer a rating class better.
   dog.fitness = balance.localFitness;
-  if (spec.outOfMoney) dog.outOfMoneyLastWeek = true;
+  if (spec.outOfMoney) dog.outOfMoneyFor = balance.consolationReach;
   return fitRating(dog, Math.max(lo, target - 3), Math.min(hi, target + 3));
 }
 

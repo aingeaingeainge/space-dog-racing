@@ -34,6 +34,7 @@ const LABELS: Record<string, string> = {
   // The two race types that post a number rather than a fact (GDD §6.3).
   'Handicap: max rating': 'capHandicap',
   'Invitational: min rating': 'floorInvitational',
+  'Consolation: weekends of eligibility after a losing run': 'consolationReach',
   'Kennel upkeep per dog': 'upkeepPerDog',
   'Food units eaten per dog per week': 'foodPerDog',
   'Ship fuel per jump (base)': 'fuelBase',

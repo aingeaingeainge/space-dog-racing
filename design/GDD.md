@@ -268,7 +268,7 @@ Bronze / Silver / Gold are gone. Every weekend has three races: **The Open**, pl
 | **Novice** | fewer than 6 career runs | early-season, and distinct from Maiden |
 | **Handicap** | rating ≤ a posted cap | the v1 system, surviving as one type among many |
 | **Invitational** | rating ≥ a posted floor | the good-dogs race; no cap, so no hiding |
-| **Consolation** | ran and finished out of the money last week | the one deliberate catch-up mechanic |
+| **Consolation** | ran out of the money in the last **2** weekends ⚖️ | the one deliberate catch-up mechanic — but see D28 |
 
 Two drawn per weekend, plus The Open. **Content is data: the eighth and ninth types are rows, not code.**
 
@@ -301,7 +301,19 @@ The concentrated rows land almost exactly where 0.3 predicted (14%), which is th
 
 Veterans and Consolation sit at about 30% and both are structural rather than broken. A stable starts with dogs aged 2–4 and the age tick is week 7, so roughly 70% of stables have a veteran and only from week 8 — 0.70 × 6/13 ≈ 32%, which is what the harness reads. The Consolation's dog is by definition one that raced last week, so it is also the dog that is 25 fitness down: qualifying for the catch-up race and being fit enough to take it pull against each other.
 
-❓ **Should the Consolation reach back two weekends instead of one?** It is the only catch-up mechanic in the game and at 29% coverage it is barely a mechanic. Widening it is the obvious lever on §20 Q12's "decided by" week, and it is a rule this document does not currently cover — so it is a question rather than a change.
+✅ **It does, as of 12 September, and the result is worth reading twice (D28).** `consolationReach`
+is **2** ⚖️. Coverage went **29% → 71%** and its share of player entries 3.8% → 8.9%, so the race
+that was barely enterable is now a real part of the card. The fill rate rose 1.90 → 1.95, the purse
+share reaching players 52.4% → 53.4%, and a stable's floor rose sharply — p10 end worth **8,052 →
+9,620, up 19%**.
+
+⚠️ **And the "decided by" week did not move at all: 6.4 before, 6.4 after.** The reason is that
+the Consolation is not actually a catch-up mechanic. Its criterion keys off *a dog that ran badly*,
+which the leader has as often as the tail — a champion's fourth dog finishing fifth qualifies
+exactly like a struggling stable's best. It redistributes toward weak **dogs**, not weak
+**stables**, which is why it lifts p10 and Easy's head-to-head while leaving the ordering of the
+season alone. If Q12 wants answering, the criterion has to key off *standing*, and that is a
+different rule.
 
 **The risk to watch in playtest** is arbitrariness — not knowing next week's types is doing design work here, but the pool has to stay small and memorable enough that "keep a young one" reads as an obviously sound bet rather than a lottery.
 
@@ -732,6 +744,7 @@ Moved to **M6, behind v2**. Building a server for rules that are about to change
 | **2026-09-12** | **D24 — locals are priced by the race's purse tier (Open 50, drawn 30), and the third re-fit D17 promised was not needed** | A rich race draws a strong home team; what the race *asks* of a dog is a separate question, answered by the row's local spec squeezing the draw into the window its criterion allows. The share of the purse reaching players landed at 52.4% first time, against v1's 54% and Phase A's 52%, so nothing was tuned. It is a first-class harness row now rather than a probe written twice |
 | **2026-09-12** | **D25 — `apLoss%` is built and reported as an error bar around zero; the measure cannot work as §7a.3 specifies** | It asks for two rollouts "on the same downstream seed" and there is no such thing: GameState carries one rng stream, so the moment the forced plan consumes a different number of draws the rest of the season is a different random season. Each sample is one decision plus thirteen weeks of variance — sd 20,041, mean −1,047 ± 1,231. I nearly acted on the first run's −1,856 and swept Normal's `raceAbove` looking for the cause; races per dog does not move at any setting. `autoplan%` is exact and stands at 8.8% |
 | **2026-09-12** | **D26 — Easy's "wastes its good dogs in the wrong races" was built, measured and reverted** | At the same skip rate the new behaviour makes Easy *stronger*, not weaker (Normal beats it 74.3% against 77.9%), because what it replaced was a random dog in a random race and best-in-the-wrong-race beats random. Dropping the skip rate to make Easy visible costs the ladder outright: at 0.3 Normal beats it 50.0%. Easy's difficulty is structurally "does not turn up", and every other line §14 gives it is a *saving* in this economy |
+| **2026-09-12** | **D28 — the Consolation reaches two weekends, not one; it fixed the race and did not fix Q12** | Jesse's call. At one weekend the only qualifying dog was the one that had just raced and was 25 fitness down, so the catch-up race was enterable on 29% of the weekends it ran and took 3.8% of player entries — barely a mechanic. At two it reads **71%** and 8.9%, the fill rate goes 1.90 → 1.95, the purse share reaching players 52.4% → 53.4% and p10 end worth **8,052 → 9,620 (+19%)**. But the "decided by" week is **6.4 before and 6.4 after**, because the criterion keys off a dog that ran badly rather than a stable that is behind, and the leader has one of those as often as the tail. Cost: Hard beats Normal 56.0% → **53.9%**, on a target already 9 points away — the extra cheap race helps the weaker stables more. Kept because the race is now worth having; the head-to-head cost is real and named |
 | **2026-09-12** | **D27 — Hard buys for coverage and keeps its last veteran; worth ±0 in head-to-head and kept anyway** | The fact-gated card is the first thing that makes a coverage gap exist — under the old ladder every dog could enter the top class. Ablation at `coverageGain` 0/4/8/14/20 reads 56.7/56.8/57.4/56.6/56.5, inside the noise. What it moves is coverage: against Normal, Juvenile 72% vs 63%, Invitational 52% vs 45%. Kept on the same footing as M4's Bronze throw — §14 asks for the decision quality, it is free rather than good today, and the ablation is recorded |
 
 ## 20. Open questions ❓
@@ -750,7 +763,7 @@ Moved to **M6, behind v2**. Building a server for rules that are about to change
 12. **Q9 — Reputation as a visible stat?** Default: still v2-plus.
 13. **Q10 — Does the human ever see the exact bookie probability?** Default: odds only.
 14. ~~**Q11 — What replaces `naive%`?**~~ — **answered, half of it: `autoplan%` works and reads 8.8%; `apLoss%` cannot work as specified.** The autoplan is BUILD_PLAN §7a.3's own definition and the comparison is exact — the agent and the autoplan agree on the entries 32.3% of the time, on the states 27.3%, and on both 8.8%, over 7,800 stable-weeks. That is below the 15–30% band, and the honest gloss is that Normal's plan and the naive plan rarely coincide rather than that either is right. **`apLoss%` is a measurement problem, not a balance one** — see D25. Fixing it needs the engine to fork a per-decision rng stream so two rollouts share their downstream draws.
-15. **Q12 — Why is the season decided *earlier* than v1?** The "decided by" week — the earliest week the champion led and never lost the lead — reads **6.4** against v1's 7.6, and the acceptance row asked for later. The likeliest cause is arithmetic: the card cut a stable from three contested races a weekend to 1.90, and fewer purses in play means fewer chances to overturn a lead. The lever the design already has is the Consolation, the one catch-up mechanic, enterable on 29% of the weekends it runs (§6.3). Widening its reach to two weekends is the obvious first thing to try and is a rule this document does not yet cover.
+15. **Q12 — Why is the season decided *earlier* than v1, and still 6.4 after the Consolation was widened?** The "decided by" week reads **6.4** against v1's 7.6. The obvious lever was pulled on 12 September — the Consolation now reaches two weekends, coverage 29% → 71% — and **it moved the number not at all** (D28). What it moved was the *floor*: p10 end worth up 19%, Easy's head-to-head up 1.3 points, Hard's down 2.1. The diagnosis that follows is that the Consolation redistributes toward weak **dogs**, not weak **stables** — a leader has a dog that ran badly as often as anybody. A mechanic that actually delays the decision has to key off standing, and the design does not currently have one. Worth asking whether it should: the honest alternative is that a 13-week season with compounding prize money is decided at week 6 and the fix is somewhere else entirely.
 16. **Q13 — Is 76% too generous for a broad five-dog stable?** §6.3's probe reads 76.3% against a 55–70% band, so eligibility constrains a well-spread stable less than the estimate assumed. It may not matter: in a real season the same stable fills all three only 20.4% of weeks, because fitness binds long before eligibility does. Worth deciding whether the band was ever the right target.
 
 ## 21. The v2 list — what is deliberately out
