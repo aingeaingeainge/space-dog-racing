@@ -1,12 +1,14 @@
 import { balance } from './balance';
 import { TRAIT_IDS } from './traits';
+import { KIBBLE_ID } from './goods';
 import { createDog, type IdGen } from '../economy/market';
 import { dogValue } from '../economy/dogValue';
+import { cargoTotal, emptyHold, spoilCargo } from '../economy/goods';
 import { outstanding } from '../economy/loans';
 import { winProbAgainst } from '../race/odds';
 import { clamp, type Rng } from '../rng';
-import type { Dog, GameState, Id, Planet, Player, StatKey } from '../types';
-import { STAT_KEYS } from '../types';
+import type { Dog, GameState, GoodId, Id, Planet, Player, StatKey } from '../types';
+import { GOOD_IDS, STAT_KEYS } from '../types';
 
 export type EventParams = Record<string, number | string>;
 
@@ -50,7 +52,20 @@ const randomDog = (ctx: { s: GameState; p: Player; rng: Rng }): Dog | undefined 
   const dogs = ownDogs(ctx.s, ctx.p);
   return dogs.length ? ctx.rng.pick(dogs) : undefined;
 };
-const cargoValue = (ctx: EventCtx) => Math.round(ctx.p.cargo * ctx.s.planet.foodBuy);
+// What the hold is worth at this planet's *buy* prices — what a customs officer would tax, which
+// is not the same as the sell-side valuation net worth uses.
+const holdValue = (ctx: { s: GameState; p: Player }): number => {
+  let total = 0;
+  for (const id of GOOD_IDS) total += ctx.p.cargo[id] * ctx.s.planet.goods[id].buy;
+  return Math.round(total);
+};
+const crates = (ctx: { p: Player }): number => cargoTotal(ctx.p.cargo);
+/** Move one good's buy and sell price on this planet until the field leaves. */
+const scaleGood = (ctx: { s: GameState }, id: GoodId, mult: number): void => {
+  const m = ctx.s.planet.goods[id];
+  m.buy = Math.max(1, Math.round(m.buy * mult));
+  m.sell = Math.max(1, Math.round(m.sell * mult));
+};
 const fit = (d: Dog, delta: number) => {
   d.fitness = clamp(Math.round(d.fitness + delta), 0, 100);
 };
@@ -97,12 +112,12 @@ export const EVENTS: readonly EventCard[] = [
     text: 'Customs officers with very shiny boots take an interest in your cargo.',
     weight: 5,
     kind: 'choice',
-    roll: (ctx) => (ctx.p.cargo > 0 ? { cargo: ctx.p.cargo } : null),
+    roll: (ctx) => (crates(ctx) > 0 ? { cargo: crates(ctx) } : null),
     choices: [
       {
         label: 'Pay 10% of cargo value',
         apply: (ctx) => {
-          const fee = Math.round(cargoValue(ctx) * 0.1);
+          const fee = Math.round(holdValue(ctx) * 0.1);
           ctx.p.cash -= fee;
           ctx.p.stats.costs += fee;
           ctx.log(`Paid ${fee} to customs.`);
@@ -111,13 +126,12 @@ export const EVENTS: readonly EventCard[] = [
       {
         label: 'Refuse — lose 30% of cargo',
         apply: (ctx) => {
-          const lost = Math.ceil(ctx.p.cargo * 0.3);
-          ctx.p.cargo -= lost;
+          const lost = spoilCargo(ctx.p.cargo, 0.3);
           ctx.log(`Customs "confiscate" ${lost} crates.`);
         },
       },
     ],
-    aiChoice: (ctx) => (ctx.p.cash > cargoValue(ctx) * 0.1 ? 0 : 1),
+    aiChoice: (ctx) => (ctx.p.cash > holdValue(ctx) * 0.1 ? 0 : 1),
   },
   {
     id: 'sponsorGlorbo',
@@ -290,10 +304,10 @@ export const EVENTS: readonly EventCard[] = [
       {
         label: 'Stock up',
         apply: (ctx) => {
-          ctx.s.planet.foodMod = 0.5;
-          ctx.s.planet.foodBuy = Math.max(1, Math.round(ctx.s.planet.foodBuy * 0.5));
-          ctx.s.planet.foodSell = Math.max(1, Math.round(ctx.s.planet.foodSell * 0.5));
-          ctx.log('Kibble glut: food prices halved on this planet.');
+          // The glut is in kibble, so it moves the kibble shelf and leaves the specialist feeds
+          // alone — a bumper harvest of the staple is not a sale on Prime speed feed.
+          scaleGood(ctx, KIBBLE_ID, 0.5);
+          ctx.log('Kibble glut: kibble prices halved on this planet.');
         },
       },
     ],
@@ -308,10 +322,8 @@ export const EVENTS: readonly EventCard[] = [
       {
         label: 'Typical',
         apply: (ctx) => {
-          ctx.s.planet.foodMod = 2;
-          ctx.s.planet.foodBuy = Math.round(ctx.s.planet.foodBuy * 2);
-          ctx.s.planet.foodSell = Math.round(ctx.s.planet.foodSell * 2);
-          ctx.log('Kibble shortage: food prices doubled on this planet.');
+          scaleGood(ctx, KIBBLE_ID, 2);
+          ctx.log('Kibble shortage: kibble prices doubled on this planet.');
         },
       },
     ],
@@ -344,13 +356,12 @@ export const EVENTS: readonly EventCard[] = [
     kind: 'swing',
     planets: ['drift'],
     planetBoost: 3,
-    roll: (ctx) => (ctx.p.cargo > 0 ? {} : null),
+    roll: (ctx) => (crates(ctx) > 0 ? {} : null),
     choices: [
       {
         label: 'Hand over 50% of cargo',
         apply: (ctx) => {
-          const lost = Math.ceil(ctx.p.cargo * 0.5);
-          ctx.p.cargo -= lost;
+          const lost = spoilCargo(ctx.p.cargo, 0.5);
           ctx.log(`Pirates take ${lost} crates.`);
         },
       },
@@ -360,8 +371,7 @@ export const EVENTS: readonly EventCard[] = [
           if (ctx.rng.chance(0.6)) {
             ctx.log('You fight off the pirates and keep the lot.');
           } else {
-            const lost = ctx.p.cargo;
-            ctx.p.cargo = 0;
+            const lost = emptyHold(ctx.p.cargo);
             ctx.p.ship.speed = Math.max(1, ctx.p.ship.speed - 1);
             ctx.log(`The pirates win: ${lost} crates gone and an engine tier shot out.`);
           }
@@ -509,13 +519,12 @@ export const EVENTS: readonly EventCard[] = [
     text: 'The hold got warm. A quarter of your kibble has gone green.',
     weight: 4,
     kind: 'flavour',
-    roll: (ctx) => (ctx.p.cargo > 0 && !ctx.p.ship.coldStore ? {} : null),
+    roll: (ctx) => (crates(ctx) > 0 && !ctx.p.ship.coldStore ? {} : null),
     choices: [
       {
         label: 'Ugh',
         apply: (ctx) => {
-          const lost = Math.ceil(ctx.p.cargo * 0.25);
-          ctx.p.cargo -= lost;
+          const lost = spoilCargo(ctx.p.cargo, 0.25);
           ctx.log(`${lost} crates spoiled. A cold store would have saved them.`);
         },
       },
@@ -527,12 +536,12 @@ export const EVENTS: readonly EventCard[] = [
     text: 'Five crates of kibble drift past your airlock. Nobody is looking.',
     weight: 4,
     kind: 'flavour',
-    roll: (ctx) => (ctx.p.cargo + 5 <= ctx.p.ship.cargoCap ? {} : null),
+    roll: (ctx) => (crates(ctx) + 5 <= ctx.p.ship.cargoCap ? {} : null),
     choices: [
       {
         label: 'Haul them in',
         apply: (ctx) => {
-          ctx.p.cargo += 5;
+          ctx.p.cargo[KIBBLE_ID] += 5;
           ctx.log('+5 crates of mystery kibble.');
         },
       },

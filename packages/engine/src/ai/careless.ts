@@ -1,6 +1,7 @@
 import { dogValue } from '../economy/dogValue';
 import { eligible, player, thisWeeksCard } from '../state';
 import { RACE_TYPE_IDS, type Action, type Dog, type GameState, type Id } from '../types';
+import { KIBBLE_ID } from '../content/goods';
 import { startPlan, weeklyFoodNeed } from './shared';
 
 /**
@@ -66,16 +67,17 @@ export function decideCareless(s: GameState, playerId: Id): Action[] {
       }
     }
 
-    if (s.toggles.trading && plan.cargo === 0 && s.planet.foodBuy > 0) {
+    const kibble = s.planet.goods[KIBBLE_ID];
+    if (s.toggles.trading && plan.cargo[KIBBLE_ID] === 0 && kibble.buy > 0) {
       const units = Math.min(
         p.ship.cargoCap,
         weeklyFoodNeed(s, p),
-        Math.floor(Math.max(0, plan.cash) / s.planet.foodBuy),
+        Math.floor(Math.max(0, plan.cash) / kibble.buy),
       );
       if (units > 0) {
-        out.push({ t: 'TradeFood', playerId, units });
-        plan.cash -= units * s.planet.foodBuy;
-        plan.cargo += units;
+        out.push({ t: 'TradeFood', playerId, good: KIBBLE_ID, units });
+        plan.cash -= units * kibble.buy;
+        plan.cargo[KIBBLE_ID] += units;
       }
     }
 

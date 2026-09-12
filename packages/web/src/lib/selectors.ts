@@ -1,5 +1,8 @@
 import {
   balance,
+  cargoTotal,
+  kibbleAboard,
+  KIBBLE_ID,
   debt,
   dogsValue,
   dogValue,
@@ -276,14 +279,16 @@ export function weeklyBill(s: GameState, p: Player): WeeklyBill {
   if (p.staff.trainer) wages += balance.trainerWage;
   if (p.staff.vet) wages += balance.vetWage;
   if (p.staff.fixer) wages += 350;
-  const fuel = s.week < balance.weeks ? fuelCost(p.cargo) : 0;
+  const fuel = s.week < balance.weeks ? fuelCost(cargoTotal(p.cargo)) : 0;
   let foodNeeded = 0;
   for (const d of dogs)
     foodNeeded += d.traits.includes('glutton') ? 2 * balance.foodPerDog : balance.foodPerDog;
   if (p.sponsorWeeks > 0) foodNeeded *= 2;
-  const foodFromHold = Math.min(p.cargo, foodNeeded);
+  // Dogs eat the staple and nothing else (GDD §8.2), so a hold full of speed feed still pays
+  // the no-kibble penalty. The bill has to say that or a stable is surprised at the jump.
+  const foodFromHold = Math.min(kibbleAboard(p.cargo), foodNeeded);
   const food = Math.round(
-    (foodNeeded - foodFromHold) * s.planet.foodBuy * balance.foodNoCargoPenalty,
+    (foodNeeded - foodFromHold) * s.planet.goods[KIBBLE_ID].buy * balance.foodNoCargoPenalty,
   );
   const interest = weeklyInterest(p);
   return {

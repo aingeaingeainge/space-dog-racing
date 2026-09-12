@@ -1,5 +1,7 @@
 import {
   balance,
+  cargoTotal,
+  KIBBLE_ID,
   dogValue,
   formatBones,
   loanCap,
@@ -169,18 +171,20 @@ export function venueStatus(
     upgrades.push('cold store');
   const next = s.calendar[s.week];
   const nextBand = next ? planetOf(next.planetId).foodBand : null;
-  const roomToBuy = me.ship.cargoCap - me.cargo > 0 && me.cash >= s.planet.foodBuy;
-  const worthSelling = me.cargo > 0 && nextBand !== null && s.planet.foodSell > nextBand[1];
+  const kibble = s.planet.goods[KIBBLE_ID];
+  const crates = cargoTotal(me.cargo);
+  const roomToBuy = me.ship.cargoCap - crates > 0 && me.cash >= kibble.buy;
+  const worthSelling = crates > 0 && nextBand !== null && kibble.sell > nextBand[1];
   const worthBuying =
-    roomToBuy && nextBand !== null && s.planet.foodBuy < nextBand[0] && s.toggles.trading;
+    roomToBuy && nextBand !== null && kibble.buy < nextBand[0] && s.toggles.trading;
   const docks: VenueStatus = !inTurn
     ? nothing('Shut while the races are on')
     : upgrades.length || worthBuying || worthSelling
       ? {
           line: [
             upgrades.length ? upgrades.join(', ') : null,
-            worthBuying ? `kibble ${s.planet.foodBuy} here, dearer next stop` : null,
-            worthSelling ? `sell at ${s.planet.foodSell}, dearer than next stop` : null,
+            worthBuying ? `kibble ${kibble.buy} here, dearer next stop` : null,
+            worthSelling ? `sell at ${kibble.sell}, dearer than next stop` : null,
           ]
             .filter(Boolean)
             .join(' · '),
@@ -197,9 +201,9 @@ export function venueStatus(
         }
       : nothing(
           s.toggles.trading
-            ? `Kibble ${s.planet.foodBuy}/${s.planet.foodSell} · hold ${me.cargo}/${me.ship.cargoCap}`
+            ? `Kibble ${kibble.buy}/${kibble.sell} · hold ${crates}/${me.ship.cargoCap}`
             : 'No trading this season',
-          s.toggles.trading ? `hold ${me.cargo}/${me.ship.cargoCap}` : 'no trading',
+          s.toggles.trading ? `hold ${crates}/${me.ship.cargoCap}` : 'no trading',
         );
 
   // --- Saloon: someone to hire, someone to lend, or a training focus going spare.

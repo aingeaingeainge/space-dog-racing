@@ -20,6 +20,7 @@
  */
 import {
   balance,
+  cargoTotal,
   dogValue,
   fuelCost,
   ratingWith,
@@ -167,8 +168,9 @@ export interface HoldEconomics {
  * the first, and a player filling up has no way to work that out from `base + n × perUnit`.
  */
 export function holdEconomics(me: Player, units: number, unitPrice: number): HoldEconomics {
-  const fuelNow = fuelCost(me.cargo);
-  const fuelFull = fuelCost(me.cargo + units);
+  const crates = cargoTotal(me.cargo);
+  const fuelNow = fuelCost(crates);
+  const fuelFull = fuelCost(crates + units);
   const fuelExtra = fuelFull - fuelNow;
   const outlay = units * unitPrice;
   return {

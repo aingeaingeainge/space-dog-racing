@@ -1,6 +1,8 @@
 import { balance } from '../content/balance';
 import { dogSalePrice, dogValue } from '../economy/dogValue';
 import { fuelCost } from '../economy/food';
+import { cargoTotal, kibbleAboard } from '../economy/goods';
+import { KIBBLE_ID } from '../content/goods';
 import { outstanding, weeklyInterest } from '../economy/loans';
 import { netWorth } from '../economy/netWorth';
 import { OPEN_TYPE_ID } from '../content/raceTypes';
@@ -70,7 +72,7 @@ export function runEndTurn(ctx: Ctx): void {
     if (p.staff.trainer) costs += balance.trainerWage;
     if (p.staff.vet) costs += balance.vetWage;
     if (p.staff.fixer) costs += 350;
-    if (s.week < balance.weeks) costs += fuelCost(p.cargo);
+    if (s.week < balance.weeks) costs += fuelCost(cargoTotal(p.cargo));
 
     let foodNeeded = 0;
     for (const d of dogs) {
@@ -80,11 +82,14 @@ export function runEndTurn(ctx: Ctx): void {
       if (weekStatusOf(d) === 'train') foodNeeded += balance.foodPerDog;
     }
     if (p.sponsorWeeks > 0) foodNeeded *= 2;
-    const fromHold = Math.min(p.cargo, foodNeeded);
-    p.cargo -= fromHold;
+    // Dogs eat **kibble**, not "cargo" (GDD §8.2). A stable that filled its hold with Prime speed
+    // feed and forgot the staple pays the same penalty as one that sailed empty, and should: the
+    // hold is a set of decisions now, and that is one of them.
+    const fromHold = Math.min(kibbleAboard(p.cargo), foodNeeded);
+    p.cargo[KIBBLE_ID] -= fromHold;
     const shortfall = foodNeeded - fromHold;
     if (shortfall > 0)
-      costs += Math.round(shortfall * s.planet.foodBuy * balance.foodNoCargoPenalty);
+      costs += Math.round(shortfall * s.planet.goods[KIBBLE_ID].buy * balance.foodNoCargoPenalty);
 
     const interest = weeklyInterest(p);
     costs += interest;

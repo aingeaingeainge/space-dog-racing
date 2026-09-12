@@ -4,6 +4,7 @@ import {
   dopingCatchRate,
   formatBones,
   netWorthBreakdown,
+  cargoTotal,
   planetOf,
   upgradePrice,
   weekStatusOf,
@@ -95,7 +96,7 @@ export function Stable({ s, me }: { s: GameState; me: Player }) {
             items={[
               ['Cash', formatBones(me.cash)],
               ['Kennels', `${dogs.length} / ${me.kennelSlots} dogs`],
-              ['Cargo', `${me.cargo} / ${me.ship.cargoCap} crates of kibble`],
+              ['Hold', `${cargoTotal(me.cargo)} / ${me.ship.cargoCap} crates`],
             ]}
           />
           <KV

@@ -4,9 +4,12 @@ import { LOCAL_RATING_BY_TIER, raceType } from '../content/raceTypes';
 import { winProbabilities } from '../race/odds';
 import { baseRating, dogValue } from '../economy/dogValue';
 import { calendarEntry, eligible, FREE_HORIZON, player, purseFor, thisWeeksCard } from '../state';
+import { KIBBLE_ID } from '../content/goods';
+import { cargoTotal } from '../economy/goods';
 import {
   RACE_TYPE_IDS,
   type Action,
+  type Cargo,
   type Dog,
   type GameState,
   type Id,
@@ -278,7 +281,8 @@ export interface Plan {
   playerId: Id;
   out: Action[];
   cash: number;
-  cargo: number;
+  /** The hold as it will stand once the queued TradeFood actions have landed. */
+  cargo: Cargo;
   reserve: number;
   /** What the stable will own once this phase's buys and sells have landed. */
   kennel: Dog[];
@@ -292,7 +296,7 @@ export function startPlan(s: GameState, playerId: Id): Plan {
     playerId,
     out: [],
     cash: p.cash,
-    cargo: p.cargo,
+    cargo: { ...p.cargo },
     reserve: reserveCash(s, p),
     kennel: ownDogs(s, p),
   };
@@ -540,32 +544,33 @@ export function tradeFoodPlan(plan: Plan, opts: FoodOptions = {}): void {
   const need = weeklyFoodNeed(s, p);
   const next = s.calendar[s.week];
   const nextBand = next ? planetOf(next.planetId).foodBand : null;
-  const nextMid = nextBand ? (nextBand[0] + nextBand[1]) / 2 : s.planet.foodBuy;
-  const buyHere = s.planet.foodBuy;
-  const sellHere = s.planet.foodSell;
+  const kibble = s.planet.goods[KIBBLE_ID];
+  const nextMid = nextBand ? (nextBand[0] + nextBand[1]) / 2 : kibble.buy;
+  const buyHere = kibble.buy;
+  const sellHere = kibble.sell;
+  // The staple is the only good this step trades: it is the one the dogs eat and the one whose
+  // price the rumours and the bands are about. The specialist feeds are a *training* decision and
+  // are bought by the step that decides what a dog eats, not by the one that works the spread.
+  const aboard = plan.cargo[KIBBLE_ID];
+  const room = p.ship.cargoCap - cargoTotal(plan.cargo);
   let units = 0;
   if (opts.fillHold) {
     const spend = Math.max(0, plan.cash - plan.reserve);
-    units = Math.min(p.ship.cargoCap - plan.cargo, Math.floor(spend / buyHere));
-  } else if (sellHere - nextMid > balance.aiFoodSpreadMin && plan.cargo > need) {
-    units = -(plan.cargo - need); // sell the surplus here, keep this week's dinner
+    units = Math.min(room, Math.floor(spend / buyHere));
+  } else if (sellHere - nextMid > balance.aiFoodSpreadMin && aboard > need) {
+    units = -(aboard - need); // sell the surplus here, keep this week's dinner
   } else if (nextMid * (1 - balance.foodSpread) - buyHere > balance.aiFoodSpreadMin) {
     const spend = Math.max(0, plan.cash - plan.reserve);
-    const room = p.ship.cargoCap - plan.cargo;
     units = Math.min(room, Math.floor(spend / buyHere));
   }
-  if (units === 0 && plan.cargo < need) {
+  if (units === 0 && aboard < need) {
     // No trade on, but never arrive hungry: buy this week's food if we can.
-    units = Math.min(
-      p.ship.cargoCap - plan.cargo,
-      need - plan.cargo,
-      Math.floor(Math.max(0, plan.cash - 500) / buyHere),
-    );
+    units = Math.min(room, need - aboard, Math.floor(Math.max(0, plan.cash - 500) / buyHere));
   }
   if (units !== 0) {
-    out.push({ t: 'TradeFood', playerId, units });
+    out.push({ t: 'TradeFood', playerId, good: KIBBLE_ID, units });
     plan.cash -= units * (units > 0 ? buyHere : sellHere);
-    plan.cargo += units;
+    plan.cargo[KIBBLE_ID] += units;
   }
 }
 

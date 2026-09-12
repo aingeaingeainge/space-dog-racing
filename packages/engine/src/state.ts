@@ -14,6 +14,8 @@ import {
   raceType,
 } from './content/raceTypes';
 import { createStartingDog, emptyPlanetState, type IdGen } from './economy/market';
+import { emptyCargo } from './economy/goods';
+import { KIBBLE_ID } from './content/goods';
 import { mulberry32, type Rng } from './rng';
 import type {
   CalendarEntry,
@@ -30,6 +32,11 @@ import type {
 import { ActionError, RACE_TYPE_IDS } from './types';
 
 /**
+ * 4 for v2 Phase C: the hold is a record of crates per good rather than a single number, a
+ * planet posts a price and a shelf depth per good rather than one `foodBuy`/`foodSell` pair, and
+ * `TradeFood` names the good it is trading. A Phase B log cannot replay on this engine — its
+ * `TradeFood` actions do not say what they were buying.
+ *
  * 3 for v2 Phase B: a race is a row rather than one of three classes, so `Declare` and
  * `PlaceBet` carry a `RaceTypeId`, `Bet` and `RaceResult` store one, and declarations, fields
  * and races have all changed shape. A Phase A log cannot replay on this engine.
@@ -37,7 +44,7 @@ import { ActionError, RACE_TYPE_IDS } from './types';
  * The web save is seed + log (store/persist.ts), which is why SAVE_VERSION moves with it and an
  * old save fails soft to the title screen rather than replaying into a different game.
  */
-export const STATE_VERSION = 3;
+export const STATE_VERSION = 4;
 export const MAJOR_WEEKS: readonly number[] = [4, 7, 10];
 
 /**
@@ -288,7 +295,7 @@ export function createSeason(setup: SeasonSetup): GameState {
         coldStore: false,
         upgradesPaid: 0,
       },
-      cargo: balance.startCargo,
+      cargo: { ...emptyCargo(), [KIBBLE_ID]: balance.startCargo },
       staff: {},
       loans: [],
       flags: {

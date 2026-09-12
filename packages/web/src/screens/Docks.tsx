@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import {
   balance,
+  cargoTotal,
   formatBones,
   fuelCost,
+  KIBBLE_ID,
   planetOf,
   upgradePrice,
   type GameState,
@@ -33,20 +35,23 @@ export function Docks({ s, me }: { s: GameState; me: Player }) {
   const sp = planet.special;
   const [qty, setQty] = useState(5);
 
-  const room = me.ship.cargoCap - me.cargo;
-  const affordable = s.planet.foodBuy > 0 ? Math.floor(me.cash / s.planet.foodBuy) : 0;
-  const maxBuy = Math.max(0, Math.min(room, affordable));
-  const units = Math.max(0, Math.min(qty, Math.max(maxBuy, me.cargo)));
-  const spread = s.planet.foodBuy - s.planet.foodSell;
+  const kibble = s.planet.goods[KIBBLE_ID];
+  const crates = cargoTotal(me.cargo);
+  const aboard = me.cargo[KIBBLE_ID];
+  const room = me.ship.cargoCap - crates;
+  const affordable = kibble.buy > 0 ? Math.floor(me.cash / kibble.buy) : 0;
+  const maxBuy = Math.max(0, Math.min(room, affordable, kibble.stock));
+  const units = Math.max(0, Math.min(qty, Math.max(maxBuy, aboard)));
+  const spread = kibble.buy - kibble.sell;
   const need = weeklyFood(s, me);
   const next = s.calendar[s.week];
   const nextPlanet = next ? planetOf(next.planetId) : null;
-  const fuelNow = fuelCost(me.cargo);
-  const fuelAfterBuy = fuelCost(me.cargo + units);
-  const fuelAfterSell = fuelCost(Math.max(0, me.cargo - units));
+  const fuelNow = fuelCost(crates);
+  const fuelAfterBuy = fuelCost(crates + units);
+  const fuelAfterSell = fuelCost(Math.max(0, crates - units));
   // What the crates cost and what they have to fetch (GDD §9.1). See lib/priceTag.ts.
-  const econ = holdEconomics(me, units, s.planet.foodBuy);
-  const full = holdEconomics(me, maxBuy, s.planet.foodBuy);
+  const econ = holdEconomics(me, units, kibble.buy);
+  const full = holdEconomics(me, maxBuy, kibble.buy);
 
   const trading = s.toggles.trading;
   const tradeShut = trading ? null : 'No Trading is on this season';
@@ -118,7 +123,7 @@ export function Docks({ s, me }: { s: GameState; me: Player }) {
                 'Ship',
                 `engine ${me.ship.speed}/${balance.shipMaxSpeed}${me.ship.coldStore ? ' · cold store' : ''}`,
               ],
-              ['Hold', <Gauge key="g" value={me.cargo} max={me.ship.cargoCap} unit="crates" />],
+              ['Hold', <Gauge key="g" value={crates} max={me.ship.cargoCap} unit="crates" />],
               [
                 'Fuel next jump',
                 `${formatBones(fuelNow)} (${balance.fuelBase} + ${balance.fuelPerCargoUnitOver}/crate over ${balance.fuelCargoFree})`,
@@ -181,16 +186,16 @@ export function Docks({ s, me }: { s: GameState; me: Player }) {
 
       <Panel
         title="Space Kibble"
-        sub={`buy ${s.planet.foodBuy} · sell ${s.planet.foodSell} · spread ${spread} per crate`}
+        sub={`buy ${kibble.buy} · sell ${kibble.sell} · spread ${spread} per crate`}
       >
         <div className="grid2">
           <KV
             items={[
-              ['Hold', <Gauge key="g" value={me.cargo} max={me.ship.cargoCap} unit="crates" />],
+              ['Hold', <Gauge key="g" value={crates} max={me.ship.cargoCap} unit="crates" />],
               ['Your dogs eat', `${need} crate${need === 1 ? '' : 's'} at the end of this week`],
               [
                 'With an empty hold',
-                `you pay ${s.planet.foodBuy} ×${balance.foodNoCargoPenalty} a crate on arrival`,
+                `you pay ${kibble.buy} ×${balance.foodNoCargoPenalty} a crate on arrival`,
               ],
               [
                 'Next stop',
@@ -206,7 +211,7 @@ export function Docks({ s, me }: { s: GameState; me: Player }) {
               <input
                 type="range"
                 min={1}
-                max={Math.max(1, Math.max(maxBuy, me.cargo))}
+                max={Math.max(1, Math.max(maxBuy, aboard))}
                 value={units || 1}
                 disabled={!trading}
                 onChange={(e) => setQty(Number(e.target.value))}
@@ -222,32 +227,40 @@ export function Docks({ s, me }: { s: GameState; me: Player }) {
                     ? 'Not enough hold space'
                     : units > affordable
                       ? 'Not enough Bones'
-                      : `Costs ${formatBones(units * s.planet.foodBuy)}`)
+                      : `Costs ${formatBones(units * kibble.buy)}`)
                 }
-                onClick={() => dispatch({ t: 'TradeFood', playerId: me.id, units })}
+                onClick={() =>
+                  dispatch({ t: 'TradeFood', playerId: me.id, good: KIBBLE_ID, units })
+                }
               >
-                Buy {units} for {formatBones(units * s.planet.foodBuy)}
+                Buy {units} for {formatBones(units * kibble.buy)}
               </NeonButton>
               <NeonButton
-                disabled={!trading || units <= 0 || units > me.cargo}
-                title={tradeShut ?? `Fetches ${formatBones(units * s.planet.foodSell)}`}
-                onClick={() => dispatch({ t: 'TradeFood', playerId: me.id, units: -units })}
+                disabled={!trading || units <= 0 || units > aboard}
+                title={tradeShut ?? `Fetches ${formatBones(units * kibble.sell)}`}
+                onClick={() =>
+                  dispatch({ t: 'TradeFood', playerId: me.id, good: KIBBLE_ID, units: -units })
+                }
               >
-                Sell {units} for {formatBones(units * s.planet.foodSell)}
+                Sell {units} for {formatBones(units * kibble.sell)}
               </NeonButton>
             </div>
             <div className="row">
               <NeonButton
                 disabled={!trading || maxBuy <= 0}
-                onClick={() => dispatch({ t: 'TradeFood', playerId: me.id, units: maxBuy })}
+                onClick={() =>
+                  dispatch({ t: 'TradeFood', playerId: me.id, good: KIBBLE_ID, units: maxBuy })
+                }
               >
                 Fill the hold ({maxBuy})
               </NeonButton>
               <NeonButton
-                disabled={!trading || me.cargo <= 0}
-                onClick={() => dispatch({ t: 'TradeFood', playerId: me.id, units: -me.cargo })}
+                disabled={!trading || aboard <= 0}
+                onClick={() =>
+                  dispatch({ t: 'TradeFood', playerId: me.id, good: KIBBLE_ID, units: -aboard })
+                }
               >
-                Sell the lot ({me.cargo})
+                Sell the lot ({aboard})
               </NeonButton>
             </div>
             <Notes
@@ -266,11 +279,11 @@ export function Docks({ s, me }: { s: GameState; me: Player }) {
                   : null,
                 fuelAfterBuy !== fuelNow
                   ? `Buying ${units} takes the fuel for the next jump from ${formatBones(fuelNow)} to ${formatBones(fuelAfterBuy)}.`
-                  : `The first ${balance.fuelCargoFree} crates ride free; fuel only climbs above that (you carry ${me.cargo}).`,
+                  : `The first ${balance.fuelCargoFree} crates ride free; fuel only climbs above that (you carry ${crates}).`,
                 maxBuy > 0 && maxBuy !== units
                   ? `Filling the hold (${maxBuy}) would cost ${formatBones(full.outlay)} and take the jump to ${formatBones(full.fuelFull)} — break-even ${full.breakEven} a crate.`
                   : null,
-                me.cargo > 0 && fuelAfterSell !== fuelNow
+                aboard > 0 && fuelAfterSell !== fuelNow
                   ? `Selling ${units} takes it to ${formatBones(fuelAfterSell)}.`
                   : null,
                 nextPlanet

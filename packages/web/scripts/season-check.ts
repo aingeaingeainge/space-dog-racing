@@ -10,6 +10,8 @@
  */
 import {
   balance,
+  cargoTotal,
+  KIBBLE_ID,
   bettingMargin,
   createSeason,
   drive,
@@ -84,7 +86,8 @@ function planetTurn(s: GameState, p: Player, tally: Tally): Action[] {
   const sp = planet.special;
   const pre = s.phase === 'planetPre';
   let cash = p.cash;
-  let cargo = p.cargo;
+  let cargo = cargoTotal(p.cargo);
+  let kibble = p.cargo[KIBBLE_ID];
   const dogs = ownDogs(s, p);
   const kennel = [...dogs]; // what we will own once this turn's buys and sells have landed
   let slots = p.kennelSlots - dogs.length;
@@ -235,23 +238,25 @@ function planetTurn(s: GameState, p: Player, tally: Tally): Action[] {
     const need = kennel.length;
     const next = s.calendar[s.week];
     const nextBand = next ? planetOf(next.planetId).foodBand : null;
-    const nextMid = nextBand ? (nextBand[0] + nextBand[1]) / 2 : s.planet.foodBuy;
+    const m = s.planet.goods[KIBBLE_ID];
+    const nextMid = nextBand ? (nextBand[0] + nextBand[1]) / 2 : m.buy;
     let units = 0;
-    if (s.planet.foodSell > nextMid + 20 && cargo > need) units = -(cargo - need);
-    else if (nextMid - s.planet.foodBuy > 20) {
+    if (m.sell > nextMid + 20 && kibble > need) units = -(kibble - need);
+    else if (nextMid - m.buy > 20) {
       const spend = Math.max(0, cash - 2500);
-      units = Math.min(p.ship.cargoCap - cargo, Math.floor(spend / s.planet.foodBuy));
-    } else if (cargo < need) {
+      units = Math.min(p.ship.cargoCap - cargo, Math.floor(spend / m.buy));
+    } else if (kibble < need) {
       units = Math.min(
         p.ship.cargoCap - cargo,
-        need - cargo,
-        Math.floor(Math.max(0, cash - 500) / s.planet.foodBuy),
+        need - kibble,
+        Math.floor(Math.max(0, cash - 500) / m.buy),
       );
     }
     if (units !== 0) {
-      out.push({ t: 'TradeFood', playerId: p.id, units });
-      cash -= units * (units > 0 ? s.planet.foodBuy : s.planet.foodSell);
+      out.push({ t: 'TradeFood', playerId: p.id, good: KIBBLE_ID, units });
+      cash -= units * (units > 0 ? m.buy : m.sell);
       cargo += units;
+      kibble += units;
       bump(tally, 'TradeFood');
     }
   }

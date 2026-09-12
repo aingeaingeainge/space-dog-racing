@@ -1,6 +1,7 @@
 import { balance } from '../content/balance';
 import { emptyPlanetState, rollMarketDogs, rollStaff } from '../economy/market';
-import { rollFoodPrices } from '../economy/food';
+import { rollGoodPrices } from '../economy/food';
+import { cargoTotal, spoilCargo } from '../economy/goods';
 import { currentPlanet, emptyDeclarations, log, type Ctx } from '../state';
 import { clamp } from '../rng';
 import { drawEvents } from './events';
@@ -14,9 +15,7 @@ export function runArrival(ctx: Ctx): void {
 
   // Planet state for the week.
   const ps = emptyPlanetState(planet.id);
-  const food = rollFoodPrices(planet, rng);
-  ps.foodBuy = food.buy;
-  ps.foodSell = food.sell;
+  ps.goods = rollGoodPrices(planet, rng);
   for (const d of rollMarketDogs(planet, s.week, rng, ctx.nextId)) {
     s.dogs[d.id] = d;
     ps.marketDogIds.push(d.id);
@@ -34,9 +33,12 @@ export function runArrival(ctx: Ctx): void {
   // Turn order: shipSpeed × 10 − cargo ÷ 5 + d10, highest first (reversed at Blackreach).
   const scored = s.players.map((p) => {
     const die = rng.int(1, balance.arrivalDie);
-    let score = p.ship.speed * balance.arrivalSpeedMult - p.cargo / balance.arrivalCargoDiv + die;
+    // The whole hold slows the ship, whatever is in it: a crate of Prime speed feed weighs the
+    // same as a crate of kibble.
+    const crates = cargoTotal(p.cargo);
+    let score = p.ship.speed * balance.arrivalSpeedMult - crates / balance.arrivalCargoDiv + die;
     let reason =
-      p.cargo > balance.fuelCargoFree
+      crates > balance.fuelCargoFree
         ? 'heavy cargo'
         : p.ship.speed >= 4
           ? 'fast ship'
@@ -72,10 +74,13 @@ export function runArrival(ctx: Ctx): void {
         if (d) d.fitness = clamp(d.fitness + delta, 0, 100);
       }
     }
-    if (planet.special.foodSpoils && p.cargo > 0 && !p.ship.coldStore) {
-      const lost = Math.ceil(p.cargo * planet.special.foodSpoils);
-      p.cargo -= lost;
-      log(s, `${lost} crates froze solid on approach to ${planet.name}.`, p.id);
+    // Glassfall's freeze takes a fraction of the *whole* hold, off the biggest stacks first —
+    // see spoilCargo for why that reading rather than a fraction of each good (which would cost a
+    // diversified trader a crate of everything) or of the total rounded down per good (which a
+    // hold of thin stacks would dodge entirely).
+    if (planet.special.foodSpoils && !p.ship.coldStore) {
+      const lost = spoilCargo(p.cargo, planet.special.foodSpoils);
+      if (lost > 0) log(s, `${lost} crates froze solid on approach to ${planet.name}.`, p.id);
     }
     // Hushmarket: the real owner turns up for a fell-off-a-ship dog.
     for (const id of [...p.dogIds]) {

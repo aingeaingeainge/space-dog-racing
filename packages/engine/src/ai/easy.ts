@@ -2,6 +2,7 @@ import { balance } from '../content/balance';
 import { dogValue } from '../economy/dogValue';
 import { eligible, player, thisWeeksCard } from '../state';
 import { RACE_TYPE_IDS, type Action, type GameState, type Id } from '../types';
+import { KIBBLE_ID } from '../content/goods';
 import { hash01, setStates, startPlan, weeklyFoodNeed } from './shared';
 
 /**
@@ -54,16 +55,17 @@ export function decideEasy(s: GameState, playerId: Id): Action[] {
     // no-cargo penalty on the way out.
     if (s.toggles.trading) {
       const need = weeklyFoodNeed(s, p);
-      if (plan.cargo === 0 && s.planet.foodBuy > 0) {
+      const kibble = s.planet.goods[KIBBLE_ID];
+      if (plan.cargo[KIBBLE_ID] === 0 && kibble.buy > 0) {
         const units = Math.min(
           p.ship.cargoCap,
           need,
-          Math.floor(Math.max(0, plan.cash) / s.planet.foodBuy),
+          Math.floor(Math.max(0, plan.cash) / kibble.buy),
         );
         if (units > 0) {
-          out.push({ t: 'TradeFood', playerId, units });
-          plan.cash -= units * s.planet.foodBuy;
-          plan.cargo += units;
+          out.push({ t: 'TradeFood', playerId, good: KIBBLE_ID, units });
+          plan.cash -= units * kibble.buy;
+          plan.cargo[KIBBLE_ID] += units;
         }
       }
     }

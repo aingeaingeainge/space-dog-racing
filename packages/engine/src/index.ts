@@ -19,6 +19,17 @@ export {
   type LocalSpec,
   type RaceType,
 } from './content/raceTypes';
+export {
+  GOODS,
+  GOOD_BY_ID,
+  good,
+  KIBBLE_ID,
+  STOCK_UNLIMITED,
+  TIER_GLYPH,
+  TIER_LABEL,
+  TIER_ORDER,
+  type Good,
+} from './content/goods';
 export { TRAITS, TRAIT_BY_ID } from './content/traits';
 export { EVENTS, EVENT_BY_ID } from './content/events';
 export * from './content/names';

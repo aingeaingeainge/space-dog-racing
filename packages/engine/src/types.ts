@@ -49,6 +49,34 @@ export type StatKey = 'speed' | 'accel' | 'stamina' | 'trap';
 export const STAT_KEYS: readonly StatKey[] = ['speed', 'accel', 'stamina', 'trap'] as const;
 
 /**
+ * The one three-tier ladder, shared by goods, staff and the ship's engine (GDD §8.1, D11).
+ *
+ * One vocabulary learned once, and the reason the ship's five engine tiers fold to three: two
+ * competing ladders would have been worse than none.
+ */
+export type GoodTier = 'rough' | 'proper' | 'prime';
+
+/**
+ * A thing a hold can carry (GDD §8.2, D4). One id per row in `content/goods.ts`.
+ *
+ * Kibble is the staple and sits below the ladder: dogs eat it, an empty *kibble* shelf costs the
+ * arrival penalty, and it is the base trade commodity — so v1's eating and trading machinery
+ * survives untouched and everything else layers on top.
+ */
+export type GoodId = 'kibble';
+
+export const GOOD_IDS: readonly GoodId[] = ['kibble'] as const;
+
+/**
+ * What is in a stable's hold: crates per good.
+ *
+ * A dense record — every good is a key, most of them zero — rather than the sparse alternative.
+ * `GameState` is the save file and the golden digest hashes `JSON.stringify(state)`, so a sparse
+ * record would make the hash depend on the order a stable bought things in. See `economy/goods.ts`.
+ */
+export type Cargo = Record<GoodId, number>;
+
+/**
  * What a dog does with its week (GDD §5.7). Exactly one of the three, set in the Kennels, and
  * the centre of the v2 game: Race −25 fitness, Train +8 and a feed's stat points, Rest +30.
  *
@@ -234,7 +262,8 @@ export interface Player {
   dogIds: Id[];
   kennelSlots: number;
   ship: Ship;
-  cargo: number; // food units aboard
+  /** Crates aboard, per good (GDD §8.2). `cargoTotal()` for what fuel is charged against. */
+  cargo: Cargo;
   staff: Partial<Record<StaffRole, StaffOffer>>;
   loans: Loan[];
   flags: {
@@ -270,11 +299,32 @@ export interface StaffOffer {
   quirk?: string;
 }
 
+/**
+ * What one good costs on this planet this week, and how much of it there is (GDD §9.1, §8.1).
+ *
+ * Price and stock are separate questions. Every planet posts a buy and a sell price for every
+ * good — you can always sell into a market — but what is *on the shelf* is rolled per planet and
+ * per week, which is what makes a Prime feed something you come across rather than something you
+ * shop for. `stock` is crates available to buy here and is decremented as they are bought, so the
+ * shelf is shared with the whole table and turn order is first look.
+ */
+export interface GoodMarket {
+  buy: number; // what you pay per crate
+  sell: number; // what you get per crate
+  stock: number; // crates on the shelf this week
+}
+
 export interface PlanetState {
   planetId: Id;
-  foodBuy: number; // what you pay per unit
-  foodSell: number; // what you get per unit
-  foodMod: number; // event-driven multiplier (glut/shortage) until you leave
+  /**
+   * This week's market, per good. Replaces v1's single `foodBuy`/`foodSell` pair.
+   *
+   * `foodMod` is gone with them: it was set by the glut and shortage event cards and **never read
+   * anywhere**, because both cards also move the prices directly. A field that nothing consumes
+   * is a trap for the next person to add a good, so it went with the refactor rather than being
+   * carried forward into thirteen copies of itself.
+   */
+  goods: Record<GoodId, GoodMarket>;
   marketDogIds: Id[];
   staff: StaffOffer[];
   muzzlesInStock: boolean;
@@ -454,7 +504,8 @@ export type Action =
       kind: 'win' | 'place';
       stake: number;
     }
-  | { t: 'TradeFood'; playerId: Id; units: number } // +buy / −sell
+  /** +buy / −sell, of one good. The `good` is what makes the hold a set of decisions. */
+  | { t: 'TradeFood'; playerId: Id; good: GoodId; units: number }
   | { t: 'HireStaff'; playerId: Id; role: StaffRole; staffId: StaffId }
   | { t: 'FireStaff'; playerId: Id; role: StaffRole }
   | { t: 'SetDogState'; playerId: Id; dogId: Id; state: WeekState; stat?: StatKey }

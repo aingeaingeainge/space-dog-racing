@@ -4,6 +4,8 @@ import { LOCAL_RATING_BY_TIER, raceType } from '../content/raceTypes';
 import { TRAIT_IDS } from '../content/traits';
 import type {
   Dog,
+  GoodId,
+  GoodMarket,
   Id,
   Planet,
   PlanetState,
@@ -13,6 +15,7 @@ import type {
   UpgradeId,
   Player,
 } from '../types';
+import { GOOD_IDS } from '../types';
 import { clamp, type Rng } from '../rng';
 import { baseRating, dogValue } from './dogValue';
 
@@ -262,9 +265,12 @@ export function upgradePrice(upgrade: UpgradeId, planet: Planet, player: Player)
 export function emptyPlanetState(planetId: Id): PlanetState {
   return {
     planetId,
-    foodBuy: 0,
-    foodSell: 0,
-    foodMod: 1,
+    // Prices are rolled on arrival; before that every shelf is empty and free, which no phase
+    // ever reads because arrival runs before anything can trade.
+    goods: Object.fromEntries(GOOD_IDS.map((id) => [id, { buy: 0, sell: 0, stock: 0 }])) as Record<
+      GoodId,
+      GoodMarket
+    >,
     marketDogIds: [],
     staff: [],
     muzzlesInStock: false,

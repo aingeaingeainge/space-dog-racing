@@ -1,6 +1,8 @@
 import { balance } from '../content/balance';
 import { planetOf } from '../content/planets';
 import { raceType } from '../content/raceTypes';
+import { good, STOCK_UNLIMITED } from '../content/goods';
+import { cargoTotal } from '../economy/goods';
 import { dogSalePrice, weakestStat } from '../economy/dogValue';
 import { loanCap, outstanding } from '../economy/loans';
 import { upgradePrice } from '../economy/market';
@@ -161,25 +163,39 @@ export function placeBet(ctx: Ctx, action: Extract<Action, { t: 'PlaceBet' }>): 
   p.stats.betIncome -= stake;
 }
 
+/**
+ * Buy or sell one good (GDD §9.1). Positive units buy, negative sell.
+ *
+ * Three refusals rather than v1's two: the hold has to have room for the crates *in total*, the
+ * shelf has to have that many on it, and you cannot sell what you are not carrying. The shelf is
+ * the new one and it is what makes turn order worth something — stock is shared with the whole
+ * table, so first look is first buy (GDD §8.5).
+ */
 export function tradeFood(ctx: Ctx, action: Extract<Action, { t: 'TradeFood' }>): void {
   const { s } = ctx;
   planetPhase(s, action, 'planetPre', 'planetPost');
   const p = activeOrFail(s, action.playerId, action);
   if (!s.toggles.trading) fail('Trading is switched off this season', action);
+  const g = good(action.good);
+  const market = s.planet.goods[action.good];
   const units = Math.trunc(action.units);
   if (units === 0) return;
   if (units > 0) {
-    if (p.cargo + units > p.ship.cargoCap) fail('Not enough hold space', action);
-    const cost = units * s.planet.foodBuy;
+    if (cargoTotal(p.cargo) + units > p.ship.cargoCap) fail('Not enough hold space', action);
+    if (units > market.stock)
+      fail(`Only ${market.stock} crates of ${g.label} on the shelf`, action);
+    const cost = units * market.buy;
     pay(p, cost, action);
-    p.cargo += units;
+    p.cargo[action.good] += units;
+    // An unlimited shelf is never drawn down — a rule about the number, not about which good.
+    if (market.stock < STOCK_UNLIMITED) market.stock -= units;
     p.stats.tradeIncome -= cost;
   } else {
     const sell = -units;
-    if (sell > p.cargo) fail('Not that much kibble aboard', action);
-    const proceeds = sell * s.planet.foodSell;
+    if (sell > p.cargo[action.good]) fail(`Not that much ${g.label} aboard`, action);
+    const proceeds = sell * market.sell;
     p.cash += proceeds;
-    p.cargo -= sell;
+    p.cargo[action.good] -= sell;
     p.stats.tradeIncome += proceeds;
   }
 }

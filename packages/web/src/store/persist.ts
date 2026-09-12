@@ -35,7 +35,7 @@ export interface SaveBlob {
  * player on the title screen with a new season rather than half a season that no longer means
  * what it meant.
  */
-export const SAVE_VERSION = 3;
+export const SAVE_VERSION = 4;
 const KEY = 'sdr.save.v1';
 
 export function writeSave(blob: SaveBlob): void {

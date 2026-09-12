@@ -7,6 +7,7 @@ import {
   isSeasonOver,
   needsAdvance,
   netWorthBreakdown,
+  cargoTotal,
   player,
   raceType,
   reduceMut,
@@ -14,6 +15,8 @@ import {
   debt,
   thisWeeksCard,
   weekStatusOf,
+  KIBBLE_ID,
+  GOOD_IDS,
   OPEN_TYPE_ID,
   RACE_TYPE_IDS,
   STAT_KEYS,
@@ -47,8 +50,16 @@ function checkInvariants(s: GameState, lastAction: Action): void {
         `negative cash without a loan at a week boundary after ${lastAction.t}`,
       );
     }
-    assert(p.cargo >= 0, 'p.cargo >= 0');
-    assert(p.cargo <= p.ship.cargoCap, 'p.cargo <= p.ship.cargoCap');
+    // The hold, per good and in total (GDD §8.2). v1 asserted the same two things about a single
+    // number; the quantity changed shape, so the expression does. Strictly stronger than before:
+    // every shelf is non-negative *and* the total still fits the ship, where one number could
+    // only say the second thing.
+    for (const id of GOOD_IDS) {
+      assert(p.cargo[id] >= 0, `p.cargo[${id}] >= 0`);
+      assert(Number.isInteger(p.cargo[id]), `p.cargo[${id}] is an integer`);
+    }
+    assert(cargoTotal(p.cargo) >= 0, 'cargoTotal(p.cargo) >= 0');
+    assert(cargoTotal(p.cargo) <= p.ship.cargoCap, 'cargoTotal(p.cargo) <= p.ship.cargoCap');
     assert(p.dogIds.length <= p.kennelSlots, 'p.dogIds.length <= p.kennelSlots');
     for (const id of p.dogIds) {
       const d = s.dogs[id];
@@ -80,14 +91,14 @@ function checkInvariants(s: GameState, lastAction: Action): void {
     // Net worth equals the sum of its parts.
     const w = netWorthBreakdown(s, p);
     const dogs = p.dogIds.reduce((sum, id) => sum + dogValue(s.dogs[id]!), 0);
+    // The cargo term is re-derived here **independently of `cargoValue`**, crate by crate at each
+    // good's own local sell price. That is the point of the invariant: asserting it against the
+    // engine's own helper would only say cargoValue equals cargoValue, and this is the assertion
+    // BUILD_PLAN warned Phase C most threatens.
+    const hold = GOOD_IDS.reduce((sum, id) => sum + p.cargo[id] * s.planet.goods[id].sell, 0);
     assert(
-      w.total ===
-        Math.round(p.cash) +
-          dogs +
-          shipValue(p) +
-          Math.round(p.cargo * s.planet.foodSell) -
-          debt(p),
-      'w.total === Math.round(p.cash) + dogs + shipValue(p) + Math.round(p.cargo * s.planet.foodSell) - debt(p)',
+      w.total === Math.round(p.cash) + dogs + shipValue(p) + Math.round(hold) - debt(p),
+      'w.total === Math.round(p.cash) + dogs + shipValue(p) + the hold at local sell prices - debt(p)',
     );
   }
   // GDD §6.3: a weekend's card is exactly three races, run in a fixed order with the headline
@@ -194,7 +205,9 @@ describe('engine invariants', () => {
     reduceMut(s, { t: 'AdvancePhase' });
     while (s.pendingEvent) reduceMut(s, { t: 'ResolveEvent', playerId: 'p1', choice: 0 });
     const p = player(s, 'p1');
-    expect(() => reduceMut(s, { t: 'TradeFood', playerId: 'p1', units: 1000 })).toThrow();
+    expect(() =>
+      reduceMut(s, { t: 'TradeFood', playerId: 'p1', good: KIBBLE_ID, units: 1000 }),
+    ).toThrow();
     let bought = 0;
     for (;;) {
       try {
