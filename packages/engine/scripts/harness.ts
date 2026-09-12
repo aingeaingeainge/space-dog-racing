@@ -532,12 +532,12 @@ export function runStatLeverage(n = 3000, seed = 20260911): string {
  * curve gets reported rather than a pass or a fail — so it is an instrument, not a script that
  * was run once. Phase C changes both inputs (real feeds, a trainer ladder) and will want it again.
  *
- * A pup at age 1 with all stats ≈ 37, trained for N of the 13 weeks, against the Gold locals.
+ * A pup at age 1 with all stats ≈ 37, trained for N of the 13 weeks, against the Open locals.
  * Averaged over many pups because the points land on random stats and one pup is noise.
  */
 export function runPupCurve(pups = 200, racesPerCell = 900, seed = 4242): string {
   const track: Track = { distance: 480, length: 'standard', bends: 'medium', hazard: 1 };
-  const field = balance.localRatingGold;
+  const field = balance.localRatingOpen;
   // Weekly around the target band, because the acceptance row is a *week* and 4/8/10/13 cannot
   // tell 8 from 9.
   const checkpoints = [4, 6, 8, 9, 10, 11, 13];

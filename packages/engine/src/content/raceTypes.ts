@@ -11,9 +11,12 @@ import type { Dog, RacePurseTier, RaceTypeId } from '../types';
  * **Content is data: a new race type is a row here and an id in `RaceTypeId`.** If adding one
  * ever needs a branch somewhere else, the shape is wrong and that is the thing to fix.
  *
- * This is the shape landing with the three classes still in it, exactly as BUILD_PLAN §11 asks:
- * `eligible` is the rating cap the class already had, so the season plays identically and the
- * golden snapshot moves only because declarations, fields and races changed shape.
+ * **Why facts rather than ratings.** A rating can be suppressed — that is the standing objection
+ * to D1's "feed moves stats, results move rating" — but an age and a win cannot. Five of the
+ * seven gate on something a player has no way to hide, which is what makes "keep a stable that
+ * covers several eligibilities" the force that kills one-dog concentration. The two that post a
+ * number, Handicap and Invitational, are the exceptions, and they are the v1 system surviving as
+ * two rows among eight rather than as the whole design.
  */
 
 /**
@@ -30,6 +33,8 @@ export interface LocalSpec {
   /** Rating is drawn around the tier's level and then squeezed into this window. */
   ratingMin?: number;
   ratingMax?: number;
+  /** Ran last week and finished out of the money — the Consolation's own fact. */
+  outOfMoney?: boolean;
 }
 
 export interface RaceType {
@@ -38,6 +43,10 @@ export interface RaceType {
   /** What the card header posts, in the words a player reads (GDD §6.5). */
   criterion: string;
   tier: RacePurseTier;
+  /** In the weekly draw pool? The Open is not: it runs every weekend, last, for the big money. */
+  drawn: boolean;
+  /** Earliest week this type can be drawn. The Consolation needs a last week to have happened. */
+  minWeek: number;
   /** Which dogs the race will have. Fitness, injury and bans are checked separately. */
   eligible: (d: Dog) => boolean;
   local: LocalSpec;
@@ -45,28 +54,92 @@ export interface RaceType {
 
 export const RACE_TYPES: readonly RaceType[] = [
   {
-    id: 'bronze',
-    label: 'Bronze',
-    criterion: `rating ${balance.capBronze} or less`,
-    tier: 'bronze',
-    eligible: (d) => d.rating <= balance.capBronze,
-    local: { ratingMax: balance.capBronze },
-  },
-  {
-    id: 'silver',
-    label: 'Silver',
-    criterion: `rating ${balance.capSilver} or less`,
-    tier: 'silver',
-    eligible: (d) => d.rating <= balance.capSilver,
-    local: { ratingMax: balance.capSilver },
-  },
-  {
-    id: 'gold',
-    label: 'Gold',
+    id: 'open',
+    label: 'The Open',
     criterion: 'any dog may enter',
-    tier: 'gold',
+    tier: 'open',
+    drawn: false,
+    minWeek: 1,
     eligible: () => true,
     local: {},
+  },
+  {
+    id: 'maiden',
+    label: 'Maiden',
+    criterion: 'never won a race',
+    tier: 'drawn',
+    drawn: true,
+    minWeek: 1,
+    // Winning it destroys your own eligibility, which is the point: it puts a real cost on a win.
+    eligible: (d) => d.wins === 0,
+    local: {},
+  },
+  {
+    id: 'juvenile',
+    label: 'Juvenile',
+    criterion: 'age 2 or under',
+    tier: 'drawn',
+    drawn: true,
+    minWeek: 1,
+    // What a bought pup is *for*, and the one race a stable full of finished dogs cannot enter.
+    eligible: (d) => d.age <= 2,
+    local: { ageMin: 1, ageMax: 2 },
+  },
+  {
+    id: 'veterans',
+    label: 'Veterans',
+    criterion: 'age 5 or over',
+    tier: 'drawn',
+    drawn: true,
+    minWeek: 1,
+    // A late-career job for an old dog, and the first reason in the game to keep one.
+    eligible: (d) => d.age >= balance.declineMinAge,
+    local: { ageMin: balance.declineMinAge, ageMax: 7 },
+  },
+  {
+    id: 'novice',
+    label: 'Novice',
+    criterion: 'fewer than 6 career runs',
+    tier: 'drawn',
+    drawn: true,
+    minWeek: 1,
+    // Early-season, and distinct from the Maiden: a dog can win first time out and still be one.
+    eligible: (d) => d.runs < 6,
+    local: {},
+  },
+  {
+    id: 'handicap',
+    label: 'Handicap',
+    criterion: `rating ${balance.capHandicap} or less`,
+    tier: 'drawn',
+    drawn: true,
+    minWeek: 1,
+    eligible: (d) => d.rating <= balance.capHandicap,
+    local: { ratingMax: balance.capHandicap },
+  },
+  {
+    id: 'invitational',
+    label: 'Invitational',
+    criterion: `rating ${balance.floorInvitational} or more`,
+    tier: 'drawn',
+    drawn: true,
+    minWeek: 1,
+    // The good-dogs race. No cap, so there is nowhere for a very good dog to hide.
+    eligible: (d) => d.rating >= balance.floorInvitational,
+    local: { ratingMin: balance.floorInvitational },
+  },
+  {
+    id: 'consolation',
+    label: 'Consolation',
+    criterion: 'ran last week and finished out of the money',
+    tier: 'drawn',
+    drawn: true,
+    // Nobody ran in week 0, so there is nobody to console until week 2.
+    minWeek: 2,
+    // The one deliberate catch-up mechanic. `outOfMoneyLastWeek` is a stored fact like `wins`
+    // rather than a lookup into last week's results, so a local can carry it too.
+    eligible: (d) => d.outOfMoneyLastWeek,
+    local: { outOfMoney: true },
   },
 ];
 
@@ -86,13 +159,15 @@ export function raceType(id: RaceTypeId): RaceType {
  * One constant rather than a flag on the row, because there is exactly one and the card's
  * ordering depends on knowing which.
  */
-export const OPEN_TYPE_ID: RaceTypeId = 'gold';
+export const OPEN_TYPE_ID: RaceTypeId = 'open';
+
+/** How many types are drawn from the pool each weekend, alongside The Open (GDD §6.3). */
+export const DRAWN_PER_WEEKEND = 2;
 
 /** GDD §6.4. First, second and third by tier, before the Major and planet multipliers. */
 export const PURSE_BY_TIER: Record<RacePurseTier, [number, number, number]> = {
-  bronze: [balance.purseBronze1, balance.purseBronze2, balance.purseBronze3],
-  silver: [balance.purseSilver1, balance.purseSilver2, balance.purseSilver3],
-  gold: [balance.purseGold1, balance.purseGold2, balance.purseGold3],
+  open: [balance.purseOpen1, balance.purseOpen2, balance.purseOpen3],
+  drawn: [balance.purseDrawn1, balance.purseDrawn2, balance.purseDrawn3],
 };
 
 /**
@@ -100,10 +175,13 @@ export const PURSE_BY_TIER: Record<RacePurseTier, [number, number, number]> = {
  *
  * They are the benchmark a stable is measured against, so they are priced by what the race pays
  * rather than by anything about the race's entry criterion: a rich race draws a strong home
- * team. See D17 for the two times this has had to be re-fitted, and why.
+ * team, and a Juvenile and a Veterans paying the same money draw the same standard of local.
+ *
+ * A row's `LocalSpec` can still override the *rating window* — the Handicap's locals are capped
+ * and the Invitational's are pushed up to its floor — which is how a race whose criterion is a
+ * number still gets a field that satisfies it. See D17 for the two earlier re-fits of these.
  */
 export const LOCAL_RATING_BY_TIER: Record<RacePurseTier, number> = {
-  bronze: balance.localRatingBronze,
-  silver: balance.localRatingSilver,
-  gold: balance.localRatingGold,
+  open: balance.localRatingOpen,
+  drawn: balance.localRatingDrawn,
 };

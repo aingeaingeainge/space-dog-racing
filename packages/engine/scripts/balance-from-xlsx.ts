@@ -22,17 +22,18 @@ const LABELS: Record<string, string> = {
   'Traps (runners) per race': 'traps',
   'Major purse multiplier (weeks 4, 7, 10)': 'majorMult',
   'Grand Final purse multiplier (week 13)': 'finalMult',
-  'Bronze 1st': 'purseBronze1',
-  'Bronze 2nd': 'purseBronze2',
-  'Bronze 3rd': 'purseBronze3',
-  'Silver 1st': 'purseSilver1',
-  'Silver 2nd': 'purseSilver2',
-  'Silver 3rd': 'purseSilver3',
-  'Gold 1st': 'purseGold1',
-  'Gold 2nd': 'purseGold2',
-  'Gold 3rd': 'purseGold3',
-  'Bronze: max rating': 'capBronze',
-  'Silver: max rating': 'capSilver',
+  // GDD §6.4: two purse tiers, not three classes. The Open pays the headline money every
+  // weekend; both drawn types pay the same, because what they ask of a dog differs and what
+  // they pay does not.
+  'The Open 1st': 'purseOpen1',
+  'The Open 2nd': 'purseOpen2',
+  'The Open 3rd': 'purseOpen3',
+  'Drawn race 1st': 'purseDrawn1',
+  'Drawn race 2nd': 'purseDrawn2',
+  'Drawn race 3rd': 'purseDrawn3',
+  // The two race types that post a number rather than a fact (GDD §6.3).
+  'Handicap: max rating': 'capHandicap',
+  'Invitational: min rating': 'floorInvitational',
   'Kennel upkeep per dog': 'upkeepPerDog',
   'Food units eaten per dog per week': 'foodPerDog',
   'Ship fuel per jump (base)': 'fuelBase',
@@ -85,6 +86,9 @@ const LABELS: Record<string, string> = {
   'Decline: stat points a week at age 5+': 'declinePerWeek',
   'Kennel slots at the top ship tier': 'kennelSlotsMax',
   'Local dog fitness': 'localFitness',
+  // Locals are priced by the purse tier of the race they fill, not by a class (D17).
+  'Local dog rating: The Open': 'localRatingOpen',
+  'Local dog rating: a drawn race': 'localRatingDrawn',
 };
 
 const wb = XLSX.read(readFileSync(xlsxPath));

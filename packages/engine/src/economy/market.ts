@@ -58,6 +58,7 @@ export function createDog(spec: DogSpec, rng: Rng, nextId: IdGen): Dog {
     wins: 0,
     runs: 0,
     openWins: 0,
+    outOfMoneyLastWeek: false,
     supplemented: false,
     raceBonus: 0,
     // GDD §5.7: every dog starts the week pointed at a race. That is the state a player who
@@ -126,7 +127,13 @@ export function createLocalDog(
   const type = raceType(race);
   const spec = type.local;
   const mid = LOCAL_RATING_BY_TIER[type.tier] + (major ? balance.localRatingMajorBonus : 0);
-  const target = Math.round(rng.gauss(mid, balance.localRatingSd));
+  // The tier says how good the home team is; the row's window says what the race will admit.
+  // The draw is squeezed into the window rather than rejected, so an Invitational's locals are
+  // pushed up to its floor and a Handicap's squashed under its cap — which is how a race that
+  // posts a number still fields eight dogs that satisfy it.
+  const lo = spec.ratingMin ?? 15;
+  const hi = spec.ratingMax ?? 99;
+  const target = clamp(Math.round(rng.gauss(mid, balance.localRatingSd)), lo, hi);
   const dog = createDog(
     {
       quality: target,
@@ -142,11 +149,8 @@ export function createLocalDog(
   // handicap the moment §5.7 put them in the 60–80 band the design asks for. Locals now run at
   // the top of that band: still the fresher home team, no longer a rating class better.
   dog.fitness = balance.localFitness;
-  return fitRating(
-    dog,
-    Math.max(spec.ratingMin ?? 15, target - 3),
-    Math.min(spec.ratingMax ?? 99, target + 3),
-  );
+  if (spec.outOfMoney) dog.outOfMoneyLastWeek = true;
+  return fitRating(dog, Math.max(lo, target - 3), Math.min(hi, target + 3));
 }
 
 export function askingPrice(dog: Dog, planet: Planet, rng: Rng): number {

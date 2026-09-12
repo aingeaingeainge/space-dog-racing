@@ -13,19 +13,37 @@ export type Id = string;
  * facts a local dog needs to be allowed in it) hangs off `content/raceTypes.ts`, one object per
  * row. Adding a type is adding a row there and an id here; nothing branches on which race it is.
  *
- * This step keeps Bronze, Silver and Gold as the three rows so the season plays exactly as it
- * did, and moves only the *shape*: BUILD_PLAN §11 is explicit that landing the shape change and
- * the new content in one commit is how this session overruns.
+ * Bronze, Silver and Gold are gone. Every weekend runs **The Open** plus **two types drawn from
+ * a pool of seven**, and what a stable can enter depends on what it has raised rather than on a
+ * number it could suppress.
  */
-export type RaceTypeId = 'bronze' | 'silver' | 'gold';
-export const RACE_TYPE_IDS: readonly RaceTypeId[] = ['bronze', 'silver', 'gold'] as const;
+export type RaceTypeId =
+  | 'open'
+  | 'maiden'
+  | 'juvenile'
+  | 'veterans'
+  | 'novice'
+  | 'handicap'
+  | 'invitational'
+  | 'consolation';
+
+export const RACE_TYPE_IDS: readonly RaceTypeId[] = [
+  'open',
+  'maiden',
+  'juvenile',
+  'veterans',
+  'novice',
+  'handicap',
+  'invitational',
+  'consolation',
+] as const;
 
 /**
  * What a race pays, before the Major and planet multipliers. A tier rather than a purse per row
  * because GDD §6.4 prices the card by kind — the headline race and everything else — and a row
  * that carried its own three numbers would make the ladder invisible.
  */
-export type RacePurseTier = 'bronze' | 'silver' | 'gold';
+export type RacePurseTier = 'open' | 'drawn';
 
 export type StatKey = 'speed' | 'accel' | 'stamina' | 'trap';
 export const STAT_KEYS: readonly StatKey[] = ['speed', 'accel', 'stamina', 'trap'] as const;
@@ -170,6 +188,13 @@ export interface Dog {
   runs: number;
   /** Wins in the headline race of the weekend — the season's first tie-break (GDD §4.3). */
   openWins: number;
+  /**
+   * Ran last weekend and finished out of the money — the Consolation's entry criterion
+   * (GDD §6.3). A stored fact rather than a lookup into `results`, so that a local dog generated
+   * for the race can carry it and satisfy the same predicate every declared dog is held to.
+   * Set for every owned dog at end of turn, so it clears itself for a dog that did not run.
+   */
+  outOfMoneyLastWeek: boolean;
   supplemented: boolean; // supplement fed this weekend (cleared after the race)
   raceBonus: number; // temporary speed-stat bonus for this weekend's race (supplement, lucky bone)
   weekState: WeekState; // GDD §5.7 — what this dog is doing with the week
@@ -257,8 +282,9 @@ export interface CalendarEntry {
   major: boolean;
   grandFinal: boolean;
   /**
-   * This weekend's three races, in the order they are run, headline race last (GDD §6.3). Fixed
-   * to the three classes while the shape lands; drawn per weekend once the pool exists.
+   * This weekend's three races, in the order they are run, headline race last (GDD §6.3): two
+   * types drawn without replacement from the pool, then The Open. Drawn when the calendar is
+   * built, so the fog can hide it and a dossier can sell it.
    */
   card: RaceTypeId[];
 }

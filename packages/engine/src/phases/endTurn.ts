@@ -9,6 +9,7 @@ import {
   emptyDeclarations,
   log,
   player,
+  placeThisWeek,
   ranThisWeek,
   weeklyFitnessDelta,
   weekStatusOf,
@@ -142,6 +143,11 @@ export function runEndTurn(ctx: Ctx): void {
         trainOneWeek(ctx, p, d);
         trainedThisWeek.push(d);
       }
+      // GDD §6.3: the Consolation's entry criterion, stored on the dog rather than looked up,
+      // so a local generated for the race can carry the same fact. Written for every dog every
+      // week, so a dog that did not run clears itself.
+      const place = placeThisWeek(s, d.id);
+      d.outOfMoneyLastWeek = place !== null && place > 3;
       d.fitness = clamp(
         d.fitness + weeklyFitnessDelta(d, !!p.staff.vet, ranThisWeek(s, d.id)),
         0,

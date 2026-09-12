@@ -6,7 +6,13 @@ import {
   REGULAR_PLANET_IDS,
 } from './content/planets';
 import { AI_PERSONALITIES, AI_STABLE_NAMES } from './content/names';
-import { PURSE_BY_TIER, raceType } from './content/raceTypes';
+import {
+  DRAWN_PER_WEEKEND,
+  OPEN_TYPE_ID,
+  PURSE_BY_TIER,
+  RACE_TYPES,
+  raceType,
+} from './content/raceTypes';
 import { createStartingDog, emptyPlanetState, type IdGen } from './economy/market';
 import { mulberry32, type Rng } from './rng';
 import type {
@@ -128,9 +134,17 @@ export function weekStatusOf(d: Dog): WeekStatus {
 
 /** Did this dog actually get a run this weekend? Set to race is not the same as having raced. */
 export function ranThisWeek(s: GameState, dogId: Id): boolean {
-  if (!s.races) return false;
-  for (const r of s.races) if (r.order.includes(dogId)) return true;
-  return false;
+  return placeThisWeek(s, dogId) !== null;
+}
+
+/** Where it finished this weekend, 1-based, or null if it did not run. */
+export function placeThisWeek(s: GameState, dogId: Id): number | null {
+  if (!s.races) return null;
+  for (const r of s.races) {
+    const i = r.order.indexOf(dogId);
+    if (i >= 0) return i + 1;
+  }
+  return null;
 }
 
 /**
@@ -170,11 +184,17 @@ export function dopingCatchRate(s: GameState): number {
 }
 
 /**
- * This weekend's card. Fixed to the three classes while the shape lands, so the season plays
- * exactly as it did; the draw from the pool arrives with the seven types (GDD §6.3).
+ * This weekend's card (GDD §6.3): two types drawn without replacement from the pool, then The
+ * Open, which runs every weekend, last, for the headline money.
+ *
+ * Drawn here, with the calendar, rather than on arrival — the whole season's cards exist from
+ * week 1 so that the fog (§9.3) has something to hide and a dossier something to sell. A type
+ * whose `minWeek` has not arrived is simply not in the pool that week, which is how the
+ * Consolation stays out of week 1 without a branch.
  */
-function drawCard(): RaceTypeId[] {
-  return [...RACE_TYPE_IDS];
+function drawCard(rng: Rng, week: number): RaceTypeId[] {
+  const pool = RACE_TYPES.filter((t) => t.drawn && week >= t.minWeek).map((t) => t.id);
+  return [...rng.shuffle(pool).slice(0, DRAWN_PER_WEEKEND), OPEN_TYPE_ID];
 }
 
 function buildCalendar(rng: Rng): CalendarEntry[] {
@@ -184,7 +204,7 @@ function buildCalendar(rng: Rng): CalendarEntry[] {
   let m = 0;
   let r = 0;
   for (let week = 1; week <= balance.weeks; week++) {
-    const card = drawCard();
+    const card = drawCard(rng, week);
     if (week === balance.weeks) {
       cal.push({ week, planetId: GRAND_FINAL_PLANET_ID, major: true, grandFinal: true, card });
     } else if (MAJOR_WEEKS.includes(week)) {

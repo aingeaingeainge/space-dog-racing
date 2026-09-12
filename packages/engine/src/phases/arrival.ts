@@ -1,7 +1,7 @@
 import { balance } from '../content/balance';
 import { emptyPlanetState, rollMarketDogs, rollStaff } from '../economy/market';
 import { rollFoodPrices } from '../economy/food';
-import { currentPlanet, log, type Ctx } from '../state';
+import { currentPlanet, emptyDeclarations, log, type Ctx } from '../state';
 import { clamp } from '../rng';
 import { drawEvents } from './events';
 
@@ -25,7 +25,7 @@ export function runArrival(ctx: Ctx): void {
   ps.muzzlesInStock = !!planet.special.muzzles || rng.chance(0.3);
   ps.trackDayPasses = rng.chance(0.5);
   s.planet = ps;
-  s.declarations = { bronze: {}, silver: {}, gold: {} };
+  s.declarations = emptyDeclarations();
   s.locked = false;
   s.fields = null;
   s.races = null;
