@@ -1,6 +1,6 @@
 import { dogValue } from '../economy/dogValue';
-import { eligible, player } from '../state';
-import { RACE_CLASSES, type Action, type Dog, type GameState, type Id } from '../types';
+import { eligible, player, thisWeeksCard } from '../state';
+import { RACE_TYPE_IDS, type Action, type Dog, type GameState, type Id } from '../types';
 import { startPlan, weeklyFoodNeed } from './shared';
 
 /**
@@ -53,7 +53,7 @@ export function decideCareless(s: GameState, playerId: Id): Action[] {
         if (plan.kennel.length >= p.kennelSlots) {
           if (plan.kennel.length <= 1) break;
           const cheapest = [...plan.kennel].sort((a, b) => dogValue(a) - dogValue(b))[0]!;
-          if (RACE_CLASSES.some((c) => s.declarations[c][playerId] === cheapest.id)) break;
+          if (RACE_TYPE_IDS.some((r) => s.declarations[r][playerId] === cheapest.id)) break;
           out.push({ t: 'SellDog', playerId, dogId: cheapest.id });
           plan.cash += Math.round(dogValue(cheapest) * 0.8);
           plan.kennel = plan.kennel.filter((x) => x.id !== cheapest.id);
@@ -83,14 +83,14 @@ export function decideCareless(s: GameState, playerId: Id): Action[] {
     // the dog's fitness and whatever the purse is worth against the injury risk.
     if (s.phase === 'planetPre') {
       const used = new Set<Id>();
-      for (const cls of RACE_CLASSES) {
+      for (const race of thisWeeksCard(s)) {
         const pick = [...plan.kennel]
-          .filter((d) => !used.has(d.id) && eligible(d, cls))
+          .filter((d) => !used.has(d.id) && eligible(d, race))
           .sort((a, b) => b.rating - a.rating)[0];
         const chosen = pick?.id ?? null;
         if (pick) used.add(pick.id);
-        if ((s.declarations[cls][playerId] ?? null) !== chosen)
-          out.push({ t: 'Declare', playerId, cls, dogId: chosen });
+        if ((s.declarations[race][playerId] ?? null) !== chosen)
+          out.push({ t: 'Declare', playerId, race, dogId: chosen });
       }
     }
   }

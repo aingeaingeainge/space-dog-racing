@@ -1,35 +1,22 @@
 import { balance } from '../content/balance';
 import { planetOf } from '../content/planets';
+import { LOCAL_RATING_BY_TIER, raceType } from '../content/raceTypes';
 import { winProbabilities } from '../race/odds';
 import { baseRating, dogValue } from '../economy/dogValue';
-import { calendarEntry, eligible, player, purseFor } from '../state';
-import {
-  RACE_CLASSES,
-  type Action,
-  type Dog,
-  type GameState,
-  type Id,
-  type Planet,
-  type Player,
-  type RaceClass,
-  type StatKey,
-} from '../types';
+import { calendarEntry, eligible, player, purseFor, thisWeeksCard } from '../state';
+import type { Action, Dog, GameState, Id, Planet, Player, RaceTypeId, StatKey } from '../types';
 
 export function ownDogs(s: GameState, p: Player): Dog[] {
   return p.dogIds.map((id) => s.dogs[id]).filter((d): d is Dog => !!d);
 }
 
-/** Ratings the AI expects to face in a class: declared rivals so far, locals for the rest. */
-export function expectedField(s: GameState, cls: RaceClass, excludePlayer: Id): number[] {
+/** Ratings the AI expects to face in a race: declared rivals so far, locals for the rest. */
+export function expectedField(s: GameState, race: RaceTypeId, excludePlayer: Id): number[] {
   const major = calendarEntry(s).major;
   const mid =
-    (cls === 'bronze'
-      ? balance.localRatingBronze
-      : cls === 'silver'
-        ? balance.localRatingSilver
-        : balance.localRatingGold) + (major ? balance.localRatingMajorBonus : 0);
+    LOCAL_RATING_BY_TIER[raceType(race).tier] + (major ? balance.localRatingMajorBonus : 0);
   const ratings: number[] = [];
-  for (const [pid, dogId] of Object.entries(s.declarations[cls])) {
+  for (const [pid, dogId] of Object.entries(s.declarations[race])) {
     if (pid === excludePlayer) continue;
     const d = s.dogs[dogId];
     if (d) ratings.push(d.rating);
@@ -49,17 +36,17 @@ export function effectiveRating(d: Dog): number {
   return Math.max(d.rating, baseRating(d));
 }
 
-/** Expected prize money for running `dog` in `cls` (P(win)×1st + P(2nd)×2nd + P(3rd)×3rd, roughly). */
+/** Expected prize money for running `dog` in a race (P(win)×1st + P(2nd)×2nd + P(3rd)×3rd, roughly). */
 export function expectedPurse(
   s: GameState,
   dog: Dog,
-  cls: RaceClass,
+  race: RaceTypeId,
   playerId: Id,
   rating: number = dog.rating,
 ): number {
-  const others = expectedField(s, cls, playerId);
+  const others = expectedField(s, race, playerId);
   const p = winProbabilities([rating, ...others])[0]!;
-  const purse = purseFor(s, cls);
+  const purse = purseFor(s, race);
   // Places: a cheap approximation of Harville that keeps the AI fast.
   const p2 = Math.min(1 - p, p * 1.2);
   const p3 = Math.min(1 - p - p2, p * 1.1);
@@ -67,7 +54,8 @@ export function expectedPurse(
 }
 
 export interface Assignment {
-  plan: Partial<Record<RaceClass, Id>>;
+  /** race type → the dog we run in it. Only races on this weekend's card ever appear. */
+  plan: Partial<Record<RaceTypeId, Id>>;
   value: number;
 }
 
@@ -96,13 +84,21 @@ export interface AssignmentOptions {
   ratingOf?: (d: Dog) => number;
 }
 
-/** Best one-dog-per-class assignment by expected purse (GDD §14 Normal). */
+/**
+ * Best one-dog-per-race assignment by expected purse (GDD §14 Normal).
+ *
+ * The search enumerates one dog per race **on this weekend's card**, which is what makes it a
+ * different question from v1's: the three races are drawn rather than fixed, and which of a
+ * stable's dogs are even allowed into them changes week to week (GDD §6.3). A stable that cannot
+ * fill the card leaves traps to the locals, and that is the force D2 is counting on.
+ */
 export function bestAssignment(
   s: GameState,
   p: Player,
   candidates: Dog[] = ownDogs(s, p),
   opts: AssignmentOptions = {},
 ): Assignment {
+  const card = thisWeeksCard(s);
   const scale = opts.minPurseScale ?? 1;
   const available = candidates.filter(
     (d) => d.injuryWeeks === 0 && d.banWeeks === 0 && !opts.hold?.has(d.id),
@@ -111,40 +107,40 @@ export function bestAssignment(
   let best: Assignment = { plan: {}, value: 0 };
   const ev = new Map<string, number>();
   for (const d of available) {
-    for (const cls of RACE_CLASSES) {
-      if (eligible(d, cls))
+    for (const race of card) {
+      if (eligible(d, race))
         ev.set(
-          `${d.id}|${cls}`,
-          expectedPurse(s, d, cls, p.id, opts.ratingOf ? opts.ratingOf(d) : d.rating),
+          `${d.id}|${race}`,
+          expectedPurse(s, d, race, p.id, opts.ratingOf ? opts.ratingOf(d) : d.rating),
         );
     }
   }
-  // Enumerate: each class gets at most one distinct dog (or nobody). ≤5 dogs → tiny search.
+  // Enumerate: each race gets at most one distinct dog (or nobody). ≤5 dogs → tiny search.
   const recurse = (
     ci: number,
     used: Set<Id>,
-    plan: Partial<Record<RaceClass, Id>>,
+    plan: Partial<Record<RaceTypeId, Id>>,
     value: number,
   ) => {
-    if (ci === RACE_CLASSES.length) {
+    if (ci === card.length) {
       if (value > best.value) best = { plan: { ...plan }, value };
       return;
     }
-    const cls = RACE_CLASSES[ci]!;
+    const race = card[ci]!;
     recurse(ci + 1, used, plan, value); // leave the trap to the locals
     for (const d of dogs) {
       if (used.has(d.id)) continue;
-      const v = ev.get(`${d.id}|${cls}`);
+      const v = ev.get(`${d.id}|${race}`);
       // Not worth the fitness and injury risk: leave the trap to the locals.
       if (v === undefined || v < (balance.aiMinExpectedPurse + 0.012 * dogValue(d)) * scale)
         continue;
       // A tired dog costs future races: discount below the fitness scaling threshold.
       const fatigue = d.fitness < balance.fitnessScaleBelow ? 0.8 : 1;
       used.add(d.id);
-      plan[cls] = d.id;
+      plan[race] = d.id;
       recurse(ci + 1, used, plan, value + v * fatigue);
       used.delete(d.id);
-      delete plan[cls];
+      delete plan[race];
     }
   };
   recurse(0, new Set(), {}, 0);
@@ -157,19 +153,19 @@ export function bestAssignment(
   const spare = available.filter((d) => opts.reserve?.has(d.id) && d.fitness >= floor);
   if (spare.length) {
     const taken = new Set<Id>(Object.values(best.plan));
-    for (const cls of RACE_CLASSES) {
-      if (best.plan[cls]) continue;
+    for (const race of card) {
+      if (best.plan[race]) continue;
       let pick: { d: Dog; v: number } | null = null;
       for (const d of spare) {
         if (taken.has(d.id)) continue;
-        const v = ev.get(`${d.id}|${cls}`);
+        const v = ev.get(`${d.id}|${race}`);
         if (v === undefined || v < (balance.aiMinExpectedPurse + 0.012 * dogValue(d)) * scale)
           continue;
         const fatigue = d.fitness < balance.fitnessScaleBelow ? 0.8 : 1;
         if (!pick || v * fatigue > pick.v) pick = { d, v: v * fatigue };
       }
       if (pick) {
-        best.plan[cls] = pick.d.id;
+        best.plan[race] = pick.d.id;
         best.value += pick.v;
         taken.add(pick.d.id);
       }
@@ -360,11 +356,11 @@ function trainingBeatsRacing(plan: Plan, d: Dog, gain: number, weeksLeft: number
   const { s, p } = plan;
   let now = 0;
   let better = 0;
-  for (const cls of RACE_CLASSES) {
-    if (!eligible(d, cls)) continue;
+  for (const race of thisWeeksCard(s)) {
+    if (!eligible(d, race)) continue;
     const rating = effectiveRating(d);
-    now = Math.max(now, expectedPurse(s, d, cls, p.id, rating));
-    better = Math.max(better, expectedPurse(s, d, cls, p.id, rating + gain));
+    now = Math.max(now, expectedPurse(s, d, race, p.id, rating));
+    better = Math.max(better, expectedPurse(s, d, race, p.id, rating + gain));
   }
   if (now <= 0) return false;
   // It will not run every remaining week — two in three is what the fitness cycle allows.
@@ -523,20 +519,17 @@ export function tradeFoodPlan(plan: Plan, opts: FoodOptions = {}): void {
 /** The dogs an assignment actually runs — what `setStates` treats as spoken for. */
 export function racingDogs(assignment: Assignment): Set<Id> {
   const out = new Set<Id>();
-  for (const cls of RACE_CLASSES) {
-    const id = assignment.plan[cls];
-    if (id) out.add(id);
-  }
+  for (const id of Object.values(assignment.plan)) if (id) out.add(id);
   return out;
 }
 
 /** Turn a chosen assignment into Declare actions, skipping the ones already standing. */
 export function emitDeclarations(plan: Plan, assignment: Assignment): void {
   const { s, playerId, out } = plan;
-  for (const cls of RACE_CLASSES) {
-    const dogId = assignment.plan[cls] ?? null;
-    if ((s.declarations[cls][playerId] ?? null) !== dogId)
-      out.push({ t: 'Declare', playerId, cls, dogId });
+  for (const race of thisWeeksCard(s)) {
+    const dogId = assignment.plan[race] ?? null;
+    if ((s.declarations[race][playerId] ?? null) !== dogId)
+      out.push({ t: 'Declare', playerId, race, dogId });
   }
 }
 
@@ -560,12 +553,12 @@ export function betFavourites(plan: Plan, opts: BetOptions = {}): void {
   const minProb = opts.minProb ?? balance.aiBetMinProb;
   const fraction = opts.fraction ?? balance.aiBetFraction;
   const cap = opts.cap ?? 500;
-  for (const cls of RACE_CLASSES) {
-    const fav = [...s.fields[cls]].sort((a, b) => b.winProb - a.winProb)[0];
+  for (const { race, entries } of s.fields) {
+    const fav = [...entries].sort((a, b) => b.winProb - a.winProb)[0];
     if (!fav || fav.winProb < minProb) continue;
     const stake = Math.floor(Math.min(plan.cash * fraction, cap));
     if (stake < 50) continue;
-    out.push({ t: 'PlaceBet', playerId, cls, dogId: fav.dogId, kind: 'win', stake });
+    out.push({ t: 'PlaceBet', playerId, race, dogId: fav.dogId, kind: 'win', stake });
     plan.cash -= stake;
   }
 }

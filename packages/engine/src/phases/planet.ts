@@ -1,4 +1,5 @@
 import { balance } from '../content/balance';
+import { raceType } from '../content/raceTypes';
 import { dogSalePrice } from '../economy/dogValue';
 import { loanCap, outstanding } from '../economy/loans';
 import { upgradePrice } from '../economy/market';
@@ -11,6 +12,7 @@ import {
   log,
   maxStakeFraction,
   player,
+  thisWeeksCard,
   type Ctx,
 } from '../state';
 import {
@@ -19,7 +21,7 @@ import {
   type GameState,
   type Id,
   type Player,
-  RACE_CLASSES,
+  RACE_TYPE_IDS,
 } from '../types';
 import { clamp } from '../rng';
 import { bettingOpen } from './turn';
@@ -80,10 +82,11 @@ export function sellDog(ctx: Ctx, action: Extract<Action, { t: 'SellDog' }>): vo
   log(s, `Sold ${d.name} for ${price}.`, p.id);
 }
 
+/** Every dog this stable has standing in a race this weekend. */
 export function declaredDogs(s: GameState, playerId: Id): Id[] {
   const out: Id[] = [];
-  for (const cls of RACE_CLASSES) {
-    const id = s.declarations[cls][playerId];
+  for (const race of RACE_TYPE_IDS) {
+    const id = s.declarations[race][playerId];
     if (id) out.push(id);
   }
   return out;
@@ -93,26 +96,33 @@ export function declare(ctx: Ctx, action: Extract<Action, { t: 'Declare' }>): vo
   const { s } = ctx;
   planetPhase(s, action, 'planetPre');
   const p = activeOrFail(s, action.playerId, action);
+  const type = raceType(action.race);
+  // A race that is not on this weekend's card is not a race you can enter (GDD §6.3). The
+  // declaration book has a key for every type, so nothing else would stop an entry landing in
+  // one that is not being run and then quietly vanishing at endTurn.
+  if (!thisWeeksCard(s).includes(action.race))
+    fail(`There is no ${type.label} on this weekend's card`, action);
   if (action.dogId === null) {
-    delete s.declarations[action.cls][p.id];
+    delete s.declarations[action.race][p.id];
     return;
   }
   const d = dog(s, action.dogId);
   if (d.ownerId !== p.id) fail('Not your dog', action);
-  if (!eligible(d, action.cls)) {
+  if (!eligible(d, action.race)) {
     fail(
       d.injuryWeeks > 0
         ? `${d.name} is injured`
         : d.banWeeks > 0
           ? `${d.name} is banned`
-          : `${d.name} (rating ${d.rating}) is too good for ${action.cls}`,
+          : `${d.name} does not qualify for the ${type.label}: ${type.criterion}`,
       action,
     );
   }
-  for (const cls of RACE_CLASSES) {
-    if (cls !== action.cls && s.declarations[cls][p.id] === d.id) delete s.declarations[cls][p.id];
+  for (const race of RACE_TYPE_IDS) {
+    if (race !== action.race && s.declarations[race][p.id] === d.id)
+      delete s.declarations[race][p.id];
   }
-  s.declarations[action.cls][p.id] = d.id;
+  s.declarations[action.race][p.id] = d.id;
   // Declaring implies racing (GDD §5.7). See setDogState for why the implication runs this way.
   d.weekState = 'race';
 }
@@ -122,12 +132,13 @@ export function placeBet(ctx: Ctx, action: Extract<Action, { t: 'PlaceBet' }>): 
   planetPhase(s, action, 'betting');
   const p = activeOrFail(s, action.playerId, action);
   if (!s.locked || !s.fields || !bettingOpen(s)) fail('The bookie is closed', action);
-  const entry = s.fields[action.cls].find((e) => e.dogId === action.dogId);
+  const field = s.fields.find((f) => f.race === action.race);
+  const entry = field?.entries.find((e) => e.dogId === action.dogId);
   if (!entry) fail('That dog is not in that race', action);
   const stake = Math.floor(action.stake);
   if (stake <= 0) fail('Stake must be positive', action);
   const alreadyStaked = s.bets
-    .filter((b) => b.playerId === p.id && b.week === s.week && b.cls === action.cls)
+    .filter((b) => b.playerId === p.id && b.week === s.week && b.race === action.race)
     .reduce((sum, b) => sum + b.stake, 0);
   const cap = Math.floor(p.cash * maxStakeFraction(s));
   if (alreadyStaked + stake > cap) fail(`Max stake on this race is ${cap}`, action);
@@ -140,7 +151,7 @@ export function placeBet(ctx: Ctx, action: Extract<Action, { t: 'PlaceBet' }>): 
   s.bets.push({
     playerId: p.id,
     week: s.week,
-    cls: action.cls,
+    race: action.race,
     dogId: action.dogId,
     kind: action.kind,
     stake,

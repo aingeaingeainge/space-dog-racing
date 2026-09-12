@@ -20,7 +20,6 @@ import {
   planetOf,
   reduceMut,
   waitingOn,
-  RACE_CLASSES,
   type Action,
   type RaceResult,
 } from '@sdr/engine';
@@ -31,7 +30,7 @@ import { trackBlurb, trackFor } from '../src/race-view/tracks';
 const SAMPLES = 240;
 
 function checkRace(result: RaceResult): void {
-  const where = `week ${result.week} ${result.cls} at ${result.planetId}`;
+  const where = `week ${result.week} ${result.race} at ${result.planetId}`;
   const track = trackFor(result.planetId);
   if (Math.abs(track.distance - planetOf(result.planetId).track.distance) > 1e-9)
     throw new Error(`${where}: the track is not the length of the race`);
@@ -71,7 +70,7 @@ function checkRace(result: RaceResult): void {
     result,
     tickSeconds,
     distance: track.distance,
-    classLabel: result.cls,
+    classLabel: result.race,
     planetName: planetOf(result.planetId).name,
     trackBlurb: trackBlurb(result.planetId),
     endTime: duration,
@@ -108,9 +107,8 @@ function playSeason(seed: number): { races: number; lines: number; photos: numbe
 
   for (let step = 0; step < 20000 && !isSeasonOver(state); step++) {
     if (state.races) {
-      for (const cls of RACE_CLASSES) {
-        const r = state.races[cls];
-        if (!r?.ticks.length) continue;
+      for (const r of state.races) {
+        if (!r.ticks.length) continue;
         checkRace(r);
         races++;
         if (r.photoFinish) photos++;
@@ -119,7 +117,7 @@ function playSeason(seed: number): { races: number; lines: number; photos: numbe
           result: r,
           tickSeconds: balance.raceTickSeconds,
           distance: track.distance,
-          classLabel: cls,
+          classLabel: r.race,
           planetName: planetOf(r.planetId).name,
           trackBlurb: trackBlurb(r.planetId),
           endTime: (r.ticks.length - 1) * balance.raceTickSeconds,

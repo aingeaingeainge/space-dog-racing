@@ -16,7 +16,7 @@ import { DogThumb } from '../components/DogCard';
 import { Panel } from '../components/Panel';
 import { Badge, Notes, StatCells, StatHeads, Traits } from '../components/ui';
 import { NeonButton } from '../components/NeonButton';
-import { CLASS_LABEL, declaredClass, ownedDogs } from '../lib/selectors';
+import { declaredRace, ownedDogs, raceLabel } from '../lib/selectors';
 import { useGame } from '../store/gameStore';
 
 const pct = (n: number) => `${Math.round(n * 100)}%`;
@@ -43,7 +43,7 @@ export function Market({ s, me }: { s: GameState; me: Player }) {
 
   const sellReason = (d: Dog): string | null => {
     if (mine.length <= 1) return 'A stable must keep at least one dog';
-    if (pre && declaredClass(s, me.id, d.id)) return 'Withdraw it from its race first';
+    if (pre && declaredRace(s, me.id, d.id)) return 'Withdraw it from its race first';
     return null;
   };
 
@@ -157,7 +157,7 @@ export function Market({ s, me }: { s: GameState; me: Player }) {
             </thead>
             <tbody>
               {mine.map((d) => {
-                const cls = declaredClass(s, me.id, d.id);
+                const race = declaredRace(s, me.id, d.id);
                 const price = dogSalePrice(d, sp.buyerBonus ?? 0, sp.dogValueMod ?? 1);
                 const why = sellReason(d);
                 return (
@@ -165,7 +165,7 @@ export function Market({ s, me }: { s: GameState; me: Player }) {
                     <td>
                       <DogThumb dog={d} />
                       <b>{d.name}</b>
-                      {cls ? <Badge tone="good">{CLASS_LABEL[cls]}</Badge> : null}
+                      {race ? <Badge tone="good">{raceLabel(race)}</Badge> : null}
                       {d.injuryWeeks ? <Badge tone="bad">injured {d.injuryWeeks}w</Badge> : null}
                     </td>
                     <td className="num">{d.age}</td>
@@ -214,11 +214,7 @@ export function Market({ s, me }: { s: GameState; me: Player }) {
           upgrade="muzzle"
           name="Racing muzzle"
           blurb={`+${balance.itemMuzzleBonus} Trap, permanently`}
-          shut={
-            s.planet.muzzlesInStock
-              ? null
-              : `No muzzles in stock on ${planet.name} this week`
-          }
+          shut={s.planet.muzzlesInStock ? null : `No muzzles in stock on ${planet.name} this week`}
         />
         <ItemRow
           s={s}

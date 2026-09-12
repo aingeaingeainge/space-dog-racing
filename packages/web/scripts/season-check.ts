@@ -22,13 +22,15 @@ import {
   planetOf,
   replay,
   upgradePrice,
-  RACE_CLASSES,
+  raceType,
+  thisWeeksCard,
+  RACE_TYPE_IDS,
   type Action,
   type Dog,
   type GameState,
   type Id,
   type Player,
-  type RaceClass,
+  type RaceTypeId,
   type SeasonSetup,
   type WeekState,
 } from '@sdr/engine';
@@ -51,22 +53,25 @@ function ownDogs(s: GameState, p: Player): Dog[] {
   return p.dogIds.map((id) => s.dogs[id]).filter((d): d is Dog => !!d);
 }
 
-function eligibleFor(d: Dog, cls: RaceClass): boolean {
-  const cap = cls === 'bronze' ? balance.capBronze : cls === 'silver' ? balance.capSilver : 99;
-  return d.injuryWeeks === 0 && d.banWeeks === 0 && d.rating <= cap;
+function eligibleFor(d: Dog, race: RaceTypeId): boolean {
+  return d.injuryWeeks === 0 && d.banWeeks === 0 && raceType(race).eligible(d);
 }
 
-/** Best dog to each race, best race first — what a person does at the Race Office. */
-function declarations(kennel: Dog[], p: Player): Action[] {
+/**
+ * Best dog to each race, richest race first — what a person does at the Race Office. The card is
+ * ordered with the headline race last (GDD §6.3), so walking it backwards is walking down the
+ * money, and a stable that cannot fill all three leaves the traps to the locals.
+ */
+function declarations(s: GameState, kennel: Dog[], p: Player): Action[] {
   const out: Action[] = [];
   const taken = new Set<Id>();
-  for (const cls of ['gold', 'silver', 'bronze'] as RaceClass[]) {
+  for (const race of [...thisWeeksCard(s)].reverse()) {
     const pick = kennel
-      .filter((d) => !taken.has(d.id) && eligibleFor(d, cls) && d.fitness > 40)
+      .filter((d) => !taken.has(d.id) && eligibleFor(d, race) && d.fitness > 40)
       .sort((a, b) => b.rating - a.rating)[0];
     if (pick) {
       taken.add(pick.id);
-      out.push({ t: 'Declare', playerId: p.id, cls, dogId: pick.id });
+      out.push({ t: 'Declare', playerId: p.id, race, dogId: pick.id });
     }
   }
   return out;
@@ -140,7 +145,7 @@ function planetTurn(s: GameState, p: Player, tally: Tally): Action[] {
   }
 
   // --- Market: sell the worst, buy the best that beats it ---
-  const declared = RACE_CLASSES.map((c) => s.declarations[c][p.id]).filter(Boolean);
+  const declared = RACE_TYPE_IDS.map((r) => s.declarations[r][p.id]).filter(Boolean);
   const worst = [...dogs].sort((a, b) => a.rating - b.rating)[0];
   if (
     worst &&
@@ -240,8 +245,9 @@ function planetTurn(s: GameState, p: Player, tally: Tally): Action[] {
   }
 
   if (pre) {
-    out.push(...declarations(kennel, p));
-    bump(tally, 'Declare', RACE_CLASSES.length);
+    const declares = declarations(s, kennel, p);
+    out.push(...declares);
+    bump(tally, 'Declare', declares.length);
   }
   out.push({ t: 'EndPhase', playerId: p.id });
   return out;
@@ -253,19 +259,19 @@ function bettingTurn(s: GameState, p: Player, tally: Tally): Action[] {
   if (!s.fields) return [{ t: 'EndPhase', playerId: p.id }];
   const frac = maxStakeFraction(s);
   let cash = p.cash;
-  for (const cls of RACE_CLASSES) {
+  for (const { race, entries } of s.fields) {
     const already = s.bets
-      .filter((b) => b.playerId === p.id && b.week === s.week && b.cls === cls)
+      .filter((b) => b.playerId === p.id && b.week === s.week && b.race === race)
       .reduce((sum, b) => sum + b.stake, 0);
     const cap = Math.floor(cash * frac);
     const room = Math.max(0, Math.min(cap - already, Math.floor(cash)));
     if (room < 50) continue;
-    const runners = [...s.fields[cls]].sort((a, b) => b.winProb - a.winProb);
+    const runners = [...entries].sort((a, b) => b.winProb - a.winProb);
     const fav = runners[0];
     const outsider = runners[Math.min(3, runners.length - 1)];
     const stake = Math.min(100, room);
     if (fav) {
-      out.push({ t: 'PlaceBet', playerId: p.id, cls, dogId: fav.dogId, kind: 'win', stake });
+      out.push({ t: 'PlaceBet', playerId: p.id, race, dogId: fav.dogId, kind: 'win', stake });
       cash -= stake;
       bump(tally, 'PlaceBet');
     }
@@ -278,7 +284,7 @@ function bettingTurn(s: GameState, p: Player, tally: Tally): Action[] {
       out.push({
         t: 'PlaceBet',
         playerId: p.id,
-        cls,
+        race,
         dogId: outsider.dogId,
         kind: 'place',
         stake: stake2,

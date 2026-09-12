@@ -3,8 +3,7 @@ import {
   formatBones,
   planetOf,
   purseFor,
-  ratingCap,
-  RACE_CLASSES,
+  thisWeeksCard,
   type GameState,
   type Player,
 } from '@sdr/engine';
@@ -21,7 +20,9 @@ import { hotspotsFor, HOTSPOT_VENUES, VENUE_ICON } from '../lib/hotspots';
 import { venues } from '../lib/venues';
 import { venueStatus } from '../lib/venueStatus';
 import {
-  CLASS_LABEL,
+  criterionFor,
+  raceLabel,
+  raceTone,
   PHASE_LABEL,
   PHASE_ORDER,
   declaredCount,
@@ -73,7 +74,11 @@ export function PlanetHub({ s, me }: { s: GameState; me: Player }) {
         name={
           <>
             {planet.name}
-            {entry.grandFinal ? <span className="star"> ★★</span> : entry.major ? <span className="star"> ★</span> : null}
+            {entry.grandFinal ? (
+              <span className="star"> ★★</span>
+            ) : entry.major ? (
+              <span className="star"> ★</span>
+            ) : null}
           </>
         }
         vibe={entry.major && planet.event ? planet.event : planet.vibe}
@@ -104,7 +109,9 @@ export function PlanetHub({ s, me }: { s: GameState; me: Player }) {
           lines={[
             `${trackText(planet.track)} · kibble ${s.planet.foodBuy} in, ${s.planet.foodSell} out · ${planet.marketBias.toLowerCase()}`,
             purseMult !== 1 ? `Purses are ×${purseMult} this weekend.` : null,
-            sp.winningsTax ? `${pct(sp.winningsTax)} of every purse goes to the port authority.` : null,
+            sp.winningsTax
+              ? `${pct(sp.winningsTax)} of every purse goes to the port authority.`
+              : null,
             sp.noUpkeep ? 'The monks feed and house your dogs: no upkeep this week.' : null,
             sp.fitnessOnArrival
               ? `Your dogs arrived ${sp.fitnessOnArrival > 0 ? 'refreshed' : 'flat'}: fitness ${sp.fitnessOnArrival > 0 ? '+' : ''}${sp.fitnessOnArrival}.`
@@ -114,7 +121,9 @@ export function PlanetHub({ s, me }: { s: GameState; me: Player }) {
                 ? 'Supplements are legal here — the stewards catch nobody.'
                 : `The stewards here catch ${pct(sp.dopingCatch)} of doped dogs, against ${pct(balance.supplementCatchBase)} elsewhere.`
               : null,
-            sp.localsNervy ? 'The local runners are all Nervy — traps 1 and 8 do them no favours.' : null,
+            sp.localsNervy
+              ? 'The local runners are all Nervy — traps 1 and 8 do them no favours.'
+              : null,
           ]}
         />
       </Signpost>
@@ -180,17 +189,17 @@ export function PlanetHub({ s, me }: { s: GameState; me: Player }) {
 
       <h3 className="section">This weekend&apos;s card</h3>
       <div className="grid3">
-        {RACE_CLASSES.map((cls) => {
-          const purse = purseFor(s, cls);
-          const mineId = s.declarations[cls][me.id];
+        {thisWeeksCard(s).map((race) => {
+          const purse = purseFor(s, race);
+          const mineId = s.declarations[race][me.id];
           const dog = mineId ? s.dogs[mineId] : undefined;
-          const declared = declaredCount(s, cls);
+          const declared = declaredCount(s, race);
           return (
             <TicketCard
-              key={cls}
-              cls={CLASS_LABEL[cls]}
-              tone={cls}
-              cap={cls === 'gold' ? 'no cap' : `cap ${ratingCap(cls)}`}
+              key={race}
+              cls={raceLabel(race)}
+              tone={raceTone(race, thisWeeksCard(s))}
+              cap={criterionFor(race)}
               purse={formatBones(purse[0])}
               serial={`2nd ${formatBones(purse[1])} · 3rd ${formatBones(purse[2])}`}
             >
@@ -205,7 +214,7 @@ export function PlanetHub({ s, me }: { s: GameState; me: Player }) {
               </p>
               <p className="muted flush">
                 {declared} stable{declared === 1 ? '' : 's'} in · {Math.max(0, TRAPS - declared)}{' '}
-                locals at about {localRatingFor(cls, entry.major)}
+                locals at about {localRatingFor(race, entry.major)}
               </p>
             </TicketCard>
           );

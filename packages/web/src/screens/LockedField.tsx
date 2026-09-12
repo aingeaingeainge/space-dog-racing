@@ -3,7 +3,7 @@ import {
   formatBones,
   planetOf,
   purseFor,
-  RACE_CLASSES,
+  thisWeeksCard,
   type GameState,
   type Player,
 } from '@sdr/engine';
@@ -13,7 +13,7 @@ import { Notes } from '../components/ui';
 import { NeonButton } from '../components/NeonButton';
 import { TicketCard } from '../components/TicketCard';
 import { useKeys } from '../lib/keys';
-import { CLASS_LABEL } from '../lib/selectors';
+import { raceLabel, raceTone } from '../lib/selectors';
 import { useGame } from '../store/gameStore';
 
 /**
@@ -55,18 +55,18 @@ export function LockedField({ s, me }: { s: GameState; me: Player }) {
         />
       </Panel>
 
-      {RACE_CLASSES.map((cls) => {
-        const purse = purseFor(s, cls);
+      {s.fields!.map(({ race, entries }) => {
+        const purse = purseFor(s, race);
         return (
           <TicketCard
-            key={cls}
-            cls={CLASS_LABEL[cls]}
-            tone={cls}
+            key={race}
+            cls={raceLabel(race)}
+            tone={raceTone(race, thisWeeksCard(s))}
             cap="trap draw and prices"
             purse={formatBones(purse[0])}
             serial={`2nd ${formatBones(purse[1])} · 3rd ${formatBones(purse[2])}`}
           >
-            <FieldTable s={s} meId={me.id} field={s.fields![cls]} margin={margin} />
+            <FieldTable s={s} meId={me.id} field={entries} margin={margin} />
           </TicketCard>
         );
       })}

@@ -6,6 +6,7 @@ import {
   REGULAR_PLANET_IDS,
 } from './content/planets';
 import { AI_PERSONALITIES, AI_STABLE_NAMES } from './content/names';
+import { PURSE_BY_TIER, raceType } from './content/raceTypes';
 import { createStartingDog, emptyPlanetState, type IdGen } from './economy/market';
 import { mulberry32, type Rng } from './rng';
 import type {
@@ -16,19 +17,21 @@ import type {
   Phase,
   Planet,
   Player,
-  RaceClass,
+  RaceTypeId,
   SeasonSetup,
   WeekStatus,
 } from './types';
-import { ActionError } from './types';
+import { ActionError, RACE_TYPE_IDS } from './types';
 
 /**
- * Bumped for v2 Phase A: every Dog carries a `weekState`, `Player.training` is gone and
- * `SetTraining` is no longer an action, so a v1 action log cannot replay on this engine.
- * The web save is seed + log (store/persist.ts), which is why SAVE_VERSION moves with it and
- * an old save fails soft to the title screen rather than replaying into a different game.
+ * 3 for v2 Phase B: a race is a row rather than one of three classes, so `Declare` and
+ * `PlaceBet` carry a `RaceTypeId`, `Bet` and `RaceResult` store one, and declarations, fields
+ * and races have all changed shape. A Phase A log cannot replay on this engine.
+ *
+ * The web save is seed + log (store/persist.ts), which is why SAVE_VERSION moves with it and an
+ * old save fails soft to the title screen rather than replaying into a different game.
  */
-export const STATE_VERSION = 2;
+export const STATE_VERSION = 3;
 export const MAJOR_WEEKS: readonly number[] = [4, 7, 10];
 
 /** Mutable working view of a state inside the reducer: the rng is materialised once per reduce. */
@@ -81,26 +84,36 @@ export function isMajorWeek(s: GameState): boolean {
   return calendarEntry(s).major;
 }
 
-/** Purse for a class this week (GDD §5.3, planet purse modifiers). */
-export function purseFor(s: GameState, cls: RaceClass): [number, number, number] {
+/** This weekend's three races, in the order they are run (GDD §6.3). */
+export function thisWeeksCard(s: GameState, week = s.week): readonly RaceTypeId[] {
+  return calendarEntry(s, week).card;
+}
+
+/** An empty declaration book: every race type is a key, and most weeks most of them stay empty. */
+export function emptyDeclarations(): Record<RaceTypeId, Record<Id, Id>> {
+  return Object.fromEntries(RACE_TYPE_IDS.map((id) => [id, {}])) as Record<
+    RaceTypeId,
+    Record<Id, Id>
+  >;
+}
+
+/** Purse for one race this week (GDD §6.4, planet purse modifiers). */
+export function purseFor(s: GameState, race: RaceTypeId): [number, number, number] {
   const e = calendarEntry(s);
   const mult = e.grandFinal ? balance.finalMult : e.major ? balance.majorMult : 1;
   const planetMult = currentPlanet(s).special.purseMult ?? 1;
-  const base: [number, number, number] =
-    cls === 'bronze'
-      ? [balance.purseBronze1, balance.purseBronze2, balance.purseBronze3]
-      : cls === 'silver'
-        ? [balance.purseSilver1, balance.purseSilver2, balance.purseSilver3]
-        : [balance.purseGold1, balance.purseGold2, balance.purseGold3];
+  const base = PURSE_BY_TIER[raceType(race).tier];
   return base.map((x) => Math.round(x * mult * planetMult)) as [number, number, number];
 }
 
-export function ratingCap(cls: RaceClass): number {
-  return cls === 'bronze' ? balance.capBronze : cls === 'silver' ? balance.capSilver : 99;
-}
-
-export function eligible(d: Dog, cls: RaceClass): boolean {
-  return d.rating <= ratingCap(cls) && d.injuryWeeks === 0 && d.banWeeks === 0;
+/**
+ * May this dog take a trap in this race? Two halves that are deliberately separate: the race's
+ * own entry criterion, which is the row's business (GDD §6.3), and the two conditions that bar a
+ * dog from every race there is. Locals answer the first half and skip the second — they are
+ * generated sound.
+ */
+export function eligible(d: Dog, race: RaceTypeId): boolean {
+  return d.injuryWeeks === 0 && d.banWeeks === 0 && raceType(race).eligible(d);
 }
 
 /**
@@ -116,7 +129,7 @@ export function weekStatusOf(d: Dog): WeekStatus {
 /** Did this dog actually get a run this weekend? Set to race is not the same as having raced. */
 export function ranThisWeek(s: GameState, dogId: Id): boolean {
   if (!s.races) return false;
-  for (const r of Object.values(s.races)) if (r.order.includes(dogId)) return true;
+  for (const r of s.races) if (r.order.includes(dogId)) return true;
   return false;
 }
 
@@ -156,6 +169,14 @@ export function dopingCatchRate(s: GameState): number {
   return currentPlanet(s).special.dopingCatch ?? balance.supplementCatchBase;
 }
 
+/**
+ * This weekend's card. Fixed to the three classes while the shape lands, so the season plays
+ * exactly as it did; the draw from the pool arrives with the seven types (GDD §6.3).
+ */
+function drawCard(): RaceTypeId[] {
+  return [...RACE_TYPE_IDS];
+}
+
 function buildCalendar(rng: Rng): CalendarEntry[] {
   const majors = rng.shuffle(MAJOR_PLANET_IDS.filter((id) => id !== GRAND_FINAL_PLANET_ID));
   const regulars = rng.shuffle([...REGULAR_PLANET_IDS]).slice(0, balance.weeks - 4);
@@ -163,12 +184,13 @@ function buildCalendar(rng: Rng): CalendarEntry[] {
   let m = 0;
   let r = 0;
   for (let week = 1; week <= balance.weeks; week++) {
+    const card = drawCard();
     if (week === balance.weeks) {
-      cal.push({ week, planetId: GRAND_FINAL_PLANET_ID, major: true, grandFinal: true });
+      cal.push({ week, planetId: GRAND_FINAL_PLANET_ID, major: true, grandFinal: true, card });
     } else if (MAJOR_WEEKS.includes(week)) {
-      cal.push({ week, planetId: majors[m++]!, major: true, grandFinal: false });
+      cal.push({ week, planetId: majors[m++]!, major: true, grandFinal: false, card });
     } else {
-      cal.push({ week, planetId: regulars[r++]!, major: false, grandFinal: false });
+      cal.push({ week, planetId: regulars[r++]!, major: false, grandFinal: false, card });
     }
   }
   return cal;
@@ -194,7 +216,7 @@ export function createSeason(setup: SeasonSetup): GameState {
     activePlayer: null,
     done: [],
     dogs: {},
-    declarations: { bronze: {}, silver: {}, gold: {} },
+    declarations: emptyDeclarations(),
     locked: false,
     fields: null,
     races: null,

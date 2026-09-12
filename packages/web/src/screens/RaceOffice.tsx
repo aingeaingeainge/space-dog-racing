@@ -3,11 +3,11 @@ import {
   formatBones,
   planetOf,
   purseFor,
-  RACE_CLASSES,
+  thisWeeksCard,
   type Dog,
   type GameState,
   type Player,
-  type RaceClass,
+  type RaceTypeId,
 } from '@sdr/engine';
 import { DogThumb } from '../components/DogCard';
 import { Panel } from '../components/Panel';
@@ -17,12 +17,13 @@ import { trackText } from '../lib/planetText';
 import {
   cannotRunReason,
   criterionFor,
-  CLASS_LABEL,
-  declaredClass,
+  declaredRace,
   fitnessOutlook,
   ineligibleReason,
   localRatingFor,
   ownedDogs,
+  raceLabel,
+  raceTone,
   TRAPS,
 } from '../lib/selectors';
 import { useGame } from '../store/gameStore';
@@ -57,8 +58,8 @@ function WeekLedger({ s, me, dogs }: { s: GameState; me: Player; dogs: Dog[] }) 
       <tbody>
         {dogs.map((d) => {
           const f = fitnessOutlook(d, me);
-          const barred = cannotRunReason(d);
-          const cls = declaredClass(s, me.id, d.id);
+          const barred = cannotRunReason(s, d);
+          const race = declaredRace(s, me.id, d.id);
           return (
             <tr key={d.id} className={barred ? 'muted' : undefined}>
               <td>{d.name}</td>
@@ -69,8 +70,8 @@ function WeekLedger({ s, me, dogs }: { s: GameState; me: Player; dogs: Dog[] }) 
               <td>
                 {barred ? (
                   <span className="muted">{barred}</span>
-                ) : cls ? (
-                  <Badge tone="good">declared in {CLASS_LABEL[cls]}</Badge>
+                ) : race ? (
+                  <Badge tone="good">declared in the {raceLabel(race)}</Badge>
                 ) : (
                   <span className="muted">not entered</span>
                 )}
@@ -97,8 +98,9 @@ export function RaceOffice({ s, me }: { s: GameState; me: Player }) {
   const pct = (n: number) => `${Math.round(n * 100)}%`;
   const otherHumans = s.players.filter((p) => p.kind === 'human' && p.id !== me.id).length > 0;
 
-  const declare = (cls: RaceClass, dogId: string) =>
-    dispatch({ t: 'Declare', playerId: me.id, cls, dogId: dogId || null });
+  const card = thisWeeksCard(s);
+  const declare = (race: RaceTypeId, dogId: string) =>
+    dispatch({ t: 'Declare', playerId: me.id, race, dogId: dogId || null });
 
   return (
     <>
@@ -147,20 +149,20 @@ export function RaceOffice({ s, me }: { s: GameState; me: Player }) {
       </Panel>
 
       <div className="grid3">
-        {RACE_CLASSES.map((cls) => {
-          const purse = purseFor(s, cls);
-          const mine = s.declarations[cls][me.id] ?? '';
+        {card.map((race) => {
+          const purse = purseFor(s, race);
+          const mine = s.declarations[race][me.id] ?? '';
           const rivals = s.players
             .filter((p) => p.id !== me.id && !p.flags.bankrupt)
-            .map((p) => ({ p, dogId: s.declarations[cls][p.id] }));
+            .map((p) => ({ p, dogId: s.declarations[race][p.id] }));
           const declaredHere = rivals.filter((r) => r.dogId).length + (mine ? 1 : 0);
 
           return (
             <TicketCard
-              key={cls}
-              cls={CLASS_LABEL[cls]}
-              tone={cls}
-              cap={criterionFor(cls)}
+              key={race}
+              cls={raceLabel(race)}
+              tone={raceTone(race, card)}
+              cap={criterionFor(race)}
               purse={formatBones(purse[0])}
               serial={`2nd ${formatBones(purse[1])} · 3rd ${formatBones(purse[2])}`}
             >
@@ -170,18 +172,18 @@ export function RaceOffice({ s, me }: { s: GameState; me: Player }) {
                 <select
                   className="wide"
                   value={mine}
-                  onChange={(e) => declare(cls, e.target.value)}
+                  onChange={(e) => declare(race, e.target.value)}
                 >
                   <option value="">— no runner —</option>
                   {dogs.map((d) => {
-                    const bad = ineligibleReason(d, cls);
-                    const other = declaredClass(s, me.id, d.id);
+                    const bad = ineligibleReason(d, race);
+                    const other = declaredRace(s, me.id, d.id);
                     const f = fitnessOutlook(d, me);
                     return (
                       <option key={d.id} value={d.id} disabled={!!bad}>
                         {d.name} · {d.rating} · fit {f.now} → {f.racing} if it runs
                         {bad ? ` — ${bad}` : ''}
-                        {!bad && other && other !== cls ? ` — in ${CLASS_LABEL[other]}` : ''}
+                        {!bad && other && other !== race ? ` — in the ${raceLabel(other)}` : ''}
                       </option>
                     );
                   })}
@@ -200,7 +202,7 @@ export function RaceOffice({ s, me }: { s: GameState; me: Player }) {
 
               <p className="muted tight-p">
                 {declaredHere} declared · {Math.max(0, TRAPS - declaredHere)} local dogs will fill
-                the rest, rating about {localRatingFor(cls, major)}
+                the rest, rating about {localRatingFor(race, major)}
               </p>
 
               <table className="rivals">

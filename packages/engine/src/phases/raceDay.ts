@@ -1,4 +1,5 @@
 import { balance } from '../content/balance';
+import { OPEN_TYPE_ID, raceType } from '../content/raceTypes';
 import { pow10 } from '../determinism';
 import { createLocalDog } from '../economy/market';
 import { dogValue } from '../economy/dogValue';
@@ -13,18 +14,11 @@ import {
   log,
   player,
   purseFor,
+  thisWeeksCard,
   type Ctx,
 } from '../state';
 import { clamp, fork } from '../rng';
-import {
-  RACE_CLASSES,
-  type Dog,
-  type GameState,
-  type Id,
-  type RaceClass,
-  type RaceEntry,
-  type RaceResult,
-} from '../types';
+import type { Dog, GameState, Id, RaceField, RaceResult } from '../types';
 import { bettingOpen, startPlayerPhase } from './turn';
 
 /** GDD §4.2 step 4: fill traps with locals, draw traps, open the bookie. */
@@ -32,29 +26,31 @@ export function lockDeclarations(ctx: Ctx): void {
   const { s, rng } = ctx;
   const planet = currentPlanet(s);
   const major = calendarEntry(s).major;
-  const fields = { bronze: [], silver: [], gold: [] } as Record<RaceClass, RaceEntry[]>;
+  const card = thisWeeksCard(s);
+  const fields: RaceField[] = [];
   const margin = bettingMargin(s);
   const tipsters = s.players.filter((p) => p.flags.tipOff);
-  const lazyClass = tipsters.length ? rng.pick(RACE_CLASSES) : null;
+  const lazyRace = tipsters.length ? rng.pick(card) : null;
 
-  for (const cls of RACE_CLASSES) {
+  for (const race of card) {
     const runners: Dog[] = [];
     for (const pid of s.turnOrder) {
-      const dogId = s.declarations[cls][pid];
+      const dogId = s.declarations[race][pid];
       if (dogId && s.dogs[dogId]) runners.push(s.dogs[dogId]!);
     }
     while (runners.length < balance.traps) {
-      const local = createLocalDog(cls, major, !!planet.special.localsNervy, rng, ctx.nextId);
+      const local = createLocalDog(race, major, !!planet.special.localsNervy, rng, ctx.nextId);
       s.dogs[local.id] = local;
       runners.push(local);
     }
-    // Tip-off: one local in a random class is "not trying".
-    if (cls === lazyClass) {
+    // Tip-off: one local in a random race on the card is "not trying".
+    if (race === lazyRace) {
       const locals = runners.filter((d) => d.ownerId === 'local');
       if (locals.length) {
         const lazy = rng.pick(locals);
         lazy.fitness = 40;
-        for (const p of tipsters) log(s, `Tip-off: ${lazy.name} in ${cls} is not trying.`, p.id);
+        for (const p of tipsters)
+          log(s, `Tip-off: ${lazy.name} in the ${raceType(race).label} is not trying.`, p.id);
       }
     }
 
@@ -63,7 +59,7 @@ export function lockDeclarations(ctx: Ctx): void {
     const wide = draw.filter((d) => d.traits.includes('wideRunner'));
     const rest = draw.filter((d) => !d.traits.includes('wideRunner'));
     let ordered = [...rest, ...wide];
-    if (cls === 'gold') {
+    if (race === OPEN_TYPE_ID) {
       for (const briber of s.players.filter((p) => p.flags.rivalTrap8)) {
         const rivals = ordered.filter((d) => d.ownerId !== briber.id && d.ownerId !== 'local');
         const target = rivals.sort((a, b) => b.rating - a.rating)[0];
@@ -74,17 +70,20 @@ export function lockDeclarations(ctx: Ctx): void {
     const ratings = ordered.map((d) => d.rating);
     const winP = winProbabilities(ratings);
     const placeP = placeProbabilities(ratings);
-    fields[cls] = ordered.map((d, i) => ({
-      trap: i + 1,
-      dogId: d.id,
-      ownerId: d.ownerId === 'market' ? 'local' : d.ownerId,
-      name: d.name,
-      rating: d.rating,
-      odds: decimalOdds(winP[i]!, margin),
-      winProb: winP[i]!,
-      placeProb: placeP[i]!,
-      local: d.ownerId === 'local',
-    }));
+    fields.push({
+      race,
+      entries: ordered.map((d, i) => ({
+        trap: i + 1,
+        dogId: d.id,
+        ownerId: d.ownerId === 'market' ? 'local' : d.ownerId,
+        name: d.name,
+        rating: d.rating,
+        odds: decimalOdds(winP[i]!, margin),
+        winProb: winP[i]!,
+        placeProb: placeP[i]!,
+        local: d.ownerId === 'local',
+      })),
+    });
   }
   s.fields = fields;
   s.locked = true;
@@ -140,24 +139,23 @@ function rollInjury(ctx: Ctx, d: Dog, hazard: number, hasVet: boolean): number {
   return weeks;
 }
 
-/** GDD §4.2 step 5: run Bronze, Silver, Gold; pay out; update dogs; settle bets. */
+/** GDD §4.2 step 5: run the card in order; pay out; update dogs; settle bets. */
 export function runRaces(ctx: Ctx): void {
   const { s } = ctx;
   if (!s.fields) throw new Error('Declarations were never locked');
   const planet = currentPlanet(s);
   const entry = calendarEntry(s);
-  const races = {} as Record<RaceClass, RaceResult>;
+  const races: RaceResult[] = [];
 
-  for (const cls of RACE_CLASSES) {
-    const field = s.fields[cls];
+  for (const { race, entries: field } of s.fields) {
     const dogs = field.map((e) => dog(s, e.dogId));
     const runners = field.map((e, i) => runnerFrom(dogs[i]!, e.trap));
     const sim = simulateRace(runners, { track: planet.track, major: entry.major }, fork(ctx.rng));
-    const purse = purseFor(s, cls);
+    const purse = purseFor(s, race);
     const result: RaceResult = {
       week: s.week,
       planetId: planet.id,
-      cls,
+      race,
       purse,
       entries: field,
       order: sim.order,
@@ -195,7 +193,7 @@ export function runRaces(ctx: Ctx): void {
       const d = dog(s, dogId);
       const delta = applyRaceOutcome(s, d, place, dogs);
       result.ratingDeltas[dogId] = delta;
-      if (cls === 'gold' && place === 1) d.goldWins++;
+      if (race === OPEN_TYPE_ID && place === 1) d.openWins++;
       if (d.ownerId !== 'local' && d.ownerId !== 'market') {
         const owner = player(s, d.ownerId);
         const weeks = rollInjury(ctx, d, planet.track.hazard, !!owner.staff.vet);
@@ -221,7 +219,7 @@ export function runRaces(ctx: Ctx): void {
 
     // Settle bets on this race.
     for (const bet of s.bets) {
-      if (bet.week !== s.week || bet.cls !== cls || bet.settled) continue;
+      if (bet.week !== s.week || bet.race !== race || bet.settled) continue;
       const place = sim.order.indexOf(bet.dogId) + 1;
       const won = bet.kind === 'win' ? place === 1 : place >= 1 && place <= 3;
       const payout = won ? Math.round(bet.stake * bet.odds) : 0;
@@ -236,9 +234,9 @@ export function runRaces(ctx: Ctx): void {
     const winner = dog(s, sim.order[0]!);
     log(
       s,
-      `${cls[0]!.toUpperCase()}${cls.slice(1)}: ${winner.name} wins${sim.photoFinish ? ' in a photo finish' : ''} (${result.margin} m).`,
+      `${raceType(race).label}: ${winner.name} wins${sim.photoFinish ? ' in a photo finish' : ''} (${result.margin} m).`,
     );
-    races[cls] = result;
+    races.push(result);
   }
 
   // Clear race-day buffs.

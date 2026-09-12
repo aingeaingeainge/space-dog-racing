@@ -2,8 +2,15 @@ import { balance } from '../content/balance';
 import { dogSalePrice, dogValue } from '../economy/dogValue';
 import { upgradePrice } from '../economy/market';
 import { decimalOdds, placeProbabilities, winProbabilities } from '../race/odds';
-import { bettingMargin, currentPlanet, dopingCatchRate, maxStakeFraction, player } from '../state';
-import { RACE_CLASSES, type Action, type GameState, type Id } from '../types';
+import {
+  bettingMargin,
+  currentPlanet,
+  dopingCatchRate,
+  maxStakeFraction,
+  player,
+  thisWeeksCard,
+} from '../state';
+import type { Action, GameState, Id, RaceTypeId } from '../types';
 import {
   bestAssignment,
   dogMarket,
@@ -27,8 +34,13 @@ import {
   type StateOptions,
 } from './shared';
 
-/** How often Hard leaves the Bronze to the locals and backs its Silver runner instead. */
-const THROW_BRONZE_RATE = 0.15;
+/**
+ * How often Hard leaves the *first* race on the card to the locals and backs its runner in the
+ * second instead (GDD §14, §10). It used to be phrased as "leaves the Bronze alone", which was
+ * the same thing while the card was a fixed ladder; positionally it is "skip one of the cheap
+ * races and put the money over the counter", which is what it always meant.
+ */
+const THROW_CHEAP_RATE = 0.15;
 /** Fitness a dog should still have the week after a run, if a Major is next weekend. */
 const MAJOR_FITNESS_FLOOR = balance.fitnessScaleBelow + 20;
 
@@ -216,14 +228,21 @@ function declareForThisWeek(plan: Plan): Assignment {
     ratingOf: effectiveRating,
   });
 
-  // Now and then, leave the Bronze to the locals: the dog keeps its fitness and the money goes
-  // over the counter at the bookie instead (GDD §14, §10).
-  if (toMajor !== 0 && throwingTheBronze(s, playerId) && assignment.plan.bronze) {
-    const silverId = assignment.plan.silver;
-    const silver = silverId ? s.dogs[silverId] : undefined;
-    if (silver) {
-      const p = winProbabilities([silver.rating, ...expectedField(s, 'silver', playerId)])[0]!;
-      if (p >= 0.35) delete assignment.plan.bronze;
+  // Now and then, leave the first race on the card to the locals: the dog keeps its fitness and
+  // the money goes over the counter at the bookie instead (GDD §14, §10).
+  const [cheap, second] = cheapAndSecond(s);
+  if (
+    toMajor !== 0 &&
+    cheap &&
+    second &&
+    throwingTheCheapRace(s, playerId) &&
+    assignment.plan[cheap]
+  ) {
+    const backedId = assignment.plan[second];
+    const backed = backedId ? s.dogs[backedId] : undefined;
+    if (backed) {
+      const p = winProbabilities([backed.rating, ...expectedField(s, second, playerId)])[0]!;
+      if (p >= 0.35) delete assignment.plan[cheap];
     }
   }
 
@@ -232,9 +251,21 @@ function declareForThisWeek(plan: Plan): Assignment {
   return assignment;
 }
 
+/**
+ * The race Hard is willing to skip, and the one it backs instead. The card is ordered with the
+ * headline race last (GDD §6.3), so the first two are the cheap pair and skipping the first to
+ * back the second is the same trade the Bronze/Silver version made.
+ */
+function cheapAndSecond(s: GameState): [RaceTypeId | undefined, RaceTypeId | undefined] {
+  const card = thisWeeksCard(s);
+  return [card[0], card[1]];
+}
+
 /** Same answer in planetPre and at the bookie, without carrying a flag through the state. */
-function throwingTheBronze(s: GameState, playerId: Id): boolean {
-  return hash01(s.seed, s.week, playerId, 'throwBronze') < THROW_BRONZE_RATE;
+function throwingTheCheapRace(s: GameState, playerId: Id): boolean {
+  // The salt stays 'throwBronze': it is a fixed string that decides *which weeks* Hard skips a
+  // race, not a class name, and changing it would re-roll that for no reason.
+  return hash01(s.seed, s.week, playerId, 'throwBronze') < THROW_CHEAP_RATE;
 }
 
 /**
@@ -255,15 +286,15 @@ function feedSupplements(plan: Plan, assignment: Assignment): void {
   const q = dopingCatchRate(s);
   const price = upgradePrice('supplement', currentPlanet(s), p);
   const bonusRating = balance.itemSupplementBonus * balance.ratingWeightSpeed;
-  for (const cls of RACE_CLASSES) {
-    const dogId = assignment.plan[cls];
+  for (const race of thisWeeksCard(s)) {
+    const dogId = assignment.plan[race];
     if (!dogId) continue;
     const d = s.dogs[dogId];
     if (!d || d.supplemented) continue;
     if (plan.cash - price < plan.reserve) break;
     const rating = effectiveRating(d);
-    const ev0 = expectedPurse(s, d, cls, playerId, rating);
-    const ev1 = expectedPurse(s, d, cls, playerId, rating + bonusRating);
+    const ev0 = expectedPurse(s, d, race, playerId, rating);
+    const ev1 = expectedPurse(s, d, race, playerId, rating + bonusRating);
     const valueLoss =
       dogValue(d) -
       dogValue({
@@ -292,11 +323,12 @@ function placeBets(plan: Plan): void {
   if (!s.fields) return;
   const stakeFraction = maxStakeFraction(s);
   const mine = new Set(p.dogIds);
-  const threwTheBronze = throwingTheBronze(s, playerId) && !s.declarations.bronze[playerId];
+  const [cheap, second] = cheapAndSecond(s);
+  const threwTheCheapRace =
+    !!cheap && throwingTheCheapRace(s, playerId) && !s.declarations[cheap][playerId];
   const margin = bettingMargin(s);
 
-  for (const cls of RACE_CLASSES) {
-    const field = s.fields[cls];
+  for (const { race, entries: field } of s.fields) {
     let pick: { dogId: Id; kind: 'win' | 'place' } | null = null;
     let fraction = balance.aiBetFraction;
 
@@ -322,9 +354,9 @@ function placeBets(plan: Plan): void {
       }
     }
 
-    // A week it left the Bronze alone: the money it did not risk on the track goes on the
-    // Silver runner instead (GDD §14).
-    if (!pick && threwTheBronze && cls === 'silver') {
+    // A week it left the cheap race alone: the money it did not risk on the track goes on the
+    // runner in the next one instead (GDD §14).
+    if (!pick && threwTheCheapRace && race === second) {
       const own = field.find((e) => mine.has(e.dogId));
       if (own && own.winProb >= 0.3) {
         pick = { dogId: own.dogId, kind: 'win' };
@@ -341,7 +373,7 @@ function placeBets(plan: Plan): void {
     const cap = Math.floor(plan.cash * stakeFraction);
     const stake = Math.floor(Math.min(plan.cash * fraction, 2000, cap));
     if (stake < 50) continue;
-    out.push({ t: 'PlaceBet', playerId, cls, dogId: pick.dogId, kind: pick.kind, stake });
+    out.push({ t: 'PlaceBet', playerId, race, dogId: pick.dogId, kind: pick.kind, stake });
     plan.cash -= stake;
   }
 }

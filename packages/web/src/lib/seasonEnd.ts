@@ -9,7 +9,7 @@ import {
   type RaceEntry,
   type RaceResult,
 } from '@sdr/engine';
-import { CLASS_LABEL, playerById, standings } from './selectors';
+import { playerById, raceLabel, standings } from './selectors';
 
 /**
  * GDD §15.11's two missing halves: the worth-over-time series behind the chart, and the
@@ -69,7 +69,7 @@ function stableName(s: GameState, ownerId: Id | 'local'): string {
 }
 
 function where(r: RaceResult): string {
-  return `${CLASS_LABEL[r.cls]} on ${planetOf(r.planetId).name}, week ${r.week}`;
+  return `${raceLabel(r.race)} on ${planetOf(r.planetId).name}, week ${r.week}`;
 }
 
 /** The longest odds that actually won, locals included — an upset is an upset. */
@@ -127,14 +127,14 @@ function bestBet(s: GameState): Moment | null {
     };
   }
   const best = won.reduce((a, b) =>
-    (b.settled!.payout - b.stake > a.settled!.payout - a.stake ? b : a),
+    b.settled!.payout - b.stake > a.settled!.payout - a.stake ? b : a,
   );
   const profit = best.settled!.payout - best.stake;
   return {
     key: 'bet',
     label: 'Best bet',
     headline: `${formatBones(profit)} on ${s.dogs[best.dogId]?.name ?? 'a dog since sold'}`,
-    detail: `${stableName(s, best.playerId)} — ${formatBones(best.stake)} at ${best.odds.toFixed(2)} ${best.kind}, ${CLASS_LABEL[best.cls]} in week ${best.week}`,
+    detail: `${stableName(s, best.playerId)} — ${formatBones(best.stake)} at ${best.odds.toFixed(2)} ${best.kind}, ${raceLabel(best.race)} in week ${best.week}`,
   };
 }
 

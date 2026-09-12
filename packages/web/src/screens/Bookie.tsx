@@ -5,11 +5,11 @@ import {
   maxStakeFraction,
   planetOf,
   purseFor,
-  RACE_CLASSES,
+  thisWeeksCard,
   type Bet,
   type GameState,
   type Player,
-  type RaceClass,
+  type RaceTypeId,
 } from '@sdr/engine';
 import { FieldTable } from '../components/FieldTable';
 import { Panel } from '../components/Panel';
@@ -18,7 +18,7 @@ import { NeonButton } from '../components/NeonButton';
 import { TicketCard } from '../components/TicketCard';
 import { BettingSlip, type SlipRow } from '../components/BettingSlip';
 import { useKeys } from '../lib/keys';
-import { CLASS_LABEL } from '../lib/selectors';
+import { raceLabel, raceTone } from '../lib/selectors';
 import { useGame } from '../store/gameStore';
 
 /**
@@ -70,8 +70,8 @@ export function Bookie({ s, me }: { s: GameState; me: Player }) {
         />
       </Panel>
 
-      {RACE_CLASSES.map((cls) => (
-        <RaceBetting key={cls} s={s} me={me} cls={cls} margin={margin} frac={frac} />
+      {thisWeeksCard(s).map((race) => (
+        <RaceBetting key={race} s={s} me={me} race={race} margin={margin} frac={frac} />
       ))}
     </>
   );
@@ -80,33 +80,33 @@ export function Bookie({ s, me }: { s: GameState; me: Player }) {
 function RaceBetting({
   s,
   me,
-  cls,
+  race,
   margin,
   frac,
 }: {
   s: GameState;
   me: Player;
-  cls: RaceClass;
+  race: RaceTypeId;
   margin: number;
   frac: number;
 }) {
   const dispatch = useGame((g) => g.dispatch);
   const [stake, setStake] = useState(100);
-  const field = s.fields![cls];
-  const purse = purseFor(s, cls);
-  const bets = s.bets.filter((b) => b.playerId === me.id && b.week === s.week && b.cls === cls);
+  const field = s.fields!.find((f) => f.race === race)!.entries;
+  const purse = purseFor(s, race);
+  const bets = s.bets.filter((b) => b.playerId === me.id && b.week === s.week && b.race === race);
   const already = bets.reduce((sum, b) => sum + b.stake, 0);
   const cap = Math.floor(me.cash * frac);
   const room = Math.max(0, Math.min(cap - already, Math.floor(me.cash)));
   const wanted = Math.max(0, Math.min(stake, room));
 
   const place = (dogId: string, kind: 'win' | 'place') =>
-    dispatch({ t: 'PlaceBet', playerId: me.id, cls, dogId, kind, stake: wanted });
+    dispatch({ t: 'PlaceBet', playerId: me.id, race, dogId, kind, stake: wanted });
 
   return (
     <TicketCard
-      cls={CLASS_LABEL[cls]}
-      tone={cls}
+      cls={raceLabel(race)}
+      tone={raceTone(race, thisWeeksCard(s))}
       cap="trap draw and odds"
       purse={formatBones(purse[0])}
       serial={`2nd ${formatBones(purse[1])} · 3rd ${formatBones(purse[2])}`}
@@ -156,20 +156,20 @@ function RaceBetting({
         )}
       />
 
-      <BetSlips s={s} bets={bets} cls={cls} />
+      <BetSlips s={s} bets={bets} race={race} />
     </TicketCard>
   );
 }
 
 /** The kit's betting slip, open. The same component shows it settled on the Results screen. */
-function BetSlips({ s, bets, cls }: { s: GameState; bets: Bet[]; cls: RaceClass }) {
+function BetSlips({ s, bets, race }: { s: GameState; bets: Bet[]; race: RaceTypeId }) {
   const rows: SlipRow[] = bets.map((b, i) => ({
-    key: `${cls}-${i}`,
-    race: CLASS_LABEL[cls],
+    key: `${race}-${i}`,
+    race: raceLabel(race),
     dog: s.dogs[b.dogId]?.name ?? 'that dog',
     kind: b.kind,
     stake: b.stake,
     odds: b.odds,
   }));
-  return <BettingSlip title={`${CLASS_LABEL[cls]} slips`} rows={rows} />;
+  return <BettingSlip title={`${raceLabel(race)} slips`} rows={rows} />;
 }

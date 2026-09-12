@@ -45,7 +45,7 @@ describe('golden season (seed 42, 6 Normal AIs)', () => {
         stats: p.stats,
       })),
       results: state.results.map(
-        (r) => `${r.week}${r.cls[0]}:${r.order.slice(0, 3).join(',')}:${r.margin}`,
+        (r) => `${r.week}${r.race[0]}:${r.order.slice(0, 3).join(',')}:${r.margin}`,
       ),
       stateHash: createHash('sha256').update(JSON.stringify(state)).digest('hex'),
     };

@@ -31,12 +31,14 @@ import {
   drive,
   planetOf,
   upgradePrice,
+  raceType,
+  thisWeeksCard,
+  type RaceTypeId,
   type Action,
   type Dog,
   type GameState,
   type Id,
   type Player,
-  type RaceClass,
   type SeasonSetup,
 } from '@sdr/engine';
 import { applyActions, screenFor, type ScreenUi } from '../src/store/loop';
@@ -67,9 +69,8 @@ function ownDogs(s: GameState, p: Player): Dog[] {
   return p.dogIds.map((id) => s.dogs[id]).filter((d): d is Dog => !!d);
 }
 
-function eligible(d: Dog, cls: RaceClass): boolean {
-  const cap = cls === 'bronze' ? balance.capBronze : cls === 'silver' ? balance.capSilver : 99;
-  return d.injuryWeeks === 0 && d.banWeeks === 0 && d.rating <= cap;
+function eligible(d: Dog, race: RaceTypeId): boolean {
+  return d.injuryWeeks === 0 && d.banWeeks === 0 && raceType(race).eligible(d);
 }
 
 function planetTurn(s: GameState, p: Player): Action[] {
@@ -118,13 +119,15 @@ function planetTurn(s: GameState, p: Player): Action[] {
 
   if (pre) {
     const taken = new Set<Id>();
-    for (const cls of ['gold', 'silver', 'bronze'] as RaceClass[]) {
+    // Richest race first, so the best dog goes where the money is — the same order a player
+    // fills the card in. The card is ordered with the headline race last (GDD §6.3).
+    for (const race of [...thisWeeksCard(s)].reverse()) {
       const pick = dogs
-        .filter((d) => !taken.has(d.id) && eligible(d, cls) && d.fitness > 40)
+        .filter((d) => !taken.has(d.id) && eligible(d, race) && d.fitness > 40)
         .sort((a, b) => b.rating - a.rating)[0];
       if (pick) {
         taken.add(pick.id);
-        out.push({ t: 'Declare', playerId: p.id, cls, dogId: pick.id });
+        out.push({ t: 'Declare', playerId: p.id, race, dogId: pick.id });
       }
     }
     const gear = upgradePrice('trackDay', planet, p);

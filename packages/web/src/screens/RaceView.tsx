@@ -3,17 +3,16 @@ import {
   balance,
   formatBones,
   planetOf,
-  RACE_CLASSES,
   type GameState,
   type Id,
   type Player,
-  type RaceClass,
+  type RaceTypeId,
   type RaceResult,
 } from '@sdr/engine';
 import { Panel } from '../components/Panel';
 import { Badge, Delta, STABLE_COLOURS } from '../components/ui';
 import { NeonButton } from '../components/NeonButton';
-import { CLASS_LABEL, playerById } from '../lib/selectors';
+import { playerById, raceLabel } from '../lib/selectors';
 import { useGame, type RaceSpeed } from '../store/gameStore';
 import { buildCommentary, lineAt, type CommentaryLine } from '../race-view/commentary';
 import { createRenderer, type RaceSample, type RunnerStyle } from '../race-view/renderer';
@@ -34,23 +33,24 @@ export function RaceView({ s, me }: { s: GameState; me: Player }) {
   const races = s.races;
   // A save from before the race view, or a week whose logs were pruned, must not strand anybody:
   // fail soft to the results rather than showing an empty track.
-  const playable = !!races && RACE_CLASSES.every((c) => (races[c]?.ticks?.length ?? 0) > 1);
+  const playable = !!races && races.length > 0 && races.every((r) => (r.ticks?.length ?? 0) > 1);
 
   useEffect(() => {
     if (!playable) ackRaces();
   }, [playable, ackRaces]);
 
   if (!races || !playable) return null;
-  const cls = RACE_CLASSES[Math.min(idx, RACE_CLASSES.length - 1)]!;
+  const result = races[Math.min(idx, races.length - 1)]!;
 
   return (
     <RaceReplay
-      key={cls}
+      key={result.race}
       s={s}
       me={me}
-      cls={cls}
+      result={result}
       index={idx}
-      onDone={() => (idx >= RACE_CLASSES.length - 1 ? ackRaces() : setIdx(idx + 1))}
+      count={races.length}
+      onDone={() => (idx >= races.length - 1 ? ackRaces() : setIdx(idx + 1))}
     />
   );
 }
@@ -69,19 +69,21 @@ function ink(hex: string): string {
 function RaceReplay({
   s,
   me,
-  cls,
+  result,
   index,
+  count,
   onDone,
 }: {
   s: GameState;
   me: Player;
-  cls: RaceClass;
+  result: RaceResult;
   index: number;
+  count: number;
   onDone: () => void;
 }) {
   const speed = useGame((g) => g.raceSpeed);
   const setRaceSpeed = useGame((g) => g.setRaceSpeed);
-  const result = s.races![cls];
+  const race: RaceTypeId = result.race;
   const planet = planetOf(result.planetId);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -145,10 +147,7 @@ function RaceReplay({
       })),
     [result, s.dogs, styles],
   );
-  const runnerIndex = useMemo(
-    () => new Map(result.entries.map((e, i) => [e.dogId, i])),
-    [result],
-  );
+  const runnerIndex = useMemo(() => new Map(result.entries.map((e, i) => [e.dogId, i])), [result]);
 
   const commentary = useMemo(
     () =>
@@ -156,12 +155,12 @@ function RaceReplay({
         result,
         tickSeconds: balance.raceTickSeconds,
         distance: track.distance,
-        classLabel: CLASS_LABEL[cls],
+        classLabel: raceLabel(race),
         planetName: planet.name,
         trackBlurb: trackBlurb(result.planetId),
         endTime: Math.max(1, (result.ticks.length - 1) * balance.raceTickSeconds),
       }),
-    [result, track, cls, planet.name],
+    [result, track, race, planet.name],
   );
 
   // --- the replay loop -------------------------------------------------------------------
@@ -282,8 +281,8 @@ function RaceReplay({
   return (
     <div className="app">
       <Panel
-        title={`${CLASS_LABEL[cls]} — ${planet.name}`}
-        sub={`race ${index + 1} of 3 · ${trackBlurb(result.planetId)} · winner takes ${formatBones(purse)}`}
+        title={`${raceLabel(race)} — ${planet.name}`}
+        sub={`race ${index + 1} of ${count} · ${trackBlurb(result.planetId)} · winner takes ${formatBones(purse)}`}
         tight
         actions={
           <span className="race-controls">
@@ -366,7 +365,7 @@ function ResultCard({
   return (
     <div className="race-result">
       <h3>
-        {CLASS_LABEL[result.cls]} result
+        {raceLabel(result.race)} result
         {result.photoFinish ? <Badge tone="hot">photo</Badge> : null}
       </h3>
       <ol>

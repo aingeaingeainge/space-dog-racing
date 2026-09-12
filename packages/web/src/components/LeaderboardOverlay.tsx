@@ -29,7 +29,7 @@ export function LeaderboardOverlay({ s, meId }: { s: GameState; meId: Id | null 
               <th className="num">Cargo</th>
               <th className="num">Debt</th>
               <th className="num">Net worth</th>
-              <th className="num">Gold wins</th>
+              <th className="num">Open wins</th>
               <th />
             </tr>
           </thead>
@@ -57,7 +57,7 @@ export function LeaderboardOverlay({ s, meId }: { s: GameState; meId: Id | null 
                 <td className="num">
                   <b>{formatBones(r.netWorth)}</b>
                 </td>
-                <td className="num">{r.goldWins}</td>
+                <td className="num">{r.openWins}</td>
                 <td>
                   {r.player.flags.caughtDoping ? <span title="caught doping">💉</span> : null}
                   {r.player.flags.bankrupt ? <span title="bankrupt"> 💀</span> : null}
@@ -68,7 +68,7 @@ export function LeaderboardOverlay({ s, meId }: { s: GameState; meId: Id | null 
         </table>
       </div>
       <p className="muted flush-b">
-        Net worth = cash + dogs + ship + cargo − debt (GDD §4.3). Tie-break: most Gold wins.
+        Net worth = cash + dogs + ship + cargo − debt (GDD §4.3). Tie-break: most Open wins.
       </p>
     </Modal>
   );

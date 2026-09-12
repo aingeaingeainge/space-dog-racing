@@ -26,13 +26,14 @@ import { decide } from '../src/ai';
 import { isSeasonOver, needsAdvance, reduceMut } from '../src/reduce';
 import { simulateRace, type Runner } from '../src/race/simulateRace';
 import { winProbabilities } from '../src/race/odds';
+import { OPEN_TYPE_ID, raceType } from '../src/content/raceTypes';
 import {
-  RACE_CLASSES,
+  RACE_TYPE_IDS,
   STAT_KEYS,
   type AiAgent,
   type GameState,
   type Id,
-  type RaceClass,
+  type RaceTypeId,
   type StatKey,
   type Track,
 } from '../src/types';
@@ -115,7 +116,7 @@ interface SeasonSample {
   declFitness: Map<Id, number[]>;
   entries: Map<Id, number>;
   dogsSeen: Map<Id, Set<Id>>;
-  fieldByWeek: Map<RaceClass, number[][]>;
+  fieldByWeek: Map<RaceTypeId, number[][]>;
 }
 
 function emptySample(): SeasonSample {
@@ -124,7 +125,7 @@ function emptySample(): SeasonSample {
     entries: new Map(),
     dogsSeen: new Map(),
     fieldByWeek: new Map(
-      RACE_CLASSES.map((c) => [c, Array.from({ length: balance.weeks }, () => [])]),
+      RACE_TYPE_IDS.map((r) => [r, Array.from({ length: balance.weeks }, () => [] as number[])]),
     ),
   };
 }
@@ -155,9 +156,8 @@ function playSeason(
     // The one instant the card is known and nothing has run: fitness here is pre-race.
     if (s.fields && !s.races && sampledWeek !== s.week) {
       sampledWeek = s.week;
-      for (const cls of RACE_CLASSES) {
-        const field = s.fields[cls]!;
-        sample.fieldByWeek.get(cls)![s.week - 1]!.push(mean(field.map((e) => e.rating)));
+      for (const { race, entries: field } of s.fields) {
+        sample.fieldByWeek.get(race)![s.week - 1]!.push(mean(field.map((e) => e.rating)));
         for (const e of field) {
           if (e.local) continue;
           const d = s.dogs[e.dogId];
@@ -212,8 +212,8 @@ export function runHarness(args: Args): string {
     }
     return st;
   };
-  const fieldByWeek = new Map<RaceClass, number[][]>(
-    RACE_CLASSES.map((c) => [c, Array.from({ length: balance.weeks }, () => [] as number[])]),
+  const fieldByWeek = new Map<RaceTypeId, number[][]>(
+    RACE_TYPE_IDS.map((r) => [r, Array.from({ length: balance.weeks }, () => [] as number[])]),
   );
   const h2h = new Map<string, HeadToHead>();
   const pairing = (a: AiAgent, b: AiAgent): HeadToHead => {
@@ -279,14 +279,14 @@ export function runHarness(args: Args): string {
         if (pa < pb) rec.wins++;
       }
     }
-    for (const cls of RACE_CLASSES) {
-      const src = sample.fieldByWeek.get(cls)!;
-      const dst = fieldByWeek.get(cls)!;
+    for (const race of RACE_TYPE_IDS) {
+      const src = sample.fieldByWeek.get(race)!;
+      const dst = fieldByWeek.get(race)!;
       for (let w = 0; w < balance.weeks; w++) for (const v of src[w]!) dst[w]!.push(v);
     }
     const majorWins = new Map<string, number>();
     for (const r of s.results) {
-      if (s.calendar[r.week - 1]?.major && r.cls === 'gold') {
+      if (s.calendar[r.week - 1]?.major && r.race === OPEN_TYPE_ID) {
         const w = r.payouts.find((x) => x.place === 1);
         if (w) majorWins.set(w.playerId, (majorWins.get(w.playerId) ?? 0) + 1);
       }
@@ -349,11 +349,11 @@ export function runHarness(args: Args): string {
   // §7a.2: "average Gold field rating by week" is retired — it measures a class that Phase B
   // deletes, and what it was really asking (are stables racing up?) reads off every race.
   lines.push('');
-  lines.push('Field strength by week (mean entrant rating, all eight traps)');
-  for (const cls of RACE_CLASSES) {
+  lines.push('Field strength by week, per race type (mean entrant rating, all eight traps)');
+  for (const race of RACE_TYPE_IDS) {
     lines.push(
-      `  ${cls.padEnd(7)} ${fieldByWeek
-        .get(cls)!
+      `  ${raceType(race).label.padEnd(13)} ${fieldByWeek
+        .get(race)!
         .map((w) => mean(w).toFixed(0).padStart(3))
         .join(' ')}`,
     );
@@ -362,7 +362,7 @@ export function runHarness(args: Args): string {
     `Supplements: ${supplementsUsed} used, ${supplementsCaught} caught (${supplementsUsed ? pct(supplementsCaught / supplementsUsed) : 'n/a'})`,
   );
   lines.push(
-    `Seasons where the champion won at least one Major Gold: ${pct(championWonAMajor / Math.max(1, args.seasons))}`,
+    `Seasons where the champion won at least one Major Open: ${pct(championWonAMajor / Math.max(1, args.seasons))}`,
   );
   return lines.join('\n');
 }

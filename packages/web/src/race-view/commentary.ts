@@ -225,7 +225,7 @@ export function buildCommentary(ctx: CommentaryContext): CommentaryLine[] {
   };
 
   const out: CommentaryLine[] = [];
-  out.push(say('opening', 0, `${result.week}:${result.cls}:${result.planetId}`, base));
+  out.push(say('opening', 0, `${result.week}:${result.race}:${result.planetId}`, base));
 
   // --- The break, read off the first few ticks ---
   const breakTick = Math.min(7, lastTick);
@@ -239,7 +239,7 @@ export function buildCommentary(ctx: CommentaryContext): CommentaryLine[] {
   const spread = (early[fast] ?? 0) - (early[slow] ?? 0);
   // Read off tick 7 but called a beat later, so the opening line is not immediately buried.
   out.push(
-    say('break', BREAK_CALL_AT, `${result.cls}:${entries[fast]!.dogId}`, {
+    say('break', BREAK_CALL_AT, `${result.race}:${entries[fast]!.dogId}`, {
       ...base,
       dog: entries[fast]!.name,
       trap: entries[fast]!.trap,
@@ -247,7 +247,7 @@ export function buildCommentary(ctx: CommentaryContext): CommentaryLine[] {
   );
   if (spread > 1.6) {
     out.push(
-      say('breakSlow', BREAK_CALL_AT + 1.3, `${result.cls}:${entries[slow]!.dogId}`, {
+      say('breakSlow', BREAK_CALL_AT + 1.3, `${result.race}:${entries[slow]!.dogId}`, {
         ...base,
         dog: entries[slow]!.name,
         trap: entries[slow]!.trap,
@@ -260,7 +260,7 @@ export function buildCommentary(ctx: CommentaryContext): CommentaryLine[] {
     if (ev.kind === 'leadChange') {
       if (ev.tick < SETTLE_TICKS) continue;
       out.push(
-        say('leadChange', secs(ev.tick), `${result.cls}:${ev.tick}:${ev.dogId}`, {
+        say('leadChange', secs(ev.tick), `${result.race}:${ev.tick}:${ev.dogId}`, {
           ...base,
           dog: nameOf(ev.dogId),
           trap: trapOf(ev.dogId),
@@ -268,7 +268,7 @@ export function buildCommentary(ctx: CommentaryContext): CommentaryLine[] {
       );
     } else if (ev.kind === 'bump') {
       out.push(
-        say('bump', secs(ev.tick), `${result.cls}:${ev.tick}:${ev.dogId}`, {
+        say('bump', secs(ev.tick), `${result.race}:${ev.tick}:${ev.dogId}`, {
           ...base,
           dog: nameOf(ev.dogId),
           other: ev.otherId ? nameOf(ev.otherId) : 'the one inside it',
@@ -293,7 +293,7 @@ export function buildCommentary(ctx: CommentaryContext): CommentaryLine[] {
     if (lead < 0) continue;
     const gap = Math.max(0, (row[lead] ?? 0) - (row[second] ?? 0));
     out.push(
-      say('marker', secs(k), `${result.cls}:${frac}:${entries[lead]!.dogId}${offset}`, {
+      say('marker', secs(k), `${result.race}:${frac}:${entries[lead]!.dogId}${offset}`, {
         ...base,
         dog: entries[lead]!.name,
         gap: gap.toFixed(1),
@@ -337,7 +337,7 @@ export function buildCommentary(ctx: CommentaryContext): CommentaryLine[] {
       const v = speedAt(i, k);
       if (v < peak * 0.87 && place[i]! - bestEarly >= 2 && bestEarly <= 4) {
         fades.push(
-          say('fade', secs(k), `${result.cls}:${id}`, {
+          say('fade', secs(k), `${result.race}:${id}`, {
             ...base,
             dog: entries[i]!.name,
             trap: entries[i]!.trap,
@@ -358,7 +358,7 @@ export function buildCommentary(ctx: CommentaryContext): CommentaryLine[] {
     const gained = midPlace - finalPlace;
     if (finalPlace > 0 && ((gained >= 2 && finalPlace <= 3) || (gained >= 3 && finalPlace <= 4))) {
       closers.push(
-        say('lateRun', Math.max(0, secs(finish) - 3.4), `${result.cls}:${id}`, {
+        say('lateRun', Math.max(0, secs(finish) - 3.4), `${result.race}:${id}`, {
           ...base,
           dog: entries[i]!.name,
           trap: entries[i]!.trap,
@@ -376,7 +376,7 @@ export function buildCommentary(ctx: CommentaryContext): CommentaryLine[] {
     const at = secs(result.finishTicks[winner] ?? lastTick);
     if (result.photoFinish) {
       out.push(
-        say('photo', at, `${result.cls}:${winner}`, {
+        say('photo', at, `${result.race}:${winner}`, {
           ...base,
           dog: nameOf(winner),
           other: runnerUp ? nameOf(runnerUp) : 'the other',
@@ -384,7 +384,7 @@ export function buildCommentary(ctx: CommentaryContext): CommentaryLine[] {
       );
     }
     out.push(
-      say('win', at + (result.photoFinish ? 1.4 : 0.25), `${result.cls}:${winner}:w`, {
+      say('win', at + (result.photoFinish ? 1.4 : 0.25), `${result.race}:${winner}:w`, {
         ...base,
         dog: nameOf(winner),
         trap: trapOf(winner),

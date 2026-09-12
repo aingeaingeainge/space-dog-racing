@@ -1,7 +1,7 @@
 import { balance } from '../content/balance';
 import { dogValue } from '../economy/dogValue';
-import { eligible, player } from '../state';
-import { RACE_CLASSES, type Action, type GameState, type Id } from '../types';
+import { eligible, player, thisWeeksCard } from '../state';
+import { RACE_TYPE_IDS, type Action, type GameState, type Id } from '../types';
 import { hash01, setStates, startPlan, weeklyFoodNeed } from './shared';
 
 /**
@@ -41,7 +41,7 @@ export function decideEasy(s: GameState, playerId: Id): Action[] {
     // Broke, and only then: let the cheapest dog go.
     if (plan.cash < 0 && plan.kennel.length > 1) {
       const cheapest = [...plan.kennel].sort((a, b) => dogValue(a) - dogValue(b))[0]!;
-      const isDeclared = RACE_CLASSES.some((c) => s.declarations[c][playerId] === cheapest.id);
+      const isDeclared = RACE_TYPE_IDS.some((r) => s.declarations[r][playerId] === cheapest.id);
       if (!(isDeclared && s.phase === 'planetPre')) {
         out.push({ t: 'SellDog', playerId, dogId: cheapest.id });
         plan.cash += Math.round(dogValue(cheapest) * balance.marketSellFactor);
@@ -79,17 +79,17 @@ export function decideEasy(s: GameState, playerId: Id): Action[] {
         (a, b) => hash01(s.seed, s.week, playerId, a.id) - hash01(s.seed, s.week, playerId, b.id),
       );
       const used = new Set<Id>();
-      for (const cls of RACE_CLASSES) {
+      for (const race of thisWeeksCard(s)) {
         let chosen: Id | null = null;
-        if (hash01(s.seed, s.week, playerId, cls, 'skip') > SKIP_RATE) {
-          const pick = shuffled.find((d) => !used.has(d.id) && eligible(d, cls));
+        if (hash01(s.seed, s.week, playerId, race, 'skip') > SKIP_RATE) {
+          const pick = shuffled.find((d) => !used.has(d.id) && eligible(d, race));
           if (pick) {
             chosen = pick.id;
             used.add(pick.id);
           }
         }
-        if ((s.declarations[cls][playerId] ?? null) !== chosen)
-          out.push({ t: 'Declare', playerId, cls, dogId: chosen });
+        if ((s.declarations[race][playerId] ?? null) !== chosen)
+          out.push({ t: 'Declare', playerId, race, dogId: chosen });
       }
       setStates(plan, used, { train: false });
     }

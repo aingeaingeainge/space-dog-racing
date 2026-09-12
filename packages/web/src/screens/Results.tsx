@@ -1,18 +1,11 @@
-import {
-  formatBones,
-  planetOf,
-  RACE_CLASSES,
-  type GameState,
-  type Player,
-  type RaceResult,
-} from '@sdr/engine';
+import { formatBones, planetOf, type GameState, type Player, type RaceResult } from '@sdr/engine';
 import { Panel } from '../components/Panel';
 import { Badge, Delta, StableName, Traits } from '../components/ui';
 import { NeonButton } from '../components/NeonButton';
 import { BettingSlip, type SlipRow } from '../components/BettingSlip';
 import { OwnerFace } from '../components/Owner';
 import { useKeys } from '../lib/keys';
-import { CLASS_LABEL, playerById } from '../lib/selectors';
+import { playerById, raceLabel } from '../lib/selectors';
 import { useGame } from '../store/gameStore';
 
 function RaceTable({ s, r, meId }: { s: GameState; r: RaceResult; meId: string }) {
@@ -84,8 +77,8 @@ export function Results({ s, me }: { s: GameState; me: Player }) {
   useKeys({ Enter: ackResults, ' ': ackResults });
   if (!s.races) return null;
   const planet = planetOf(s.planet.planetId);
-  const mine = RACE_CLASSES.flatMap((cls) =>
-    s.races![cls].payouts.filter((p) => p.playerId === me.id).map((p) => ({ cls, ...p })),
+  const mine = s.races.flatMap((r) =>
+    r.payouts.filter((p) => p.playerId === me.id).map((p) => ({ race: r.race, ...p })),
   );
   const won = mine.reduce((sum, p) => sum + p.amount, 0);
 
@@ -106,27 +99,24 @@ export function Results({ s, me }: { s: GameState; me: Player }) {
             {mine
               .map(
                 (p) =>
-                  `${CLASS_LABEL[p.cls]} ${p.place === 1 ? '1st' : p.place === 2 ? '2nd' : '3rd'}`,
+                  `${raceLabel(p.race)} ${p.place === 1 ? '1st' : p.place === 2 ? '2nd' : '3rd'}`,
               )
               .join(', ')}
             .
           </p>
         ) : (
-          <p className="muted flush">
-            Nothing in the money this weekend.
-          </p>
+          <p className="muted flush">Nothing in the money this weekend.</p>
         )}
       </Panel>
 
       <BetsSettled s={s} me={me} />
 
-      {RACE_CLASSES.map((cls) => {
-        const r = s.races![cls];
+      {s.races.map((r) => {
         const winner = r.entries.find((e) => e.dogId === r.order[0]);
         return (
           <Panel
-            key={cls}
-            title={`${CLASS_LABEL[cls]} — ${winner?.name ?? '?'}`}
+            key={r.race}
+            title={`${raceLabel(r.race)} — ${winner?.name ?? '?'}`}
             sub={`won by ${r.margin} m${r.photoFinish ? ' — photo finish!' : ''} · purse ${formatBones(r.purse[0])}`}
             tight
           >
@@ -148,7 +138,7 @@ function BetsSettled({ s, me }: { s: GameState; me: Player }) {
 
   const rows: SlipRow[] = bets.map((b, i) => ({
     key: String(i),
-    race: CLASS_LABEL[b.cls],
+    race: raceLabel(b.race),
     dog: s.dogs[b.dogId]?.name ?? 'that dog',
     kind: b.kind,
     stake: b.stake,
@@ -165,7 +155,10 @@ function BetsSettled({ s, me }: { s: GameState; me: Player }) {
         rows={rows}
         net={`${net >= 0 ? '+' : ''}${formatBones(net)} on the day`}
       />
-      <p className="muted small-print">Staked {formatBones(staked)}, returned {formatBones(returned)}. Nobody else at the table sees these.</p>
+      <p className="muted small-print">
+        Staked {formatBones(staked)}, returned {formatBones(returned)}. Nobody else at the table
+        sees these.
+      </p>
     </div>
   );
 }

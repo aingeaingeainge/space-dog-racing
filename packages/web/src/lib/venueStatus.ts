@@ -7,11 +7,14 @@ import {
   planetOf,
   upgradePrice,
   weekStatusOf,
-  RACE_CLASSES,
+  thisWeeksCard,
+  OPEN_TYPE_ID,
+  RACE_TYPE_IDS,
   type GameState,
   type Player,
+  type RaceTypeId,
 } from '@sdr/engine';
-import { ineligibleReason, ownedDogs, declaredCount, TRAPS } from './selectors';
+import { ineligibleReason, ownedDogs, declaredCount, raceLabel, TRAPS } from './selectors';
 import type { VenueId } from './venues';
 
 export interface VenueStatus {
@@ -108,7 +111,7 @@ export function venueStatus(s: GameState, me: Player): Record<VenueId, VenueStat
       ? mine.filter(
           (d) =>
             weekStatusOf(d) === 'race' &&
-            !RACE_CLASSES.some((c) => s.declarations[c][me.id] === d.id),
+            !RACE_TYPE_IDS.some((r) => s.declarations[r][me.id] === d.id),
         ).length
       : 0;
   const plan = [
@@ -218,21 +221,22 @@ export function venueStatus(s: GameState, me: Player): Record<VenueId, VenueStat
         : nothing('Opens when the card locks', 'shut till lock');
 
   // --- Race Office: a runner still to declare in a race you are eligible for.
-  const undeclared = RACE_CLASSES.filter((cls) => {
-    if (s.declarations[cls][me.id]) return false;
-    return mine.some((d) => !ineligibleReason(d, cls) && !isDeclaredElsewhere(s, me, d.id, cls));
+  const card = thisWeeksCard(s);
+  const undeclared = card.filter((race) => {
+    if (s.declarations[race][me.id]) return false;
+    return mine.some((d) => !ineligibleReason(d, race) && !isDeclaredElsewhere(s, me, d.id, race));
   });
-  const declaredMine = RACE_CLASSES.filter((cls) => s.declarations[cls][me.id]).length;
+  const declaredMine = card.filter((race) => s.declarations[race][me.id]).length;
   const office: VenueStatus = !pre
     ? nothing('The card is closed for this weekend')
     : undeclared.length
       ? {
-          line: `${declaredMine} of 3 declared · ${undeclared.length} race${undeclared.length === 1 ? '' : 's'} you can still fill`,
+          line: `${declaredMine} of ${card.length} declared · ${undeclared.length} race${undeclared.length === 1 ? '' : 's'} you can still fill`,
           short: `${undeclared.length} to fill`,
           worth: true,
         }
       : nothing(
-          `All ${declaredMine} declared · ${TRAPS - declaredCount(s, 'gold')} locals in Gold`,
+          `All ${declaredMine} declared · ${TRAPS - declaredCount(s, OPEN_TYPE_ID)} locals in the ${raceLabel(OPEN_TYPE_ID)}`,
           `${declaredMine} declared`,
         );
 
@@ -248,13 +252,8 @@ export function venueStatus(s: GameState, me: Player): Record<VenueId, VenueStat
   };
 }
 
-function isDeclaredElsewhere(
-  s: GameState,
-  me: Player,
-  dogId: string,
-  except: (typeof RACE_CLASSES)[number],
-): boolean {
-  return RACE_CLASSES.some((c) => c !== except && s.declarations[c][me.id] === dogId);
+function isDeclaredElsewhere(s: GameState, me: Player, dogId: string, except: RaceTypeId): boolean {
+  return RACE_TYPE_IDS.some((r) => r !== except && s.declarations[r][me.id] === dogId);
 }
 
 /** Highest value of a dog this player owns — used by the hub's one-line stable summary. */

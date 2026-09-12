@@ -23,10 +23,10 @@ import { Panel } from '../components/Panel';
 import { Badge, KV, Notes } from '../components/ui';
 import {
   cannotRunReason,
-  CLASS_LABEL,
-  declaredClass,
+  declaredRace,
   fitnessOutlook,
   ownedDogs,
+  raceLabel,
   weeklyBill,
 } from '../lib/selectors';
 import { useGame } from '../store/gameStore';
@@ -141,18 +141,18 @@ export function Stable({ s, me }: { s: GameState; me: Player }) {
         <div className="dogcards">
           {dogs.map((d) => {
             const st = status(d);
-            const cls = declaredClass(s, me.id, d.id);
+            const race = declaredRace(s, me.id, d.id);
             return (
               <DogCard
                 key={d.id}
                 dog={d}
-                declared={!!cls}
+                declared={!!race}
                 sub={`age ${d.age} · ${d.wins}/${d.runs} · ${formatBones(dogValue(d))}`}
                 badges={
                   <>
-                    {cls ? (
+                    {race ? (
                       <Badge tone="good" title="declared this weekend">
-                        {CLASS_LABEL[cls]}
+                        {raceLabel(race)}
                       </Badge>
                     ) : null}
                     {weekStatusOf(d) === 'train' ? (
@@ -173,7 +173,7 @@ export function Stable({ s, me }: { s: GameState; me: Player }) {
                 }
                 actions={<Gear s={s} me={me} d={d} inTurn={inTurn} />}
               >
-                <WeekPlan me={me} d={d} inTurn={inTurn} declared={!!cls} />
+                <WeekPlan s={s} me={me} d={d} inTurn={inTurn} declared={!!race} />
               </DogCard>
             );
           })}
@@ -194,11 +194,13 @@ export function Stable({ s, me }: { s: GameState; me: Player }) {
  * button says so rather than throwing an ActionError at the player.
  */
 function WeekPlan({
+  s,
   me,
   d,
   inTurn,
   declared,
 }: {
+  s: GameState;
   me: Player;
   d: Dog;
   inTurn: boolean;
@@ -210,7 +212,7 @@ function WeekPlan({
   // Why this dog cannot take a trap at all this weekend. Under the rating caps that is injury or
   // a ban; once the card is fact-gated it is also "nothing on this card will have it", and the
   // Kennels has to say so or the player is left wondering why Race does nothing.
-  const barred = cannotRunReason(d);
+  const barred = cannotRunReason(s, d);
 
   return (
     <div className="weekplan">
@@ -303,8 +305,7 @@ function PlanTheWeek({
   const plan = (d: Dog): WeekState =>
     d.fitness >= 65 ? 'race' : d.fitness >= restBelow ? 'train' : 'rest';
   const todo = dogs.filter(
-    (d) =>
-      weekStatusOf(d) !== 'layoff' && !declaredClass(s, me.id, d.id) && d.weekState !== plan(d),
+    (d) => weekStatusOf(d) !== 'layoff' && !declaredRace(s, me.id, d.id) && d.weekState !== plan(d),
   );
 
   return (

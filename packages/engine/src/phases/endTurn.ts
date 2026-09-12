@@ -3,8 +3,10 @@ import { dogSalePrice, dogValue } from '../economy/dogValue';
 import { fuelCost } from '../economy/food';
 import { outstanding, weeklyInterest } from '../economy/loans';
 import { netWorth } from '../economy/netWorth';
+import { OPEN_TYPE_ID } from '../content/raceTypes';
 import {
   currentPlanet,
+  emptyDeclarations,
   log,
   player,
   ranThisWeek,
@@ -91,8 +93,7 @@ export function runEndTurn(ctx: Ctx): void {
     // Fan club money while the dog keeps winning.
     if (p.fanClubDogId) {
       const fan = s.dogs[p.fanClubDogId];
-      const wonThisWeek =
-        fan && s.races && Object.values(s.races).some((r) => r.order[0] === fan.id);
+      const wonThisWeek = fan && s.races && s.races.some((r) => r.order[0] === fan.id);
       if (wonThisWeek) p.cash += 200;
       else delete p.fanClubDogId;
     }
@@ -192,11 +193,11 @@ export function runEndTurn(ctx: Ctx): void {
     if (d.ownerId === 'local' || d.ownerId === 'market') delete s.dogs[d.id];
   }
   if (s.races) {
-    for (const r of Object.values(s.races)) s.results.push({ ...r, ticks: [] });
+    for (const r of s.races) s.results.push({ ...r, ticks: [] });
   }
   s.races = null;
   s.fields = null;
-  s.declarations = { bronze: {}, silver: {}, gold: {} };
+  s.declarations = emptyDeclarations();
   s.locked = false;
   s.planet.marketDogIds = [];
 
@@ -211,20 +212,21 @@ export function runEndTurn(ctx: Ctx): void {
   s.activePlayer = null;
 }
 
+/** GDD §4.3: net worth decides it; tie-break is most Open wins, then most Majors. */
 function finishSeason(s: GameState): void {
-  const wonGold = (r: (typeof s.results)[number], pid: string) =>
-    r.cls === 'gold' && r.payouts.some((x) => x.place === 1 && x.playerId === pid);
-  const goldWins = (pid: string) => s.results.filter((r) => wonGold(r, pid)).length;
+  const wonOpen = (r: (typeof s.results)[number], pid: string) =>
+    r.race === OPEN_TYPE_ID && r.payouts.some((x) => x.place === 1 && x.playerId === pid);
+  const openWins = (pid: string) => s.results.filter((r) => wonOpen(r, pid)).length;
   const majorsWon = (pid: string) =>
-    s.results.filter((r) => s.calendar[r.week - 1]?.major && wonGold(r, pid)).length;
+    s.results.filter((r) => s.calendar[r.week - 1]?.major && wonOpen(r, pid)).length;
   const standings = s.players
     .map((p) => ({
       playerId: p.id,
       netWorth: netWorth(s, p),
-      gold: goldWins(p.id),
+      open: openWins(p.id),
       majors: majorsWon(p.id),
     }))
-    .sort((a, b) => b.netWorth - a.netWorth || b.gold - a.gold || b.majors - a.majors);
+    .sort((a, b) => b.netWorth - a.netWorth || b.open - a.open || b.majors - a.majors);
   s.finalStandings = standings.map(({ playerId, netWorth: nw }) => ({ playerId, netWorth: nw }));
   s.phase = 'seasonEnd';
   s.activePlayer = null;

@@ -5,8 +5,27 @@
 
 export type Id = string;
 
-export type RaceClass = 'bronze' | 'silver' | 'gold';
-export const RACE_CLASSES: readonly RaceClass[] = ['bronze', 'silver', 'gold'] as const;
+/**
+ * A race is a **row**, not a member of a closed union of three classes (GDD §6.3, D2).
+ *
+ * The id is all that lives in state — on a declaration, on a bet, on an archived result — and
+ * everything else about the race (its label, the criterion it posts, the purse tier it pays, the
+ * facts a local dog needs to be allowed in it) hangs off `content/raceTypes.ts`, one object per
+ * row. Adding a type is adding a row there and an id here; nothing branches on which race it is.
+ *
+ * This step keeps Bronze, Silver and Gold as the three rows so the season plays exactly as it
+ * did, and moves only the *shape*: BUILD_PLAN §11 is explicit that landing the shape change and
+ * the new content in one commit is how this session overruns.
+ */
+export type RaceTypeId = 'bronze' | 'silver' | 'gold';
+export const RACE_TYPE_IDS: readonly RaceTypeId[] = ['bronze', 'silver', 'gold'] as const;
+
+/**
+ * What a race pays, before the Major and planet multipliers. A tier rather than a purse per row
+ * because GDD §6.4 prices the card by kind — the headline race and everything else — and a row
+ * that carried its own three numbers would make the ladder invisible.
+ */
+export type RacePurseTier = 'bronze' | 'silver' | 'gold';
 
 export type StatKey = 'speed' | 'accel' | 'stamina' | 'trap';
 export const STAT_KEYS: readonly StatKey[] = ['speed', 'accel', 'stamina', 'trap'] as const;
@@ -43,7 +62,7 @@ export type Phase =
   | 'events' // each player draws one event; choice events pause for that player
   | 'planetPre' // in turn order: market, kennels, docks, saloon, race office (declarations)
   | 'betting' // declarations are locked and public; in turn order players may bet
-  | 'race' // system: simulate Bronze, Silver, Gold; pay purses; settle bets
+  | 'race' // system: simulate the card in order; pay purses; settle bets
   | 'planetPost' // in turn order: sell dogs, buy food, borrow …
   | 'endTurn' // system: weekly costs, training, recovery, jump to the next planet
   | 'seasonEnd';
@@ -149,7 +168,8 @@ export interface Dog {
   banWeeks: number; // stewards' ban after a doping catch
   wins: number;
   runs: number;
-  goldWins: number;
+  /** Wins in the headline race of the weekend — the season's first tie-break (GDD §4.3). */
+  openWins: number;
   supplemented: boolean; // supplement fed this weekend (cleared after the race)
   raceBonus: number; // temporary speed-stat bonus for this weekend's race (supplement, lucky bone)
   weekState: WeekState; // GDD §5.7 — what this dog is doing with the week
@@ -236,12 +256,17 @@ export interface CalendarEntry {
   planetId: Id;
   major: boolean;
   grandFinal: boolean;
+  /**
+   * This weekend's three races, in the order they are run, headline race last (GDD §6.3). Fixed
+   * to the three classes while the shape lands; drawn per weekend once the pool exists.
+   */
+  card: RaceTypeId[];
 }
 
 export interface Bet {
   playerId: Id;
   week: number;
-  cls: RaceClass;
+  race: RaceTypeId;
   dogId: Id;
   kind: 'win' | 'place';
   stake: number;
@@ -268,10 +293,16 @@ export interface RaceEvent {
   otherId?: Id;
 }
 
+/** One race on the card once declarations lock: which race it is, and who is in it. */
+export interface RaceField {
+  race: RaceTypeId;
+  entries: RaceEntry[];
+}
+
 export interface RaceResult {
   week: number;
   planetId: Id;
-  cls: RaceClass;
+  race: RaceTypeId;
   purse: [number, number, number];
   entries: RaceEntry[];
   order: Id[]; // finishing order, dog ids
@@ -325,10 +356,21 @@ export interface GameState {
   /** Players who have sent EndPhase in the current player phase. */
   done: Id[];
   dogs: Record<Id, Dog>;
-  declarations: Record<RaceClass, Record<Id, Id>>; // cls → playerId → dogId
+  /**
+   * race type → playerId → dogId. A record rather than a list because a declaration is
+   * *addressed* to a race ("put this dog in the Maiden"), and every id is a key whether or not
+   * this weekend's card happens to include it — an off-card race simply never gets an entry,
+   * and `declare` refuses one.
+   */
+  declarations: Record<RaceTypeId, Record<Id, Id>>;
   locked: boolean; // declarations locked (betting open)
-  fields: Record<RaceClass, RaceEntry[]> | null; // this week's fields once declarations lock
-  races: Record<RaceClass, RaceResult> | null; // this week's races once run
+  /**
+   * This week's fields and results, in run order — a list rather than a record because these are
+   * iterated far more often than they are looked up, and because a `RaceResult` goes into the
+   * archive, where a position would mean nothing and the `race` it carries means everything.
+   */
+  fields: RaceField[] | null;
+  races: RaceResult[] | null;
   pendingEvent: PendingEvent | null;
   eventQueue: Id[]; // players still to draw an event this week
   bets: Bet[];
@@ -358,8 +400,15 @@ export type UpgradeId =
 export type Action =
   | { t: 'BuyDog'; playerId: Id; dogId: Id }
   | { t: 'SellDog'; playerId: Id; dogId: Id }
-  | { t: 'Declare'; playerId: Id; cls: RaceClass; dogId: Id | null }
-  | { t: 'PlaceBet'; playerId: Id; cls: RaceClass; dogId: Id; kind: 'win' | 'place'; stake: number }
+  | { t: 'Declare'; playerId: Id; race: RaceTypeId; dogId: Id | null }
+  | {
+      t: 'PlaceBet';
+      playerId: Id;
+      race: RaceTypeId;
+      dogId: Id;
+      kind: 'win' | 'place';
+      stake: number;
+    }
   | { t: 'TradeFood'; playerId: Id; units: number } // +buy / −sell
   | { t: 'HireStaff'; playerId: Id; role: StaffRole; staffId: StaffId }
   | { t: 'FireStaff'; playerId: Id; role: StaffRole }

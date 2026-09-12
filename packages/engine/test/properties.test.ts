@@ -8,12 +8,14 @@ import {
   needsAdvance,
   netWorthBreakdown,
   player,
+  raceType,
   reduceMut,
   shipValue,
   debt,
-  ratingCap,
+  thisWeeksCard,
   weekStatusOf,
-  RACE_CLASSES,
+  OPEN_TYPE_ID,
+  RACE_TYPE_IDS,
   STAT_KEYS,
   WEEK_STATES,
   type Action,
@@ -71,7 +73,7 @@ function checkInvariants(s: GameState, lastAction: Action): void {
       if (d!.injuryWeeks > 0 || d!.banWeeks > 0)
         assert(weekStatusOf(d!) === 'layoff', 'an injured or banned dog is on layoff');
       // A declared dog is racing. Declare sets it, and setDogState refuses to unset it.
-      if (!s.locked && RACE_CLASSES.some((c) => s.declarations[c][p.id] === id))
+      if (!s.locked && RACE_TYPE_IDS.some((r) => s.declarations[r][p.id] === id))
         assert(d!.weekState === 'race', `declared dog ${id} is set to ${d!.weekState}`);
       assert(Math.abs(d!.form) <= balance.formMax, 'Math.abs(d!.form) <= balance.formMax');
     }
@@ -88,26 +90,54 @@ function checkInvariants(s: GameState, lastAction: Action): void {
       'w.total === Math.round(p.cash) + dogs + shipValue(p) + Math.round(p.cargo * s.planet.foodSell) - debt(p)',
     );
   }
-  // A dog is never declared in two races, and declared dogs respect the caps (checked while
-  // declarations are still open — ratings move after the race).
+  // GDD §6.3: a weekend's card is exactly three races, run in a fixed order with the headline
+  // race last, and no race appears on it twice. Every week of the season, not just this one —
+  // the card is drawn when the calendar is built, so a bad draw is a bug from week 1.
+  for (let w = 1; w <= balance.weeks; w++) {
+    const card = thisWeeksCard(s, w);
+    assert(card.length === 3, `week ${w}'s card has ${card.length} races`);
+    assert(new Set(card).size === 3, `week ${w}'s card runs a race twice`);
+    assert(card[card.length - 1] === OPEN_TYPE_ID, `week ${w} does not end on the headline race`);
+  }
+
+  // A dog is never declared in two races, is declared only into a race being run this weekend,
+  // and satisfies that race's own entry criterion (checked while declarations are still open —
+  // ratings and win counts move after the race).
   const declared = new Set<string>();
-  for (const cls of s.locked ? [] : RACE_CLASSES) {
-    for (const [pid, dogId] of Object.entries(s.declarations[cls])) {
+  const card = thisWeeksCard(s);
+  for (const race of s.locked ? [] : RACE_TYPE_IDS) {
+    for (const [pid, dogId] of Object.entries(s.declarations[race])) {
+      assert(card.includes(race), `dog ${dogId} declared in the ${race}, which is not on the card`);
       assert(!declared.has(dogId), `dog ${dogId} declared twice`);
       declared.add(dogId);
       const d = s.dogs[dogId]!;
       assert(d.ownerId === pid, 'd.ownerId === pid');
-      assert(d.rating <= ratingCap(cls), 'd.rating <= ratingCap(cls)');
+      assert(
+        raceType(race).eligible(d),
+        `declared dog ${dogId} does not qualify for the ${race}: ${raceType(race).criterion}`,
+      );
     }
   }
   if (s.fields) {
     const inRace = new Set<string>();
-    for (const cls of RACE_CLASSES) {
-      assert(s.fields[cls].length === balance.traps, 'field size');
-      for (const e of s.fields[cls]) {
+    assert(s.fields.length === card.length, 'a field per race on the card');
+    for (const { race, entries } of s.fields) {
+      assert(entries.length === balance.traps, 'field size');
+      for (const e of entries) {
         assert(!inRace.has(e.dogId), 'dog in two races');
         inRace.add(e.dogId);
-        if (!e.local) assert(e.rating <= ratingCap(cls), 'e.rating <= ratingCap(cls)');
+        // Every runner satisfies the race's predicate — the locals too. They bypass Declare, so
+        // this is the only thing standing between a Juvenile and a field of four-year-olds
+        // (GDD §6.3); createLocalDog's LocalSpec is what has to keep it true.
+        //
+        // Only between the lock and the races, because eligibility is a fact about the dog *at
+        // declaration*: the race then moves ratings, wins and runs, and a Maiden's winner is
+        // supposed to stop being a maiden. That is the mechanic, not a violation.
+        if (!s.races)
+          assert(
+            raceType(race).eligible(s.dogs[e.dogId]!),
+            `${e.local ? 'local' : 'declared'} runner ${e.dogId} does not qualify for the ${race}`,
+          );
       }
     }
   }

@@ -8,13 +8,17 @@ import {
   planetOf,
   shipValue,
   weeklyInterest,
-  RACE_CLASSES,
+  thisWeeksCard,
+  raceType,
+  LOCAL_RATING_BY_TIER,
+  OPEN_TYPE_ID,
+  RACE_TYPE_IDS,
   type Dog,
   type GameState,
   type Id,
   type Phase,
   type Player,
-  type RaceClass,
+  type RaceTypeId,
 } from '@sdr/engine';
 
 export const PHASE_LABEL: Record<Phase, string> = {
@@ -39,11 +43,24 @@ export const PHASE_ORDER: Phase[] = [
   'endTurn',
 ];
 
-export const CLASS_LABEL: Record<RaceClass, string> = {
-  bronze: 'Bronze',
-  silver: 'Silver',
-  gold: 'Gold',
-};
+/** What a race is called, from its row (GDD §6.3). */
+export function raceLabel(race: RaceTypeId): string {
+  return raceType(race).label;
+}
+
+/**
+ * The three stub colours, by position on the card rather than by race name. The card is ordered
+ * with the headline race last (GDD §6.3), so the metal reads as a ladder however the two drawn
+ * races come out — three identical stubs side by side is a worse screen than three that name
+ * themselves.
+ */
+export function raceTone(
+  race: RaceTypeId,
+  card: readonly RaceTypeId[],
+): 'bronze' | 'silver' | 'gold' {
+  if (race === OPEN_TYPE_ID) return 'gold';
+  return card.indexOf(race) === 0 ? 'bronze' : 'silver';
+}
 
 export function humans(s: GameState): Player[] {
   return s.players.filter((p) => p.kind === 'human');
@@ -64,15 +81,16 @@ export function playerById(s: GameState, id: Id | null | undefined): Player | un
 }
 
 /**
- * Gold wins per stable, counted from the race archive rather than from the dogs still owned,
- * so selling a champion does not erase the win. Tie-break for the season (GDD §4.3).
+ * Wins in the weekend's headline race per stable, counted from the race archive rather than
+ * from the dogs still owned, so selling a champion does not erase the win. First tie-break for
+ * the season (GDD §4.3).
  */
-export function goldWins(s: GameState): Record<Id, number> {
+export function openWins(s: GameState): Record<Id, number> {
   const out: Record<Id, number> = {};
   for (const p of s.players) out[p.id] = 0;
-  const finished = [...s.results, ...(s.races ? Object.values(s.races) : [])];
+  const finished = [...s.results, ...(s.races ?? [])];
   for (const r of finished) {
-    if (r.cls !== 'gold') continue;
+    if (r.race !== OPEN_TYPE_ID) continue;
     const winner = r.order[0];
     const entry = r.entries.find((e) => e.dogId === winner);
     if (entry && entry.ownerId !== 'local' && out[entry.ownerId] !== undefined) {
@@ -90,11 +108,11 @@ export interface StandingRow {
   cargo: number;
   debt: number;
   netWorth: number;
-  goldWins: number;
+  openWins: number;
 }
 
 export function standings(s: GameState): StandingRow[] {
-  const gold = goldWins(s);
+  const open = openWins(s);
   const rows = s.players.map((player) => {
     const w = netWorthBreakdown(s, player);
     return {
@@ -105,10 +123,10 @@ export function standings(s: GameState): StandingRow[] {
       cargo: w.cargo,
       debt: w.debt,
       netWorth: w.total,
-      goldWins: gold[player.id] ?? 0,
+      openWins: open[player.id] ?? 0,
     };
   });
-  rows.sort((a, b) => b.netWorth - a.netWorth || b.goldWins - a.goldWins);
+  rows.sort((a, b) => b.netWorth - a.netWorth || b.openWins - a.openWins);
   return rows;
 }
 
@@ -116,42 +134,33 @@ export function ownedDogs(s: GameState, p: Player): Dog[] {
   return p.dogIds.map((id) => s.dogs[id]).filter((d): d is Dog => !!d);
 }
 
-/** The class this player has declared the dog in, if any. */
-export function declaredClass(s: GameState, playerId: Id, dogId: Id): RaceClass | null {
-  for (const cls of RACE_CLASSES) if (s.declarations[cls][playerId] === dogId) return cls;
+/** The race this player has declared the dog in, if any. */
+export function declaredRace(s: GameState, playerId: Id, dogId: Id): RaceTypeId | null {
+  for (const race of RACE_TYPE_IDS) if (s.declarations[race][playerId] === dogId) return race;
   return null;
 }
 
-/** Why a dog cannot run in a class — null when it can. */
-export function ineligibleReason(d: Dog, cls: RaceClass): string | null {
+/** What the race asks of a dog, in the words the card header prints (GDD §6.5). */
+export function criterionFor(race: RaceTypeId): string {
+  return raceType(race).criterion;
+}
+
+/** Why a dog cannot run in one race — null when it can. */
+export function ineligibleReason(d: Dog, race: RaceTypeId): string | null {
   if (d.injuryWeeks > 0) return `injured (${d.injuryWeeks}w)`;
   if (d.banWeeks > 0) return `banned (${d.banWeeks}w)`;
-  const cap = cls === 'bronze' ? balance.capBronze : cls === 'silver' ? balance.capSilver : 99;
-  if (d.rating > cap) return `rating ${d.rating} > ${cap}`;
+  if (!raceType(race).eligible(d)) return `needs ${raceType(race).criterion}`;
   return null;
-}
-
-/**
- * What the race asks of a dog, in the words the card header prints (GDD §6.5).
- *
- * The rating caps have always been the entry criterion; until now the Race Office printed them
- * as "cap 45", which reads as a property of the race rather than as a question about your dog.
- * Phase B's card draws its criterion from the race-type row instead, and this is the shape that
- * function will have.
- */
-export function criterionFor(cls: RaceClass): string {
-  const cap = cls === 'bronze' ? balance.capBronze : cls === 'silver' ? balance.capSilver : null;
-  return cap === null ? 'any dog may enter' : `rating ${cap} or less`;
 }
 
 /** Why a dog cannot run in *any* race this week — null when at least one race will have it. */
-export function cannotRunReason(d: Dog): string | null {
+export function cannotRunReason(s: GameState, d: Dog): string | null {
   if (d.injuryWeeks > 0)
     return `injured — out for ${d.injuryWeeks} more week${d.injuryWeeks > 1 ? 's' : ''}`;
   if (d.banWeeks > 0)
     return `banned by the stewards for ${d.banWeeks} more week${d.banWeeks > 1 ? 's' : ''}`;
-  if (RACE_CLASSES.every((cls) => ineligibleReason(d, cls)))
-    return 'no race on this card will have it';
+  if (thisWeeksCard(s).every((race) => !raceType(race).eligible(d)))
+    return "nothing on this weekend's card will have it";
   return null;
 }
 
@@ -184,18 +193,12 @@ export function fitnessOutlook(d: Dog, me: Player): FitnessOutlook {
 }
 
 /** Typical rating of the local dogs that will fill the empty traps (GDD §6.1). */
-export function localRatingFor(cls: RaceClass, major: boolean): number {
-  const base =
-    cls === 'bronze'
-      ? balance.localRatingBronze
-      : cls === 'silver'
-        ? balance.localRatingSilver
-        : balance.localRatingGold;
-  return base + (major ? balance.localRatingMajorBonus : 0);
+export function localRatingFor(race: RaceTypeId, major: boolean): number {
+  return LOCAL_RATING_BY_TIER[raceType(race).tier] + (major ? balance.localRatingMajorBonus : 0);
 }
 
-export function declaredCount(s: GameState, cls: RaceClass): number {
-  return Object.keys(s.declarations[cls]).length;
+export function declaredCount(s: GameState, race: RaceTypeId): number {
+  return Object.keys(s.declarations[race]).length;
 }
 
 export const TRAPS = balance.traps;

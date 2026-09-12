@@ -1,11 +1,13 @@
 import { balance } from '../content/balance';
 import { NAME_FIRST, NAME_SECOND, NAME_SOLO, TRAINER_NAMES, VET_NAMES } from '../content/names';
+import { LOCAL_RATING_BY_TIER, raceType } from '../content/raceTypes';
 import { TRAIT_IDS } from '../content/traits';
 import type {
   Dog,
   Id,
   Planet,
   PlanetState,
+  RaceTypeId,
   StaffOffer,
   TraitId,
   UpgradeId,
@@ -55,7 +57,7 @@ export function createDog(spec: DogSpec, rng: Rng, nextId: IdGen): Dog {
     banWeeks: 0,
     wins: 0,
     runs: 0,
-    goldWins: 0,
+    openWins: 0,
     supplemented: false,
     raceBonus: 0,
     // GDD §5.7: every dog starts the week pointed at a race. That is the state a player who
@@ -105,24 +107,33 @@ export function createStartingDog(owner: Id, rng: Rng, nextId: IdGen): Dog {
   return fitRating(dog, balance.startDogRatingMin, balance.startDogRatingMax);
 }
 
-/** A planet's own runner filling an empty trap (GDD §6.1). */
+/**
+ * A planet's own runner filling an empty trap (GDD §6.1, §6.3).
+ *
+ * The dog is drawn around the level of the race's *purse tier* — a rich race draws a strong home
+ * team — and is then shaped by the race's own `LocalSpec` so that it satisfies the same entry
+ * criterion every declared dog is held to. Locals bypass `Declare`, so nothing else would stop a
+ * four-year-old turning up in a Juvenile; `properties.test.ts` asserts every entrant, local
+ * included, passes its race's predicate.
+ */
 export function createLocalDog(
-  cls: 'bronze' | 'silver' | 'gold',
+  race: RaceTypeId,
   major: boolean,
   nervy: boolean,
   rng: Rng,
   nextId: IdGen,
 ): Dog {
-  const mid =
-    (cls === 'bronze'
-      ? balance.localRatingBronze
-      : cls === 'silver'
-        ? balance.localRatingSilver
-        : balance.localRatingGold) + (major ? balance.localRatingMajorBonus : 0);
+  const type = raceType(race);
+  const spec = type.local;
+  const mid = LOCAL_RATING_BY_TIER[type.tier] + (major ? balance.localRatingMajorBonus : 0);
   const target = Math.round(rng.gauss(mid, balance.localRatingSd));
-  const cap = cls === 'bronze' ? balance.capBronze : cls === 'silver' ? balance.capSilver : 99;
   const dog = createDog(
-    { quality: target, age: rng.int(2, 5), owner: 'local', traits: nervy ? ['nervy'] : undefined },
+    {
+      quality: target,
+      age: rng.int(spec.ageMin ?? 2, spec.ageMax ?? 5),
+      owner: 'local',
+      traits: nervy ? ['nervy'] : undefined,
+    },
     rng,
     nextId,
   );
@@ -131,7 +142,11 @@ export function createLocalDog(
   // handicap the moment §5.7 put them in the 60–80 band the design asks for. Locals now run at
   // the top of that band: still the fresher home team, no longer a rating class better.
   dog.fitness = balance.localFitness;
-  return fitRating(dog, Math.max(15, target - 3), Math.min(cap, target + 3));
+  return fitRating(
+    dog,
+    Math.max(spec.ratingMin ?? 15, target - 3),
+    Math.min(spec.ratingMax ?? 99, target + 3),
+  );
 }
 
 export function askingPrice(dog: Dog, planet: Planet, rng: Rng): number {
