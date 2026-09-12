@@ -318,6 +318,42 @@ cheap when half of everything will not have you.
 
 ---
 
+## Addendum, 12 September — the Consolation now reaches two weekends (D28)
+
+Jesse played a season, said the game is better and that "a lot more thinking was required with
+strategies, mainly the fitness changes", and approved Q12's widening. It shipped as one commit on
+top of `v2b`, with the golden snapshot moving once because it is a rule change.
+
+`Dog.outOfMoneyLastWeek` became `Dog.outOfMoneyFor`, a countdown refilled by a run out of the money
+and decremented every other week, so the fact expires on its own and a generated local can still
+carry it. `consolationReach` is 2 and lives in the Assumptions sheet.
+
+| | one weekend | two weekends |
+|---|---|---|
+| Consolation cardCoverage | 29.1% | **71.0%** |
+| share of player entries | 3.8% | **8.9%** |
+| fill rate (of 3) | 1.90 | 1.95 |
+| purse share reaching players | 52.4% | 53.4% |
+| mean end worth | 31,600 | 32,303 |
+| **p10 end worth** | 8,052 | **9,620 (+19%)** |
+| Normal beats Easy | 77.9% | 79.2% |
+| **Hard beats Normal** | 56.0% | **53.9%** |
+| **season decided by week** | **6.4** | **6.4** |
+
+**The race is fixed and Q12 is not.** A race enterable 29% of the time was barely on the card; at
+71% it is. But the "decided by" week did not move by so much as a tenth, and the reason is that the
+Consolation was never really a catch-up mechanic: its criterion keys off *a dog that ran badly*, and
+a leader has one of those as often as the tail does. It redistributes toward weak **dogs**, not weak
+**stables** — which is exactly the shape of what it did move, lifting the floor 19% and helping Easy
+while costing Hard 2.1 points on a target already nine points away.
+
+Answering Q12 needs a rule keyed off standing, and the design has none. The alternative worth
+considering is that a 13-week season with compounding prize money is decided at week 6 and the lever
+is not another race at all: a road that pays *late* — Phase C's pup that arrives at week 10, or a
+hold that finally has something worth carrying — delays the decision in a way a cheap race cannot.
+
+---
+
 ## Still open, for the playtest or Phase C
 
 - **You have not played it.** The specific thing to feel: on a week where two of your dogs are
