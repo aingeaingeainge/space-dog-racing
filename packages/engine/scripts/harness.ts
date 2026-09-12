@@ -7,6 +7,7 @@
  *   npm run harness -- --stats            # D12 regression: +10 to one stat, at three lengths
  *   npm run harness -- --pups             # D14: what a Train week is worth, and when a pup arrives
  *   npm run harness -- --card             # D2: can a broad stable fill the card, and a narrow one?
+ *   npm run harness -- --autoplan --seasons 200   # §7a.3: autoplan% and the sampled apLoss rollout
  *
  * ## Why this drives the season itself rather than calling runSeason
  *
@@ -31,6 +32,7 @@ import { DRAWN_PER_WEEKEND, OPEN_TYPE_ID, RACE_TYPES, raceType } from '../src/co
 import {
   RACE_TYPE_IDS,
   STAT_KEYS,
+  type Action,
   type AiAgent,
   type Dog,
   type GameState,
@@ -39,6 +41,7 @@ import {
   type RaceTypeId,
   type StatKey,
   type Track,
+  type WeekState,
 } from '../src/types';
 
 interface Args {
@@ -49,6 +52,7 @@ interface Args {
   stats: boolean;
   pups: boolean;
   card: boolean;
+  autoplan: boolean;
   quiet: boolean;
 }
 
@@ -61,6 +65,7 @@ function parseArgs(argv: string[]): Args {
     stats: false,
     pups: false,
     card: false,
+    autoplan: false,
     quiet: false,
   };
   for (let i = 0; i < argv.length; i++) {
@@ -76,6 +81,7 @@ function parseArgs(argv: string[]): Args {
     else if (a === '--stats') args.stats = true;
     else if (a === '--pups') args.pups = true;
     else if (a === '--card') args.card = true;
+    else if (a === '--autoplan') args.autoplan = true;
     else if (a === '--quiet') args.quiet = true;
   }
   return args;
@@ -215,6 +221,228 @@ function decidedByWeek(s: GameState, winner: Id): number {
     if (!led) decided = w + 2;
   }
   return Math.min(decided, balance.weeks);
+}
+
+// -------------------------------------------------------------------------------------------
+// §7a.3 `autoplan%` / `apLoss%` — what `naive%` becomes now that a week is six decisions.
+// -------------------------------------------------------------------------------------------
+
+/**
+ * The autoplan (BUILD_PLAN §7a.3), verbatim:
+ *
+ * > every fit dog Races if it is eligible for anything; the best eligible dog goes into the
+ * > richest race it can enter; anything under 50 fitness Rests; nobody Trains.
+ *
+ * This is the v2 shape of "just enter everything" — what a player does before they have
+ * understood the game — and the measure it feeds asks how often that is *also* the right answer.
+ * `naive%` ran 59% before M4's purse change and 19% after, and that number is why the change was
+ * made; the target band here is 15–30%, because above 40% the week is making itself and below
+ * 10% the player cannot find the plan at all and depth reads as noise.
+ */
+function autoplanFor(s: GameState, p: Player, sold: ReadonlySet<Id> = new Set()): Action[] {
+  const card = thisWeeksCard(s);
+  const kennel = p.dogIds
+    .filter((id) => !sold.has(id))
+    .map((id) => s.dogs[id])
+    .filter((d): d is Dog => !!d);
+  const fit = kennel.filter((d) => d.fitness >= balance.injuryLowFitnessBelow);
+  // Richest race first — the card runs with the headline race last, so walk it backwards — and
+  // the best dog that qualifies goes in it.
+  const out: Action[] = [];
+  const taken = new Set<Id>();
+  for (const race of [...card].reverse()) {
+    const pick = fit
+      .filter((d) => !taken.has(d.id) && eligible(d, race))
+      .sort((a, b) => b.rating - a.rating)[0];
+    if (!pick) continue;
+    taken.add(pick.id);
+    out.push({ t: 'Declare', playerId: p.id, race, dogId: pick.id });
+  }
+  // Anything under the fitness floor rests; nobody trains; everything else stays pointed at a
+  // race, which is the state a dog is created in and the state a player who touches nothing gets.
+  for (const d of kennel) {
+    if (taken.has(d.id)) continue;
+    const state: WeekState = d.fitness < balance.injuryLowFitnessBelow ? 'rest' : 'race';
+    if (d.weekState !== state) out.push({ t: 'SetDogState', playerId: p.id, dogId: d.id, state });
+  }
+  return out;
+}
+
+/** A week's plan as the two things it decides: who runs where, and what everyone else does. */
+interface WeekPlan {
+  entries: string;
+  states: string;
+}
+
+function planFrom(s: GameState, p: Player, actions: readonly Action[]): WeekPlan {
+  const entries = new Map<RaceTypeId, Id | null>();
+  for (const race of thisWeeksCard(s)) entries.set(race, s.declarations[race][p.id] ?? null);
+  const states = new Map<Id, WeekState>();
+  for (const id of p.dogIds) states.set(id, s.dogs[id]?.weekState ?? 'race');
+  for (const a of actions) {
+    if (a.t === 'Declare' && a.playerId === p.id) {
+      entries.set(a.race, a.dogId);
+      if (a.dogId) states.set(a.dogId, 'race');
+    } else if (a.t === 'SetDogState' && a.playerId === p.id) {
+      states.set(a.dogId, a.state);
+    }
+  }
+  const key = <K, V>(m: Map<K, V>) =>
+    [...m.entries()]
+      .map(([k, v]) => `${String(k)}=${String(v)}`)
+      .sort()
+      .join('|');
+  return { entries: key(entries), states: key(states) };
+}
+
+/** Everything the agent decided that was *not* the week's plan — its shopping, mostly. */
+const notPlan = (a: Action) => a.t !== 'Declare' && a.t !== 'SetDogState';
+
+/**
+ * Dogs the agent is about to sell this phase. The autoplan is computed from the state as it
+ * stands when `decide` is called, so without this it would cheerfully declare a dog the agent's
+ * own shopping has already sold on — and the reducer would rightly refuse it. Both the comparison
+ * and the rollout use the same filter, so they price the same plan.
+ */
+function soldThisPhase(actions: readonly Action[], playerId: Id): Set<Id> {
+  const out = new Set<Id>();
+  for (const a of actions) if (a.t === 'SellDog' && a.playerId === playerId) out.add(a.dogId);
+  return out;
+}
+
+/**
+ * Play a season out, optionally forcing one stable onto the autoplan in one week, and return
+ * every stable's end worth. The forced week keeps the agent's own shopping and swaps only the
+ * plan, so the two rollouts differ in exactly the thing being priced and nothing else.
+ */
+function playOut(s: GameState, force: { playerId: Id; week: number } | null): Map<Id, number> {
+  let guard = 0;
+  while (!isSeasonOver(s) && guard++ < 200_000) {
+    if (needsAdvance(s)) {
+      reduceMut(s, { t: 'AdvancePhase' });
+      continue;
+    }
+    const who = s.pendingEvent?.playerId ?? s.activePlayer;
+    if (!who) throw new Error(`Engine stalled in phase ${s.phase}`);
+    const p = player(s, who);
+    let actions = decide(s, who, p.difficulty);
+    if (force && who === force.playerId && s.week === force.week && s.phase === 'planetPre') {
+      actions = [
+        ...actions.filter(notPlan).filter((a) => a.t !== 'EndPhase'),
+        ...autoplanFor(s, p, soldThisPhase(actions, who)),
+        { t: 'EndPhase', playerId: who },
+      ];
+    }
+    for (const a of actions) reduceMut(s, a);
+  }
+  return new Map(s.players.map((p) => [p.id, netWorth(s, p)]));
+}
+
+/**
+ * `autoplan%` and `apLoss%` (BUILD_PLAN §7a.3).
+ *
+ * ⚠️ `apLoss%` cannot be a one-week expected-purse figure the way `nLoss%` was: a Train week pays
+ * off in weeks 9–13, so the loss has to be measured against *season-end worth*. The honest
+ * implementation is a rollout — from the state at that week, play the season out twice on the
+ * same downstream seed, once with the autoplan forced and once with the agent's own plan, and
+ * difference the end worth. That is roughly 3–4× the cost of a plain season, so it is **sampled:
+ * one week in four, one stable a season**, and the printout says so.
+ */
+export function runAutoplan(seasons = 200, seed = 1, sampleEvery = 4): string {
+  const ai: AiAgent[] = Array(6).fill('normal');
+  let agree = 0;
+  let weeks = 0;
+  let entriesAgree = 0;
+  let statesAgree = 0;
+  const losses: number[] = [];
+  /** End worth in the rollouts where the agent played its own plan — apLoss's denominator. */
+  const baseline: number[] = [];
+  const t0 = performance.now();
+
+  for (let i = 0; i < seasons; i++) {
+    const s = createSeason({
+      seed: seed + i,
+      players: ai.map((difficulty) => ({ name: '', kind: 'ai' as const, difficulty })),
+    });
+    // One stable a season carries the rollout, rotated so no seat is over-sampled.
+    const rollFor = `p${(i % ai.length) + 1}`;
+    let guard = 0;
+    while (!isSeasonOver(s) && guard++ < 200_000) {
+      if (needsAdvance(s)) {
+        reduceMut(s, { t: 'AdvancePhase' });
+        continue;
+      }
+      const who = s.pendingEvent?.playerId ?? s.activePlayer;
+      if (!who) throw new Error(`Engine stalled in phase ${s.phase}`);
+      const p = player(s, who);
+      const actions = decide(s, who, p.difficulty);
+
+      if (s.phase === 'planetPre' && !s.pendingEvent) {
+        const auto = planFrom(s, p, autoplanFor(s, p, soldThisPhase(actions, who)));
+        const own = planFrom(s, p, actions);
+        weeks++;
+        if (auto.entries === own.entries) entriesAgree++;
+        if (auto.states === own.states) statesAgree++;
+        if (auto.entries === own.entries && auto.states === own.states) agree++;
+
+        if (who === rollFor && s.week % sampleEvery === 1 && auto.entries !== own.entries) {
+          const withAuto = playOut(structuredClone(s), { playerId: who, week: s.week });
+          const withOwn = playOut(structuredClone(s), null);
+          losses.push((withOwn.get(who) ?? 0) - (withAuto.get(who) ?? 0));
+          baseline.push(withOwn.get(who) ?? 0);
+        }
+      }
+      for (const a of actions) reduceMut(s, a);
+    }
+  }
+
+  const elapsed = (performance.now() - t0) / 1000;
+  const meanLoss = mean(losses);
+  // The rollouts are *not* paired. GameState carries one rng stream, so the instant the forced
+  // plan consumes a different number of draws the rest of the season is a different random
+  // season — there is no "same downstream seed" to hold. So the difference of two end worths is
+  // one decision plus a whole season of variance, and the standard error is the only honest way
+  // to say whether anything survived it.
+  const sd = losses.length
+    ? Math.sqrt(mean(losses.map((x) => (x - meanLoss) * (x - meanLoss))))
+    : 0;
+  const se = losses.length ? sd / Math.sqrt(losses.length) : 0;
+  const signal = Math.abs(meanLoss) > 2 * se;
+  return [
+    `autoplan% / apLoss% (BUILD_PLAN §7a.3) — ${seasons} seasons, all Normal, seeds ${seed}…${seed + seasons - 1}`,
+    `Elapsed ${elapsed.toFixed(1)} s. The rollout is sampled: one stable a season, one week in ${sampleEvery},`,
+    `and only where the autoplan and the agent actually disagree about the entries — ${losses.length} rollouts.`,
+    '',
+    'The autoplan: every fit dog races if it is eligible for anything, the best eligible dog goes',
+    'into the richest race it can enter, anything under 50 fitness rests, nobody trains.',
+    '',
+    `  autoplan%              ${pct(agree / Math.max(1, weeks)).padStart(7)}   (target 15–30%; above 40 the week makes itself, below 10 it reads as noise)`,
+    `  …entries alone         ${pct(entriesAgree / Math.max(1, weeks)).padStart(7)}`,
+    `  …states alone          ${pct(statesAgree / Math.max(1, weeks)).padStart(7)}`,
+    `  stable-weeks measured  ${String(weeks).padStart(7)}`,
+    '',
+    `  apLoss, mean           ${fmt(meanLoss).padStart(7)} Bones of end worth given up by playing the autoplan that one week`,
+    `  apLoss%                ${pct(meanLoss / Math.max(1, mean(baseline))).padStart(7)} of the ${fmt(mean(baseline))} the agent's own plan ends on in the same rollouts`,
+    `  apLoss, std. error     ${fmt(se).padStart(7)} over ${losses.length} rollouts (sd ${fmt(sd)})`,
+    `  → ${
+      signal
+        ? 'outside two standard errors: there is something here.'
+        : 'INSIDE two standard errors — this is noise, and reading a decision into it would be wrong.'
+    }`,
+    '',
+    '⚠️ **apLoss is structurally noisy and no feasible sample size fixes it.** §7a.3 asks for two',
+    'rollouts "on the same downstream seed", but GameState carries a single rng stream: the moment',
+    'the forced plan consumes a different number of draws, the rest of the season is a different',
+    'random season. So each sample is one decision plus thirteen weeks of variance — an sd of tens',
+    'of thousands against an effect worth at most a week\u2019s purse. autoplan% above is exact and',
+    'means what it says; apLoss should be read as an error bar around zero until the engine can',
+    'fork a per-decision stream.',
+    '',
+    '⚠️ The forced week keeps the agent’s own shopping and swaps only the plan, so the two',
+    'rollouts differ in exactly the thing being priced. A dog the agent buys *during* that week is',
+    'not in the autoplan, which is computed before its own action list is applied — a small bias',
+    'against the autoplan, and the honest alternative would have been to reorder the agent.',
+  ].join('\n');
 }
 
 /**
@@ -1055,5 +1283,6 @@ function main() {
   else if (args.stats) console.log(runStatLeverage());
   else if (args.pups) console.log(runPupCurve());
   else if (args.card) console.log(runCardProbe());
+  else if (args.autoplan) console.log(runAutoplan(args.seasons));
   else console.log(runHarness(args));
 }
