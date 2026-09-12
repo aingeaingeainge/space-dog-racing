@@ -1,7 +1,7 @@
 import { balance } from '../content/balance';
 import { planetOf } from '../content/planets';
 import { raceType } from '../content/raceTypes';
-import { dogSalePrice } from '../economy/dogValue';
+import { dogSalePrice, weakestStat } from '../economy/dogValue';
 import { loanCap, outstanding } from '../economy/loans';
 import { upgradePrice } from '../economy/market';
 import { decimalOdds } from '../race/odds';
@@ -268,7 +268,7 @@ export function buyUpgrade(ctx: Ctx, action: Extract<Action, { t: 'BuyUpgrade' }
       if (!s.planet.trackDayPasses) fail('No track-day passes here this week', action);
       const d = ownDogOrFail(s, p, action);
       pay(p, price, action);
-      const stat = bestStatToTrain(d);
+      const stat = weakestStat(d);
       d[stat] = clamp(d[stat] + balance.itemTrackDayBonus, 1, 99);
       s.planet.trackDayPasses = false;
       break;
@@ -334,18 +334,6 @@ function ownDogOrFail(s: GameState, p: Player, action: Action): ReturnType<typeo
   const d = dog(s, dogId);
   if (d.ownerId !== p.id) fail('Not your dog', action);
   return d;
-}
-
-function bestStatToTrain(d: ReturnType<typeof dog>): 'speed' | 'accel' | 'stamina' | 'trap' {
-  // A track day sharpens whatever is weakest, weighted by how much it matters to rating.
-  const weighted: [number, 'speed' | 'accel' | 'stamina' | 'trap'][] = [
-    [d.speed / balance.ratingWeightSpeed, 'speed'],
-    [d.accel / balance.ratingWeightAccel, 'accel'],
-    [d.stamina / balance.ratingWeightStamina, 'stamina'],
-    [d.trap / balance.ratingWeightTrap, 'trap'],
-  ];
-  weighted.sort((a, b) => a[0] - b[0]);
-  return weighted[0]![1];
 }
 
 export function borrow(ctx: Ctx, action: Extract<Action, { t: 'Borrow' }>): void {

@@ -13,6 +13,7 @@ import { Panel } from '../components/Panel';
 import { Gauge, KV, Notes } from '../components/ui';
 import { NeonButton } from '../components/NeonButton';
 import { ownedDogs } from '../lib/selectors';
+import { holdEconomics } from '../lib/priceTag';
 import { useGame } from '../store/gameStore';
 
 const pct = (n: number) => `${Math.round(n * 100)}%`;
@@ -43,9 +44,24 @@ export function Docks({ s, me }: { s: GameState; me: Player }) {
   const fuelNow = fuelCost(me.cargo);
   const fuelAfterBuy = fuelCost(me.cargo + units);
   const fuelAfterSell = fuelCost(Math.max(0, me.cargo - units));
+  // What the crates cost and what they have to fetch (GDD §9.1). See lib/priceTag.ts.
+  const econ = holdEconomics(me, units, s.planet.foodBuy);
+  const full = holdEconomics(me, maxBuy, s.planet.foodBuy);
 
   const trading = s.toggles.trading;
   const tradeShut = trading ? null : 'No Trading is on this season';
+
+  // What a cargo upgrade has to earn. Price plus the fuel it drags, spread over the crates and
+  // the legs that are left — the payback question GDD §20 Q6 asks, answered on the row.
+  const jumpsLeft = Math.max(0, balance.weeks - s.week);
+  const cargoExtraFuel = balance.cargoUpgradeUnits * balance.fuelPerCargoUnitOver;
+  const cargoBreakEven =
+    jumpsLeft > 0
+      ? Math.ceil(
+          (upgradePrice('cargo', planet, me) + cargoExtraFuel * jumpsLeft) /
+            (balance.cargoUpgradeUnits * jumpsLeft),
+        )
+      : 0;
 
   const ships: {
     upgrade: UpgradeId;
@@ -63,8 +79,16 @@ export function Docks({ s, me }: { s: GameState; me: Player }) {
     },
     {
       upgrade: 'cargo',
+      // GDD §9.2's warning, printed where it is spent: at v1's numbers a +20 hold returned about
+      // 1,000 a season against 2,500 paid. A player cannot see that from "+20 crates", so the row
+      // says what the extra crates drag and what each has to clear over the weeks left.
       name: `Cargo hold +${balance.cargoUpgradeUnits}`,
-      blurb: `Hold ${me.ship.cargoCap} → ${me.ship.cargoCap + balance.cargoUpgradeUnits} crates`,
+      blurb:
+        `Hold ${me.ship.cargoCap} → ${me.ship.cargoCap + balance.cargoUpgradeUnits} crates` +
+        ` · the extra ${balance.cargoUpgradeUnits} drag ${balance.cargoUpgradeUnits * balance.fuelPerCargoUnitOver} fuel a jump` +
+        (jumpsLeft > 0
+          ? `, so over the ${jumpsLeft} jump${jumpsLeft === 1 ? '' : 's'} left they must clear ${cargoBreakEven} a crate a leg to pay for themselves`
+          : ' — no jumps left to use it on'),
       list: balance.shipCargoCost,
       shut: null,
     },
@@ -90,9 +114,15 @@ export function Docks({ s, me }: { s: GameState; me: Player }) {
         <div className="grid2">
           <KV
             items={[
-              ['Ship', `engine ${me.ship.speed}/${balance.shipMaxSpeed}${me.ship.coldStore ? ' · cold store' : ''}`],
+              [
+                'Ship',
+                `engine ${me.ship.speed}/${balance.shipMaxSpeed}${me.ship.coldStore ? ' · cold store' : ''}`,
+              ],
               ['Hold', <Gauge key="g" value={me.cargo} max={me.ship.cargoCap} unit="crates" />],
-              ['Fuel next jump', `${formatBones(fuelNow)} (${balance.fuelBase} + ${balance.fuelPerCargoUnitOver}/crate over ${balance.fuelCargoFree})`],
+              [
+                'Fuel next jump',
+                `${formatBones(fuelNow)} (${balance.fuelBase} + ${balance.fuelPerCargoUnitOver}/crate over ${balance.fuelCargoFree})`,
+              ],
               ['Cash', formatBones(me.cash)],
             ]}
           />
@@ -102,7 +132,9 @@ export function Docks({ s, me }: { s: GameState; me: Player }) {
               sp.shipDiscount ? `Ship upgrades are ${pct(sp.shipDiscount)} off here.` : null,
               sp.engineDiscount ? `Engines are ${pct(sp.engineDiscount)} off here.` : null,
               sp.kennelDiscount ? `Kennel modules are ${pct(sp.kennelDiscount)} off here.` : null,
-              sp.everythingMarkup ? `Everything on this rock is ${pct(sp.everythingMarkup)} dearer.` : null,
+              sp.everythingMarkup
+                ? `Everything on this rock is ${pct(sp.everythingMarkup)} dearer.`
+                : null,
               sp.foodSpoils && !me.ship.coldStore
                 ? `${pct(sp.foodSpoils)} of your cargo freezes on approach to ${planet.name} without a cold store.`
                 : null,
@@ -114,10 +146,14 @@ export function Docks({ s, me }: { s: GameState; me: Player }) {
         </div>
       </Panel>
 
-      <Panel title="Ship upgrades" sub="GDD §8 — every purchase should pay for itself inside five weeks">
+      <Panel
+        title="Ship upgrades"
+        sub="GDD §8 — every purchase should pay for itself inside five weeks"
+      >
         {ships.map((u) => {
           const price = upgradePrice(u.upgrade, planet, me);
-          const why = u.shut ?? (price > me.cash ? `Short by ${formatBones(price - me.cash)}` : null);
+          const why =
+            u.shut ?? (price > me.cash ? `Short by ${formatBones(price - me.cash)}` : null);
           return (
             <div className="shop-row" key={u.upgrade}>
               <span className="what">
@@ -217,11 +253,28 @@ export function Docks({ s, me }: { s: GameState; me: Player }) {
             <Notes
               lines={[
                 tradeShut,
+                // The number the spread hides (GDD §9.1): carrying kibble blind loses 9.5 a
+                // crate, and the reason a player never noticed is that the buy price is printed
+                // and the fuel it drags is charged a week later. Say what the crate has to fetch
+                // before the crate is bought.
+                units > 0
+                  ? `${units} crate${units === 1 ? '' : 's'} costs ${formatBones(econ.outlay)} here` +
+                    (econ.fuelExtra > 0
+                      ? ` plus ${formatBones(econ.fuelExtra)} of extra fuel`
+                      : '') +
+                    ` — they have to fetch ${econ.breakEven} a crate at the next stop to break even.`
+                  : null,
                 fuelAfterBuy !== fuelNow
                   ? `Buying ${units} takes the fuel for the next jump from ${formatBones(fuelNow)} to ${formatBones(fuelAfterBuy)}.`
                   : `The first ${balance.fuelCargoFree} crates ride free; fuel only climbs above that (you carry ${me.cargo}).`,
+                maxBuy > 0 && maxBuy !== units
+                  ? `Filling the hold (${maxBuy}) would cost ${formatBones(full.outlay)} and take the jump to ${formatBones(full.fuelFull)} — break-even ${full.breakEven} a crate.`
+                  : null,
                 me.cargo > 0 && fuelAfterSell !== fuelNow
                   ? `Selling ${units} takes it to ${formatBones(fuelAfterSell)}.`
+                  : null,
+                nextPlanet
+                  ? `${nextPlanet.name}'s band is ${nextPlanet.foodBand[0]}–${nextPlanet.foodBand[1]} and you sell into its buy-side, so a band that straddles your break-even is a gamble rather than a trade.`
                   : null,
                 `A full hold also costs you ${Math.round(me.ship.cargoCap / balance.arrivalCargoDiv)} off the arrival roll.`,
               ]}

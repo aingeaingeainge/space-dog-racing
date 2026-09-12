@@ -7,6 +7,7 @@ import {
   planetOf,
   weeklyInterest,
   PLANETS,
+  type Dog,
   type GameState,
   type Player,
   type StaffRole,
@@ -15,6 +16,7 @@ import { Panel } from '../components/Panel';
 import { KV, Notes } from '../components/ui';
 import { NeonButton } from '../components/NeonButton';
 import { rumours } from '../lib/rumours';
+import { bestEarner, wageWeeks } from '../lib/priceTag';
 import { useGame } from '../store/gameStore';
 
 const ROLE_BLURB: Record<StaffRole, string> = {
@@ -22,6 +24,41 @@ const ROLE_BLURB: Record<StaffRole, string> = {
   vet: `Halves injury weeks and a rest week returns ${balance.fitnessRestVet} fitness instead of ${balance.fitnessRest}`,
   fixer: 'Sabotage and steward bribes (GDD §13)',
 };
+
+/** What the role is worth over the weeks that are left, rather than in the abstract. */
+function roleValue(s: GameState, role: StaffRole): string | null {
+  const weeks = wageWeeks(s);
+  switch (role) {
+    case 'trainer':
+      return `At most ${balance.trainerStatPerWeek * weeks} stat points on one dog if you train it every week left — and they land on the stat you chose, not a random one.`;
+    case 'vet':
+      return `Every rest week is worth ${balance.fitnessRestVet - balance.fitnessRest} more fitness, so a dog comes back a week sooner each time you stand it down.`;
+    case 'fixer':
+      return null;
+  }
+}
+
+/**
+ * The sentence that turns a wage into a decision (GDD §7.2, §7.5).
+ *
+ * "1,400/week" is a number. What a player needs is the commitment against the money the stable
+ * actually makes, because §7.5's route to bankruptcy is exactly a wage bill signed in a good week
+ * and still being charged in a bad one. So: what it costs to the Grand Final, and what the best
+ * dog in the yard has won in the season so far — the two figures whose ratio *is* the decision.
+ */
+function hireContext(
+  s: GameState,
+  me: Player,
+  wage: number,
+  best: { dog: Dog; won: number } | null,
+): string {
+  const total = wage * wageWeeks(s);
+  const against =
+    best && best.won > 0
+      ? `the ${formatBones(best.won)} ${best.dog.name} has won all season`
+      : `a stable that has won ${formatBones(me.stats.prizeIncome)} in prize money all season`;
+  return `${formatBones(total)} before the season ends, against ${against}.`;
+}
 
 function planetsWith(kind: 'bank' | 'shark'): string {
   return PLANETS.filter((p) => p.special[kind])
@@ -40,6 +77,10 @@ export function Saloon({ s, me }: { s: GameState; me: Player }) {
     const o = me.staff[r];
     return sum + (o ? o.wage : 0);
   }, 0);
+  // A wage is a weekly number and a season-long commitment, and only the second is a decision
+  // (GDD §7.2, §7.5). The Saloon prints both, against what the stable's best dog has actually won.
+  const weeks = wageWeeks(s);
+  const best = bestEarner(s, me);
 
   return (
     <>
@@ -47,7 +88,18 @@ export function Saloon({ s, me }: { s: GameState; me: Player }) {
         <KV
           items={[
             ['Cash', formatBones(me.cash)],
-            ['Wage bill', `${formatBones(wages)} a week`],
+            [
+              'Wage bill',
+              wages
+                ? `${formatBones(wages)} a week — ${formatBones(wages * weeks)} over the ${weeks} week${weeks === 1 ? '' : 's'} left`
+                : 'nothing — you run the whole yard yourself',
+            ],
+            [
+              'Your best earner',
+              best && best.won > 0
+                ? `${best.dog.name} has won ${formatBones(best.won)} all season`
+                : 'nothing won yet this season',
+            ],
             [
               'Owed',
               me.loans.length
@@ -73,7 +125,10 @@ export function Saloon({ s, me }: { s: GameState; me: Player }) {
 
       <Rumours s={s} />
 
-      <Panel title="For hire" sub="wages are charged every week until you let them go">
+      <Panel
+        title="For hire"
+        sub={`wages are charged every week until you let them go — ${weeks} more charge${weeks === 1 ? '' : 's'} if you hire tonight`}
+      >
         {staffOnOffer.length === 0 ? (
           <p className="muted flush">Nobody worth hiring is drinking here this week.</p>
         ) : null}
@@ -94,7 +149,10 @@ export function Saloon({ s, me }: { s: GameState; me: Player }) {
                 </b>
                 <span className="muted">{o.quirk ?? ROLE_BLURB[o.role]}</span>
               </span>
-              <span className="price">{formatBones(o.wage)}/week</span>
+              <span className="price">
+                {formatBones(o.wage)}/week
+                <div className="why">{formatBones(o.wage * weeks)} to the Grand Final</div>
+              </span>
               <NeonButton
                 disabled={!!why}
                 title={why ?? `Hire ${o.name}`}
@@ -105,13 +163,22 @@ export function Saloon({ s, me }: { s: GameState; me: Player }) {
                 Hire
               </NeonButton>
               {why ? <span className="why">{why}</span> : null}
+              <span className="why">{hireContext(s, me, o.wage, best)}</span>
+              {roleValue(s, o.role) ? <span className="why">{roleValue(s, o.role)}</span> : null}
               {o.quirk ? <span className="why">Quirk: {o.quirk}</span> : null}
             </div>
           );
         })}
       </Panel>
 
-      <Panel title="Your staff" sub={`${formatBones(wages)} a week`}>
+      <Panel
+        title="Your staff"
+        sub={
+          wages
+            ? `${formatBones(wages)} a week · ${formatBones(wages * weeks)} still to be charged`
+            : 'nobody on the books'
+        }
+      >
         {employed.length === 0 ? (
           <p className="muted flush">You run the whole stable yourself.</p>
         ) : null}

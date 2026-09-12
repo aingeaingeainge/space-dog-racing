@@ -17,6 +17,7 @@ import { Panel } from '../components/Panel';
 import { Badge, Notes, StatCells, StatHeads, Traits } from '../components/ui';
 import { NeonButton } from '../components/NeonButton';
 import { declaredRace, ownedDogs, raceLabel } from '../lib/selectors';
+import { askVsBook, ratingWith, STAT_LABEL, weakestStat } from '../lib/priceTag';
 import { useGame } from '../store/gameStore';
 
 const pct = (n: number) => `${Math.round(n * 100)}%`;
@@ -81,6 +82,9 @@ export function Market({ s, me }: { s: GameState; me: Player }) {
                 <StatHeads />
                 <th className="num">Fit</th>
                 <th>Traits</th>
+                <th className="num" title="GDD §7.3 book value: (400 + 2.2 × rating²) × age factor">
+                  Book
+                </th>
                 <th className="num">Asking</th>
                 <th />
               </tr>
@@ -88,7 +92,7 @@ export function Market({ s, me }: { s: GameState; me: Player }) {
             <tbody>
               {forSale.length === 0 ? (
                 <tr>
-                  <td colSpan={12} className="muted">
+                  <td colSpan={13} className="muted">
                     Nothing left on the block — the other stables got here first.
                   </td>
                 </tr>
@@ -96,6 +100,11 @@ export function Market({ s, me }: { s: GameState; me: Player }) {
               {forSale.map((d) => {
                 const price = d.askingPrice ?? 0;
                 const why = buyReason(d);
+                // The asking price against the book (GDD §7.3). The market asks 85–115% of value
+                // and the planet's own modifiers move it further, so "is this dear?" is a real
+                // question with an arithmetic answer — and the Scout's Proper tier promises "one
+                // priced under book", which is only an offer you can see if the book is printed.
+                const book = askVsBook(d);
                 return (
                   <tr key={d.id}>
                     <td>
@@ -116,7 +125,17 @@ export function Market({ s, me }: { s: GameState; me: Player }) {
                     <td className="wrap">
                       <Traits ids={d.traits} />
                     </td>
-                    <td className="num">{formatBones(price)}</td>
+                    <td className="num muted">{formatBones(book.book)}</td>
+                    <td className="num">
+                      {formatBones(price)}
+                      <div className={book.pct > 0 ? 'why down' : 'why up'}>
+                        {book.pct === 0
+                          ? 'at book'
+                          : book.pct > 0
+                            ? `${book.pct}% over book`
+                            : `${-book.pct}% under book`}
+                      </div>
+                    </td>
                     <td>
                       <NeonButton
                         disabled={!!why}
@@ -199,7 +218,10 @@ export function Market({ s, me }: { s: GameState; me: Player }) {
         </div>
       </Panel>
 
-      <Panel title="Kennel gear" sub="GDD §8 — bought here, used on one of your dogs">
+      <Panel
+        title="Kennel gear"
+        sub="what each one does to the dog you pick, in that dog's own numbers"
+      >
         <ItemRow
           s={s}
           me={me}
@@ -207,6 +229,10 @@ export function Market({ s, me }: { s: GameState; me: Player }) {
           name="Track-day pass"
           blurb={`+${balance.itemTrackDayBonus} to the dog's weakest stat, permanently`}
           shut={s.planet.trackDayPasses ? null : 'No passes on this planet this week'}
+          effect={(d) => {
+            const stat = weakestStat(d);
+            return `${d.name}'s weakest is ${STAT_LABEL[stat]} — ${d[stat]} → ${Math.min(99, d[stat] + balance.itemTrackDayBonus)}, rating ${d.rating} → ${ratingWith(d, stat, balance.itemTrackDayBonus)}`;
+          }}
         />
         <ItemRow
           s={s}
@@ -215,6 +241,9 @@ export function Market({ s, me }: { s: GameState; me: Player }) {
           name="Racing muzzle"
           blurb={`+${balance.itemMuzzleBonus} Trap, permanently`}
           shut={s.planet.muzzlesInStock ? null : `No muzzles in stock on ${planet.name} this week`}
+          effect={(d) =>
+            `${d.name}: Trap ${d.trap} → ${Math.min(99, d.trap + balance.itemMuzzleBonus)}, rating ${d.rating} → ${ratingWith(d, 'trap', balance.itemMuzzleBonus)}`
+          }
         />
         <ItemRow
           s={s}
@@ -230,6 +259,10 @@ export function Market({ s, me }: { s: GameState; me: Player }) {
                 : null
           }
           catchRate={dopingCatchRate(s)}
+          effect={(d) =>
+            `${d.name} runs this weekend as if Speed ${d.speed} → ${Math.min(99, d.speed + balance.itemSupplementBonus)}` +
+            ` — about a rating-${ratingWith(d, 'speed', balance.itemSupplementBonus)} dog for the day, then back to ${d.rating}`
+          }
         />
       </Panel>
     </>
@@ -239,6 +272,11 @@ export function Market({ s, me }: { s: GameState; me: Player }) {
 /**
  * One counter of the gear shop: pick a dog, see the price this planet charges, and — for the
  * supplement — the stewards' catch rate on THIS planet, on the button itself (GDD §8, §12).
+ *
+ * **And what it does to the dog you picked.** `effect` is the price tag: "+3 to the weakest stat"
+ * is a rule, and "Trap 41 → 44, rating 47 → 48" is a decision. It re-renders as the dog in the
+ * dropdown changes, because the same pass is worth a different amount on each of them — which is
+ * the only reason the dropdown is a choice at all.
  */
 function ItemRow({
   s,
@@ -248,6 +286,7 @@ function ItemRow({
   blurb,
   shut,
   catchRate,
+  effect,
 }: {
   s: GameState;
   me: Player;
@@ -256,6 +295,7 @@ function ItemRow({
   blurb: string;
   shut: string | null;
   catchRate?: number;
+  effect?: (d: Dog) => string;
 }) {
   const dispatch = useGame((g) => g.dispatch);
   const dogs = ownedDogs(s, me);
@@ -305,6 +345,7 @@ function ItemRow({
         {label}
       </NeonButton>
       {why ? <span className="why">{why}</span> : null}
+      {effect && chosen && !shut ? <span className="why">{effect(chosen)}</span> : null}
       {catchRate !== undefined && !shut ? (
         <span className="why">
           Caught: purse forfeited, rating −{balance.supplementRatingPenalty}, banned{' '}
