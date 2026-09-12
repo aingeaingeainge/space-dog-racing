@@ -4,6 +4,7 @@ import { KIBBLE_ID } from './goods';
 import { createDog, type IdGen } from '../economy/market';
 import { dogValue } from '../economy/dogValue';
 import { cargoTotal, emptyHold, spoilCargo } from '../economy/goods';
+import { bestStaff, hasStaff } from '../economy/staff';
 import { outstanding } from '../economy/loans';
 import { winProbAgainst } from '../race/odds';
 import { clamp, type Rng } from '../rng';
@@ -167,11 +168,10 @@ export const EVENTS: readonly EventCard[] = [
         apply: (ctx) => {
           const d = ctx.s.dogs[String(ctx.params['dogId'])];
           if (!d) return;
-          const delta = ctx.p.staff.vet ? -5 : -20;
+          const vet = hasStaff(ctx.p, 'vet');
+          const delta = vet ? -5 : -20;
           fit(d, delta);
-          ctx.log(
-            `${d.name} has kennel cough (${delta} fitness${ctx.p.staff.vet ? ', the vet helped' : ''}).`,
-          );
+          ctx.log(`${d.name} has kennel cough (${delta} fitness${vet ? ', the vet helped' : ''}).`);
         },
       },
     ],
@@ -461,7 +461,7 @@ export const EVENTS: readonly EventCard[] = [
     text: 'A rival stable is trying to hire your trainer away. Match the offer (+100 this week) or lose them.',
     weight: 4,
     kind: 'choice',
-    roll: (ctx) => (ctx.p.staff.trainer ? {} : null),
+    roll: (ctx) => (hasStaff(ctx.p, 'trainer') ? {} : null),
     choices: [
       {
         label: 'Match it (−100)',
@@ -474,8 +474,10 @@ export const EVENTS: readonly EventCard[] = [
       {
         label: 'Let them go',
         apply: (ctx) => {
-          delete ctx.p.staff.trainer;
-          ctx.log('Your trainer leaves for a rival stable.');
+          // The best of them, if the stable has stacked the role — a rival poaches the good one.
+          const going = bestStaff(ctx.p, 'trainer');
+          if (going) ctx.p.staff = ctx.p.staff.filter((o) => o.id !== going.id);
+          ctx.log(`${going?.name ?? 'Your trainer'} leaves for a rival stable.`);
         },
       },
     ],

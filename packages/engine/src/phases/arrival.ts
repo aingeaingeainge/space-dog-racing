@@ -1,5 +1,5 @@
 import { balance } from '../content/balance';
-import { emptyPlanetState, rollMarketDogs, rollStaff } from '../economy/market';
+import { emptyPlanetState, rollFinds, rollMarketDogs, rollStaff } from '../economy/market';
 import { rollGoodPrices } from '../economy/food';
 import { cargoTotal, spoilCargo } from '../economy/goods';
 import { currentPlanet, emptyDeclarations, log, type Ctx } from '../state';
@@ -23,6 +23,14 @@ export function runArrival(ctx: Ctx): void {
   ps.staff = rollStaff(planet, rng, ctx.nextId);
   ps.muzzlesInStock = !!planet.special.muzzles || rng.chance(0.3);
   ps.trackDayPasses = rng.chance(0.5);
+  // What each stable's own staff turned up for it (GDD §8.3). In `s.players` order rather than
+  // turn order, because turn order has not been rolled yet and the draw order must not depend on
+  // it — a Scout's dogs are the same dogs whoever lands first.
+  for (const p of s.players) {
+    const { finds, dogs } = rollFinds(p, planet, s.week, ps.goods, rng, ctx.nextId);
+    ps.finds[p.id] = finds;
+    for (const d of dogs) s.dogs[d.id] = d;
+  }
   s.planet = ps;
   s.declarations = emptyDeclarations();
   s.locked = false;

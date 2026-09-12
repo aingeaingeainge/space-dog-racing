@@ -3,7 +3,9 @@ import { dogValue } from '../economy/dogValue';
 import { eligible, player, thisWeeksCard } from '../state';
 import { RACE_TYPE_IDS, type Action, type GameState, type Id } from '../types';
 import { KIBBLE_ID } from '../content/goods';
-import { hash01, setStates, startPlan, weeklyFoodNeed } from './shared';
+import { cargoTotal } from '../economy/goods';
+import { cargoCap } from '../economy/staff';
+import { buyFeedPlan, hash01, setStates, startPlan, weeklyFoodNeed } from './shared';
 
 /**
  * How often Easy cannot be bothered with a race and leaves the trap to the locals. Half the
@@ -50,15 +52,21 @@ export function decideEasy(s: GameState, playerId: Id): Action[] {
       }
     }
 
+    // D26's fix, and the only line in Easy that costs it money while it is still racing: it buys
+    // the dearest crate on the shelf whether or not it has a dog on that stat. Every other handicap
+    // §14 gives Easy — never hires, never bets, never buys a dog — is a *saving*, which is why
+    // Normal beat the old Easy by turning up rather than by playing better.
+    if (s.phase === 'planetPre' && s.toggles.trading) buyFeedPlan(plan, { reckless: true });
     // Food: never a trade, and only when the hold is actually empty — which is how a careless
     // stable ends up buying a week's kibble at a mining colony's prices, or paying the
-    // no-cargo penalty on the way out.
+    // no-cargo penalty on the way out. Room as the hold WILL stand, because the crate above has
+    // already taken some of it.
     if (s.toggles.trading) {
       const need = weeklyFoodNeed(s, p);
       const kibble = s.planet.goods[KIBBLE_ID];
       if (plan.cargo[KIBBLE_ID] === 0 && kibble.buy > 0) {
         const units = Math.min(
-          p.ship.cargoCap,
+          cargoCap(p) - cargoTotal(plan.cargo),
           need,
           Math.floor(Math.max(0, plan.cash) / kibble.buy),
         );

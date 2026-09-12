@@ -17,6 +17,9 @@ import type { Rng } from '../rng';
  */
 export function rollGoodPrices(planet: Planet, rng: Rng): Record<GoodId, GoodMarket> {
   const [lo, hi] = planet.foodBand;
+  // GDD §8.1's marketBias, as a number: it multiplies the chance a Proper or Prime shelf exists
+  // here at all, and leaves Rough and the staple alone.
+  const bias = planet.special.feedBias ?? 1;
   const out = {} as Record<GoodId, GoodMarket>;
   for (const g of GOODS) {
     const mid =
@@ -24,9 +27,10 @@ export function rollGoodPrices(planet: Planet, rng: Rng): Record<GoodId, GoodMar
     const buy = Math.max(1, Math.round(mid));
     const sell = Math.max(1, Math.round(mid * (1 - balance.foodSpread)));
     // Neither draw is made when the answer cannot vary — a shelf that is always there and always
-    // deep (the staple) consumes no randomness, which is what lets this refactor land with kibble
-    // alone and replay v1's season draw for draw.
-    const stocked = g.stockChance >= 1 ? true : rng.chance(g.stockChance);
+    // deep (the staple) consumes no randomness, which is what let the shape change land with
+    // kibble alone and replay Phase B's season draw for draw.
+    const chance = g.tier === 'rough' || g.tier === null ? g.stockChance : g.stockChance * bias;
+    const stocked = chance >= 1 ? true : rng.chance(chance);
     const depth = g.stockMin === g.stockMax ? g.stockMin : rng.int(g.stockMin, g.stockMax);
     out[g.id] = { buy, sell, stock: stocked ? depth : 0 };
   }

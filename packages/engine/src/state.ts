@@ -167,6 +167,10 @@ export function placeThisWeek(s: GameState, dogId: Id): number | null {
 /**
  * Fitness a dog gains (or loses) for what it did with its week (GDD §5.7).
  *
+ * The vet's contribution arrives as a **number of points** rather than as "have you got one",
+ * because the ladder makes three different answers out of one hire: a Rough vet shortens a layoff
+ * and adds nothing here, a Proper vet adds 5 and a Prime vet 10 (GDD §8.3).
+ *
  * A **race** is charged where it happens, in applyRaceOutcome, so a dog that ran gains nothing
  * more here — it has already paid its 25. A dog *set* to race that never got a run has had the
  * week off whatever the Kennels says, so it takes Rest's recovery; otherwise the friendly
@@ -174,12 +178,11 @@ export function placeThisWeek(s: GameState, dogId: Id): number | null {
  * that turned out not to want it. **Train** is work rather than rest and pays its own small
  * gain. **Rest** and the imposed **Layoff** both recover in full.
  */
-export function weeklyFitnessDelta(d: Dog, hasVet: boolean, ran: boolean): number {
+export function weeklyFitnessDelta(d: Dog, vetRestBonus: number, ran: boolean): number {
   const status = weekStatusOf(d);
   if (status === 'race' && ran) return 0;
   if (status === 'train') return balance.fitnessTrain;
-  const rest = hasVet ? balance.fitnessRestVet : balance.fitnessRest;
-  return rest + (d.traits.includes('bouncesBack') ? 5 : 0);
+  return balance.fitnessRest + vetRestBonus + (d.traits.includes('bouncesBack') ? 5 : 0);
 }
 
 export function assertPhase(s: GameState, ...phases: Phase[]): void {
@@ -296,7 +299,7 @@ export function createSeason(setup: SeasonSetup): GameState {
         upgradesPaid: 0,
       },
       cargo: { ...emptyCargo(), [KIBBLE_ID]: balance.startCargo },
-      staff: {},
+      staff: [],
       loans: [],
       flags: {
         caughtDoping: false,

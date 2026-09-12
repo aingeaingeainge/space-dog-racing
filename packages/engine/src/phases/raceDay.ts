@@ -1,4 +1,6 @@
 import { balance } from '../content/balance';
+import { vetInjuryRelief } from '../economy/staff';
+type VetRelief = ReturnType<typeof vetInjuryRelief>;
 import { OPEN_TYPE_ID, raceType } from '../content/raceTypes';
 import { pow10 } from '../determinism';
 import { createLocalDog } from '../economy/market';
@@ -128,14 +130,23 @@ function applyRaceOutcome(s: GameState, d: Dog, place: number, field: Dog[]): nu
   return delta;
 }
 
-function rollInjury(ctx: Ctx, d: Dog, hazard: number, hasVet: boolean): number {
-  let p = balance.injuryBase * hazard;
+/**
+ * Did this dog pull up, and for how long (GDD §5.5, §8.3).
+ *
+ * The vet's three tiers do three different things, and this is where two of them land: a **Prime**
+ * vet cuts the chance of an injury happening at all, a **Proper or Prime** vet halves the weeks,
+ * and a **Rough** vet takes a week off the end instead. So the cheap vet is worth having and is
+ * plainly worse than the dear one, which is what a ladder is for.
+ */
+function rollInjury(ctx: Ctx, d: Dog, hazard: number, relief: VetRelief): number {
+  let p = balance.injuryBase * hazard * (1 - relief.chanceCut);
   if (d.fitness < balance.injuryLowFitnessBelow) p *= balance.injuryLowFitnessMult;
   if (d.traits.includes('fragile')) p *= 2;
   if (d.traits.includes('iron')) p *= 0.5;
   if (!ctx.rng.chance(p)) return 0;
   let weeks = ctx.rng.int(balance.injuryWeeksMin, balance.injuryWeeksMax);
-  if (hasVet) weeks = Math.max(1, Math.floor(weeks / 2));
+  if (relief.halve) weeks = Math.max(1, Math.floor(weeks / 2));
+  else if (relief.weeksOff) weeks = Math.max(1, weeks - relief.weeksOff);
   return weeks;
 }
 
@@ -196,7 +207,7 @@ export function runRaces(ctx: Ctx): void {
       if (race === OPEN_TYPE_ID && place === 1) d.openWins++;
       if (d.ownerId !== 'local' && d.ownerId !== 'market') {
         const owner = player(s, d.ownerId);
-        const weeks = rollInjury(ctx, d, planet.track.hazard, !!owner.staff.vet);
+        const weeks = rollInjury(ctx, d, planet.track.hazard, vetInjuryRelief(owner));
         if (weeks) {
           d.injuryWeeks = weeks;
           result.injuries[dogId] = weeks;

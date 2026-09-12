@@ -20,7 +20,8 @@ import {
   expectedField,
   expectedPurse,
   hash01,
-  keepTrainer,
+  buyFeedPlan,
+  keepStaff,
   planetAhead,
   racingDogs,
   repayLoans,
@@ -88,8 +89,7 @@ export function decideHard(s: GameState, playerId: Id): Action[] {
   const plan = startPlan(s, playerId);
 
   if (s.phase === 'planetPre' || s.phase === 'planetPost') {
-    keepTrainer(plan);
-    keepVet(plan);
+    keepStaffHard(plan);
     repayLoans(plan);
     if (s.phase === 'planetPost') sellAgeingDog(plan);
     if (s.phase === 'planetPre') {
@@ -98,6 +98,13 @@ export function decideHard(s: GameState, playerId: Id): Action[] {
     }
     // Blackreach reverses the turn order, so arrive heavy and get first look at the market.
     const fillHold = s.phase === 'planetPost' && !!planetAhead(s, 1)?.special.turnOrderReversed;
+    // Feed before kibble: a crate of Prime speed feed is worth more than a crate of dinner, and
+    // the hold is the thing they compete for (GDD §8.2's "hold or feed").
+    // Feeds deeper than Normal: three crates a stat and 70% of the spare cash, against Normal's
+    // two and a half. Ablated at Normal's settings and at none at all: head-to-head reads 58.7%
+    // either way, so this is free rather than good — kept on the same footing as D27's coverage
+    // buying, because it is how a good racer uses the new market and the ablation is recorded.
+    if (s.phase === 'planetPre') buyFeedPlan(plan, { crates: 3, spend: 0.7 });
     tradeFoodPlan(plan, { fillHold });
     if (s.phase === 'planetPre') feedSupplements(plan, declareForThisWeek(plan));
   }
@@ -136,19 +143,34 @@ function marketOptions(s: GameState): MarketOptions {
 }
 
 /**
- * A vet pays for herself in fitness before you count the injuries: +10 recovery a week is the
- * difference between a dog that can run every weekend and one that cannot (GDD §5.2, §8).
- * She is only for hire on the planets the GDD gives her, so take her when she is there.
+ * Hard hires like a racing stable, and **leaves a slot empty on purpose** (GDD §8.3, §14).
+ *
+ * ⚠️ **This was measured the other way first and it cost 11 points of head-to-head.** Hard began the
+ * phase wanting all five hireable roles, filling its three slots every season — and *beat Normal
+ * 48.0%*, down from Phase B's 53.9%, with a mean worth above Normal's and a p10 well below it.
+ * Ablating the want list, 300 seasons a cell:
+ *
+ *   trainer, vet, trader, tipster, scout   48.0%   mean 32,327   p10 5,625
+ *   trainer, vet, scout                    55.8%   mean 37,603   p10 7,088
+ *   trainer, vet, tipster                  55.8%   mean 37,484   p10 8,258
+ *   **trainer, vet**                       **58.7%**   mean 41,346   p10 9,825
+ *
+ * The reason is the whole point of D7 and it is worth stating plainly: **the trader-road staff are
+ * only worth their wage to a stable that plays the trader's road.** A Trader's hold and a Tipster's
+ * week are worth nothing to an agent whose income is purses, and a wage is charged whether or not
+ * the capability is used. So three slots is *more than a racing stable can profitably fill*, and
+ * knowing that is decision quality — which is exactly what §14 says difficulty is made of.
+ *
+ * The other difference from Normal is that it **covers the whole remaining season** rather than four
+ * weeks, so it will not sign a Prime wage in week 11 with three weekends left to pay for it — the
+ * trap §7.5 builds for the careless agent.
  */
-function keepVet(plan: Plan): void {
-  const { s, p, playerId, out } = plan;
-  if (p.staff.vet) return;
-  const offer = s.planet.staff.find((o) => o.role === 'vet');
-  if (!offer) return;
-  const weeksLeft = balance.weeks - s.week + 1;
-  if (weeksLeft < 4) return; // too late for the wage to earn itself back
-  if (plan.cash > plan.reserve + offer.wage * weeksLeft)
-    out.push({ t: 'HireStaff', playerId, role: 'vet', staffId: offer.id });
+const HARD_WANT = ['trainer', 'vet'] as const;
+
+function keepStaffHard(plan: Plan): void {
+  const weeksLeft = balance.weeks - plan.s.week + 1;
+  if (weeksLeft < 4) return; // too late for any wage to earn itself back
+  keepStaff(plan, { want: [...HARD_WANT], cover: weeksLeft });
 }
 
 // Measured and rejected (M4): buying the kennel module and engine tiers cost Hard more than

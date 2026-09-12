@@ -2,7 +2,10 @@ import { dogValue } from '../economy/dogValue';
 import { eligible, player, thisWeeksCard } from '../state';
 import { RACE_TYPE_IDS, type Action, type Dog, type GameState, type Id } from '../types';
 import { KIBBLE_ID } from '../content/goods';
-import { startPlan, weeklyFoodNeed } from './shared';
+import { STAFF_ROLES_ALL } from '../types';
+import { cargoTotal } from '../economy/goods';
+import { cargoCap } from '../economy/staff';
+import { buyFeedPlan, keepStaff, startPlan, weeklyFoodNeed } from './shared';
 
 /**
  * The careless agent (BUILD_PLAN §7a.5) — a measurement agent, never offered to a player.
@@ -32,14 +35,15 @@ export function decideCareless(s: GameState, playerId: Id): Action[] {
   const { out } = plan;
 
   if (s.phase === 'planetPre' || s.phase === 'planetPost') {
-    // Hires whatever is offered, as long as the cash is on the table this instant — no thought
-    // for the wage bill, which is D6's most interesting way to go bust (GDD §7.2).
-    for (const offer of s.planet.staff) {
-      if (p.staff[offer.role]) continue;
-      if (offer.role === 'fixer' && s.toggles.cleanSport) continue;
-      if (plan.cash <= offer.wage) continue;
-      out.push({ t: 'HireStaff', playerId, role: offer.role, staffId: offer.id });
-    }
+    // Hires whatever is offered and takes the dearest tier going, as long as the cash is on the
+    // table this instant — no thought for the wage bill, which is D6's most interesting way to go
+    // bust (GDD §7.2, §7.5). Three Prime staff is 4,200 a week against a careless stable's ~43,600
+    // of prize money, and that is a stable underwater by construction.
+    keepStaff(plan, { want: [...STAFF_ROLES_ALL], reckless: true });
+    // And buys the dearest crate on the shelf, for the same reason it hires whatever is drinking:
+    // it is the money sink §7.5 needs and the same line D26 gives Easy. "Buys the dearest dog it
+    // can reach" (§7a.5) was written before the shelves had anything on them.
+    if (s.toggles.trading) buyFeedPlan(plan, { reckless: true, crates: 2, spend: 1 });
 
     // Buys the dearest dog it can reach, pre-race so it can run this weekend. No comparison
     // with what it already owns, and a full kennel is a reason to sell the cheapest, not to stop.
@@ -69,8 +73,10 @@ export function decideCareless(s: GameState, playerId: Id): Action[] {
 
     const kibble = s.planet.goods[KIBBLE_ID];
     if (s.toggles.trading && plan.cargo[KIBBLE_ID] === 0 && kibble.buy > 0) {
+      // Room in the hold as it will stand, not as the ship was built: the reckless feed buy above
+      // has already taken some of it, and a careless stable is careless rather than impossible.
       const units = Math.min(
-        p.ship.cargoCap,
+        cargoCap(p) - cargoTotal(plan.cargo),
         weeklyFoodNeed(s, p),
         Math.floor(Math.max(0, plan.cash) / kibble.buy),
       );

@@ -38,8 +38,6 @@ const LABELS: Record<string, string> = {
   'Kennel upkeep per dog': 'upkeepPerDog',
   'Food units eaten per dog per week': 'foodPerDog',
   'Ship fuel per jump (base)': 'fuelBase',
-  'Trainer wage per week': 'trainerWage',
-  'Vet wage per week': 'vetWage',
   'Food price: cheapest planet': 'foodPriceMin',
   'Food price: dearest planet': 'foodPriceMax',
   'Typical realised margin per unit': 'foodTypicalMargin',
@@ -79,7 +77,6 @@ const LABELS: Record<string, string> = {
   'Fitness: cost of a race': 'fitnessPerRace',
   'Fitness: gain from a training week': 'fitnessTrain',
   'Fitness: gain from a rest week': 'fitnessRest',
-  'Fitness: gain from a rest week with a vet': 'fitnessRestVet',
   'Training: plain kibble, minimum stat points': 'trainKibbleMin',
   'Training: plain kibble, maximum stat points': 'trainKibbleMax',
   'Growth: stat points a week at age 1': 'growthAge1',
@@ -93,6 +90,70 @@ const LABELS: Record<string, string> = {
   // The information economy (GDD §9.3). The fog is free; buying your way out of it is not.
   'Dossier price': 'dossierCost',
   'Dossier reach (weeks ahead)': 'dossierReach',
+  // ---- v2 Phase C ----
+  // The one ladder (GDD §8.1, D11). Shared by the goods, the staff and the ship's engine, which
+  // is why the three stock chances and the three depths have no "feed" in their names.
+  'Tier stock chance: Rough': 'stockChanceRough',
+  'Tier stock chance: Proper': 'stockChanceProper',
+  'Tier stock chance: Prime': 'stockChancePrime',
+  'Tier shelf depth: Rough, min crates': 'stockRoughMin',
+  'Tier shelf depth: Rough, max crates': 'stockRoughMax',
+  'Tier shelf depth: Proper, min crates': 'stockProperMin',
+  'Tier shelf depth: Proper, max crates': 'stockProperMax',
+  'Tier shelf depth: Prime, min crates': 'stockPrimeMin',
+  'Tier shelf depth: Prime, max crates': 'stockPrimeMax',
+  // The feeds (GDD §8.2). Price is base × stat × tier, so a sweep moves twelve prices by moving
+  // one number — which is the whole reason the prices are not twelve rows of their own.
+  'Feed price: base crate (Rough trap feed)': 'feedPriceBase',
+  'Feed price: Speed multiplier': 'feedStatSpeed',
+  'Feed price: Stamina multiplier': 'feedStatStamina',
+  'Feed price: Accel multiplier': 'feedStatAccel',
+  'Feed price: Trap multiplier': 'feedStatTrap',
+  'Feed price: Rough tier multiplier': 'feedTierRough',
+  'Feed price: Proper tier multiplier': 'feedTierProper',
+  'Feed price: Prime tier multiplier': 'feedTierPrime',
+  'Feed gain: Rough, minimum stat points': 'feedGainRoughMin',
+  'Feed gain: Rough, maximum stat points': 'feedGainRoughMax',
+  'Feed gain: Proper, minimum stat points': 'feedGainProperMin',
+  'Feed gain: Proper, maximum stat points': 'feedGainProperMax',
+  'Feed gain: Prime, minimum stat points': 'feedGainPrimeMin',
+  'Feed gain: Prime, maximum stat points': 'feedGainPrimeMax',
+  'Feed bias: a feed-poor planet': 'feedBiasPoor',
+  'Feed bias: a feed-rich planet': 'feedBiasRich',
+  // Staff (GDD §8.3, D7). Wages replace the flat trainerWage / vetWage: what a member of staff
+  // costs is now a fact about the tier, not about the role.
+  'Staff slots': 'staffSlots',
+  'Staff wage per week: Rough': 'wageRough',
+  'Staff wage per week: Proper': 'wageProper',
+  'Staff wage per week: Prime': 'wagePrime',
+  'Staff appearance chance per role': 'staffAppearChance',
+  'Trainer: stat points a Train week, Rough': 'trainerPointsRough',
+  'Trainer: stat points a Train week, Proper': 'trainerPointsProper',
+  'Trainer: stat points a Train week, Prime': 'trainerPointsPrime',
+  'Vet: injury weeks removed, Rough': 'vetInjuryWeeksOff',
+  'Vet: rest bonus, Proper': 'vetRestProper',
+  'Vet: rest bonus, Prime': 'vetRestPrime',
+  'Vet: injury chance cut, Prime': 'vetInjuryCutPrime',
+  'Scout: extra market dogs, Rough': 'scoutDogsRough',
+  'Scout: extra market dogs, Proper': 'scoutDogsProper',
+  'Scout: extra market dogs, Prime': 'scoutDogsPrime',
+  'Scout: the under-book dog, fraction of value': 'scoutUnderBook',
+  'Trader: extra hold, Rough': 'traderHoldRough',
+  'Trader: extra hold, Proper': 'traderHoldProper',
+  'Trader: extra hold, Prime': 'traderHoldPrime',
+  'Trader: consigned crates, Proper': 'traderConsignProper',
+  'Trader: consigned crates, Prime': 'traderConsignPrime',
+  'Trader: buy-price discount, Prime': 'traderDiscountPrime',
+  // The trader's road (GDD §9.2, §20 Q6). Both levers, in the instrument, so they can be swept
+  // together — the payback row is about the pair rather than either one.
+  'Ship fuel per cargo unit over the free allowance': 'fuelPerCargoUnitOver',
+  'Ship fuel: crates carried free': 'fuelCargoFree',
+  'Cargo hold upgrade price': 'shipCargoCost',
+  // The ship's engine on the one ladder (GDD §8.1).
+  'Ship engine: top tier': 'shipMaxSpeed',
+  'Ship engine: starting tier': 'shipStartSpeed',
+  'Ship engine: arrival roll per tier': 'arrivalSpeedMult',
+  'Ship engine upgrade price': 'shipEngineCost',
 };
 
 const wb = XLSX.read(readFileSync(xlsxPath));

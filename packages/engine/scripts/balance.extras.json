@@ -1,5 +1,5 @@
 {
-  "_comment": "Numbers the GDD specifies but the spreadsheet's Assumptions sheet does not (yet) carry. Merged into balance.json by balance-from-xlsx.ts. Sheet values always win on a key clash. Move a number into the sheet when a designer wants to tune it there. NOTE (M4, 2026-09-08): local dog ratings lifted from M0's 28/42/52 to 30/46/58 and the Bronze/Silver purses raised in the sheet to pay for it, so that racing a dog up a class is a gamble rather than a free option (GDD \u00a719, PLAYTEST_NOTES finding 1). GDD \u00a76.1's 35/57/78 was measured and rejected: with locals that strong no stable wins a Gold at all, every dog is forced into its lowest class and mean end worth collapses to ~17k. itemSupplementBonus raised 8 -> 12 (finding 2): at +8 the supplement was worth feeding in 10% of real declarations, which is a trap rather than a choice. NOTE (v2 Phase A, 2026-09-11): the nine GDD \u00a76.2 race-simulation constants moved out of here and into the Assumptions sheet (D12) \u2014 they decide which of the four stats is worth feeding, so they belong where a designer can sweep them. oddsScale refitted 17.5 -> 15.5 with the \u00a76.2 constants (GDD \u00a720 Q4): the rebalance made the sim steeper in rating, and 15.5 minimises the worst-case error across ratings 35-75 (2.1 points) while leaving the bookie a small, stable under-pricing of the very best dogs \u2014 the divergence Phase D's crook works against, small enough that backing favourites blind still loses to the margin. NOTE (v2 Phase A): the fitness, growth and kennel-slot numbers moved into the Assumptions sheet with Race/Train/Rest (\u00a75.7, \u00a75.6) \u2014 fitnessRecovery and fitnessRecoveryVet are gone entirely, because the weekly delta is now the dog's chosen state and nothing else. NOTE (v2 Phase A): local ratings re-fitted 30/46/58 -> 22/38/50. They are a fixed benchmark, and \u00a75.7 changed what a stable can field against it: a campaigning kennel's mean declared rating fell 47.9 -> 42.3 as the good dogs started needing weeks off, while the locals stayed put, so the share of the purse going to players collapsed 54% -> 30%. This is M4's finding-1 lever pulled the other way, for the same reason it was pulled the first time. Phase B re-fits it again with the new card (\u00a76.3) and the purse cut (D15). NOTE (v2 Phase B, 2026-09-12): Bronze/Silver/Gold are gone (D2). The three class purses became two tiers and the two rating caps became the Handicap's cap and the Invitational's floor, all in the Assumptions sheet; localRatingBronze/Silver/Gold moved there too as localRatingOpen and localRatingDrawn, because they are a fixed benchmark that has now had to be re-fitted twice and will be swept again.",
+  "_comment": "Numbers the GDD specifies but the spreadsheet's Assumptions sheet does not (yet) carry. Merged into balance.json by balance-from-xlsx.ts. Sheet values always win on a key clash. Move a number into the sheet when a designer wants to tune it there. NOTE (M4, 2026-09-08): local dog ratings lifted from M0's 28/42/52 to 30/46/58 and the Bronze/Silver purses raised in the sheet to pay for it, so that racing a dog up a class is a gamble rather than a free option (GDD §19, PLAYTEST_NOTES finding 1). GDD §6.1's 35/57/78 was measured and rejected: with locals that strong no stable wins a Gold at all, every dog is forced into its lowest class and mean end worth collapses to ~17k. itemSupplementBonus raised 8 -> 12 (finding 2): at +8 the supplement was worth feeding in 10% of real declarations, which is a trap rather than a choice. NOTE (v2 Phase A, 2026-09-11): the nine GDD §6.2 race-simulation constants moved out of here and into the Assumptions sheet (D12) — they decide which of the four stats is worth feeding, so they belong where a designer can sweep them. oddsScale refitted 17.5 -> 15.5 with the §6.2 constants (GDD §20 Q4): the rebalance made the sim steeper in rating, and 15.5 minimises the worst-case error across ratings 35-75 (2.1 points) while leaving the bookie a small, stable under-pricing of the very best dogs — the divergence Phase D's crook works against, small enough that backing favourites blind still loses to the margin. NOTE (v2 Phase A): the fitness, growth and kennel-slot numbers moved into the Assumptions sheet with Race/Train/Rest (§5.7, §5.6) — fitnessRecovery and fitnessRecoveryVet are gone entirely, because the weekly delta is now the dog's chosen state and nothing else. NOTE (v2 Phase A): local ratings re-fitted 30/46/58 -> 22/38/50. They are a fixed benchmark, and §5.7 changed what a stable can field against it: a campaigning kennel's mean declared rating fell 47.9 -> 42.3 as the good dogs started needing weeks off, while the locals stayed put, so the share of the purse going to players collapsed 54% -> 30%. This is M4's finding-1 lever pulled the other way, for the same reason it was pulled the first time. Phase B re-fits it again with the new card (§6.3) and the purse cut (D15). NOTE (v2 Phase B, 2026-09-12): Bronze/Silver/Gold are gone (D2). The three class purses became two tiers and the two rating caps became the Handicap's cap and the Invitational's floor, all in the Assumptions sheet; localRatingBronze/Silver/Gold moved there too as localRatingOpen and localRatingDrawn, because they are a fixed benchmark that has now had to be re-fitted twice and will be swept again. NOTE (v2 Phase C, 2026-09-12): the goods ladder, the staff ladder, the two fuel numbers, the cargo-hold price and the ship's three engine tiers all moved into the Assumptions sheet - they are what Phase C sweeps. trainerWage, vetWage, fitnessRestVet and trainerStatPerWeek are gone entirely: a wage is now a fact about the tier rather than the role (GDD 8.3), and what a vet does is three different things at three prices.",
   "ratingWeightSpeed": 0.4,
   "ratingWeightAccel": 0.2,
   "ratingWeightStamina": 0.25,
@@ -43,17 +43,10 @@
   "foodSpread": 0.1,
   "foodDrift": 0.15,
   "foodNoCargoPenalty": 1.5,
-  "fuelPerCargoUnitOver": 5,
-  "fuelCargoFree": 20,
-  "shipStartSpeed": 2,
-  "shipMaxSpeed": 5,
-  "shipEngineCost": 3000,
-  "shipCargoCost": 2500,
   "shipKennelCost": 2000,
   "shipColdStoreCost": 1500,
   "shipResaleFactor": 0.7,
   "kennelSlotsStart": 4,
-  "trainerStatPerWeek": 1,
   "itemTrackDayCost": 800,
   "itemTrackDayBonus": 3,
   "itemMuzzleCost": 600,
@@ -67,7 +60,6 @@
   "bankRate": 0.03,
   "sharkMax": 15000,
   "sharkRate": 0.1,
-  "arrivalSpeedMult": 10,
   "arrivalCargoDiv": 5,
   "arrivalDie": 10,
   "startDogRatingMin": 38,
@@ -79,5 +71,6 @@
   "aiBetFraction": 0.03,
   "aiBetMinProb": 0.3,
   "aiBuyCashMultiple": 2,
-  "aiMinExpectedPurse": 150
+  "aiMinExpectedPurse": 150,
+  "aiGoodsMarginMin": 0.1
 }

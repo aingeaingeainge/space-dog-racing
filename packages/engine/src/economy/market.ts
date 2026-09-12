@@ -1,16 +1,30 @@
 import { balance } from '../content/balance';
-import { NAME_FIRST, NAME_SECOND, NAME_SOLO, TRAINER_NAMES, VET_NAMES } from '../content/names';
+import {
+  NAME_FIRST,
+  NAME_SECOND,
+  NAME_SOLO,
+  SCOUT_NAMES,
+  TIPSTER_NAMES,
+  TRADER_NAMES,
+  TRAINER_NAMES,
+  VET_NAMES,
+} from '../content/names';
 import { LOCAL_RATING_BY_TIER, raceType } from '../content/raceTypes';
+import { GOODS, TIER_WAGE } from '../content/goods';
+import { HIREABLE_ROLES } from '../content/staff';
 import { TRAIT_IDS } from '../content/traits';
 import type {
   Dog,
   GoodId,
   GoodMarket,
+  GoodTier,
   Id,
   Planet,
   PlanetState,
   RaceTypeId,
+  StableFinds,
   StaffOffer,
+  StaffRole,
   TraitId,
   UpgradeId,
   Player,
@@ -18,6 +32,8 @@ import type {
 import { GOOD_IDS } from '../types';
 import { clamp, type Rng } from '../rng';
 import { baseRating, dogValue } from './dogValue';
+import { emptyCargo as emptyCargoRecord } from './goods';
+import { bestTier, scoutDogs, scoutFindsBargain } from './staff';
 
 export type IdGen = (prefix: string) => Id;
 
@@ -187,53 +203,136 @@ function rollMarketAge(planet: Planet, rng: Rng): number {
   return rng.int(3, 5);
 }
 
+/** One dog on the block, priced. Shared by the open shelf and by a Scout's private finds. */
+export function rollOneMarketDog(planet: Planet, week: number, rng: Rng, nextId: IdGen): Dog {
+  const bias = planet.special.marketAgeBias;
+  const age = rollMarketAge(planet, rng);
+  let quality = rng.gauss(45 + (planet.special.marketQualityBonus ?? 0), 10);
+  // A pup is raw, and the market prices what it is rather than what it might be: GDD §5.6's
+  // pup is rating ≈ 37 and worth ≈ 3,900. v1 rolled every age around the same 45, which is
+  // half of why waiting for a good dog in the market beat raising one.
+  if (age === 1) quality -= 8;
+  else if (age === 2) quality -= 4;
+  if (bias === 'old') quality += 12; // knackered but once good — cheap by age factor
+  const dog = createDog({ quality: clamp(quality, 22, 95), age, owner: 'market' }, rng, nextId);
+  if (planet.special.fellOffAShip && rng.chance(0.5)) dog.fellOffAShip = week + 3;
+  dog.askingPrice = askingPrice(dog, planet, rng);
+  return dog;
+}
+
 /** Roll a planet's market dogs for the week (GDD §8). */
 export function rollMarketDogs(planet: Planet, week: number, rng: Rng, nextId: IdGen): Dog[] {
   const count = rng.int(balance.marketDogsMin, balance.marketDogsMax);
   const dogs: Dog[] = [];
-  for (let i = 0; i < count; i++) {
-    const bias = planet.special.marketAgeBias;
-    const age = rollMarketAge(planet, rng);
-    let quality = rng.gauss(45 + (planet.special.marketQualityBonus ?? 0), 10);
-    // A pup is raw, and the market prices what it is rather than what it might be: GDD §5.6's
-    // pup is rating ≈ 37 and worth ≈ 3,900. v1 rolled every age around the same 45, which is
-    // half of why waiting for a good dog in the market beat raising one.
-    if (age === 1) quality -= 8;
-    else if (age === 2) quality -= 4;
-    if (bias === 'old') quality += 12; // knackered but once good — cheap by age factor
-    const dog = createDog({ quality: clamp(quality, 22, 95), age, owner: 'market' }, rng, nextId);
-    if (planet.special.fellOffAShip && rng.chance(0.5)) dog.fellOffAShip = week + 3;
-    dog.askingPrice = askingPrice(dog, planet, rng);
-    dogs.push(dog);
-  }
+  for (let i = 0; i < count; i++) dogs.push(rollOneMarketDog(planet, week, rng, nextId));
   return dogs;
 }
 
+const NAMES_BY_ROLE: Partial<Record<StaffRole, readonly string[]>> = {
+  trainer: TRAINER_NAMES,
+  vet: VET_NAMES,
+  scout: SCOUT_NAMES,
+  trader: TRADER_NAMES,
+  tipster: TIPSTER_NAMES,
+};
+
+/**
+ * Who is drinking here this week (GDD §8.3, §8.1).
+ *
+ * Five hireable roles, each with a chance of turning up at all and then a **tier drawn on the same
+ * 70 / 25 / 5 ladder as the goods**. The two planets the GDD names — a trainer is always about at
+ * one, a vet works out of the back room at another — get a guaranteed appearance rather than a
+ * guaranteed tier: what is on offer there is *someone*, not someone good.
+ *
+ * ⚠️ **No Fixer.** §13's sabotage and steward bribes are not actions yet, so hiring one would be a
+ * wage bill for nothing — a trap rather than a difficulty (GDD §19, 2026-09-08). `HIREABLE_ROLES`
+ * is the single place that says so, and the Saloon reads the same list.
+ */
 export function rollStaff(planet: Planet, rng: Rng, nextId: IdGen): StaffOffer[] {
   const offers: StaffOffer[] = [];
-  const s = planet.special;
-  // A trainer is usually about; a vet only where the GDD says so.
-  if (s.trainer || rng.chance(0.6)) {
-    const name = rng.pick(TRAINER_NAMES);
-    const gristle = name === 'Gristle McGraw';
+  const sp = planet.special;
+  for (const role of HIREABLE_ROLES) {
+    const guaranteed = (role === 'trainer' && !!sp.trainer) || (role === 'vet' && !!sp.vet);
+    if (!guaranteed && !rng.chance(balance.staffAppearChance)) continue;
+    const tier = rollTier(rng, 1);
+    const names = NAMES_BY_ROLE[role] ?? TRAINER_NAMES;
+    const name = rng.pick(names);
+    const gristle = role === 'trainer' && name === 'Gristle McGraw';
     offers.push({
       id: nextId('staff'),
-      role: 'trainer',
+      role,
+      tier,
       name,
-      wage: balance.trainerWage,
-      quirk: gristle ? '+2/week but 5%/week a dog turns Nervy' : undefined,
+      wage: TIER_WAGE[tier],
+      quirk: gristle ? `+1 on top of his tier, but 5%/week a dog turns Nervy` : undefined,
     });
   }
-  if (s.vet)
-    offers.push({
-      id: nextId('staff'),
-      role: 'vet',
-      name: rng.pick(VET_NAMES),
-      wage: balance.vetWage,
-    });
-  // No fixer. GDD §13's sabotage and steward bribes do not exist as actions yet, so hiring one
-  // was a 350-a-week wage bill for nothing. He comes back with §13 (GDD §19, 2026-09-08).
   return offers;
+}
+
+/**
+ * Draw a tier on the one ladder (GDD §8.1): roughly 70 / 25 / 5, with `bias` multiplying the two
+ * upper chances — which is how Rustgut rarely has anything above Rough and Vatgrown is where the
+ * good stuff is.
+ *
+ * Exactly one rng draw whatever the bias, so the draw count does not depend on the planet.
+ */
+export function rollTier(rng: Rng, bias: number): GoodTier {
+  const prime = balance.stockChancePrime * bias;
+  const proper = balance.stockChanceProper * bias;
+  const roll = rng.next();
+  if (roll < prime) return 'prime';
+  if (roll < prime + proper) return 'proper';
+  return 'rough';
+}
+
+/**
+ * What a stable's own staff turned up for it here (GDD §8.3) — a Scout's dogs and a Trader's
+ * consigned crates, both invisible to every other stable.
+ *
+ * Rolled at arrival, per stable, in `turnOrder` so the draw order is the same for the same season
+ * whatever the players do. A stable with neither hire gets an empty record, and pays no draws for
+ * it: the whole feature costs nothing at the table it is not being used at.
+ */
+export function rollFinds(
+  p: Player,
+  planet: Planet,
+  week: number,
+  goods: Record<GoodId, GoodMarket>,
+  rng: Rng,
+  nextId: IdGen,
+): { finds: StableFinds; dogs: Dog[] } {
+  const finds: StableFinds = { dogIds: [], goods: emptyCargoRecord() };
+  const dogs: Dog[] = [];
+  const wanted = scoutDogs(p);
+  for (let i = 0; i < wanted; i++) {
+    const d = rollOneMarketDog(planet, week, rng, nextId);
+    // Proper and above turn up one dog priced under book — the offer the Market's Book column
+    // exists to make visible (§7.3). The first of them, so the count and the bargain are separate
+    // rewards rather than the same one twice.
+    if (i === 0 && scoutFindsBargain(p)) {
+      d.askingPrice = Math.round(dogValue(d) * balance.scoutUnderBook);
+    }
+    dogs.push(d);
+    finds.dogIds.push(d.id);
+  }
+  const tier = bestTier(p, 'trader');
+  if (tier === 'proper' || tier === 'prime') {
+    // A consignment is crates of one good at that tier, drawn from what the ladder offers. It is
+    // not free: it is stock you may buy at the shelf price that nobody else can reach.
+    const wantTier: GoodTier = tier;
+    const pool = GOODS.filter((g) => g.tier === wantTier);
+    const g = rng.pick(pool);
+    const crates = wantTier === 'prime' ? balance.traderConsignPrime : balance.traderConsignProper;
+    finds.goods[g.id] += crates;
+    // A consigned good always has a price, even where the planet stocked none of it.
+    if (goods[g.id].buy <= 0) {
+      const [lo, hi] = planet.foodBand;
+      const mid = Math.round(((lo + hi) / 2) * g.priceMult);
+      goods[g.id] = { buy: mid, sell: Math.round(mid * (1 - balance.foodSpread)), stock: 0 };
+    }
+  }
+  return { finds, dogs };
 }
 
 export function upgradePrice(upgrade: UpgradeId, planet: Planet, player: Player): number {
@@ -272,6 +371,7 @@ export function emptyPlanetState(planetId: Id): PlanetState {
       GoodMarket
     >,
     marketDogIds: [],
+    finds: {},
     staff: [],
     muzzlesInStock: false,
     trackDayPasses: false,

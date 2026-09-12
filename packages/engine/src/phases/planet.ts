@@ -2,7 +2,9 @@ import { balance } from '../content/balance';
 import { planetOf } from '../content/planets';
 import { raceType } from '../content/raceTypes';
 import { good, STOCK_UNLIMITED } from '../content/goods';
+import { staffTitle } from '../content/staff';
 import { cargoTotal } from '../economy/goods';
+import { buyPriceFor, cargoCap } from '../economy/staff';
 import { dogSalePrice, weakestStat } from '../economy/dogValue';
 import { loanCap, outstanding } from '../economy/loans';
 import { upgradePrice } from '../economy/market';
@@ -53,7 +55,11 @@ export function buyDog(ctx: Ctx, action: Extract<Action, { t: 'BuyDog' }>): void
   planetPhase(s, action, 'planetPre', 'planetPost');
   const p = activeOrFail(s, action.playerId, action);
   const d = dog(s, action.dogId);
-  if (d.ownerId !== 'market' || !s.planet.marketDogIds.includes(d.id))
+  // Two shelves: the shared one the whole table is racing for, and whatever this stable's own
+  // Scout turned up, which nobody else can see or buy (GDD §8.3).
+  const onShared = s.planet.marketDogIds.includes(d.id);
+  const scouted = (s.planet.finds[p.id]?.dogIds ?? []).includes(d.id);
+  if (d.ownerId !== 'market' || (!onShared && !scouted))
     fail('That dog is not for sale here', action);
   if (p.dogIds.length >= p.kennelSlots) fail('No free kennel slot', action);
   const price = d.askingPrice ?? 0;
@@ -63,7 +69,13 @@ export function buyDog(ctx: Ctx, action: Extract<Action, { t: 'BuyDog' }>): void
   p.dogIds.push(d.id);
   p.stats.dogsBought++;
   s.planet.marketDogIds = s.planet.marketDogIds.filter((id) => id !== d.id);
-  log(s, `Bought ${d.name} (rating ${d.rating}) for ${price}.`, p.id);
+  const finds = s.planet.finds[p.id];
+  if (finds) finds.dogIds = finds.dogIds.filter((id) => id !== d.id);
+  log(
+    s,
+    `Bought ${d.name} (rating ${d.rating}) for ${price}${scouted ? ' — your scout found it' : ''}.`,
+    p.id,
+  );
 }
 
 export function sellDog(ctx: Ctx, action: Extract<Action, { t: 'SellDog' }>): void {
@@ -178,17 +190,25 @@ export function tradeFood(ctx: Ctx, action: Extract<Action, { t: 'TradeFood' }>)
   if (!s.toggles.trading) fail('Trading is switched off this season', action);
   const g = good(action.good);
   const market = s.planet.goods[action.good];
+  const consigned = s.planet.finds[p.id]?.goods[action.good] ?? 0;
   const units = Math.trunc(action.units);
   if (units === 0) return;
   if (units > 0) {
-    if (cargoTotal(p.cargo) + units > p.ship.cargoCap) fail('Not enough hold space', action);
-    if (units > market.stock)
-      fail(`Only ${market.stock} crates of ${g.label} on the shelf`, action);
-    const cost = units * market.buy;
+    if (cargoTotal(p.cargo) + units > cargoCap(p)) fail('Not enough hold space', action);
+    const available = market.stock === STOCK_UNLIMITED ? STOCK_UNLIMITED : market.stock + consigned;
+    if (units > available) fail(`Only ${available} crates of ${g.label} to be had here`, action);
+    // A Prime trader's 5% comes off the price this stable pays, not off the shelf price the rest
+    // of the table sees: it is a fact about the hire rather than about the planet.
+    const cost = units * buyPriceFor(p, market.buy);
     pay(p, cost, action);
     p.cargo[action.good] += units;
-    // An unlimited shelf is never drawn down — a rule about the number, not about which good.
-    if (market.stock < STOCK_UNLIMITED) market.stock -= units;
+    // Your own consignment goes first — it is yours, and leaving it while the shared shelf empties
+    // would be strictly worse for you and better for nobody. An unlimited shelf is never drawn
+    // down, which is the rule that keeps the staple always available.
+    const fromFinds = Math.min(consigned, units);
+    if (fromFinds > 0) s.planet.finds[p.id]!.goods[action.good] -= fromFinds;
+    const fromShelf = units - fromFinds;
+    if (fromShelf > 0 && market.stock < STOCK_UNLIMITED) market.stock -= fromShelf;
     p.stats.tradeIncome -= cost;
   } else {
     const sell = -units;
@@ -200,25 +220,60 @@ export function tradeFood(ctx: Ctx, action: Extract<Action, { t: 'TradeFood' }>)
   }
 }
 
+/**
+ * Take somebody on (GDD §8.3, D7).
+ *
+ * **Three slots, any mix** — including three trainers, which is why the only refusal left is that
+ * the slots are full. v1 refused a second trainer, and that refusal *was* the stacking penalty D7
+ * exists to leave out: the price is the gate, and whether stacking dominates is something to
+ * measure rather than to forbid.
+ *
+ * The Fixer is not hireable (`content/staff.ts`), so his row never reaches a planet and the refusal
+ * here is a backstop rather than a rule a player meets.
+ */
 export function hireStaff(ctx: Ctx, action: Extract<Action, { t: 'HireStaff' }>): void {
   const { s } = ctx;
   planetPhase(s, action, 'planetPre', 'planetPost');
   const p = activeOrFail(s, action.playerId, action);
-  const offer = s.planet.staff.find((o) => o.id === action.staffId && o.role === action.role);
+  const offer = s.planet.staff.find((o) => o.id === action.staffId);
   if (!offer) fail('Nobody by that name is for hire here', action);
-  if (action.role === 'fixer' && s.toggles.cleanSport) fail('Clean Sport: no fixers', action);
-  if (p.staff[action.role]) fail(`You already employ a ${action.role}`, action);
-  p.staff[action.role] = offer;
+  if (offer.role === 'fixer')
+    fail('GDD §13 does not exist yet — nothing for a fixer to do', action);
+  if (p.staff.length >= balance.staffSlots)
+    fail(`All ${balance.staffSlots} staff slots are full — let somebody go first`, action);
+  p.staff.push(offer);
   s.planet.staff = s.planet.staff.filter((o) => o.id !== offer.id);
-  log(s, `Hired ${offer.name} as ${action.role} (${offer.wage}/week).`, p.id);
+  log(s, `Hired ${offer.name}, ${staffTitle(offer.role, offer.tier)} (${offer.wage}/week).`, p.id);
 }
 
+/**
+ * Let somebody go.
+ *
+ * One refusal, and it is about the **Trader's hold** (GDD §8.3): his crates are a wage, not an
+ * asset, so losing him loses the capacity — and a stable carrying 45 crates in a 20-crate ship
+ * cannot simply be left over its own limit. Rather than spill the difference (a punishment the GDD
+ * does not describe) or carry an impossible hold (a hole in the invariant that says a hold fits its
+ * ship), this asks the player to sell down first, the same shape as "withdraw the dog from its race
+ * first" and "a stable must keep at least one dog".
+ */
 export function fireStaff(ctx: Ctx, action: Extract<Action, { t: 'FireStaff' }>): void {
   const { s } = ctx;
   planetPhase(s, action, 'planetPre', 'planetPost');
   const p = activeOrFail(s, action.playerId, action);
-  if (!p.staff[action.role]) fail(`You have no ${action.role}`, action);
-  delete p.staff[action.role];
+  const at = p.staff.findIndex((o) => o.id === action.staffId);
+  if (at < 0) fail('Nobody by that name is on your books', action);
+  const gone = p.staff[at]!;
+  const without = p.staff.filter((o) => o.id !== gone.id);
+  const capWithout = cargoCap({ ...p, staff: without });
+  const crates = cargoTotal(p.cargo);
+  if (crates > capWithout) {
+    fail(
+      `${gone.name}'s hold is carrying ${crates - capWithout} crates you would have nowhere to put — sell some first`,
+      action,
+    );
+  }
+  p.staff = without;
+  log(s, `Let ${gone.name} go.`, p.id);
 }
 
 /**

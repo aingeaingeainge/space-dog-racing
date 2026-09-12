@@ -500,6 +500,30 @@ export const VET_NAMES: readonly string[] = [
   'Sister Agatha of the Paw',
   'Dr. Ines Flake',
 ];
+export const SCOUT_NAMES: readonly string[] = [
+  'Pinch Halloran',
+  'Marguerite Sly',
+  'Fingers Obodo',
+  'The Widow Tarn',
+  'Cheap Sammy Vole',
+  'Ivy Threeways',
+];
+export const TRADER_NAMES: readonly string[] = [
+  'Consignment Carla',
+  'Bulkhead Terry',
+  'Madame Oyo',
+  'Crate Nine Nicholls',
+  'Hob Fenwick',
+  'Bosun Adaeze',
+];
+export const TIPSTER_NAMES: readonly string[] = [
+  'Whisper Deng',
+  'Two-Phone Trevanion',
+  'Aunty Pilar',
+  'The Ear',
+  'Sundry Bill',
+  'Lofty Anastas',
+];
 export const FIXER_NAMES: readonly string[] = [
   'Nobody',
   'The Accountant',

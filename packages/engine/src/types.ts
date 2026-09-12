@@ -63,9 +63,41 @@ export type GoodTier = 'rough' | 'proper' | 'prime';
  * arrival penalty, and it is the base trade commodity — so v1's eating and trading machinery
  * survives untouched and everything else layers on top.
  */
-export type GoodId = 'kibble';
+export type FeedGoodId =
+  | 'speedRough'
+  | 'accelRough'
+  | 'staminaRough'
+  | 'trapRough'
+  | 'speedProper'
+  | 'accelProper'
+  | 'staminaProper'
+  | 'trapProper'
+  | 'speedPrime'
+  | 'accelPrime'
+  | 'staminaPrime'
+  | 'trapPrime';
 
-export const GOOD_IDS: readonly GoodId[] = ['kibble'] as const;
+export type GoodId = 'kibble' | FeedGoodId;
+
+/**
+ * Every good, in the order a hold serialises and a market table prints: the staple, then the
+ * ladder tier by tier. Thirteen and no more — GDD §21 keeps a fifth stat food out by name.
+ */
+export const GOOD_IDS: readonly GoodId[] = [
+  'kibble',
+  'speedRough',
+  'accelRough',
+  'staminaRough',
+  'trapRough',
+  'speedProper',
+  'accelProper',
+  'staminaProper',
+  'trapProper',
+  'speedPrime',
+  'accelPrime',
+  'staminaPrime',
+  'trapPrime',
+] as const;
 
 /**
  * What is in a stable's hold: crates per good.
@@ -95,12 +127,16 @@ export const DIFFICULTIES: readonly Difficulty[] = ['easy', 'normal', 'hard'] as
 
 /**
  * Measurement agents (BUILD_PLAN §7a.5). These play *strategies* rather than difficulties and
- * exist so the harness can price something no competent agent ever reaches — `careless` is the
- * only way to measure the bankruptcy rate D6 asks for, because a stable that plays well never
- * goes bust. They are deliberately **not offered to players**: Title.tsx and lib/seedLink.ts
- * both enumerate the three difficulties by hand, so nothing here can leak into a season setup.
+ * exist so the harness can price something no competent agent ever reaches.
+ *
+ * `careless` is the only way to measure the bankruptcy rate D6 asks for, because a stable that
+ * plays well never goes bust. `trainer` and `trader` are GDD §20 Q2's two roads — are they worth
+ * the same? — and the crook is Phase D's, because §13 does not exist to be played yet.
+ *
+ * They are deliberately **not offered to players**: Title.tsx and lib/seedLink.ts both enumerate
+ * the three difficulties by hand, so nothing here can leak into a season setup.
  */
-export type MeasurementAgent = 'careless';
+export type MeasurementAgent = 'careless' | 'trainer' | 'trader';
 export type AiAgent = Difficulty | MeasurementAgent;
 
 export type Phase =
@@ -128,7 +164,22 @@ export interface Track {
   mud?: boolean; // Mudlark bonus applies
 }
 
-export type StaffRole = 'trainer' | 'vet' | 'fixer';
+/**
+ * The six roles (GDD §8.3). Three slots, any mix, no stacking penalty — see `content/staff.ts`.
+ *
+ * The Scout and the Tipster are Phase B's information debt: §9.3 lists the Tipster as one of four
+ * carriers and Phase B shipped two, and both of these feed the trader's road.
+ */
+export type StaffRole = 'trainer' | 'vet' | 'fixer' | 'scout' | 'trader' | 'tipster';
+
+export const STAFF_ROLES_ALL: readonly StaffRole[] = [
+  'trainer',
+  'vet',
+  'scout',
+  'trader',
+  'tipster',
+  'fixer',
+] as const;
 
 export interface PlanetSpecial {
   bank?: boolean;
@@ -154,6 +205,11 @@ export interface PlanetSpecial {
   foodSpoils?: number; // Glassfall: fraction of cargo lost without a cold store
   localsNervy?: boolean; // Lagrange Lows
   marketAgeBias?: 'old' | 'pups'; // Rustgut / Vatgrown
+  /**
+   * Multiplies the Proper and Prime stock chances for the goods (GDD §8.1's `marketBias` made
+   * real): Rustgut rarely has anything above Rough, Vatgrown is where the good stuff is.
+   */
+  feedBias?: number;
   marketQualityBonus?: number; // Majors sell Gold-class dogs
   fellOffAShip?: boolean; // Hushmarket
   muzzles?: boolean; // Tinkertown
@@ -264,7 +320,15 @@ export interface Player {
   ship: Ship;
   /** Crates aboard, per good (GDD §8.2). `cargoTotal()` for what fuel is charged against. */
   cargo: Cargo;
-  staff: Partial<Record<StaffRole, StaffOffer>>;
+  /**
+   * Who is on the books — **a list, up to `staffSlots`, in any mix** (GDD §8.3, D7).
+   *
+   * A list rather than v1's one-per-role record, because three trainers is a legal stable and a
+   * record keyed by role cannot hold one. Every read goes through `staffOf` / `bestStaff` in
+   * `economy/staff.ts` rather than indexing, so "have I got a vet" and "what is my best vet" stay
+   * one question each.
+   */
+  staff: StaffOffer[];
   loans: Loan[];
   flags: {
     caughtDoping: boolean;
@@ -294,6 +358,8 @@ export interface PlayerSeasonStats {
 export interface StaffOffer {
   id: StaffId;
   role: StaffRole;
+  /** Where on the one ladder (GDD §8.1). The wage follows from it, and so does what they do. */
+  tier: GoodTier;
   name: string;
   wage: number;
   quirk?: string;
@@ -314,6 +380,14 @@ export interface GoodMarket {
   stock: number; // crates on the shelf this week
 }
 
+/** A stable's private corner of this planet's market (GDD §8.3: the Scout and the Trader). */
+export interface StableFinds {
+  /** Dogs only this stable may buy. Rolled on arrival by its Scout. */
+  dogIds: Id[];
+  /** Crates consigned to this stable by its Trader, per good, at the shared shelf price. */
+  goods: Cargo;
+}
+
 export interface PlanetState {
   planetId: Id;
   /**
@@ -326,6 +400,17 @@ export interface PlanetState {
    */
   goods: Record<GoodId, GoodMarket>;
   marketDogIds: Id[];
+  /**
+   * What a stable's own staff turned up for it here, that nobody else at the table can have
+   * (GDD §8.3). Keyed by player id, a key for every stable so the record is dense and the save
+   * serialises canonically, exactly as `Cargo` is.
+   *
+   * The shared shelf is what turn order competes over; **this** is what a Scout and a Trader buy.
+   * It is the answer to "how do you make the market busier without making it longer" (§8.5, D10):
+   * the extra depth is yours, so it appears on your own screen, under one heading, rather than
+   * lengthening a table six stables are all reading.
+   */
+  finds: Record<Id, StableFinds>;
   staff: StaffOffer[];
   muzzlesInStock: boolean;
   trackDayPasses: boolean;
@@ -506,8 +591,9 @@ export type Action =
     }
   /** +buy / −sell, of one good. The `good` is what makes the hold a set of decisions. */
   | { t: 'TradeFood'; playerId: Id; good: GoodId; units: number }
-  | { t: 'HireStaff'; playerId: Id; role: StaffRole; staffId: StaffId }
-  | { t: 'FireStaff'; playerId: Id; role: StaffRole }
+  | { t: 'HireStaff'; playerId: Id; staffId: StaffId }
+  /** By id, not by role: three trainers are legal, so a role no longer identifies a hire. */
+  | { t: 'FireStaff'; playerId: Id; staffId: StaffId }
   | { t: 'SetDogState'; playerId: Id; dogId: Id; state: WeekState; stat?: StatKey }
   | { t: 'BuyUpgrade'; playerId: Id; upgrade: UpgradeId; dogId?: Id; week?: number }
   | { t: 'Borrow'; playerId: Id; lender: 'bank' | 'shark'; amount: number }

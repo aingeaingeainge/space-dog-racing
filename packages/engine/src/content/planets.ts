@@ -1,3 +1,4 @@
+import { balance } from './balance';
 import type { Planet, Id } from '../types';
 
 const sprint = (bends: Planet['track']['bends'], extra: Partial<Planet['track']> = {}) =>
@@ -83,8 +84,9 @@ export const PLANETS: readonly Planet[] = [
     major: false,
     track: standard('tight'),
     foodBand: [110, 140],
-    marketBias: 'Cheap knackered dogs (age 5+)',
-    special: { marketAgeBias: 'old' },
+    marketBias: 'Cheap knackered dogs (age 5+), and nothing above Rough on the shelves',
+    // GDD §8.1 names Rustgut as the feed-poor planet: cheap kibble band, nothing good in it.
+    special: { marketAgeBias: 'old', feedBias: balance.feedBiasPoor },
     accents: ['#D9531E', '#6B3A22'],
   },
   {
@@ -149,8 +151,9 @@ export const PLANETS: readonly Planet[] = [
     major: false,
     track: standard('medium'),
     foodBand: [45, 70],
-    marketBias: 'Age-1 pups with growth',
-    special: { dopingCatch: 0, marketAgeBias: 'pups' },
+    marketBias: 'Age-1 pups with growth, and the best feed on the circuit',
+    // GDD §8.1 names Vatgrown as where the Prime feed is. A bio-lab would be.
+    special: { dopingCatch: 0, marketAgeBias: 'pups', feedBias: balance.feedBiasRich },
     accents: ['#9BE84B', '#3FD6E0'],
   },
   {

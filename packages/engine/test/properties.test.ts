@@ -8,6 +8,7 @@ import {
   needsAdvance,
   netWorthBreakdown,
   cargoTotal,
+  cargoCap,
   player,
   raceType,
   reduceMut,
@@ -59,7 +60,16 @@ function checkInvariants(s: GameState, lastAction: Action): void {
       assert(Number.isInteger(p.cargo[id]), `p.cargo[${id}] is an integer`);
     }
     assert(cargoTotal(p.cargo) >= 0, 'cargoTotal(p.cargo) >= 0');
-    assert(cargoTotal(p.cargo) <= p.ship.cargoCap, 'cargoTotal(p.cargo) <= p.ship.cargoCap');
+    // The bound is the hold the stable actually has, which is the ship plus whatever a Trader adds
+    // (GDD §8.3). Changed from `p.ship.cargoCap` because the quantity it bounds changed, not
+    // because the rule loosened: `fireStaff` refuses to leave a hold over capacity, so this is
+    // still the tightest true statement about the hold at every instant.
+    assert(cargoTotal(p.cargo) <= cargoCap(p), 'cargoTotal(p.cargo) <= cargoCap(p)');
+    // GDD §8.3 / D7: three slots, any mix. The mix is free; the count is not.
+    assert(
+      p.staff.length <= balance.staffSlots,
+      `${p.staff.length} staff in ${balance.staffSlots} slots`,
+    );
     assert(p.dogIds.length <= p.kennelSlots, 'p.dogIds.length <= p.kennelSlots');
     for (const id of p.dogIds) {
       const d = s.dogs[id];
