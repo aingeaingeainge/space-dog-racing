@@ -145,5 +145,10 @@ vite.config.ts.timestamp-*
 # Space Dog Racing
 backups/
 
+# Hand-off bundles. Every build session since Phase A has run in a cloud container with no push
+# credentials and handed the commits back as `git bundle create phase-X.bundle` — a bundle of this
+# repo does not belong committed inside it, and it is deleted once it has been fast-forwarded.
+*.bundle
+
 # Screenshots and files the Claude desktop app drops into the project folder
 Claude outputs/
