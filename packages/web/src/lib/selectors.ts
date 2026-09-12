@@ -131,6 +131,58 @@ export function ineligibleReason(d: Dog, cls: RaceClass): string | null {
   return null;
 }
 
+/**
+ * What the race asks of a dog, in the words the card header prints (GDD §6.5).
+ *
+ * The rating caps have always been the entry criterion; until now the Race Office printed them
+ * as "cap 45", which reads as a property of the race rather than as a question about your dog.
+ * Phase B's card draws its criterion from the race-type row instead, and this is the shape that
+ * function will have.
+ */
+export function criterionFor(cls: RaceClass): string {
+  const cap = cls === 'bronze' ? balance.capBronze : cls === 'silver' ? balance.capSilver : null;
+  return cap === null ? 'any dog may enter' : `rating ${cap} or less`;
+}
+
+/** Why a dog cannot run in *any* race this week — null when at least one race will have it. */
+export function cannotRunReason(d: Dog): string | null {
+  if (d.injuryWeeks > 0)
+    return `injured — out for ${d.injuryWeeks} more week${d.injuryWeeks > 1 ? 's' : ''}`;
+  if (d.banWeeks > 0)
+    return `banned by the stewards for ${d.banWeeks} more week${d.banWeeks > 1 ? 's' : ''}`;
+  if (RACE_CLASSES.every((cls) => ineligibleReason(d, cls)))
+    return 'no race on this card will have it';
+  return null;
+}
+
+/**
+ * What next week's fitness looks like from here, for each of the three things the week can be
+ * (GDD §5.7). The Race Office prints it beside every eligible dog, because the price of a run
+ * is the whole of the decision Phase A built and nothing on the declaring screen ever named it.
+ *
+ * This mirrors phases/endTurn.ts for display only. A race is charged where it happens, so a dog
+ * that runs takes −fitnessPerRace and no recovery on top; Rest picks up the vet and Bounces
+ * back, Train does not.
+ */
+export interface FitnessOutlook {
+  now: number;
+  racing: number;
+  training: number;
+  resting: number;
+}
+
+export function fitnessOutlook(d: Dog, me: Player): FitnessOutlook {
+  const bounce = d.traits.includes('bouncesBack') ? 5 : 0;
+  const rest = (me.staff.vet ? balance.fitnessRestVet : balance.fitnessRest) + bounce;
+  const cap = (n: number) => Math.max(0, Math.min(100, Math.round(n)));
+  return {
+    now: d.fitness,
+    racing: cap(d.fitness - balance.fitnessPerRace),
+    training: cap(d.fitness + balance.fitnessTrain),
+    resting: cap(d.fitness + rest),
+  };
+}
+
 /** Typical rating of the local dogs that will fill the empty traps (GDD §6.1). */
 export function localRatingFor(cls: RaceClass, major: boolean): number {
   const base =

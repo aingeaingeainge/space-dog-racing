@@ -1897,6 +1897,29 @@ dl.kv > div {
   overflow-wrap: anywhere;
 }
 
+/* The Race Office's week ledger (GDD §5.7, §6.5): what a run costs, dog by dog. The number
+   columns right-align so the fitness a dog would land on reads down the column as a decision
+   rather than as prose, and a barred dog's whole row goes quiet instead of disappearing. */
+table.ledger {
+  margin: 10px 0 2px;
+  font-size: 13px;
+}
+table.ledger th:not(:first-child):not(:last-child),
+table.ledger td:nth-child(2),
+table.ledger td:nth-child(3),
+table.ledger td:nth-child(4),
+table.ledger td:nth-child(5) {
+  text-align: right;
+}
+table.ledger th:last-child,
+table.ledger td:last-child {
+  text-align: left;
+  white-space: normal;
+}
+table.ledger tr.muted td {
+  opacity: 0.62;
+}
+
 /* The circuit's rules column: badges flow across a wide cell rather than stacking into a
    thin one, so a Major's five rules read as a row and not a column. */
 td.rules {

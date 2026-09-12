@@ -3,8 +3,8 @@ import {
   formatBones,
   planetOf,
   purseFor,
-  ratingCap,
   RACE_CLASSES,
+  type Dog,
   type GameState,
   type Player,
   type RaceClass,
@@ -15,14 +15,73 @@ import { TicketCard } from '../components/TicketCard';
 import { Badge, Notes, StableName, Traits } from '../components/ui';
 import { trackText } from '../lib/planetText';
 import {
+  cannotRunReason,
+  criterionFor,
   CLASS_LABEL,
   declaredClass,
+  fitnessOutlook,
   ineligibleReason,
   localRatingFor,
   ownedDogs,
   TRAPS,
 } from '../lib/selectors';
 import { useGame } from '../store/gameStore';
+
+/**
+ * What the week costs, dog by dog (GDD §5.7, §6.5).
+ *
+ * Phase A put a real decision in the game — race a dog tired, or rest it and give up the purse —
+ * and then left it on a screen the player had no reason to open. Every dog defaults to Race,
+ * declaring one sets it to Race, and this screen said nothing about fitness at all, so a player
+ * could walk from the hub to the Race Office, declare their best three and end the turn having
+ * played v1. This table is where the price is printed: it sits above the card, on the screen
+ * where the entries are actually made, and it names the number the choice turns on.
+ *
+ * One table rather than a line on each of the three stubs: the answer does not change per race,
+ * and repeating it three times is how a screen stops being read.
+ */
+function WeekLedger({ s, me, dogs }: { s: GameState; me: Player; dogs: Dog[] }) {
+  if (!dogs.length) return null;
+  return (
+    <table className="ledger">
+      <thead>
+        <tr>
+          <th>Dog</th>
+          <th>Rating</th>
+          <th>Fitness</th>
+          <th>If it runs</th>
+          <th>If it rests</th>
+          <th>This week</th>
+        </tr>
+      </thead>
+      <tbody>
+        {dogs.map((d) => {
+          const f = fitnessOutlook(d, me);
+          const barred = cannotRunReason(d);
+          const cls = declaredClass(s, me.id, d.id);
+          return (
+            <tr key={d.id} className={barred ? 'muted' : undefined}>
+              <td>{d.name}</td>
+              <td>{d.rating}</td>
+              <td>{f.now}</td>
+              <td>{barred ? '—' : `${f.racing}`}</td>
+              <td>{f.resting}</td>
+              <td>
+                {barred ? (
+                  <span className="muted">{barred}</span>
+                ) : cls ? (
+                  <Badge tone="good">declared in {CLASS_LABEL[cls]}</Badge>
+                ) : (
+                  <span className="muted">not entered</span>
+                )}
+              </td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  );
+}
 
 /**
  * GDD §15.7. Declarations are public (§2.4) — but a human's pending pick stays hidden from the
@@ -70,7 +129,9 @@ export function RaceOffice({ s, me }: { s: GameState; me: Player }) {
               : planet.track.length === 'staying'
                 ? 'A staying trip: Stayers and stamina.'
                 : null,
-            planet.track.bends === 'tight' ? 'Tight bends: Railers gain, everyone else risks a bump.' : null,
+            planet.track.bends === 'tight'
+              ? 'Tight bends: Railers gain, everyone else risks a bump.'
+              : null,
             entry?.grandFinal
               ? `The Grand Final — purses ×${balance.finalMult}.`
               : major
@@ -79,15 +140,15 @@ export function RaceOffice({ s, me }: { s: GameState; me: Player }) {
             sp.purseMult ? `${planet.name} adds ×${sp.purseMult} to every purse.` : null,
             sp.winningsTax ? `${pct(sp.winningsTax)} of any prize money is taxed here.` : null,
             sp.localsNervy ? 'The locals are Nervy: they lose 5% in traps 1 and 8.' : null,
-            `A run costs ${balance.fitnessPerRace} fitness; below ${balance.fitnessScaleBelow} every stat is scaled down.`,
+            `A run costs ${balance.fitnessPerRace} fitness and a rest returns ${balance.fitnessRest}${me.staff.vet ? ` (${balance.fitnessRestVet} with your vet)` : ''}; below ${balance.fitnessScaleBelow} every stat is scaled down. What you enter this weekend is what you cannot enter next.`,
           ]}
         />
+        <WeekLedger s={s} me={me} dogs={dogs} />
       </Panel>
 
       <div className="grid3">
         {RACE_CLASSES.map((cls) => {
           const purse = purseFor(s, cls);
-          const cap = ratingCap(cls);
           const mine = s.declarations[cls][me.id] ?? '';
           const rivals = s.players
             .filter((p) => p.id !== me.id && !p.flags.bankrupt)
@@ -99,21 +160,26 @@ export function RaceOffice({ s, me }: { s: GameState; me: Player }) {
               key={cls}
               cls={CLASS_LABEL[cls]}
               tone={cls}
-              cap={cls === 'gold' ? 'no cap' : `cap ${cap}`}
+              cap={criterionFor(cls)}
               purse={formatBones(purse[0])}
               serial={`2nd ${formatBones(purse[1])} · 3rd ${formatBones(purse[2])}`}
             >
               <label>
                 <span className="muted">Your runner</span>
                 <br />
-                <select className="wide" value={mine} onChange={(e) => declare(cls, e.target.value)}>
+                <select
+                  className="wide"
+                  value={mine}
+                  onChange={(e) => declare(cls, e.target.value)}
+                >
                   <option value="">— no runner —</option>
                   {dogs.map((d) => {
                     const bad = ineligibleReason(d, cls);
                     const other = declaredClass(s, me.id, d.id);
+                    const f = fitnessOutlook(d, me);
                     return (
                       <option key={d.id} value={d.id} disabled={!!bad}>
-                        {d.name} · {d.rating} · fit {d.fitness}
+                        {d.name} · {d.rating} · fit {f.now} → {f.racing} if it runs
                         {bad ? ` — ${bad}` : ''}
                         {!bad && other && other !== cls ? ` — in ${CLASS_LABEL[other]}` : ''}
                       </option>
@@ -164,7 +230,9 @@ export function RaceOffice({ s, me }: { s: GameState; me: Player }) {
                 </tbody>
               </table>
               {otherHumans ? (
-                <p className="muted last">Other humans&apos; picks stay hidden until the card locks.</p>
+                <p className="muted last">
+                  Other humans&apos; picks stay hidden until the card locks.
+                </p>
               ) : null}
             </TicketCard>
           );

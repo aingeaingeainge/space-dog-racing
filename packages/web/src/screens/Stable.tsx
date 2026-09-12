@@ -21,7 +21,14 @@ import { DogCard } from '../components/DogCard';
 import { NeonButton } from '../components/NeonButton';
 import { Panel } from '../components/Panel';
 import { Badge, KV, Notes } from '../components/ui';
-import { CLASS_LABEL, declaredClass, ownedDogs, weeklyBill } from '../lib/selectors';
+import {
+  cannotRunReason,
+  CLASS_LABEL,
+  declaredClass,
+  fitnessOutlook,
+  ownedDogs,
+  weeklyBill,
+} from '../lib/selectors';
 import { useGame } from '../store/gameStore';
 
 function status(d: Dog): { text: string; tone?: 'bad' | 'hot' } {
@@ -44,18 +51,25 @@ const STAT_LABEL: Record<StatKey, string> = {
   trap: 'Trap',
 };
 
-/** What this dog's week will cost or return in fitness, for the line under the buttons. */
+/**
+ * What this dog's week will cost or return in fitness, for the line under the buttons.
+ *
+ * Every branch names the number it lands on next week rather than only the delta: "−25 fitness"
+ * is a rule, "74 → 49" is a decision. GDD §5.7's choice is between two futures and the card is
+ * where both of them should be legible.
+ */
 function fitnessLine(d: Dog, me: Player, declared: boolean): string {
   const status = weekStatusOf(d);
+  const f = fitnessOutlook(d, me);
   if (status === 'layoff')
-    return `on layoff, +${weeklyFitnessDelta(d, !!me.staff.vet, false)} fitness`;
+    return `on layoff, +${weeklyFitnessDelta(d, !!me.staff.vet, false)} fitness (${f.now} → ${f.resting})`;
   if (status === 'race')
     return declared
-      ? `racing: −${balance.fitnessPerRace} fitness`
-      : `set to race but not entered — it will take the week off (+${weeklyFitnessDelta(d, !!me.staff.vet, false)})`;
+      ? `racing: −${balance.fitnessPerRace} fitness (${f.now} → ${f.racing}; ${f.resting} if you rest it instead)`
+      : `set to race but not entered — it will take the week off (${f.now} → ${f.resting})`;
   if (status === 'train')
-    return `training ${STAT_LABEL[d.trainStat]}: +${balance.fitnessTrain} fitness, one crate of kibble`;
-  return `resting: +${weeklyFitnessDelta(d, !!me.staff.vet, false)} fitness`;
+    return `training ${STAT_LABEL[d.trainStat]}: +${balance.fitnessTrain} fitness (${f.now} → ${f.training}), one crate of kibble`;
+  return `resting: +${weeklyFitnessDelta(d, !!me.staff.vet, false)} fitness (${f.now} → ${f.resting})`;
 }
 
 /**
@@ -193,15 +207,26 @@ function WeekPlan({
   const dispatch = useGame((g) => g.dispatch);
   const status = weekStatusOf(d);
   const laidOff = status === 'layoff';
+  // Why this dog cannot take a trap at all this weekend. Under the rating caps that is injury or
+  // a ban; once the card is fact-gated it is also "nothing on this card will have it", and the
+  // Kennels has to say so or the player is left wondering why Race does nothing.
+  const barred = cannotRunReason(d);
 
   return (
     <div className="weekplan">
       <div className="row tight">
         {WEEK_STATES.map((state) => {
+          // Race stays live for a barred dog on purpose: it is how you say what the dog should
+          // do the week it comes back, and setDogState allows exactly that. The button explains
+          // itself instead of refusing.
           const why = !inTurn
             ? 'Not while the races are on'
             : state !== 'race' && declared
               ? `Withdraw ${d.name} from its race first`
+              : null;
+          const note =
+            state === 'race' && barred
+              ? `Not this weekend — ${barred}. Sets the week it can.`
               : null;
           return (
             <NeonButton
@@ -209,7 +234,7 @@ function WeekPlan({
               small
               variant={status === state ? 'primary' : undefined}
               disabled={!!why}
-              title={why ?? `${STATE_LABEL[state]} this week`}
+              title={why ?? note ?? `${STATE_LABEL[state]} this week`}
               onClick={() => dispatch({ t: 'SetDogState', playerId: me.id, dogId: d.id, state })}
             >
               {STATE_LABEL[state]}
@@ -243,6 +268,9 @@ function WeekPlan({
         {laidOff ? `Out for ${Math.max(d.injuryWeeks, d.banWeeks)} more week(s). ` : ''}
         {fitnessLine(d, me, declared)}
       </span>
+      {barred && !laidOff ? (
+        <span className="muted small">Cannot run this weekend — {barred}.</span>
+      ) : null}
       {!me.staff.trainer && d.weekState === 'train' ? (
         <span className="muted small">
           No trainer, so a Train week is plain kibble alone: +{balance.trainKibbleMin}–
