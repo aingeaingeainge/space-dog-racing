@@ -231,21 +231,39 @@ v1 shipped at tag `m4` on 9 September 2026: a whole 13-week season against three
 **Goal:** you do not know what is coming, and the races you can enter depend on what you have raised.
 
 **Deliverables**
-1. **The race card (GDD §6.3).** `RaceClass` is replaced by a `RaceType` **row** — id, label, an eligibility predicate keyed off fields already in `Dog`, and a purse tier. Seven types plus The Open. Two drawn per weekend. ⚠️ `RaceClass` is threaded through `declarations`, `fields`, `races`, `Bet`, `RaceResult`, the AI's `bestAssignment`, and four web screens — this is the largest refactor in v2 and most of Phase B's cost.
-2. **Purses (GDD §6.4)** and the 27% pool cut (D15).
-3. **The fog (D5).** The Galaxy Map shows this planet in full, next week by name and Major status, and nothing else. Dossiers as a market good; the Tipster's reach; event cards that sell information.
-4. **Re-tune `lib/rumours.ts`** — its four-week horizon is far too generous once the map is dark.
-5. **Harness rebuild, part 2**: per-type entry counts, the concentration measure.
+1. **The race card (GDD §6.3).** ✅ Built. `RaceClass` is replaced by a `RaceType` **row** — id, label, an eligibility predicate keyed off fields already in `Dog`, a purse tier, and a *local spec* the plan did not anticipate: a short field is filled with locals, locals bypass `Declare`, and without one the Juvenile fills with four-year-olds. Landed in two commits exactly as §11 asks — the shape with the three classes still in it, then the seven types on top.
+2. **Purses (GDD §6.4)** and the 27% pool cut (D15). ⚠️ **Measured and deferred to Phase C — see GDD D22.** The pool stays at 19,250.
+3. **The fog (D5).** ✅ Built. The Galaxy Map shows this planet in full, next week by name and Major status, and nothing else. Dossiers are bought on the map rather than in the Market and add **nothing to GameState** — the purchase is in the action log, which is where "this stable paid to look" already lives. The Tipster and the information event cards are Phase C, both for stated reasons.
+4. **Re-tune `lib/rumours.ts`** — ✅ horizon 4 → 2, `NOTABLE` 14 → 10, `CHATTER` 0.55 → 0.75.
+5. **Harness rebuild, part 2**: per-type entry counts, the concentration measure. ✅ Built, plus
+   `cardCoverage`, the fill-rate distribution, purse share to players, the "decided by" week, the
+   gross road split, `autoplan%` and a `--card` eligibility probe. `apLoss%` is built and reports
+   an error bar around zero — see GDD D25.
 
-**Accept when**
-| Measure | Target |
-|---|---|
-| broad 5-dog stable fills all three races | 55–70% of weeks |
-| one-dog-concentrated stable fills all three | ≤ 20% |
-| each race type used | ≥ 8% of all races run |
-| a maiden win visibly costs future eligibility | the harness reports maiden entries falling after a first win |
-| prize share of a stable's income | falls from 87% toward 65% |
-| season "decided by" week | later than v1's 7.6 |
+**Accept when** — ✅ built and measured at tag `v2b`. Four of seven met, and the three that are
+not are named in place; see `claude/V2_PHASE_B_NOTES.md`.
+
+| Measure | Target | Measured | |
+|---|---|---|---|
+| broad 5-dog stable fills all three races | 55–70% of weeks | **76.3%** | ❌ over by 6 points — eligibility constrains a broad stable less than the estimate assumed. In a real season the same stable fills all three 20.4% of weeks, because fitness binds first (GDD §20 Q13) |
+| one-dog-concentrated stable fills all three | ≤ 20% | **10.3%** with two fillers, 13.0% with four, **0.0%** for four good dogs | ✅ and almost exactly GDD 0.3's predicted 14% |
+| each race type used | ≥ 8% of all races run | **8.8%** (Consolation) to 33.3% (The Open) | ✅ every type |
+| a maiden win visibly costs future eligibility | maiden entries fall after a first win | entries per Maiden run **5.64 → 4.85 → 4.11** across the thirds of the season | ✅ |
+| prize share of a stable's income | falls from 87% toward 65% | **81.7%** gross | ❌ and unreachable by cutting the purse: the other roads gross 7,016 a season, so 65% needs a 59% cut (GDD §6.4, D22) |
+| season "decided by" week | later than v1's 7.6 | **6.4** | ❌ *earlier*. Fewer contested races a weekend means fewer chances to overturn a lead; the Consolation is the lever and it is enterable 29% of the time (GDD §20 Q12) |
+| `concentration`, champion's mean (§7a.4) | below 0.4 | **0.278** | ✅ |
+| `npm test` | green, golden snapshot moved **twice** | 22 green, moved twice | ✅ |
+| `hub-clicks.ts` | ≤ 14.5 | **13.9** | ✅ under Phase A's 14.0 |
+
+**The re-baseline**, 800 all-Normal seasons: mean end worth **31,600** (p10 8,052, p50 25,836,
+p90 67,035), prize 31,334 · trade −4,220 · betting −912 · costs 16,652, bankruptcy 0.0%. Fitness
+at declaration 72.1 with 18.6% below 60; **races per dog 4.8** (was 5.2) and dogs at week 13 3.84.
+Head to head: Normal beats Easy **77.9%**, Hard beats Normal **56.0%** (v1 60.6, Phase A 56.8).
+Calibration 58.5%; stat leverage 24.2 / 19.2 / 16.1 / 15.3, unmoved. Purse pool 358,685 posted a
+season with **52.4%** of it reaching a player.
+
+⚠️ **D15's purse cut is measured and deferred to Phase C (GDD D22).** It is the deliverable this
+phase deliberately did not ship, and §6.4 carries the four measurements behind that.
 
 ### Phase C — the economy (2 sessions)
 

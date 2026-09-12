@@ -1,10 +1,19 @@
 # Space Dog Racing — Game Design Document
 
 **Working title:** Space Dog Racing
-**Version:** 0.3 — 11 September 2026 (v1 shipped at tag `m4`; v2 Phase A at tag `v2a`)
+**Version:** 0.4 — 12 September 2026 (v1 shipped at tag `m4`; v2 Phase A at `v2a`, Phase B at `v2b`)
 **Author:** Jesse Colbert, with Claude as design partner
 **Status:** v2 design. ⚖️ marks a tunable that lives in `space_dog_racing_economy.xlsx`; ❓ marks an open decision; **[measured]** marks a number this design was tested against and **[estimate]** one that is a starting point for the phase that builds it.
 
+> **What changed in 0.4, in one paragraph.** Phase B is built. §6.3's card and §9.3's fog are
+> what the game does: Bronze, Silver and Gold are gone, every weekend runs The Open plus two of
+> seven fact-gated types, and the circuit is dark past next week unless you buy it. §6.4's purse
+> cut is the one deliverable that was measured and **deliberately not applied** — the arithmetic
+> is in §7.1 and D22, and the short version is that cutting the pool cannot reach the ratio it
+> was meant to reach, because the ratio moves when the other two roads grow. Two numbers the plan
+> did not anticipate were fitted from the coverage sweep (D23), and two instruments turned out to
+> be measuring nothing (D25, §20 Q11).
+>
 > **What changed in 0.3, in one paragraph.** Phase A is built. §5.1's stat table, §5.2's curve,
 > §5.7's states, §5.6's pups and §6.2's constants are now what the game does rather than what it
 > intended, and every ⚖️ in those sections is a cell in the spreadsheet. Three numbers moved that
@@ -213,7 +222,11 @@ A dog **set to race that nothing enters** does not run and takes Rest's recovery
 
 ### 6.1 Race parameters
 
-Each planet has one track: **distance** (Sprint 350 m / Standard 480 m / Staying 600 m), **bend tightness**, **surface hazard**, and a visual theme. 8 traps. Short fields are filled with local dogs drawn around each race's own level: **22 / 38 / 50** ⚖️ (+5 at a Major), at **fitness 75** ⚖️. See D17 for why those fell from 30/46/58.
+Each planet has one track: **distance** (Sprint 350 m / Standard 480 m / Staying 600 m), **bend tightness**, **surface hazard**, and a visual theme. 8 traps. Short fields are filled with local dogs drawn around **the level of the race's purse tier** — The Open **50**, a drawn race **30** ⚖️ (+5 at a Major), at **fitness 75** ⚖️ — and then shaped so they satisfy that race's own entry criterion (§6.3). ✅ Built.
+
+⚠️ **A local must pass the same predicate a declared dog does**, or the Juvenile fills with four-year-olds: locals bypass Declare entirely, so nothing in the eligibility system sees them. Each race-type row therefore carries a *local spec* — an age window, a rating window, the out-of-the-money flag — and the generator squeezes the tier's draw into it. That is how the Handicap's locals come out under its cap and the Invitational's at its floor. `properties.test.ts` asserts it for every runner in every field.
+
+✅ **The re-fit D17 promised did not turn out to be needed.** Expressing the locals by purse tier at 50 / 30 landed the share of the purse reaching players at **52.4%** first time — against v1's 54% and Phase A's 52% — so nothing was touched. That number is now a first-class harness row rather than a probe somebody writes twice.
 
 ### 6.2 Simulation — and the rebalance v2 depends on
 
@@ -261,24 +274,86 @@ Two drawn per weekend, plus The Open. **Content is data: the eighth and ninth ty
 
 **Why facts rather than ratings.** A rating can be suppressed — that is the objection to §5.3 — but an age and a win cannot. And because the circuit is hidden (§9.3), this is not about aiming a dog at a race you can see coming. It is about keeping a stable that covers several eligibilities, which is exactly the force that kills one-dog concentration.
 
-**Measured, and it works.** Against random draws of two types, a **broad 5-dog stable fills all three races 59% of weeks and at least two of them 97%**. A stable built around one very good dog plus fillers **fills all three 14% of the time and is down to a single race 29% of the time** — because a 72-rated 4-year-old with wins is barred from Maiden, Juvenile, Veterans, Novice and Handicap by construction, and can only enter The Open and the Invitational. Six dogs adds little over five (65% against 59%), and three dogs is clearly short (36%) **[measured]**.
+✅ **Built, and the two posted numbers were fitted rather than guessed.** The Handicap's cap is **45** and the Invitational's floor **48** ⚖️ — one point apart, so ratings 46 and 47 sit outside both and everything else has one of them. Both started at 55 and both ends were wrong: a stable could fill the Handicap on 97.5% of the weekends it ran, so it asked nothing, and the Invitational on 12.5%, so players took 1.2% of its entries and the locals owned a tenth of the card. At 45 / 48 they read **85% and 46%** — a reliable fallback and one you have to have raised something to enter (D23).
+
+The Consolation carries a `minWeek` of 2, because nobody ran in week 0. Its criterion is a *stored fact* on the dog (`outOfMoneyLastWeek`, written every week for every dog it owns) rather than a lookup into last week's results, so that a generated local can carry it too.
+
+**Measured, and it works — with one row over its band.** `npm run harness -- --card`, 20,000 rolled stables against 20,000 random cards, eligibility only:
+
+| stable | fills all three | two or more | just one |
+|---|---|---|---|
+| broad, 5 dogs | **76.3%** | 98.5% | 1.5% |
+| broad, 3 dogs | 46.8% | 92.8% | 7.1% |
+| one good dog + 2 fillers | **10.3%** | 63.3% | 36.7% |
+| one good dog + 4 fillers | 13.0% | 68.3% | 31.7% |
+| four good dogs | 0.0% | 28.8% | 71.2% |
+
+The concentrated rows land almost exactly where 0.3 predicted (14%), which is the design's own arithmetic confirming itself. The broad row comes in at 76% against a 55–70% band — the card is more forgiving to a well-spread stable than the estimate assumed. That is a near-miss on the high side and not a broken mechanic: the spread between broad and concentrated is six-fold, and a broad stable is still short one race a quarter of the time.
+
+⚠️ **In a real season the binding constraint turns out not to be eligibility at all — it is fitness.** The probe says a broad five-dog stable *may* fill the card 76% of weeks; a Normal stable actually fills all three **20.4%** of weeks and two of three 51.9%, for a mean of **1.90 races entered of 3** **[measured, 800 seasons]**. The gap between 76 and 20 is Race/Train/Rest. That is worth knowing before Phase C tunes anything: the card decides *which* races a stable can contest, and §5.7 decides how many.
+
+**`cardCoverage`** — the share of the weekends a type ran where a stable had a fit, eligible dog — is the number that says whether a race is a decision or a lottery **[measured, 800 all-Normal seasons]**:
+
+| | Open | Maiden | Novice | Handicap | Juvenile | Invitational | Consolation | Veterans |
+|---|---|---|---|---|---|---|---|---|
+| coverage | 99% | 91% | 97% | 85% | 63% | 45% | 29% | 30% |
+| share of player entries | 40.0% | 12.5% | 13.4% | 12.4% | 8.4% | 5.9% | 3.8% | 3.7% |
+
+Veterans and Consolation sit at about 30% and both are structural rather than broken. A stable starts with dogs aged 2–4 and the age tick is week 7, so roughly 70% of stables have a veteran and only from week 8 — 0.70 × 6/13 ≈ 32%, which is what the harness reads. The Consolation's dog is by definition one that raced last week, so it is also the dog that is 25 fitness down: qualifying for the catch-up race and being fit enough to take it pull against each other.
+
+❓ **Should the Consolation reach back two weekends instead of one?** It is the only catch-up mechanic in the game and at 29% coverage it is barely a mechanic. Widening it is the obvious lever on §20 Q12's "decided by" week, and it is a rule this document does not currently cover — so it is a question rather than a change.
 
 **The risk to watch in playtest** is arbitrariness — not knowing next week's types is doing design work here, but the pool has to stay small and memorable enough that "keep a young one" reads as an obviously sound bet rather than a lottery.
 
 ### 6.4 Purses
 
-⚖️ **[estimate — the harness sets these in Phase B]**
-
 | Race | 1st / 2nd / 3rd |
 |---|---|
-| The Open | 4,000 / 2,000 / 1,000 |
-| Each drawn type | 2,200 / 1,100 / 550 |
+| The Open | **5,800 / 2,900 / 1,450** |
+| Each drawn type | **2,600 / 1,300 / 650** |
 
-Majors ×2.0; the Grand Final ×3.5. Weekly base pool 14,700 against v1's 20,100 — **a deliberate 27% cut to the prize pool**, and the reason is §7.1: prize money is currently 87% of the economy, and three roughly equal roads is arithmetic rather than intent.
+Majors ×2.0; the Grand Final ×3.5. Weekly base pool **19,250** ⚖️. ✅ Built.
+
+⚠️ **D15's purse cut was measured and deliberately not applied. This is the largest judgement
+call of Phase B and the whole argument is here.**
+
+The plan was 4,000 / 2,000 / 1,000 and 2,200 / 1,100 / 550, a pool of 14,700 and a 24% cut. What
+landed instead keeps the pool exactly where it was: The Open takes the old Gold and each drawn
+race the mean of the old Bronze and Silver, to the Bone. Four measurements say why.
+
+1. **The card already cut the economy by itself.** Fact-gating means a stable fills 1.90 of the
+   three races rather than pointing its best three at whatever is going, and races per dog fell
+   5.2 → 4.8. Mean end worth went 33,160 → 30,714 on an *unchanged* pool — **−7.4%**. Part of
+   D15's intent has already arrived, through the fill rate rather than through the purse.
+2. **The fill rate went down, not up.** §6.3 hoped the card would raise how much of the card a
+   stable fills, which would have paid for the cut. It does the opposite, so the cut's cost is
+   larger than D15 assumed rather than smaller.
+3. **The cut cannot reach its own target, and the arithmetic is not close.** D15 exists to take
+   prize money from 87% of income toward 65%. Gross income by road now reads prize 31,334, dogs
+   sold 3,022, bets returned 3,294, food sold 700 — **prize is 81.7%**. The other three total
+   7,016 and a purse cut does not touch them, so reaching 65% needs prize down to 13,000: a
+   **59% cut**, not 24%. D15's own 24% moves the ratio to 77.6%. **The ratio moves when the other
+   two roads grow, not when racing shrinks.**
+4. **It makes a missed target worse.** Races per dog is 4.8 against a 7–9 band, and the marginal
+   run is exactly the one that stops being worth the injury risk when the purse falls.
+
+So the cut is deferred to Phase C, where §8.2's goods market is the first thing that gives a
+player something to spend the room on, and where it can be sized against the roads it is meant
+to make room for rather than against a ratio it cannot move on its own (D22).
 
 ### 6.5 Race presentation
 
-Unchanged from v1 and working: top-down track, camera on the pack, position ticker, commentary bar, photo-finish freeze, 1×/2×/skip. Two additions v2 requires: the commentary must be able to say **"faded — no stamina over 600"** and **"never got going"** now that those are true (§6.2), and the card header must name each race's entry criterion, since it changes weekly.
+Unchanged from v1 and working: top-down track, camera on the pack, position ticker, commentary bar, photo-finish freeze, 1×/2×/skip. Two additions v2 requires: the commentary must be able to say **"faded — no stamina over 600"** and **"never got going"** now that those are true (§6.2), and **the card header must name each race's entry criterion**, since it changes weekly. ✅ Built — the stub prints "never won a race" where it used to print "cap 45".
+
+✅ **And the Race Office now prints what a run costs.** Phase A built the Race/Train/Rest
+decision and left it on a screen the player had no reason to open: every dog defaults to Race,
+declaring one sets it to Race, and the declaring screen never mentioned fitness — so a player
+could walk from the hub, declare their best three and end the turn having played v1 exactly. The
+Race Office carries a **week ledger** above the card: every dog with its rating, its fitness now,
+and the number it lands on next week if it runs against if it rests. One table rather than a line
+on each of three stubs, because the answer does not change per race. Every fitness line in the
+Kennels names the number as well as the delta — "−25 fitness" is a rule, "74 → 49" is a decision
+— and a dog nothing on the card will have says so, in both screens.
 
 ## 7. Economy
 
@@ -299,6 +374,27 @@ v1, all-Normal, 800 seasons **[measured]**:
 **Prize money is 87% of income; the trade is a net loss to every difficulty and betting is a rounding error.** Pillar 1 asks for three roads worth roughly the same, so the target is each road worth something like a third of a good stable's worth — 12–15k a season. That is **4× where trading is and 45× where betting is**, and it cannot be reached by making racing better. It is reached by cutting the purse pool (§6.4), giving the trade an edge it can actually work (§9), and building §13 so the crook has anything to do at all.
 
 This is a bigger change than any single proposal in the brief, and it is the honest content of "the skill is deciding how to spend your money".
+
+✅ **Measured properly for the first time, and the shape of the problem changed.** v1's 87% was
+an estimate off net figures; `tradeIncome` is sold minus bought and `betIncome` is returns minus
+stakes, and neither can answer "where did the money come *in*". The harness now tallies the cash
+each action moves. 800 all-Normal seasons, gross, per stable-season:
+
+| | prize | dogs sold | bets returned | food sold | prize share |
+|---|---|---|---|---|---|
+| Normal | 31,334 | 3,022 | 3,294 | 700 | **81.7%** |
+
+⚠️ **And this is why D15's purse cut was not applied (§6.4, D22).** The three non-racing rows
+total 7,016 and a purse cut does not touch any of them, so 65% needs prize down to 13,000 — a 59%
+cut, which would halve the game. The ratio is not reachable from the numerator. It becomes
+reachable when Phase C's goods market makes food sold something other than 700 a season and
+Phase D gives betting a reason to be positive.
+
+⚠️ **Half the posted purse never reaches a player.** The pool is 358,685 a season across six
+stables and **52.4%** of it is paid out to them; the rest goes to local dogs and leaves the
+economy. v1 ran 54% and Phase A 52%, so this is stable rather than new — but it means the pool
+is nearly twice the size of the prize money the players are actually competing for, and any
+future cut should be sized against the 52% rather than the headline.
 
 ### 7.2 Costs (weekly)
 
@@ -423,14 +519,42 @@ Two consequences to own:
 
 **What you can buy:**
 
-| Carrier | Reach | Reliability | Price ⚖️ |
-|---|---|---|---|
-| Saloon rumours | 1–2 weeks | can be wrong — it is a rumour | free |
-| Dossier (Market) | a named planet, next week or the week after | exact | 500–800 |
-| Event cards | varies | usually exact, sometimes a lie | varies |
-| **Tipster** (staff) | 1–2 weeks, standing | exact | a wage |
+| Carrier | Reach | Reliability | Price ⚖️ | |
+|---|---|---|---|---|
+| Saloon rumours | **2 weeks** | can be wrong — it is a rumour | free | ✅ Built |
+| Dossier (**Galaxy Map**) | the week after next, in full | exact | **650** | ✅ Built |
+| Event cards | varies | usually exact, sometimes a lie | varies | ⏳ Phase C |
+| **Tipster** (staff) | 1–2 weeks, standing | exact | a wage | ⏳ Phase C |
 
-⚠️ **Re-tune `lib/rumours.ts`.** The Saloon rumours built in M4 session 2 are currently near-redundant: they hint at food prices on planets whose bands the Galaxy Map already printed in full for the whole season. Hiding the map is what makes them do the job they were written for — and their four-week horizon will be far too generous once nothing else is visible.
+✅ **Built, and the dossier adds nothing to GameState.** The whole circuit is in `calendar`
+because the reducer has to build it once; the fog is a rule about *who may look*, and "this
+stable paid to look" is a fact the action log already carries. So a dossier is a `BuyUpgrade`
+naming a week — it charges 650, writes a line addressed to the buyer, and the client shows what
+that stable's own log entitles it to. No `Player.intel`, and the golden snapshot did not move for
+it. It reaches `dossierReach` = 2 weeks, because next week is free, so what you are buying is the
+week after: one extra leg to price a hold against.
+
+Next week is a *name*, not a briefing — the planet and its Major status, and nothing about its
+track, its kibble band or its card. Those are what the dossier sells.
+
+✅ **`lib/rumours.ts` re-tuned, horizon 4 → 2.** Four weeks was written when the Galaxy Map
+printed every band for the whole season, so a rumour hinted at something already in a table and
+did no job at all. With the map dark it is the only free look past next week, and four weeks of
+them would hand back most of what D5 took. `NOTABLE` came down 14 → 10 and `CHATTER` up 0.55 →
+0.75 to compensate, because over two weeks rather than four there are half as many planets to
+gossip about and the Saloon was silent most weeks.
+
+⚠️ **Two carriers are deferred, and both for a stated reason.** The Tipster is Phase C's staff
+ladder (§8.3). The information event cards are Phase C too, because adding a card re-weights the
+whole deck and moves the golden snapshot — §11 gives the deck two new jobs and the other one,
+Prime offers, is Phase C's, so they should land together in one move rather than two.
+
+✅ **The AI was audited and does not cheat — and now it cannot.** §14 requires every difficulty
+to see exactly what a player sees. Every read of the future turned out to be inside the free
+horizon already: `tradeFoodPlan` and Hard's Blackreach hold-fill both look one week ahead, and
+`weeksToMajor` scans the calendar for something §4.1 makes public. But nothing enforced it, and
+nothing would have *failed* if a later change broke it — Hard would simply have stayed quietly
+too good. `planetAhead` now throws past `FREE_HORIZON` rather than returning a planet.
 
 ## 10. Betting
 
@@ -515,26 +639,40 @@ AI plays by the same rules with no stat bonuses. Difficulty changes decision qua
 
 **Hard's "value the training against the purse" is worth ±0.0 today, and it is in anyway.** It compares the purse a dog would pass up against the uplift its training buys on every remaining race, and at Phase A's feed strength that comparison is never close — so it never fires. It starts firing at roughly Prime-feed strength. Like M4's Bronze throw, §14 asks for it, it is free rather than good, and the ablation is recorded rather than the behaviour quietly dropped.
 
-⚠️ **`naive%` still has no replacement.** BUILD_PLAN §7a.3's `autoplan%` is specified and deferred to Phase B with the race card it needs (§20 Q11).
+✅ **`naive%` has a replacement: `autoplan%`, and it reads 8.8%** (§20 Q11). Its partner
+`apLoss%` is built and cannot answer its question — the rollout it needs cannot hold the
+downstream seed, so it reports an error bar around zero (D25).
+
+✅ **Hard buys for coverage** (D27): the fact-gated card is the first thing that makes a coverage
+gap exist, so a market dog is credited with rating points for each race type the kennel cannot
+field a runner for, and `sellAgeingDog` will not sell the last dog that could take a Veterans
+trap. Worth ±0 in head-to-head and kept for the same reason the Bronze throw is.
+
+⚠️ **Easy is unchanged, and the attempt to fix it is recorded as D26.** An Easy that puts its
+good dog in the wrong race turns out to be *stronger* than one that puts a random dog in a random
+race, so the card's third option makes the ladder worse rather than better.
 
 Each AI stable keeps its name, colour, portrait and one-line personality.
 
 ## 15. Screens
 
 1. **Title / New season** — players, toggles, seed.
-2. **Galaxy map** — ⚠️ **now a fog.** This planet in full; next week's name and Major star; the rest of the route as unknown stops. Anything bought shows here. The v1 file's own comment reads "the whole circuit is visible from week 1 so players can plan" — that is the line being deleted.
+2. **Galaxy map** — ⚠️ **now a fog.** ✅ Built. This planet in full; next week's name and Major star; the rest of the route as hatched, redacted rows. Anything bought shows here, and the dossier is bought here rather than in the Market — one place, one click, and it is the screen the information is *about*. The v1 file's own comment read "the whole circuit is visible from week 1 so players can plan"; that line is gone.
 3. **Planet hub** — painted backdrop with hotspots; planet rules on a signpost; `venueStatus` hints.
 4. **Kennels** — ⚠️ **the new centre of the game.** Each dog as a card with **Race / Train / Rest** as the primary control, its fitness trajectory, what feed it would eat, and what it would gain.
 5. **Market** — dogs (mostly pups), feeds by tier with chevrons, items, staff by tier, dossiers.
 6. **Docks** — ship, and a multi-good hold gauge with price history.
-7. **Race Office** — three race cards, each naming **its entry criterion**, with your eligible dogs and everyone's declarations.
+7. **Race Office** — ✅ three race cards, each naming **its entry criterion**, with your eligible dogs, everyone's declarations, and the **week ledger** (§6.5) that prints what a run costs.
 8. **Bookie** — odds, stake slider.
 9. **Race view** — unchanged.
 10. **Leaderboard** — cash, dogs, ship, cargo, debt, net worth, championship points, syringes.
 11. **Season end** — podium, worth chart, moments, championship purse.
 
 ### 15.3 The click budget
-13.3 decisions a weekend in v1. **Phase A measures 14.0** ⚠️ — §5.7's per-dog state is six decisions for a full kennel, and the Kennels' **"Plan the week"** button sets the whole yard by fitness in one press, so the mechanic costs one click a weekend rather than six. A player who never touches it pays nothing and gets v1's behaviour, every dog pointed at a race. 14.0 is over v1's budget and inside the 14.5 BUILD_PLAN sets for Phase C. It is a budget, not a reading.
+13.3 decisions a weekend in v1. **Phase B measures 13.9** — the card and the fog together came in
+*under* Phase A's 14.0, because a race a stable cannot fill is a race it does not walk to and the
+map is only worth a visit while there is a week left to buy. Inside the 14.5 BUILD_PLAN sets for
+Phase C. The Phase A note, for the record: **Phase A measured 14.0** ⚠️ — §5.7's per-dog state is six decisions for a full kennel, and the Kennels' **"Plan the week"** button sets the whole yard by fitness in one press, so the mechanic costs one click a weekend rather than six. A player who never touches it pays nothing and gets v1's behaviour, every dog pointed at a race. 14.0 is over v1's budget and inside the 14.5 BUILD_PLAN sets for Phase C. It is a budget, not a reading.
 
 ## 16. Art bible
 
@@ -589,6 +727,12 @@ Moved to **M6, behind v2**. Building a server for rules that are about to change
 | **2026-09-11** | **D19 — `Player.training` and the `SetTraining` action are retired; a trainer's points land on every dog on a Train week, on that dog's own stat** | §5.7 and §8.3 both describe per-dog training. One dog, one stat, stable-wide was a second system saying something different, and the Kennels is where the decision belongs |
 | **2026-09-11** | **D20 — D6's bankruptcy target moves to Phase C** | Measured at 0.0% of careless seasons. Two of §7.5's own three mechanisms are Phase C, and the one that does the work is the Prime wage bill. Raising upkeep to 300 reaches 1% and costs a Normal stable 27% of its worth — a bad trade for a target it still misses |
 | **2026-09-11** | **D21 — the kennel module stays unbought by the AI, and `dogs owned at week 13` misses its target** | Measured: teaching Normal to buy one cost 5,000 Bones and nine points of head-to-head. M4's ship-upgrade finding survives the rules meant to overturn it; the lever is Phase C's ship economics (§20 Q6) |
+| **2026-09-12** | **D22 — ⚠️ D15's purse cut is measured and deferred to Phase C; the pool stays at 19,250** | **The largest call of Phase B and the one the plan most invited getting wrong.** Four measurements, in §6.4 in full: the card already cost the economy 7.4% by cutting the *fill rate* rather than the pool; the fill rate went down where D15 assumed it would go up, so the cut costs more than planned rather than less; the cut cannot reach its own target, because prize is 81.7% of gross income and the other 7,016 a season is untouched by it, so 65% needs a 59% cut and D15's own 24% reaches only 77.6%; and it makes `races per dog` — already 4.8 against a 7–9 band — worse, because the marginal run is the first thing a smaller purse kills. The ratio moves when the other two roads grow. Phase C is where they grow and where the cut can be sized against them |
+| **2026-09-12** | **D23 — the Handicap's cap is 45 and the Invitational's floor 48, fitted from cardCoverage rather than chosen** | Both started at 55 and both ends were wrong: the Handicap could be filled on 97.5% of the weekends it ran and so asked nothing, and the Invitational on 12.5%, so players took 1.2% of its entries and the locals owned a tenth of the card. Swept over 150 seasons a cell; 45/48 reads 85% and 46%. One point apart, so ratings 46 and 47 sit outside both and nothing else does |
+| **2026-09-12** | **D24 — locals are priced by the race's purse tier (Open 50, drawn 30), and the third re-fit D17 promised was not needed** | A rich race draws a strong home team; what the race *asks* of a dog is a separate question, answered by the row's local spec squeezing the draw into the window its criterion allows. The share of the purse reaching players landed at 52.4% first time, against v1's 54% and Phase A's 52%, so nothing was tuned. It is a first-class harness row now rather than a probe written twice |
+| **2026-09-12** | **D25 — `apLoss%` is built and reported as an error bar around zero; the measure cannot work as §7a.3 specifies** | It asks for two rollouts "on the same downstream seed" and there is no such thing: GameState carries one rng stream, so the moment the forced plan consumes a different number of draws the rest of the season is a different random season. Each sample is one decision plus thirteen weeks of variance — sd 20,041, mean −1,047 ± 1,231. I nearly acted on the first run's −1,856 and swept Normal's `raceAbove` looking for the cause; races per dog does not move at any setting. `autoplan%` is exact and stands at 8.8% |
+| **2026-09-12** | **D26 — Easy's "wastes its good dogs in the wrong races" was built, measured and reverted** | At the same skip rate the new behaviour makes Easy *stronger*, not weaker (Normal beats it 74.3% against 77.9%), because what it replaced was a random dog in a random race and best-in-the-wrong-race beats random. Dropping the skip rate to make Easy visible costs the ladder outright: at 0.3 Normal beats it 50.0%. Easy's difficulty is structurally "does not turn up", and every other line §14 gives it is a *saving* in this economy |
+| **2026-09-12** | **D27 — Hard buys for coverage and keeps its last veteran; worth ±0 in head-to-head and kept anyway** | The fact-gated card is the first thing that makes a coverage gap exist — under the old ladder every dog could enter the top class. Ablation at `coverageGain` 0/4/8/14/20 reads 56.7/56.8/57.4/56.6/56.5, inside the noise. What it moves is coverage: against Normal, Juvenile 72% vs 63%, Invitational 52% vs 45%. Kept on the same footing as M4's Bronze throw — §14 asks for the decision quality, it is free rather than good today, and the ablation is recorded |
 
 ## 20. Open questions ❓
 
@@ -605,7 +749,9 @@ Moved to **M6, behind v2**. Building a server for rules that are about to change
 11. **Q8 — Retirement at age 7, or decay?** Default: decay, player chooses. Veterans races (§6.3) make an old dog worth keeping for the first time, which may settle this on its own.
 12. **Q9 — Reputation as a visible stat?** Default: still v2-plus.
 13. **Q10 — Does the human ever see the exact bookie probability?** Default: odds only.
-14. **Q11 — What replaces `naive%`?** The measure that made v1's balance tractable assumed one decision a week. With Race/Train/Rest there are up to six. BUILD_PLAN §7 proposes `autoplan%`; it is the least settled thing in the harness spec.
+14. ~~**Q11 — What replaces `naive%`?**~~ — **answered, half of it: `autoplan%` works and reads 8.8%; `apLoss%` cannot work as specified.** The autoplan is BUILD_PLAN §7a.3's own definition and the comparison is exact — the agent and the autoplan agree on the entries 32.3% of the time, on the states 27.3%, and on both 8.8%, over 7,800 stable-weeks. That is below the 15–30% band, and the honest gloss is that Normal's plan and the naive plan rarely coincide rather than that either is right. **`apLoss%` is a measurement problem, not a balance one** — see D25. Fixing it needs the engine to fork a per-decision rng stream so two rollouts share their downstream draws.
+15. **Q12 — Why is the season decided *earlier* than v1?** The "decided by" week — the earliest week the champion led and never lost the lead — reads **6.4** against v1's 7.6, and the acceptance row asked for later. The likeliest cause is arithmetic: the card cut a stable from three contested races a weekend to 1.90, and fewer purses in play means fewer chances to overturn a lead. The lever the design already has is the Consolation, the one catch-up mechanic, enterable on 29% of the weekends it runs (§6.3). Widening its reach to two weekends is the obvious first thing to try and is a rule this document does not yet cover.
+16. **Q13 — Is 76% too generous for a broad five-dog stable?** §6.3's probe reads 76.3% against a 55–70% band, so eligibility constrains a well-spread stable less than the estimate assumed. It may not matter: in a real season the same stable fills all three only 20.4% of weeks, because fitness binds long before eligibility does. Worth deciding whether the band was ever the right target.
 
 ## 21. The v2 list — what is deliberately out
 
