@@ -270,22 +270,42 @@ phase deliberately did not ship, and §6.4 carries the four measurements behind 
 **Goal:** something worth spending money on, three ways.
 
 **Deliverables**
-1. **Goods (GDD §8.2):** kibble as the staple plus four stat feeds × three tiers. `cargo: number` becomes a per-good record — a save-format change, so bump `STATE_VERSION`.
-2. **The tier ladder (D11):** Rough / Proper / Prime, one vocabulary, chevron glyphs, the ship's five engine tiers folded to three.
-3. **Staff (D7):** three slots, any mix, six roles × three tiers, wages per GDD §7.2.
-4. **A busier market (D10)**, inside the 13.3-click budget.
-5. **The trader's road:** hold capacity and fuel re-priced so a cargo upgrade pays back inside a season (GDD §20 Q6).
-6. **Harness rebuild, part 3**: a row per good and tier in the income split; the trainer and trader agents; the lead-conversion measure.
+1. **Goods (GDD §8.2):** ✅ Built. Kibble as the staple plus four stat feeds × three tiers, twelve rows generated from one price formula. `cargo` is a **dense** per-good record and `PlanetState` posts a price and a shelf depth per good; `STATE_VERSION` and `SAVE_VERSION` are both 4. Landed in two commits exactly as §11 asks — the shape with kibble alone, where **only `stateHash` moved in the golden digest**, then the content on top.
+2. **The tier ladder (D11):** ✅ Built. Rough / Proper / Prime as a word and one to three chevrons, shared by the goods, the staff, the stock chances and the ship's engine, which is folded from five tiers to three.
+3. **Staff (D7):** ✅ Built. `Player.staff` is a list of up to three in any mix; six roles × three tiers; wages by tier, so `trainerWage` and `vetWage` are gone. Stacking measured at 49.1–51.4% and no penalty added. The Fixer stays unhireable until §13.
+4. **A busier market (D10)**, inside the budget. ✅ Built: thirteen goods, five hireable roles, and a per-stable shelf the Scout and Trader fill. It broke the budget at 15.3 and summaries brought it back to **13.9** — see GDD D34 for the principle that did it.
+5. **The trader's road:** ✅ Built and sized by ablation. Fuel 5 → 2 a crate, hold 2,500 → **1,400**, and the first upgrade returns 1,506. The finding worth keeping is that the *second* returns 996 and the fifth less than nothing.
+6. **Harness rebuild, part 3**: ✅ Built. A row per good and tier, kept gross; the trainer and trader agents with the three-way printout and §7a.5's caveat printed beneath it; `leadConversion`, read off the action stream so nothing was added to `GameState` (GDD D36); plus `--holdPayback` and `--stacking` for the two acceptance rows that needed an ablation each.
 
-**Accept when**
-| Measure | Target |
-|---|---|
-| trade income, Normal | positive, and 8–15k for the trader agent |
-| a +20-unit cargo upgrade | pays back inside one season |
-| stacking three of one staff role | does not beat a mixed three by more than 5 points of head-to-head |
-| Prime offers seen per season | 2–5 |
-| lead conversion: a Prime offer taken by a stable ahead at week 6 vs one behind | the gap it creates is no larger for the leader |
-| `hub-clicks.ts` | ≤ 14.5 |
+**Accept when** — ✅ built and measured at tag `v2c`. **Five of seven met**, and the two that are
+not are named in place; see `claude/V2_PHASE_C_NOTES.md`.
+
+| Measure | Target | Measured | |
+|---|---|---|---|
+| trade income, Normal | positive | **+1,939** | ✅ and it took a measurement fix to see it (GDD D33) |
+| trade income, trader agent | 8–15k | **6,680** | ❌ short by 1,300. The road *pays* — it ends level with the trainer's — but the income line is bound by cash to buy stock, not by capacity or margin (GDD §9.2, §20 Q15) |
+| a +20-unit cargo upgrade | pays back inside one season | **1,506 back on 1,400 paid** | ✅ by ablation, 600 seasons. The second returns 996 and the third 395 |
+| stacking three of one staff role | no more than 5 points of head-to-head over a mixed three | **49.1–51.4%** across all five roles | ✅ comfortably, so no penalty goes in (GDD §21) |
+| Prime offers seen per season | 2–5 | **2.93** a stable-season | ✅ |
+| lead conversion | the gap Prime creates is no larger for the leader | leader **+0.11**, trailer **+0.24** | ✅ D11's guards hold |
+| `hub-clicks.ts` | ≤ 14.5 | **13.9** | ✅ after it went to 15.3 and was fixed with summaries, not by cutting decisions (GDD D34) |
+| bankruptcies, careless agent | 5–10% | **5.5%** | ✅ D6 met for the first time, and `upkeepPerDog` never moved |
+| the three roads, mean end worth | within 15% of each other | trainer 31,724, trader 31,361 — **1.4% apart** | ✅ for the two roads that exist; the crook is Phase D's |
+| `npm test` | green, golden snapshot moved **twice** | 22 green, moved twice | ✅ |
+| `npm run lint` | clean | clean | ✅ |
+
+**The re-baseline**, 800 all-Normal seasons: mean end worth **31,382** (p10 9,113, p50 25,909, p90
+64,538), prize 32,185 · trade **+1,939** · betting −814 · costs 24,120, bankruptcy 0.1%. Fitness at
+declaration 71.5 with 19.9% below 60; **races per dog 5.1** (was 4.8) and dogs at week 13 3.83. Purse
+pool 358,685 posted with **53.8%** reaching a player. Prize share **77.3%** gross (was 81.7%).
+Head to head: Normal beats Easy **79.3%**, **Hard beats Normal 58.6%** (v1 60.6, Phase A 56.8, Phase
+B 53.9 — recovered 4.7 points by hiring *less*, GDD D30). Calibration 58.5%; stat leverage 24.2 /
+19.2 / 16.1 / 15.3, unmoved. Season decided by week **6.6** (was 6.4).
+
+⚠️ **D15's purse cut is dead and that is this phase's most useful result (GDD D29).** Cutting the
+pool 10% costs 15% of a stable's end worth and moves the prize share from 77.3% to **77.4%**: the
+ratio is invariant to the cut at any depth, because prize money is the working capital of the other
+two roads. The 65% prize share is retired as a target in favour of §20 Q2's direct measurement.
 
 ### Phase D — the dark side and the scoreboard (1–2 sessions)
 
@@ -538,8 +558,8 @@ Roughly 8–11 builder sessions to the shipped v1.
 
 - **⚠️ The §6.2 rebalance invalidates every measured number below the race level.** Purses, dog values, the AI's whole EV model and the three difficulty targets were all fitted to constants that are about to move. *Mitigation:* it is Phase A's first commit, alone, with a full re-baseline immediately after and before anything else in Phase A lands. If the economy moves more than ~20%, re-fit purses before building on top.
 - **⚠️ The pup band is narrow.** 4 points a week and the mechanic is dead; 8 and the season is over by week 10 (GDD §5.6). *Mitigation:* the acceptance criterion is the *week a pup reaches par*, not a stat number, so the builder tunes toward the outcome. Report the whole curve, not the single figure.
-- **⚠️ Three roads is arithmetic, and the arithmetic is brutal.** Trading needs 4× and betting 45× (GDD §7.1). *Mitigation:* the purse cut is in Phase B, not deferred; the three path agents exist from Phase C; and if the gap does not close, the honest fallback is two roads plus a side hustle, said out loud, rather than three roads claimed and not delivered.
-- **The Prime tier amplifies the leader.** *Mitigation:* consumable food, wage-not-purchase staff, and `leadConversion` measuring it directly from Phase C. If the guards fail, the next lever is making Prime offers preferentially reach trailing stables — an ugly rubber band, and the reason it is not the first answer.
+- ~~**⚠️ Three roads is arithmetic, and the arithmetic is brutal.**~~ **Closed for two roads out of three, and the purse cut turned out to be the wrong lever entirely.** Trading needed 4× and got it: the trader agent's road ends level with the trainer's, **1.4% apart on the mean** with visibly different spreads (GDD §20 Q2). The cut was measured and killed (D29) — the ratio it was meant to move is invariant to it. Betting is still a rounding error and is Phase D's. The honest position is **two roads plus a side hustle**, said out loud, until §13 exists.
+- ~~**The Prime tier amplifies the leader.**~~ **Measured and it does not:** a Prime offer is worth +0.11 places to a stable ahead at week 6 and +0.24 to one behind (GDD §20 Q3). The consumable-food and wage-not-purchase shapes are holding, and the ugly rubber band stays out.
 - **The fog reads as arbitrary rather than fresh.** *Mitigation:* the pool of race types stays small and memorable; `cardCoverage` measures it; and it is the first thing on the Phase B playtest checklist. This one cannot be settled by the harness — it is an experience question and only Jesse can answer it.
 - **Pace.** v2 adds a per-dog weekly decision across up to six dogs, a busier market and an information layer, to a season already running an hour. *Mitigation:* 13.3 clicks a weekend is a budget with a number on it; `venueStatus` and the Kennels summary are where the difference gets spent; and if Phase C breaches it, the fix is summaries, not fewer decisions.
 - **Phase B's refactor runs long.** *Mitigation:* land `RaceType` as a row-shaped replacement in one commit with the golden snapshot moved once, before any new type is added. Seven types is a data change on top of a type change, and mixing them is how that session overruns.

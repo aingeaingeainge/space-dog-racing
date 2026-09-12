@@ -1,10 +1,22 @@
 # Space Dog Racing — Game Design Document
 
 **Working title:** Space Dog Racing
-**Version:** 0.4 — 12 September 2026 (v1 shipped at tag `m4`; v2 Phase A at `v2a`, Phase B at `v2b`)
+**Version:** 0.5 — 12 September 2026 (v1 shipped at tag `m4`; v2 Phase A at `v2a`, Phase B at `v2b`, Phase C at `v2c`)
 **Author:** Jesse Colbert, with Claude as design partner
 **Status:** v2 design. ⚖️ marks a tunable that lives in `space_dog_racing_economy.xlsx`; ❓ marks an open decision; **[measured]** marks a number this design was tested against and **[estimate]** one that is a starting point for the phase that builds it.
 
+> **What changed in 0.5, in one paragraph.** Phase C is built. §8.1's ladder, §8.2's twelve feeds,
+> §8.3's six roles in three slots, §9.2's two fuel levers and §7.5's wage bill are what the game
+> does rather than what it intended, and every ⚖️ in those sections is a cell in the spreadsheet.
+> **D22's purse cut is dead, and the way it died is the most useful finding of the phase**: cutting
+> the pool 10% costs 15% of a stable's end worth and moves the prize share from 77.3% to *77.4%*,
+> because prize money is the working capital of the other two roads — so the ratio is invariant to
+> the cut at any depth (D29, §6.4). Three targets are met for the first time: bankruptcy is
+> reachable (5.5% of careless seasons, D6), the two roads that exist are worth the same to within
+> 1.4% (§20 Q2), and a cargo upgrade pays for itself (§20 Q6). Hard's head-to-head recovered 4.7
+> points by hiring *less* (D30). Two things are still missed and said so in place: the 65% prize
+> share, which D29 retires as a target, and races per dog.
+>
 > **What changed in 0.4, in one paragraph.** Phase B is built. §6.3's card and §9.3's fog are
 > what the game does: Bronze, Silver and Gold are gone, every weekend runs The Open plus two of
 > seven fact-gated types, and the circuit is dark past next week unless you buy it. §6.4's purse
@@ -349,9 +361,30 @@ race the mean of the old Bronze and Silver, to the Bone. Four measurements say w
 4. **It makes a missed target worse.** Races per dog is 4.8 against a 7–9 band, and the marginal
    run is exactly the one that stops being worth the injury risk when the purse falls.
 
-So the cut is deferred to Phase C, where §8.2's goods market is the first thing that gives a
-player something to spend the room on, and where it can be sized against the roads it is meant
-to make room for rather than against a ratio it cannot move on its own (D22).
+So the cut was deferred to Phase C, where §8.2's goods market would give a player something to
+spend the room on and the cut could be sized against the roads it was meant to make room for (D22).
+
+✅ **Phase C sized it, and the answer is that the lever does not exist. The pool stays at 19,250
+and D15 is closed (D29).** The market was built first, as D22 asked, and `other` grew from 7,016 a
+season to **9,469** — prize share 81.7% → **77.3%** with no cut at all, which is the ratio moving
+exactly the way D22 predicted it would. Then the cut was swept, 400 all-Normal seasons a cell:
+
+| cut | mean end worth | prize share | purse reaching players | dogs sold | bets returned | food sold |
+|---|---|---|---|---|---|---|
+| **0%** | **31,370** | **77.3%** | **53.8%** | 2,687 | 3,049 | 3,689 |
+| 10% | 26,805 (−15%) | **77.4%** | 51.1% | 1,944 | 2,514 | 3,568 |
+| 20% | 22,831 (−27%) | **77.6%** | 48.3% | 1,234 | 2,049 | 3,380 |
+
+**The prize share does not move. It gets very slightly worse.** D22 reasoned that the cut could not
+reach its target because the other roads were untouched by it; the truth is worse than that — the
+other roads are *financed* by prize money, so cutting the purse shrinks them at least as fast. Dogs
+sold falls 54%, bets returned 33%, food sold 8%: a poorer stable buys fewer dogs, stakes less and
+finances a smaller hold. The ratio is invariant to the cut **at any depth**, and a 10% cut buys
+nothing for 15% of the economy.
+
+What *did* move the ratio is making the other roads more productive per Bone — the feeds and the
+hold, worth 4.4 points of prize share between them without touching a purse. See §20 Q2 for the
+measure that replaces this one.
 
 ### 6.5 Race presentation
 
@@ -402,6 +435,29 @@ cut, which would halve the game. The ratio is not reachable from the numerator. 
 reachable when Phase C's goods market makes food sold something other than 700 a season and
 Phase D gives betting a reason to be positive.
 
+✅ **Phase C, 800 all-Normal seasons, gross, per stable-season:**
+
+| | prize | food sold | dogs sold | bets returned | prize share |
+|---|---|---|---|---|---|
+| Normal | 32,185 | **3,708** | 2,694 | 3,067 | **77.3%** |
+
+Food sold went 700 → 3,708 and the prize share 81.7% → 77.3% **with the pool untouched**, which is
+the mechanism D22 named working as it said it would. `other` is 9,469 against 7,016.
+
+⚠️ **And 65% is now retired as a target (D29).** Sweeping the cut showed the ratio is invariant to
+it — see §6.4's table — because prize money is what finances the other two roads. The question 65%
+was a proxy for is "are the roads worth the same", and that now has a direct measurement: §20 Q2
+reads the trainer's road and the trader's road **1.4% apart** on mean end worth. A proxy that needs
+a 45% purse cut to satisfy, while the thing it proxies for is already met, is the wrong number to
+steer by.
+
+⚠️ **One column is still honestly bad: `trade` was reported as a loss for three phases and it was
+a measurement bug.** `stats.tradeIncome` is sold minus bought, so a stable that bought a crate of
+Prime speed feed and fed it to a dog looked like a trader who had lost 900 Bones. §7.2 lists "feed
+eaten" among the weekly costs and that is what it is, so the crate's value now moves out of the
+trade column and into costs at the moment it is consumed, valued at what it would have fetched.
+Normal's trade income reads **+1,939**. Nothing about the game changed; two columns stopped lying.
+
 ⚠️ **Half the posted purse never reaches a player.** The pool is 358,685 a season across six
 stables and **52.4%** of it is paid out to them; the rest goes to local dogs and leaves the
 economy. v1 ran 54% and Phase A 52%, so this is stable rather than new — but it means the pool
@@ -410,7 +466,17 @@ future cut should be sized against the 52% rather than the headline.
 
 ### 7.2 Costs (weekly)
 
-Kennel upkeep 150/dog (half for *Cheap date*) · feed eaten 1 unit/dog (2 for *Glutton*) · fuel 250 base, +5 per cargo unit over 20 ⚖️ · **staff wages by tier: Rough 250, Proper 600, Prime 1,400** ⚖️ **[estimate]**.
+Kennel upkeep 150/dog (half for *Cheap date*) · feed eaten 1 crate/dog (2 for *Glutton*) · fuel 250 base, **+2** per cargo crate over 20 ⚖️ · **staff wages by tier: Rough 250, Proper 600, Prime 1,400** ⚖️. ✅ Built.
+
+✅ **A wage is a fact about the tier, not the role.** `trainerWage` and `vetWage` are gone: what a
+member of staff costs is where they sit on the one ladder (§8.1), which is what makes "three slots,
+any mix" a budget rather than a shopping list. The whole bill is `wageBill(p)` over the list.
+
+✅ **`fuelPerCargoUnitOver` is 2, and it is one half of §20 Q6's answer** — the other half is the
+hold's price, 2,500 → 1,400. Both were sized by ablation rather than estimate; see §9.2.
+
+✅ **A crate out of the hold is charged here, not silently.** Feed eaten was landing in the trade
+column, which is why "trade" read as a loss for three phases. See §7.1.
 
 With three staff slots and a 6-dog kennel, a stable committed to Prime staff is paying **4,200 a week in wages alone** — 50,000 over a season. That is the point (§19, D6): a Prime hire is a commitment to a run of form continuing, and the most interesting way to go bust.
 
@@ -433,9 +499,22 @@ v1's rate is not low, it is **structurally zero**: 22 deliberate attempts in M4 
 
 Three v2 changes reach it without touching that loop: pups are worth little, so the forced sale raises little; Prime wages are a large fixed weekly commitment; and Race/Train/Rest means a stable can be simultaneously expensive and earning nothing. The Bust screen already exists and is correct — it has been waiting for a trigger that can fire.
 
-⚠️ **Phase A measured it and did not reach it: the careless agent goes bust in 0.0% of 400 seasons.** Only the first of those three changes exists yet, and it is the weakest of them. Raising `upkeepPerDog` was tried first, as the plan asks: **150 → 200 → 250 → 300** takes the careless rate to 0.5 / 1.5 / 1.0% and costs a Normal stable **27% of its end worth** on the way. That is a bad trade for a target it still misses, so upkeep stays at 150.
+✅ **Phase C reaches it: the careless agent goes bust in 5.5% of 400 seasons, inside the 5–10%
+band, and `upkeepPerDog` never moved.** The mechanism is the one §7.5 named all along — a wage bill
+it cannot carry — plus one addition: a careless stable also **buys the dearest crate on the shelf**,
+whether or not it owns a dog that would eat it. §7a.5's "buys the dearest dog it can reach" was
+written before the shelves had anything on them, and the extension is the same line.
 
-**The blocker is arithmetic, not tuning.** A careless stable owns about ten dogs across a season and each is worth thousands on a forced sale, so one bad week is covered by selling one dog, and thirteen weeks is not long enough to bleed out at 150 or even 300 a dog. §7.5's own answer is the one that has not been built: **three Prime staff at 1,400 a week is 4,200 a week and 54,600 a season**, against a careless stable's 43,600 of prize money — that is a stable that is underwater by construction, and the careless agent's "hires whatever is offered" was written for exactly it. **D6 is therefore a Phase C acceptance row, not a Phase A one**, and the forced-sale loop was left alone, as the plan asks.
+The arithmetic that gets there is not three Prime staff — those are rare, and a careless stable
+mostly ends up with Rough and Proper ones at 250–600 a week. It is the combination: three wages it
+did not price, a crate a week it cannot use, no rest weeks, and every dog entered every weekend so
+the injuries compound. Its mean end worth is **9,443** against Normal's 34,836, and its p10 is
+**−2,210** — a stable in the red with nothing left to sell.
+
+⚠️ **The Phase A attempt, kept because it is the trade not to make.** Phase A measured 0.0% and
+tried the obvious lever: Only the first of those three changes exists yet, and it is the weakest of them. Raising `upkeepPerDog` was tried first, as the plan asks: **150 → 200 → 250 → 300** takes the careless rate to 0.5 / 1.5 / 1.0% and costs a Normal stable **27% of its end worth** on the way. That is a bad trade for a target it still misses, so upkeep stays at 150.
+
+**The blocker was arithmetic, not tuning.** A careless stable owns about ten dogs across a season and each is worth thousands on a forced sale, so one bad week is covered by selling one dog, and thirteen weeks is not long enough to bleed out at 150 or even 300 a dog. Raising upkeep to 300 reached 1% and cost a Normal stable 27% of its end worth: a bad trade for a target it still missed. **The forced-sale loop was left alone throughout, as the plan asks** — what changed is how fast a careless stable can spend, not how hard the game is on a solvent one. Normal's bankruptcy rate is 0.1%.
 
 ## 8. Marketplace, upgrades and the tier ladder
 
@@ -460,6 +539,28 @@ Stock rolls roughly **70 / 25 / 5** ⚖️, modified by each planet's `marketBia
 
 That makes the top tier a risk as well as a reward, which is the right shape for this game's tone and stops it being an "I have already won" button.
 
+✅ **Built, and the guards were measured rather than trusted.** `leadConversion` (§7a.4) splits every
+stable by net-worth rank at week 6 and asks what taking a Prime thing was worth to each, 800 seasons:
+
+| group | took Prime | took none | the gap Prime makes |
+|---|---|---|---|
+| ahead at week 6 | −0.45 (n 1,092) | −0.57 (n 1,308) | **+0.11** |
+| behind at week 6 | +0.69 (n 570) | +0.46 (n 1,830) | **+0.24** |
+
+Places gained between week 6 and 13, so a bigger number is a stable climbing. **The trailer gains
+more than twice as much from a Prime offer as the leader does**, which is D11's guards holding — and
+read the two columns against each other *within* a row, because a leader has fewer places to gain
+than a trailer by construction.
+
+✅ **Prime offers seen: 2.93 a stable-season**, inside the 2–5 the plan asked for. 13 planets × 4
+feeds × a 5% stock chance, plus whatever is drinking in the Saloon. Prime crates actually *bought*
+are 0.80 — rare, seen more often than taken, which is what an agony is supposed to look like.
+
+✅ **The stock chances are the one ladder and nothing else.** `stockChanceRough/Proper/Prime` are
+70 / 25 / 5 and they are used by the goods *and* by the staff draw, so learning the ladder once tells
+you how often a Prime anything turns up. `feedBias` is §8.1's `marketBias` as a number: Rustgut
+multiplies the two upper chances by 0.25 and Vatgrown by 3.
+
 ### 8.2 Goods
 
 **Kibble** sits below the ladder: the staple. Dogs eat it, an empty hold still costs the penalty at the gate, and it is the base trade commodity — so v1's eating and trading machinery survives untouched and everything else layers on top. A dog that **Trains** on plain kibble gains **+1–3 to a random stat**, which is the floor of improvement and why a stable that spends nothing still drifts upward very slowly.
@@ -475,6 +576,31 @@ Price and stock by how much that stat is worth in the race sim (§5.1), so **Spe
 **Do not add a fifth stat food to make the market busier.** §8.5's busier market is served by tiers and by stock depth. The stat list is what keeps the economy legible.
 
 **Hold or feed** is the decision this exists for, and it only bites if the good is scarce and the upgrade is worth roughly what the resale is. That balance is deliberately different per tier: **Rough feed should be obviously worth eating; Prime feed should be a genuine agony.**
+
+✅ **Built, twelve rows generated from one formula.** A crate's price is `feedPriceBase × stat × tier`
+against the planet's own kibble band, so a cheap planet is cheap for feed too and one cell in the
+sheet moves twelve prices. On an average band: Rough trap 120, Rough speed 190, Proper speed 418,
+**Prime speed about 950** — the dearest thing in the market that is not a dog. Per stat point the
+tiers get *dearer* as they climb (95 / 139 / 190 a point), so Rough buys points cheaply and Prime
+buys them fast, which is what makes the top tier an agony rather than simply better.
+
+⚠️ **Stamina is priced on its flat 19% and nothing on any screen sells a distance story.** §5.1 is
+explicit and `--stats` confirms it again this phase: stamina reads **19.0% on a sprint and 19.2% on
+a stayer**, because `fadeStart` is a fraction of the distance. Stayer is a flat 3% trait bonus, not a
+stat interaction. "Stamina feed for the long tracks" would be a lie the simulation does not support.
+
+✅ **A Train week eats one crate, and the dog eats the best feed aboard for the stat it is on.** With
+none aboard it eats kibble and takes 1–3 on a *random* stat, which is v1's floor unchanged and the
+reason a stable that spends nothing still drifts upward. **Best-aboard rather than player-chosen**,
+deliberately: asking which week as well as which stat would cost a click per dog per week against a
+budget with half a click left in it (§8.5, D10). What the player controls is what is in the hold and
+which stat the dog is on — two decisions that already have screens — and the consequence is that
+Prime feed disappears fast, which is §8.1's consumable guard working rather than failing.
+
+✅ **And the price is printed where the decision is made.** The Docks' feed counter names what the
+crate does to the dog in the dropdown, in that dog's own numbers: "Rosco: Speed 54 → 56–59 next Train
+week, rating 47 → 48 · Speed 71 and rating 54 by week 13 if he ate it every week." That sentence is
+the whole reason this phase exists; see the note at the head of `lib/priceTag.ts`.
 
 ### 8.3 Staff — three slots, any mix
 
@@ -493,6 +619,54 @@ Three slots, filled with any combination — three trainers if you like. **No st
 
 **Rarity is the point, not a side effect.** A Prime trainer appearing in week 3, in week 9, or not at all makes three different seasons out of the same seed. That is pillar 2.
 
+✅ **Built, all six rows, in `content/staff.ts`. `Player.staff` is a list of up to three, any mix.**
+v1's "you already employ a trainer" refusal *was* the stacking penalty D7 exists to leave out, so it
+is gone. Within a role the **best hire acts** — two trainers do not add their points — which is not a
+penalty but the absence of a bonus, and it is what makes the stacking question measurable rather than
+rhetorical.
+
+✅ **Stacking measured, and no penalty goes in.** Three stables forced to stack one role against three
+playing Normal's mixed line, in the same seasons, 200 seasons a row:
+
+| stacked role | stacker mean | mixed mean | stacker beats mixed |
+|---|---|---|---|
+| trainer | 31,704 | 31,371 | **50.7%** |
+| vet | 32,144 | 32,122 | **49.8%** |
+| trader | 30,503 | 30,624 | **50.4%** |
+| scout | 31,273 | 30,296 | **51.4%** |
+| tipster | 29,670 | 30,596 | **49.1%** |
+
+Every role inside D7's 45–55% band, so §21's "a stacking penalty only if measurement demands one"
+stands and nothing was added.
+
+⚠️ **The finding that was not expected: three slots is more than a racing stable can profitably
+fill.** Hard began the phase wanting all five hireable roles and *lost* 11 points of head-to-head by
+it (48.0% against 58.7% with trainer and vet alone). The trader-road staff are only worth their wage
+to a stable that plays the trader's road — a Trader's hold and a Tipster's week are worth nothing to
+an agent whose income is purses, and a wage is charged whether or not the capability is used. So the
+slots are a budget rather than a checklist, and knowing which two to fill is decision quality, which
+is exactly what §14 says difficulty is made of (D30).
+
+✅ **The Scout and the Trader turn up stock nobody else at the table can see** (`PlanetState.finds`),
+which is how a per-stable reward lands in a market whose shelf is shared and whose turn order is
+first look. That is also §8.5's answer to "busier without longer": the extra depth is yours, so it
+appears under one heading on your own screen.
+
+⚠️ **The Tipster's ladder starts one rung above the table in §9.3, deliberately.** As built, next
+week's planet comes with its kibble band — the Docks has always printed it and `tradeFoodPlan` has
+always read it — so "next week's band" is already free and a Rough tipster who sold it would be the
+Fixer all over again: a wage for a service the game gives away. Rough sells next week's **card**,
+Proper adds the band a week further out, Prime sells both. The AI's `planetAhead` guard is raised by
+exactly the hire, so no agent sees further than a player with the same Tipster.
+
+✅ **The Fixer is still not hireable.** §13 does not exist, so his row is marked unhireable in one
+place and never reaches a planet. GDD §19's 2026-09-08 decision stands through Phase C.
+
+⚠️ **A Trader's hold is a wage, not an asset**, so letting one go takes the capacity with him. Firing
+is **refused** while the hold is over the ship's own capacity — the same shape as "withdraw the dog
+from its race first" — rather than spilling crates, which would be a punishment this document does
+not describe.
+
 ### 8.4 Kennel items and the supplement
 
 Track-day pass (+3 to one stat, 800) · Racing muzzle (+2 Trap, 600) · **Supplement** (+12 Speed for one race ⚖️, 400; 15% base chance the stewards catch it — purse forfeited, rating −5, one-week ban; 0% on Vatgrown, 30% at Cosmodrome, 40% at Old Wembley).
@@ -504,6 +678,24 @@ Track-day pass (+3 to one stat, 800) · Racing muzzle (+2 Trap, 600) · **Supple
 More staff on offer, more dogs, more goods per planet, everywhere. You cannot have a spending decision if there is nothing to spend on, and this is generation and data, so it is cheap.
 
 **The cost to watch is pace.** `hub-clicks.ts` measures 13.3 decisions a weekend and that is the budget. If a busier market pushes it up, spend the difference on better summaries — `venueStatus.ts` already puts what is worth a walk on the hub's hotspots, and it was built for exactly this.
+
+✅ **Built, it did push the budget up, and the summary that fixed it is a principle worth keeping.**
+Thirteen goods, five hireable roles and a per-stable shelf took `hub-clicks` from 13.9 to **15.3**
+against a 14.5 budget. The fix is the one BUILD_PLAN §11 asks for — a better summary, not fewer
+decisions — and the summary is this:
+
+> **A hotspot flags what CHANGES, not what is always there.**
+
+The measured culprit was not the new market at all. It was "you could afford an engine tier", firing
+in **533 of 650 planet phases**, because that is true every week for the rest of the season once it is
+true once. A permanent fit does not expire and a bank does not close, so both became quiet-line
+material — still named, never urgent. Stock, prices and who is drinking here *do* expire, so those
+stayed news. Three further tightenings followed from the same principle: a Rough hire into a free slot
+is not an event (another will be along), a Rough crate is only news when the dog would otherwise eat
+kibble, and the kibble trade has to beat **the fuel as well as the spread** — which is the same
+break-even arithmetic the Docks now prints, so the hotspot and the screen agree.
+
+**13.9 a weekend**, level with Phase B and under budget, with a market several times deeper.
 
 ## 9. Goods, trading and information
 
@@ -556,10 +748,16 @@ them would hand back most of what D5 took. `NOTABLE` came down 14 → 10 and `CH
 0.75 to compensate, because over two weeks rather than four there are half as many planets to
 gossip about and the Saloon was silent most weeks.
 
-⚠️ **Two carriers are deferred, and both for a stated reason.** The Tipster is Phase C's staff
-ladder (§8.3). The information event cards are Phase C too, because adding a card re-weights the
-whole deck and moves the golden snapshot — §11 gives the deck two new jobs and the other one,
-Prime offers, is Phase C's, so they should land together in one move rather than two.
+⚠️ **Two carriers were deferred. One is built and one moved again.** The Tipster is built with the
+staff ladder (§8.3), and its ladder starts one rung higher than the table above because next week's
+kibble band turned out to be free already — see §8.3.
+
+**The information event cards did not land, and the reason is the snapshot rule rather than the
+work.** Adding a card re-weights the whole deck and moves the golden digest; Phase C's two moves were
+spent on the goods record and the ladder's content, and a third was not available. Prime offers, the
+other job §11 gives the deck, turned out not to need a card at all — the shelf's own 5% stock chance
+delivers **2.93 offers a stable-season**, inside the 2–5 target — so the deck has one job left rather
+than two, which is a better shape for Phase D to take on.
 
 ✅ **The AI was audited and does not cheat — and now it cannot.** §14 requires every difficulty
 to see exactly what a player sees. Every read of the future turned out to be inside the free
@@ -747,24 +945,63 @@ Moved to **M6, behind v2**. Building a server for rules that are about to change
 | **2026-09-12** | **D28 — the Consolation reaches two weekends, not one; it fixed the race and did not fix Q12** | Jesse's call. At one weekend the only qualifying dog was the one that had just raced and was 25 fitness down, so the catch-up race was enterable on 29% of the weekends it ran and took 3.8% of player entries — barely a mechanic. At two it reads **71%** and 8.9%, the fill rate goes 1.90 → 1.95, the purse share reaching players 52.4% → 53.4% and p10 end worth **8,052 → 9,620 (+19%)**. But the "decided by" week is **6.4 before and 6.4 after**, because the criterion keys off a dog that ran badly rather than a stable that is behind, and the leader has one of those as often as the tail. Cost: Hard beats Normal 56.0% → **53.9%**, on a target already 9 points away — the extra cheap race helps the weaker stables more. Kept because the race is now worth having; the head-to-head cost is real and named |
 | **2026-09-12** | **D27 — Hard buys for coverage and keeps its last veteran; worth ±0 in head-to-head and kept anyway** | The fact-gated card is the first thing that makes a coverage gap exist — under the old ladder every dog could enter the top class. Ablation at `coverageGain` 0/4/8/14/20 reads 56.7/56.8/57.4/56.6/56.5, inside the noise. What it moves is coverage: against Normal, Juvenile 72% vs 63%, Invitational 52% vs 45%. Kept on the same footing as M4's Bronze throw — §14 asks for the decision quality, it is free rather than good today, and the ablation is recorded |
 
+| **2026-09-12** | **D29 — ⚠️ D15's purse cut is dead. The pool stays at 19,250 and the 65% prize share is retired as a target** | **The most useful finding of Phase C, and it is a negative one.** D22 built the market first, as it asked, and `other` grew 7,016 → 9,469 with the prize share falling 81.7% → 77.3% on an *unchanged* pool — the mechanism working. Then the cut was swept: 10% costs **15% of a stable's end worth and moves the prize share to 77.4%**; 20% costs 27% and moves it to 77.6%. **The ratio is invariant to the cut at any depth**, because prize money is the *working capital* of the other two roads — cut it and dogs sold falls 54%, bets returned 33%, food sold 8%. D22 thought the other roads were untouched by a cut; they are financed by it. The question 65% was a proxy for now has a direct measurement, and §20 Q2 reads the two roads **1.4% apart**. A proxy that needs a 45% cut while the thing it proxies for is already met is the wrong number to steer by |
+| **2026-09-12** | **D30 — ⚠️ Hard hires a trainer and a vet and leaves its third slot empty; three slots is more than a racing stable can profitably fill** | Hard began the phase wanting all five hireable roles and **beat Normal 48.0%**, down from Phase B's 53.9%, with a mean above Normal's and a p10 well below. Ablated over 300 seasons a cell: all five 48.0%, +scout 55.8%, +tipster 55.8%, **trainer+vet 58.7%** (mean 41,346, p10 9,825). The trader-road staff are only worth their wage to a stable that plays that road, and a wage is charged whether the capability is used or not. So the slots are a budget rather than a checklist — and D7's no-penalty design is what makes over-hiring a mistake a player can make, which is the good version of this |
+| **2026-09-12** | **D31 — a Train week eats one crate of the *best* feed aboard for the dog's chosen stat; the player never picks the week** | Asking which week as well as which stat would cost a click per dog per week against a budget with half a click left (§8.5, D10). The player controls what is in the hold and which stat the dog is on, both of which already have screens. The consequence — Prime feed disappearing fast — is §8.1's consumable guard working rather than failing |
+| **2026-09-12** | **D32 — the hold is a dense record over every good; spoilage is a fraction of the total, off the largest stacks first** | A sparse record would make the golden digest depend on the order a stable bought things in, because `GameState` is the save file. On spoilage, both obvious readings are wrong: rounding *up* per good costs a hold split across thirteen goods a crate of each (13 of 13 at a 25% rate), and rounding *down* per good lets a hold of thin stacks spoil nothing. Largest-stacks-first is proportional, cannot be dodged by splitting a hold, and consumes no rng draw |
+| **2026-09-12** | **D33 — feed eaten is a running cost, not a failed trade** | `stats.tradeIncome` is sold minus bought, so a stable that bought a crate of Prime speed feed and fed it to a dog looked like a trader who had lost 900 Bones — which is why "trade" read as a loss for three phases. §7.2 already lists feed eaten among the weekly costs. The crate's value now moves to costs at consumption, valued at what it would have fetched, and Normal's trade income reads **+1,939**. Same class of fix as Phase B's gross road split: you cannot balance three roads while one of the numbers measures something else |
+| **2026-09-12** | **D34 — a hotspot flags what CHANGES, not what is always there** | The market got several times deeper and `hub-clicks` went 13.9 → 15.3 against a 14.5 budget. The culprit was not the new market: it was "you could afford an engine tier", firing in **533 of 650 planet phases**, true every week once true at all. A permanent fit does not expire and a bank does not close, so both became quiet-line material; stock, prices and who is drinking here do expire, so they stayed news. Back to **13.9** with a market several times deeper, which is §8.5's "spend the difference on better summaries" done properly rather than promised |
+| **2026-09-12** | **D35 — the Tipster's ladder starts at next week's card, not next week's band** | §9.3's table gives a Rough tipster "next week's kibble band", but the band has always been free in the build: the Docks prints it and `tradeFoodPlan` reads it, and that one-week visibility is what makes the trade a judgement. Selling it would have been the Fixer again — a wage for what the game gives away |
+| **2026-09-12** | **D36 — `leadConversion` reads the action stream rather than `PlayerSeasonStats`** | §7a.4 specifies a two-field addition to the engine's stats. The harness applies every action itself, so "this stable bought a Prime thing" is already in front of it; doing it there added nothing to GameState and kept the golden snapshot at its two moves. The same argument that kept the dossier out of state in Phase B |
+
 ## 20. Open questions ❓
 
 1. ~~Grand Final venue~~ — decided: always Collar Prime.
 2. ~~Major purse share~~ — decided 2026-09-08.
 3. ~~Hotseat in v1~~ — decided: yes.
 4. ~~**Q1 — How much does the §6.2 rebalance cost the rest of the economy?**~~ — **answered: 7.7%.** Mean end worth 40,696 → 37,554 over 800 all-Normal seasons; p10 −5.0%, p50 −6.3%, p90 −9.8%; costs flat; head-to-head unmoved. Well inside the 20% that would have forced a purse re-fit. The *mechanics* of §5.7 then cost a further 13% on top (37,554 → 32,674), most of which was the local re-fit of D17 winning back a much larger fall.
-5. **Q2 — Are the three roads actually equal?** Nothing measures it yet. Needs the three path agents in the rebuilt harness (BUILD_PLAN §7). §7.1's arithmetic says the gap to close is 4× on trading and 45× on betting.
-6. **Q3 — Does the Prime tier amplify the runaway?** D11's guard is specified and unmeasured. Test it directly: does a stable ahead at week 6 convert a Prime offer into a bigger lead than a stable behind? If yes, the consumable/wage shapes are not strong enough.
+5. ~~**Q2 — Are the three roads actually equal?**~~ — **answered for the two that exist, and the answer is yes.** The path agents are built (BUILD_PLAN §7a.5) and the three-way printout is a first-class harness deliverable. 400 seasons, three trainers against three traders in the same seasons:
+
+    | agent | mean | p10 | p90 | prize | trade | crates carried | hold |
+    |---|---|---|---|---|---|---|---|
+    | trainer | 31,724 | 6,936 | 70,579 | 33,829 | 809 | 7.2 | 20 |
+    | trader | 31,361 | 12,208 | 54,367 | 24,465 | 6,680 | 20.4 | 111 |
+
+    **1.4% apart on the mean, against a 15% target — and visibly different in spread**, which is the
+    second half of §7a.5's ask: the trainer's road is the volatile one (p10 6,936, p90 70,579) and the
+    trader's is the safe one (12,208 to 54,367). One road wins big, the other rarely loses. That is a
+    better outcome than "equal" and it is exactly the shape pillar 1 wanted.
+
+    ⚠️ **Two things to hold onto.** The trader's own trade income is **6,680** against BUILD_PLAN §6b's
+    8–15k row, so that row is *missed* even though the road pays: what is short is the income line, not
+    the outcome. Diagnosis in §9.2 — the road is bound by the cash to buy stock, and the honest next
+    lever is a bigger bankroll or more credit rather than better prices, since the return *rate* per
+    Bone is set by the band spread and is already good. And the crook's road is unmeasured because §13
+    does not exist, so this answers Q2 for two roads out of three.
+
+    ⚠️ **§7a.5's caveat travels with these numbers and the harness prints it under the table:** three
+    hand-written agents measure whether the roads *can* pay, not whether they are balanced against a
+    good player. Jesse beat three Hard and three Normal stables with a line no agent plays. It is a
+    floor test, not a proof.
+6. ~~**Q3 — Does the Prime tier amplify the runaway?**~~ — **answered: no, and the guards hold.** `leadConversion` is built (§7a.4) and reads, over 800 seasons, a Prime offer worth **+0.11** places to a stable ahead at week 6 and **+0.24** to one behind. The trailer gains more than twice as much. D11's consumable food and wage-not-purchase staff are doing their job, and §11's ugly rubber band stays out. Two caveats: a leader has fewer places to gain than a trailer by construction, so the columns are read *within* a row; and the effect is small either way, which is what a guard that works looks like.
 7. ~~**Q4 — What is the right `oddsScale` after D12?**~~ — **answered: 15.5** (from 17.5; the least-squares best fit is 15.25 and the bowl is flat between 15.0 and 15.5). 15.5 minimises the *worst-case* error across ratings 35–75 at 2.1 points. It leaves the bookie under-pricing the very best dogs by that 2.1 — a deliberate, stable divergence in the direction §6.2 wants, and small enough that backing favourites blind still loses to the 15% margin. **At 17.5 the gap was 8.4 points at rating 65**, which is a standing overlay big enough to beat the margin: free money for anyone who noticed, and Phase D's crook would have been balanced against a bug. The edge the crook's road needs comes from what the bookie *cannot see* — a fed dog, a supplement, a sabotage — not from a mis-fitted scale.
 8. **Q5 — Does the fact-gated card feel arbitrary under the fog?** Measured to work structurally (§6.3); untested as an experience.
-9. **Q6 — How big does the hold have to be, and how cheap the fuel, before the trader's road pays?** §9.2 names the two levers and neither is sized.
+9. ~~**Q6 — How big does the hold have to be, and how cheap the fuel, before the trader's road pays?**~~ — **answered: fuel 2 a crate and a 1,400 hold, and the first upgrade is the only one worth buying.** Sized by ablation rather than estimate (§9.2's table): the first +20 hold returns **1,506 against 1,400 paid**, the second 996, the third 395 and the fifth less than nothing. The useful half of the answer is the shape rather than the number — **capacity has sharply diminishing returns because the road is bound by the cash to buy stock, not the room to put it in** — and that is now printed on the Docks' own cargo row so a player meets it before paying for it.
 10. **Q7 — What flat stake ceiling keeps the crook's road from scaling with the leader's bankroll?** (§10)
 11. **Q8 — Retirement at age 7, or decay?** Default: decay, player chooses. Veterans races (§6.3) make an old dog worth keeping for the first time, which may settle this on its own.
 12. **Q9 — Reputation as a visible stat?** Default: still v2-plus.
 13. **Q10 — Does the human ever see the exact bookie probability?** Default: odds only.
 14. ~~**Q11 — What replaces `naive%`?**~~ — **answered, half of it: `autoplan%` works and reads 8.8%; `apLoss%` cannot work as specified.** The autoplan is BUILD_PLAN §7a.3's own definition and the comparison is exact — the agent and the autoplan agree on the entries 32.3% of the time, on the states 27.3%, and on both 8.8%, over 7,800 stable-weeks. That is below the 15–30% band, and the honest gloss is that Normal's plan and the naive plan rarely coincide rather than that either is right. **`apLoss%` is a measurement problem, not a balance one** — see D25. Fixing it needs the engine to fork a per-decision rng stream so two rollouts share their downstream draws.
-15. **Q12 — Why is the season decided *earlier* than v1, and still 6.4 after the Consolation was widened?** The "decided by" week reads **6.4** against v1's 7.6. The obvious lever was pulled on 12 September — the Consolation now reaches two weekends, coverage 29% → 71% — and **it moved the number not at all** (D28). What it moved was the *floor*: p10 end worth up 19%, Easy's head-to-head up 1.3 points, Hard's down 2.1. The diagnosis that follows is that the Consolation redistributes toward weak **dogs**, not weak **stables** — a leader has a dog that ran badly as often as anybody. A mechanic that actually delays the decision has to key off standing, and the design does not currently have one. Worth asking whether it should: the honest alternative is that a 13-week season with compounding prize money is decided at week 6 and the fix is somewhere else entirely.
-16. **Q13 — Is 76% too generous for a broad five-dog stable?** §6.3's probe reads 76.3% against a 55–70% band, so eligibility constrains a well-spread stable less than the estimate assumed. It may not matter: in a real season the same stable fills all three only 20.4% of weeks, because fitness binds long before eligibility does. Worth deciding whether the band was ever the right target.
+15. **Q12 — Why is the season decided *earlier* than v1? Phase C's two late-paying roads moved it 6.4 → 6.6, which is a tenth of the way and honest about it.** The Phase C prompt's own hypothesis was that a road paying *late* — a pup arriving at week 10, a hold that finally has something worth carrying — would delay the decision where another cheap race could not. Both were built and the number moved **0.2 weeks**. So the hypothesis is not refuted but it is not the answer either: the roads pay late enough to lift the floor (p10 8,052 → 9,113) and not late enough to change who is winning. What is left of the diagnosis below stands.
+    <br><br>**Q12, as originally written:** The "decided by" week reads **6.4** against v1's 7.6. The obvious lever was pulled on 12 September — the Consolation now reaches two weekends, coverage 29% → 71% — and **it moved the number not at all** (D28). What it moved was the *floor*: p10 end worth up 19%, Easy's head-to-head up 1.3 points, Hard's down 2.1. The diagnosis that follows is that the Consolation redistributes toward weak **dogs**, not weak **stables** — a leader has a dog that ran badly as often as anybody. A mechanic that actually delays the decision has to key off standing, and the design does not currently have one. Worth asking whether it should: the honest alternative is that a 13-week season with compounding prize money is decided at week 6 and the fix is somewhere else entirely.
+16. **Q13 — Is 76% too generous for a broad five-dog stable?** Unchanged at **76.3%** — Phase C touched neither the card nor eligibility, and the season fill rate is 1.97 of three against the probe's 76%, so fitness still binds long before eligibility does. Still worth deciding whether the band was the right target before tuning toward it.
+    <br><br>**Q13, as originally written:** §6.3's probe reads 76.3% against a 55–70% band, so eligibility constrains a well-spread stable less than the estimate assumed. It may not matter: in a real season the same stable fills all three only 20.4% of weeks, because fitness binds long before eligibility does. Worth deciding whether the band was ever the right target.
+
+17. **Q14 — Is `races per dog` the wrong measure, or is the game still under-racing?** It reads **5.1** against a 7–9 band and has now missed in three phases running (v1 5.2, Phase A 5.2, Phase B 4.8). Phase C moved it *up* a little, for the first time, because a stable with feed aboard has a reason to keep a dog in work. But the band was set when every dog raced every week, and §6.3's card plus §5.7's fitness together mean a five-dog stable entering 1.97 races a weekend over 13 weekends is **5.1 runs a dog by arithmetic** — 1.97 × 13 ÷ 5. To reach 7 a stable would have to own fewer dogs or fill more of the card, and both are things the design deliberately pushes the other way. Worth deciding whether the target should be 5–6 rather than tuning toward 7.
+
+18. **Q15 — Should the trader be able to borrow more?** The trader agent's road pays (Q2) but its trade income is 6,680 against an 8–15k row, and the binding constraint is measured: cash, not capacity or margin. The bank lends 5,000 at 3% a week and the agent now uses it; Fat Tony lends 15,000 at 10% and it does not. A road financed on Tony's terms is a different and more interesting game than one financed on the bank's, and it is the sort of thing §13's phase could price properly.
+
+19. **Q16 — Is the Prime trainer too strong when it lands early?** `--pups` reads a pup reaching par at **week 4** with a Prime trainer and plain kibble, against week 8 with a Rough one. That is a big lever, and with Prime feed on top it is bigger. `leadConversion` says the Prime tier is not amplifying the leader (Q3), so the guards are holding *in aggregate* — but a Prime trainer hired in week 2 by a stable that then buys a pup is a specific line the aggregate may be hiding. Worth a probe rather than a change.
 
 ## 21. The v2 list — what is deliberately out
 
