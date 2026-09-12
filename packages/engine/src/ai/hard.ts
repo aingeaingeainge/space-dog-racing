@@ -1,4 +1,5 @@
 import { balance } from '../content/balance';
+import { raceType } from '../content/raceTypes';
 import { dogSalePrice, dogValue } from '../economy/dogValue';
 import { upgradePrice } from '../economy/market';
 import { decimalOdds, placeProbabilities, winProbabilities } from '../race/odds';
@@ -10,7 +11,7 @@ import {
   player,
   thisWeeksCard,
 } from '../state';
-import type { Action, GameState, Id, RaceTypeId } from '../types';
+import type { Action, Dog, GameState, Id, RaceTypeId } from '../types';
 import {
   bestAssignment,
   dogMarket,
@@ -41,6 +42,13 @@ import {
  * races and put the money over the counter", which is what it always meant.
  */
 const THROW_CHEAP_RATE = 0.15;
+/**
+ * Rating points Hard credits a market dog with for each race type its kennel cannot fill
+ * (GDD §6.3). The one thing the fact-gated card gives a good stable to be clever about, and the
+ * behaviour §14 has been waiting for something to hang on: under Bronze / Silver / Gold every dog
+ * could enter the top class, so there was no such thing as a coverage gap.
+ */
+const COVERAGE_GAIN = 8;
 /** Fitness a dog should still have the week after a run, if a Major is next weekend. */
 const MAJOR_FITNESS_FLOOR = balance.fitnessScaleBelow + 20;
 
@@ -113,6 +121,7 @@ function marketOptions(s: GameState): MarketOptions {
       minRatingGainForSwap: 4,
       bargainFactor: 1,
       keepReserve: true,
+      coverageGain: COVERAGE_GAIN,
     };
   if (s.week >= 6)
     return {
@@ -121,8 +130,9 @@ function marketOptions(s: GameState): MarketOptions {
       minRatingGainForSwap: 5,
       bargainFactor: 0.95,
       keepReserve: true,
+      coverageGain: COVERAGE_GAIN,
     };
-  return {};
+  return { coverageGain: COVERAGE_GAIN };
 }
 
 /**
@@ -189,7 +199,10 @@ function sellAgeingDog(plan: Plan): void {
         d.id !== best?.id &&
         d.injuryWeeks === 0 &&
         !d.traits.includes('oldSoul') &&
-        d.age >= minAge,
+        d.age >= minAge &&
+        // Keep one veteran. GDD §6.3 makes the Veterans race "a late-career job for an old dog,
+        // and a reason to keep one" — selling the last old dog in the yard is selling a race.
+        !onlyVeteran(plan.kennel, d),
     )
     .sort((a, b) => b.age - a.age || a.rating - b.rating)[0];
   if (!sell) return;
@@ -197,6 +210,12 @@ function sellAgeingDog(plan: Plan): void {
   out.push({ t: 'SellDog', playerId, dogId: sell.id });
   plan.cash += dogSalePrice(sell, buyerBonus, valueMod);
   plan.kennel = plan.kennel.filter((d) => d.id !== sell.id);
+}
+
+/** Is this the last dog in the kennel that could take a trap in a Veterans race (GDD §6.3)? */
+function onlyVeteran(kennel: readonly Dog[], d: Dog): boolean {
+  if (!raceType('veterans').eligible(d)) return false;
+  return kennel.filter((x) => raceType('veterans').eligible(x)).length <= 1;
 }
 
 /** Choose and declare this week's runners, holding fitness back for a Major if one is next. */

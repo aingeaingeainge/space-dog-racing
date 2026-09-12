@@ -4,7 +4,17 @@ import { LOCAL_RATING_BY_TIER, raceType } from '../content/raceTypes';
 import { winProbabilities } from '../race/odds';
 import { baseRating, dogValue } from '../economy/dogValue';
 import { calendarEntry, eligible, FREE_HORIZON, player, purseFor, thisWeeksCard } from '../state';
-import type { Action, Dog, GameState, Id, Planet, Player, RaceTypeId, StatKey } from '../types';
+import {
+  RACE_TYPE_IDS,
+  type Action,
+  type Dog,
+  type GameState,
+  type Id,
+  type Planet,
+  type Player,
+  type RaceTypeId,
+  type StatKey,
+} from '../types';
 
 export function ownDogs(s: GameState, p: Player): Dog[] {
   return p.dogIds.map((id) => s.dogs[id]).filter((d): d is Dog => !!d);
@@ -433,6 +443,23 @@ export function repayLoans(plan: Plan): void {
   }
 }
 
+/**
+ * Race types the kennel has nobody fit and eligible for (GDD §6.3). Measured over the whole pool
+ * rather than this week's three, because the point of buying for coverage is the weeks you have
+ * not seen yet — under the fog you cannot know which types are coming, only that a stable that
+ * covers more of them fills more of the card.
+ */
+export function coverageGaps(kennel: readonly Dog[]): Set<RaceTypeId> {
+  const gaps = new Set<RaceTypeId>();
+  for (const race of RACE_TYPE_IDS) {
+    const covered = kennel.some(
+      (d) => eligible(d, race) && d.fitness >= balance.injuryLowFitnessBelow,
+    );
+    if (!covered) gaps.add(race);
+  }
+  return gaps;
+}
+
 export interface MarketOptions {
   /** Multiple of the asking price the stable insists on holding before it buys. */
   buyCashMultiple?: number;
@@ -446,6 +473,13 @@ export interface MarketOptions {
   keepReserve?: boolean;
   /** Buy into an empty kennel slot without the rating comparison. Defaults to true. */
   fillEmptySlots?: boolean;
+  /**
+   * Rating points to credit a market dog with for each race type it covers that the kennel
+   * cannot (GDD §6.3). This is what the fact-gated card gives a good stable to be clever about: a
+   * 40-rated maiden is worth more to a kennel of finished dogs than its number says, because it
+   * is the only runner they have for a third of the pool. Hard prices it; Normal buys on rating.
+   */
+  coverageGain?: number;
 }
 
 /** Buy a better dog when the stable can plainly afford one (GDD §14 Normal). */
@@ -456,10 +490,15 @@ export function dogMarket(plan: Plan, opts: MarketOptions = {}): void {
   const swapGain = opts.minRatingGainForSwap ?? 8;
   const dogs = plan.kennel;
   const worst = [...dogs].sort((a, b) => a.rating - b.rating)[0];
+  // What the kennel cannot field, and what a dog on the market is worth for closing it.
+  const gaps = opts.coverageGain ? coverageGaps(dogs) : new Set<RaceTypeId>();
+  const worthOf = (d: Dog) =>
+    d.rating +
+    [...gaps].filter((race) => raceType(race).eligible(d)).length * (opts.coverageGain ?? 0);
   const forSale = s.planet.marketDogIds
     .map((id) => s.dogs[id])
     .filter((d): d is Dog => !!d && !d.fellOffAShip)
-    .sort((a, b) => b.rating - a.rating);
+    .sort((a, b) => worthOf(b) - worthOf(a));
   const slotsFree = p.dogIds.length < p.kennelSlots;
   // An empty kennel is its own reason to buy. GDD §5.2 and §6.4: a dog can take about seven races
   // in thirteen weeks, so a three-race card wants five dogs, and a stable of three leaves a third
@@ -471,9 +510,9 @@ export function dogMarket(plan: Plan, opts: MarketOptions = {}): void {
     const bargain = opts.bargainFactor !== undefined && price <= dogValue(d) * opts.bargainFactor;
     if (plan.cash < price * cashMultiple) continue;
     if (opts.keepReserve && plan.cash - price < plan.reserve) continue;
-    if (worst && d.rating <= worst.rating + gain && !bargain && !needBodies) continue;
+    if (worst && worthOf(d) <= worst.rating + gain && !bargain && !needBodies) continue;
     if (!slotsFree) {
-      if (!worst || dogs.length <= 1 || d.rating < worst.rating + swapGain) continue;
+      if (!worst || dogs.length <= 1 || worthOf(d) < worst.rating + swapGain) continue;
       out.push({ t: 'SellDog', playerId, dogId: worst.id });
       plan.cash += Math.round(dogValue(worst) * balance.marketSellFactor);
       plan.kennel.splice(plan.kennel.indexOf(worst), 1);
