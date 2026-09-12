@@ -19,12 +19,17 @@
  * declarations lock, which costs nothing and leaves the engine alone.
  */
 import { balance } from '../src/content/balance';
+import { good, GOODS, TIER_LABEL } from '../src/content/goods';
 import { createDog, fitRating } from '../src/economy/market';
 import { baseRating, dogValue } from '../src/economy/dogValue';
 import { netWorth } from '../src/economy/netWorth';
+import { cargoTotal } from '../src/economy/goods';
+import { cargoCap } from '../src/economy/staff';
 import { clamp, mulberry32 } from '../src/rng';
 import { createSeason, eligible, player, thisWeeksCard } from '../src/state';
 import { decide } from '../src/ai';
+import { PATH_KNOBS } from '../src/ai/paths';
+import { STACK_OVERRIDE } from '../src/ai/shared';
 import { isSeasonOver, needsAdvance, reduceMut } from '../src/reduce';
 import { simulateRace, type Runner } from '../src/race/simulateRace';
 import { winProbabilities } from '../src/race/odds';
@@ -37,7 +42,9 @@ import {
   type Dog,
   type GameState,
   type Id,
+  type GoodId,
   type Player,
+  type StaffRole,
   type RaceTypeId,
   type StatKey,
   type Track,
@@ -53,6 +60,14 @@ interface Args {
   pups: boolean;
   card: boolean;
   autoplan: boolean;
+  /** §7a.4's Prime-amplification test (GDD §20 Q3). */
+  leadConversion: boolean;
+  /** §7a.5's three-way printout: the trainer and the trader in the same seasons. */
+  roads: boolean;
+  /** §6b's cargo-payback ablation: run the trader with and without buying hold. */
+  holdPayback: boolean;
+  /** D7's stacking row: three of one role against a mixed three, in the same seasons. */
+  stacking: boolean;
   quiet: boolean;
 }
 
@@ -66,6 +81,10 @@ function parseArgs(argv: string[]): Args {
     pups: false,
     card: false,
     autoplan: false,
+    leadConversion: false,
+    roads: false,
+    holdPayback: false,
+    stacking: false,
     quiet: false,
   };
   for (let i = 0; i < argv.length; i++) {
@@ -82,6 +101,10 @@ function parseArgs(argv: string[]): Args {
     else if (a === '--pups') args.pups = true;
     else if (a === '--card') args.card = true;
     else if (a === '--autoplan') args.autoplan = true;
+    else if (a === '--leadConversion' || a === '--lead') args.leadConversion = true;
+    else if (a === '--roads') args.roads = true;
+    else if (a === '--holdPayback' || a === '--hold') args.holdPayback = true;
+    else if (a === '--stacking') args.stacking = true;
     else if (a === '--quiet') args.quiet = true;
   }
   return args;
@@ -122,6 +145,10 @@ interface AgentStats {
   grossFood: number[];
   grossDogs: number[];
   grossBets: number[];
+  /** Mean crates aboard at the end of each week — what the trader's road is actually carrying. */
+  crates: number[];
+  /** Hold capacity at week 13, ship plus staff. */
+  hold: number[];
 }
 
 /** Every stable is in the same season, so a pairing is a like-for-like comparison. */
@@ -159,6 +186,44 @@ interface SeasonSample {
   /** Gross income by road, tallied from the cash each action moves (see grossFrom). */
   grossFood: Map<Id, number>;
   grossDogs: Map<Id, number>;
+  /**
+   * §7a.2 asks for **a row per good and tier** in the income split, and this is it: crates and
+   * Bones moved, per good, in each direction. Kept gross for the same reason the road split is —
+   * "sold minus bought" cannot answer "where did the money come in".
+   */
+  goodsBought: Map<GoodId, { crates: number; bones: number }>;
+  goodsSold: Map<GoodId, { crates: number; bones: number }>;
+  /**
+   * §7a.4 `leadConversion` (GDD §20 Q3) — the Prime-amplification test.
+   *
+   * One row per stable-season: its net-worth **rank at week 6** and **at week 13**, and whether it
+   * took a Prime thing (feed or staff) at any point. If a Prime offer creates a bigger gap for the
+   * stable that was already ahead than for the one behind, D11's consumable/wage guards are not
+   * strong enough and §11's ugly rubber band is the next lever.
+   *
+   * ⚠️ **Read off the action stream, not off `PlayerSeasonStats`.** §7a.4 specifies a two-field
+   * addition to the engine's stats, and it is not needed: the harness applies every action itself,
+   * so "this stable bought a Prime thing" is already in front of it. Doing it here keeps GameState
+   * unchanged and the golden snapshot at its two moves — the same argument that kept the dossier out
+   * of state in Phase B.
+   */
+  primeTaken: Set<Id>;
+  /**
+   * Prime things a stable could have bought this season — the acceptance row is 2–5 **offers seen**,
+   * not offers taken, because §8.1's guard is about the tier being *rare* rather than about anybody
+   * managing to afford it. Counted once per stable-week: a Prime shelf on this planet, or a Prime
+   * body drinking in the Saloon.
+   */
+  primeOffers: Map<Id, number>;
+  /**
+   * Crates aboard at the end of every week, per stable.
+   *
+   * ⚠️ Measured across the season rather than at week 13, and the difference matters: a trader sells
+   * its hold down before the Grand Final, so an end-of-season snapshot read 6.6 crates for a stable
+   * that had been carrying 21. Reading the wrong one nearly bought a wrong conclusion about whether
+   * the hold was the binding constraint.
+   */
+  cratesByWeek: Map<Id, number[]>;
 }
 
 function emptySample(): SeasonSample {
@@ -178,8 +243,25 @@ function emptySample(): SeasonSample {
     maidenRuns: Array.from({ length: balance.weeks }, () => 0),
     grossFood: new Map(),
     grossDogs: new Map(),
+    goodsBought: new Map(),
+    goodsSold: new Map(),
+    primeTaken: new Set(),
+    primeOffers: new Map(),
+    cratesByWeek: new Map(),
   };
 }
+
+const bumpGood = (
+  m: Map<GoodId, { crates: number; bones: number }>,
+  id: GoodId,
+  crates: number,
+  bones: number,
+): void => {
+  const cur = m.get(id) ?? { crates: 0, bones: 0 };
+  cur.crates += crates;
+  cur.bones += bones;
+  m.set(id, cur);
+};
 
 const bumpMap = <K>(m: Map<K, number>, k: K, by = 1) => m.set(k, (m.get(k) ?? 0) + by);
 
@@ -446,6 +528,17 @@ export function runAutoplan(seasons = 200, seed = 1, sampleEvery = 4): string {
 }
 
 /**
+ * Net-worth rank of every stable, 1 = richest. Ties broken by player id so the rank is a function
+ * of the state and nothing else.
+ */
+function ranks(s: GameState): Map<Id, number> {
+  const rows = s.players
+    .map((p) => ({ id: p.id, worth: netWorth(s, p) }))
+    .sort((a, b) => b.worth - a.worth || (a.id < b.id ? -1 : 1));
+  return new Map(rows.map((r, i) => [r.id, i + 1]));
+}
+
+/**
  * Play one season, sampling the locked card each week. Mirrors `drive()` — if that ever grows a
  * hook, this collapses back into it.
  */
@@ -453,7 +546,7 @@ function playSeason(
   seed: number,
   ai: AiAgent[],
   sample: SeasonSample,
-): { state: GameState; actions: number } {
+): { state: GameState; actions: number; rankAtLeadWeek: Map<Id, number> } {
   const s = createSeason({
     seed,
     players: ai.map((difficulty) => ({ name: '', kind: 'ai' as const, difficulty })),
@@ -462,6 +555,11 @@ function playSeason(
   let sampledWeek = 0;
   let paidWeek = 0;
   let guard = 0;
+  // §7a.4's split point. Week 6 is the "decided by" week Phase B measured, which is exactly the
+  // week at which "ahead" and "behind" start to mean something.
+  const LEAD_WEEK = 6;
+  let rankAtLeadWeek: Map<Id, number> | null = null;
+  let cratesWeek = 0;
   while (!isSeasonOver(s) && guard++ < 200_000) {
     // Own the stable's dogs before anything sells them on.
     for (const p of s.players) {
@@ -480,8 +578,18 @@ function playSeason(
       // §7a.4 cardCoverage and the fill rate, per stable: could you have filled this race, and
       // did you? Read off the stable's own kennel rather than off the field, because a race a
       // stable left to the locals is exactly what these two measures are for.
+      // Prime offers in front of this stable this week: the shared shelf, its own consignment, and
+      // the Saloon. Counted at the one instant the week is fully rolled and nothing has been bought.
+      const primeOnShelf = GOODS.filter(
+        (g) => g.tier === 'prime' && s.planet.goods[g.id].stock > 0,
+      ).length;
+      const primeStaff = s.planet.staff.filter((o) => o.tier === 'prime').length;
       for (const p of s.players) {
         if (p.flags.bankrupt) continue;
+        const mine = GOODS.filter(
+          (g) => g.tier === 'prime' && (s.planet.finds[p.id]?.goods[g.id] ?? 0) > 0,
+        ).length;
+        bumpMap(sample.primeOffers, p.id, primeOnShelf + primeStaff + mine);
         const kennel = p.dogIds.map((id) => s.dogs[id]).filter((d): d is Dog => !!d);
         let filled = 0;
         for (const race of card) {
@@ -517,6 +625,15 @@ function playSeason(
         for (const pay of r.payouts) sample.poolToPlayers += pay.amount;
       }
     }
+    if (rankAtLeadWeek === null && s.week > LEAD_WEEK) rankAtLeadWeek = ranks(s);
+    if (cratesWeek !== s.week && s.phase === 'endTurn') {
+      cratesWeek = s.week;
+      for (const p of s.players) {
+        const list = sample.cratesByWeek.get(p.id) ?? [];
+        list.push(cargoTotal(p.cargo));
+        sample.cratesByWeek.set(p.id, list);
+      }
+    }
     if (needsAdvance(s)) {
       reduceMut(s, { t: 'AdvancePhase' });
       actions++;
@@ -531,16 +648,30 @@ function playSeason(
       // bought, which cannot answer "what share of a stable's income is prize money"; the cash
       // an action moves can, and reading it here keeps the instrument out of the engine.
       const before = p.cash;
+      // What is on offer has to be read *before* the action lands, or a hire has already left the
+      // planet's list by the time we look at it.
+      const offer =
+        a.t === 'HireStaff' ? s.planet.staff.find((o) => o.id === a.staffId) : undefined;
       reduceMut(s, a);
       const gained = p.cash - before;
       if (gained > 0) {
         if (a.t === 'TradeFood') bumpMap(sample.grossFood, who, gained);
         else if (a.t === 'SellDog') bumpMap(sample.grossDogs, who, gained);
       }
+      // §7a.2's row per good, both ways, gross.
+      if (a.t === 'TradeFood') {
+        const crates = Math.abs(Math.trunc(a.units));
+        const bones = Math.abs(gained);
+        if (a.units > 0) bumpGood(sample.goodsBought, a.good, crates, bones);
+        else bumpGood(sample.goodsSold, a.good, crates, bones);
+        // §7a.4: a Prime crate taken is a Prime offer converted (GDD §20 Q3).
+        if (a.units > 0 && good(a.good).tier === 'prime') sample.primeTaken.add(who);
+      }
+      if (offer?.tier === 'prime') sample.primeTaken.add(who);
       actions++;
     }
   }
-  return { state: s, actions };
+  return { state: s, actions, rankAtLeadWeek: rankAtLeadWeek ?? ranks(s) };
 }
 
 export function runHarness(args: Args): string {
@@ -570,6 +701,8 @@ export function runHarness(args: Args): string {
         grossFood: [],
         grossDogs: [],
         grossBets: [],
+        crates: [],
+        hold: [],
       };
       byAgent.set(d, st);
     }
@@ -602,15 +735,55 @@ export function runHarness(args: Args): string {
   let poolToPlayers = 0;
   const championConcentration: number[] = [];
   const decidedBy: number[] = [];
+  // §7a.2's row per good, across every season.
+  const goodsBought = new Map<GoodId, { crates: number; bones: number }>();
+  const goodsSold = new Map<GoodId, { crates: number; bones: number }>();
+  /** §7a.4 leadConversion: rank change week 6 → 13, split by ahead/behind and by Prime taken. */
+  /** §6b's "Prime offers seen per season", per stable. */
+  const primeOffersSeen: number[] = [];
+  const lead = {
+    aheadPrime: [] as number[],
+    aheadNone: [] as number[],
+    behindPrime: [] as number[],
+    behindNone: [] as number[],
+  };
 
   const t0 = performance.now();
   for (let i = 0; i < args.seasons; i++) {
     const sample = emptySample();
-    const { state, actions: n } = playSeason(args.seed + i, args.ai, sample);
+    const { state, actions: n, rankAtLeadWeek } = playSeason(args.seed + i, args.ai, sample);
     actions += n;
     collect(state, sample);
+    collectLead(state, sample, rankAtLeadWeek);
   }
   const elapsed = (performance.now() - t0) / 1000;
+
+  /**
+   * §7a.4 `leadConversion` (GDD §20 Q3). For every stable: was it ahead at week 6, did it take a
+   * Prime thing, and how many places did it move by week 13?
+   *
+   * A **positive** delta is places gained, so a bigger number is a stable climbing. The question the
+   * two columns answer is whether Prime is an amplifier: if the leaders' Prime gain is larger than
+   * the trailers', the top tier is helping whoever is already winning, which is what D11's
+   * consumable food and wage-not-purchase staff were shaped to prevent.
+   */
+  function collectLead(s: GameState, sample: SeasonSample, at6: Map<Id, number>): void {
+    const at13 = ranks(s);
+    const half = s.players.length / 2;
+    for (const p of s.players) {
+      const before = at6.get(p.id);
+      const after = at13.get(p.id);
+      if (before === undefined || after === undefined) continue;
+      const delta = before - after; // places gained
+      const prime = sample.primeTaken.has(p.id);
+      const ahead = before <= half;
+      if (ahead) (prime ? lead.aheadPrime : lead.aheadNone).push(delta);
+      else (prime ? lead.behindPrime : lead.behindNone).push(delta);
+    }
+    for (const [id, v] of sample.goodsBought) bumpGood(goodsBought, id, v.crates, v.bones);
+    for (const [id, v] of sample.goodsSold) bumpGood(goodsSold, id, v.crates, v.bones);
+    for (const p of s.players) primeOffersSeen.push(sample.primeOffers.get(p.id) ?? 0);
+  }
 
   function collect(s: GameState, sample: SeasonSample) {
     const standings = s.finalStandings ?? [];
@@ -650,6 +823,8 @@ export function runHarness(args: Args): string {
       st.grossFood.push(sample.grossFood.get(p.id) ?? 0);
       st.grossDogs.push(sample.grossDogs.get(p.id) ?? 0);
       st.grossBets.push(betReturns);
+      st.crates.push(mean(sample.cratesByWeek.get(p.id) ?? [0]));
+      st.hold.push(cargoCap(p));
     }
     for (const race of RACE_TYPE_IDS) {
       bumpMap(coverOffered, race, sample.coverOffered.get(race) ?? 0);
@@ -819,6 +994,69 @@ export function runHarness(args: Args): string {
   lines.push('  Target (BUILD_PLAN §6b): prize share falls toward 65%. Gross, not net — the');
   lines.push('  question is where the money came in, not whether the road turned a profit.');
 
+  // §7a.2's row per good and tier. The whole point of Phase C is that "food sold: 700" becomes
+  // something else, and one line cannot say which of thirteen things it became.
+  const seasonsRun = Math.max(1, args.seasons * args.ai.length);
+  const traded = GOODS.filter(
+    (g) => (goodsBought.get(g.id)?.crates ?? 0) + (goodsSold.get(g.id)?.crates ?? 0) > 0,
+  );
+  if (traded.length) {
+    lines.push('');
+    lines.push(
+      'The goods, per stable-season (GDD §8.2 / BUILD_PLAN §7a.2 — a row per good and tier)',
+    );
+    lines.push('  good                 tier      crates in    Bones out   crates out    Bones in');
+    for (const g of traded) {
+      const b = goodsBought.get(g.id) ?? { crates: 0, bones: 0 };
+      const sold = goodsSold.get(g.id) ?? { crates: 0, bones: 0 };
+      lines.push(
+        `  ${g.label.padEnd(20)} ${(g.tier ? TIER_LABEL[g.tier] : 'staple').padEnd(8)} ` +
+          `${(b.crates / seasonsRun).toFixed(1).padStart(10)} ${fmt(b.bones / seasonsRun).padStart(12)} ` +
+          `${(sold.crates / seasonsRun).toFixed(1).padStart(12)} ${fmt(sold.bones / seasonsRun).padStart(11)}`,
+      );
+    }
+    const primeCrates = traded
+      .filter((g) => g.tier === 'prime')
+      .reduce((sum, g) => sum + (goodsBought.get(g.id)?.crates ?? 0), 0);
+    lines.push(`  Prime crates bought per stable-season: ${(primeCrates / seasonsRun).toFixed(2)}`);
+  }
+
+  lines.push('');
+  lines.push(
+    `Prime offers seen per stable-season: ${mean(primeOffersSeen).toFixed(2)} ` +
+      `(target 2–5 — a rare tier is the point, GDD §8.1)`,
+  );
+
+  // §7a.4 leadConversion (GDD §20 Q3): does the Prime tier amplify whoever is already ahead?
+  lines.push('');
+  lines.push('leadConversion — does a Prime offer widen the lead? (§7a.4, GDD §20 Q3)');
+  lines.push('  Places gained between week 6 and week 13. Positive = climbed.');
+  lines.push('  group          took Prime          took none        the gap Prime makes');
+  const row = (label: string, withP: number[], without: number[]): void => {
+    const a = mean(withP);
+    const b = mean(without);
+    lines.push(
+      `  ${label.padEnd(14)} ${a.toFixed(2).padStart(6)} (n ${String(withP.length).padStart(5)})  ` +
+        `${b.toFixed(2).padStart(6)} (n ${String(without.length).padStart(5)})  ` +
+        `${(a - b >= 0 ? '+' : '') + (a - b).toFixed(2)}`,
+    );
+  };
+  row('ahead at wk 6', lead.aheadPrime, lead.aheadNone);
+  row('behind at wk 6', lead.behindPrime, lead.behindNone);
+  const leaderGain = mean(lead.aheadPrime) - mean(lead.aheadNone);
+  const trailerGain = mean(lead.behindPrime) - mean(lead.behindNone);
+  lines.push(
+    `  Target: the leader's gain from Prime is no larger than the trailer's. ` +
+      `Leader ${leaderGain >= 0 ? '+' : ''}${leaderGain.toFixed(2)}, trailer ${trailerGain >= 0 ? '+' : ''}${trailerGain.toFixed(2)} — ` +
+      `${leaderGain <= trailerGain ? 'MET' : 'MISSED'}.`,
+  );
+  lines.push(
+    '  ⚠️ A leader is already at the top of the table, so it has fewer places to gain than a',
+  );
+  lines.push(
+    '  trailer has: read the two columns against each other within a row, not across rows.',
+  );
+
   lines.push('');
   lines.push(
     `Concentration (Herfindahl over dog values at week ${balance.weeks}): champion ${mean(championConcentration).toFixed(3)}, ` +
@@ -848,6 +1086,39 @@ export function runHarness(args: Args): string {
   lines.push(
     `Seasons where the champion won at least one Major Open: ${pct(championWonAMajor / Math.max(1, args.seasons))}`,
   );
+
+  // §7a.5's three-way printout, whenever the run actually contains path agents. The deliverable is
+  // this table, not the agents — and the caveat below it is part of the deliverable.
+  const roadAgents = (['trainer', 'trader'] as AiAgent[]).filter((a) => byAgent.has(a));
+  if (roadAgents.length) {
+    lines.push('');
+    lines.push('The roads, side by side (BUILD_PLAN §7a.5, GDD §20 Q2)');
+    lines.push('  agent       mean      p10      p90     prize    trade   crates  hold  winRate');
+    for (const a of roadAgents) {
+      const st = byAgent.get(a)!;
+      const sorted = [...st.worth].sort((x, y) => x - y);
+      lines.push(
+        `  ${a.padEnd(8)} ${fmt(mean(st.worth)).padStart(8)} ${fmt(quantile(sorted, 0.1)).padStart(8)} ` +
+          `${fmt(quantile(sorted, 0.9)).padStart(8)} ${fmt(mean(st.prize)).padStart(9)} ` +
+          `${fmt(mean(st.trade)).padStart(8)} ${mean(st.crates).toFixed(1).padStart(8)} ` +
+          `${mean(st.hold).toFixed(0).padStart(5)} ${pct(st.wins / Math.max(1, st.seasons)).padStart(8)}`,
+      );
+    }
+    const means = roadAgents.map((a) => mean(byAgent.get(a)!.worth));
+    const spread = (Math.max(...means) - Math.min(...means)) / Math.max(1, Math.min(...means));
+    lines.push(
+      `  Target (§7a.5): within 15% of each other on the mean, and visibly different in spread. ` +
+        `Measured ${pct(spread)} apart — ${spread <= 0.15 ? 'MET' : 'MISSED'}.`,
+    );
+    lines.push('');
+    lines.push(
+      '  ⚠️ Three hand-written agents measure whether the roads *can* pay, not whether they are',
+    );
+    lines.push(
+      '  balanced against a good player. Jesse beat three Hard and three Normal stables with a line',
+    );
+    lines.push('  no agent plays. This is a floor test, not a proof.');
+  }
   return lines.join('\n');
 }
 
@@ -1235,11 +1506,14 @@ export function runPupCurve(pups = 200, racesPerCell = 900, seed = 4242): string
     return wins / racesPerCell;
   };
 
+  // The staff ladder as it is now built (GDD §8.3). Each row is the trainer's points a Train
+  // week; the feed a dog eats is on top of it and is what `--stats` and the season runs measure.
   const trainers: [string, number][] = [
-    ['none          ', 0],
-    [`Rough      +${balance.trainerStatPerWeek} `, balance.trainerStatPerWeek],
-    ['Gristle    +2 ', balance.trainerStatPerWeek + 1],
-    ['Prime (C)  +4 ', 4],
+    ['none           ', 0],
+    [`Rough      +${balance.trainerPointsRough}  `, balance.trainerPointsRough],
+    [`Gristle    +${balance.trainerPointsRough + 1}  `, balance.trainerPointsRough + 1],
+    [`Proper     +${balance.trainerPointsProper}  `, balance.trainerPointsProper],
+    [`Prime      +${balance.trainerPointsPrime}  `, balance.trainerPointsPrime],
   ];
   for (const [label, points] of trainers) {
     for (const trainWeeks of [13, 10, 8, 6]) {
@@ -1270,13 +1544,153 @@ export function runPupCurve(pups = 200, racesPerCell = 900, seed = 4242): string
     lines.push('');
   }
   lines.push(
-    'Phase A has only the Rough trainer and plain kibble; the Prime row is what GDD §8.2 and §8.3',
+    'All four tiers are built (Phase C). The rows are the trainer alone on plain kibble — a dog on a',
   );
-  lines.push('promise in Phase C, and is here so the two can be compared before it is built.');
+  lines.push(
+    'stat feed gains its band on top, +1-3 Rough to +4-6 Prime, so the Prime row understates a',
+  );
+  lines.push('stable that is also feeding properly. That pairing is what the season runs measure.');
   return lines.join('\n');
 }
 
 if (process.argv[1]?.endsWith('harness.ts')) main();
+/**
+ * GDD §20 Q6 / BUILD_PLAN §6b: **does a +20-unit cargo upgrade pay back inside one season?**
+ *
+ * An ablation rather than an estimate. The same trader agent, the same seeds, once buying hold and
+ * once refusing to — so the only difference between the two runs is the purchase, and the difference
+ * in end worth is what the purchase was worth. v1's estimate was "about 1,000 a season against 2,500
+ * spent"; this is the measurement that replaces it.
+ */
+export function runHoldPayback(seasons = 400, seed = 1): string {
+  const lines: string[] = [];
+  const ai: AiAgent[] = Array(6).fill('trader');
+  const run = (cap: number): { worth: number; hold: number; trade: number; bought: number } => {
+    PATH_KNOBS.traderHoldCap = cap;
+    const worth: number[] = [];
+    const holds: number[] = [];
+    const trade: number[] = [];
+    const bought: number[] = [];
+    for (let i = 0; i < seasons; i++) {
+      const sample = emptySample();
+      const { state } = playSeason(seed + i, ai, sample);
+      for (const p of state.players) {
+        worth.push(netWorth(state, p));
+        holds.push(cargoCap(p));
+        trade.push(p.stats.tradeIncome);
+        bought.push((p.ship.cargoCap - balance.cargoCapStart) / balance.cargoUpgradeUnits);
+      }
+    }
+    return { worth: mean(worth), hold: mean(holds), trade: mean(trade), bought: mean(bought) };
+  };
+
+  lines.push(
+    `Cargo-hold payback — ${seasons} seasons of six traders per row, the same seeds every row`,
+  );
+  lines.push('');
+  lines.push(
+    `  A +${balance.cargoUpgradeUnits}-crate hold costs ${fmt(balance.shipCargoCost)} and drags ` +
+      `${balance.cargoUpgradeUnits * balance.fuelPerCargoUnitOver} more fuel a jump.`,
+  );
+  lines.push('');
+  lines.push('  upgrades allowed   bought   hold   mean end worth   trade income   marginal gain');
+  const caps = [0, 1, 2, 3, Infinity];
+  let previous: { worth: number; bought: number } | null = null;
+  const marginals: number[] = [];
+  for (const cap of caps) {
+    const r = run(cap);
+    let marginal = '';
+    if (previous) {
+      const extra = r.bought - previous.bought;
+      const gain = extra > 0 ? (r.worth - previous.worth) / extra : 0;
+      marginal = `${fmt(gain)} per upgrade`;
+      if (Number.isFinite(cap)) marginals.push(gain);
+    }
+    lines.push(
+      `  ${(Number.isFinite(cap) ? String(cap) : 'no cap').padEnd(18)} ${r.bought.toFixed(2).padStart(6)} ` +
+        `${r.hold.toFixed(0).padStart(6)} ${fmt(r.worth).padStart(16)} ${fmt(r.trade).padStart(14)}   ${marginal}`,
+    );
+    previous = { worth: r.worth, bought: r.bought };
+  }
+  PATH_KNOBS.traderHoldCap = Infinity;
+  lines.push('');
+  const first = marginals[0] ?? 0;
+  lines.push(
+    `  The row that answers §6b is the FIRST upgrade: ${fmt(first)} against ${fmt(balance.shipCargoCost)} paid — ` +
+      `${first >= balance.shipCargoCost ? 'MET' : 'MISSED'}.`,
+  );
+  lines.push(
+    '  ⚠️ Net worth already counts the ship at 70% of what was paid for it (shipResaleFactor), so an',
+  );
+  lines.push(
+    `  upgrade that earned nothing would read about −${fmt(balance.shipCargoCost * (1 - balance.shipResaleFactor))}, not 0. That is the floor.`,
+  );
+  lines.push(
+    '  ⚠️ And the marginal column is the real finding: capacity has sharply diminishing returns',
+  );
+  lines.push(
+    '  because this road is bound by the cash to buy stock, not by the room to put it in.',
+  );
+  return lines.join('\n');
+}
+
+/**
+ * GDD §8.3 / D7: **does stacking three of one role beat a mixed three?**
+ *
+ * A real head-to-head — three stables forced to stack one role against three playing Normal's mixed
+ * line, in the same seasons, on the same card. The target is that stacking wins no more than 5
+ * points of head-to-head, and if it wins more than that the roles are not differently shaped enough
+ * and §8.3 says to re-shape them rather than to add a penalty.
+ */
+export function runStacking(seasons = 300, seed = 1): string {
+  const lines: string[] = [];
+  lines.push(`Staff stacking — ${seasons} seasons, three stackers against three mixed (D7)`);
+  lines.push('');
+  lines.push('  stacked role    stacker mean   mixed mean   stacker beats mixed');
+  const roles: StaffRole[] = ['trainer', 'vet', 'trader', 'scout', 'tipster'];
+  for (const role of roles) {
+    let stackWorth = 0;
+    let mixedWorth = 0;
+    let wins = 0;
+    let pairs = 0;
+    for (let i = 0; i < seasons; i++) {
+      STACK_OVERRIDE.clear();
+      // p1..p3 stack, p4..p6 play Normal's line. Same season, same card, same market.
+      for (const id of ['p1', 'p2', 'p3']) STACK_OVERRIDE.set(id, role);
+      const sample = emptySample();
+      const { state } = playSeason(seed + i, Array(6).fill('normal') as AiAgent[], sample);
+      const worth = new Map(state.players.map((p) => [p.id, netWorth(state, p)]));
+      const stacked = ['p1', 'p2', 'p3'].map((id) => worth.get(id) ?? 0);
+      const mixed = ['p4', 'p5', 'p6'].map((id) => worth.get(id) ?? 0);
+      stackWorth += mean(stacked);
+      mixedWorth += mean(mixed);
+      for (const a of stacked)
+        for (const b of mixed) {
+          pairs++;
+          if (a > b) wins++;
+        }
+    }
+    STACK_OVERRIDE.clear();
+    const rate = wins / Math.max(1, pairs);
+    lines.push(
+      `  ${role.padEnd(15)} ${fmt(stackWorth / seasons).padStart(12)} ${fmt(mixedWorth / seasons).padStart(12)}   ` +
+        `${pct(rate)}`,
+    );
+  }
+  lines.push('');
+  lines.push(
+    '  Target (D7): no more than 5 points of head-to-head over a mixed three, i.e. 45–55%.',
+  );
+  lines.push(
+    '  A stacker pays three wages for one effect, because `bestStaff` means the best hire in',
+  );
+  lines.push(
+    '  a role is the one that acts. That is the price being the gate rather than a penalty,',
+  );
+  lines.push('  and it is why GDD §21 keeps a stacking penalty out unless this table demands one.');
+  return lines.join('\n');
+}
+
 function main() {
   const args = parseArgs(process.argv.slice(2));
   if (args.calibrate) console.log(runCalibration());
@@ -1284,5 +1698,7 @@ function main() {
   else if (args.pups) console.log(runPupCurve());
   else if (args.card) console.log(runCardProbe());
   else if (args.autoplan) console.log(runAutoplan(args.seasons));
+  else if (args.holdPayback) console.log(runHoldPayback(args.seasons, args.seed));
+  else if (args.stacking) console.log(runStacking(args.seasons, args.seed));
   else console.log(runHarness(args));
 }
