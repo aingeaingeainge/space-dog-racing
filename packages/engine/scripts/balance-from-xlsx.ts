@@ -165,7 +165,9 @@ const LABELS: Record<string, string> = {
   'Sabotage: fee': 'sabotageCost',
   'Sabotage: fitness taken off the target for that race': 'sabotageFitness',
   'Fixing: chance the stewards catch you': 'fixCatchBase',
-  'Fixing: catch chance multiplier, Prime fixer': 'fixCatchPrimeMult',
+  'Fixing: catch chance multiplier, Rough fixer': 'fixCatchMultRough',
+  'Fixing: catch chance multiplier, Proper fixer': 'fixCatchMultProper',
+  'Fixing: catch chance multiplier, Prime fixer': 'fixCatchMultPrime',
   'Fixing: fine, flat part': 'fixFineBase',
   'Fixing: fine, multiple of what you had on that race': 'fixFineStakeMult',
   // The guard on §10's rich-get-richer channel (GDD §20 Q7).

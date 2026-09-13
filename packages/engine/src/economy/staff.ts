@@ -1,6 +1,6 @@
 import { balance } from '../content/balance';
 import {
-  FIXER_CAN,
+  FIXER_CATCH_MULT,
   SCOUT_DOGS,
   TIPSTER_REACH,
   TRADER_HOLD,
@@ -80,16 +80,22 @@ export function vetInjuryRelief(p: Player): {
   };
 }
 
+/** Has this stable got somebody who will do a job at all (GDD §13)? */
+export function hasFixer(p: Player): boolean {
+  return hasStaff(p, 'fixer');
+}
+
 /**
- * What this stable's Fixer will do for it (GDD §13, §8.3), or neither if it has not got one.
+ * How much more or less likely the stewards are to notice, given who is doing it (GDD §13, §8.3).
  *
  * The **best** fixer on the books acts, the same as every other role, so two Proper fixers are two
  * wages and one capability — D7's no-stacking-penalty design, which is the absence of a bonus
- * rather than a penalty.
+ * rather than a penalty. With nobody on the books there is nothing to do, so the multiplier is
+ * never asked for.
  */
-export function fixerCan(p: Player): { bribe: boolean; sabotage: boolean } {
+export function fixerCatchMult(p: Player): number {
   const tier = bestTier(p, 'fixer');
-  return tier ? FIXER_CAN[tier] : { bribe: false, sabotage: false };
+  return tier ? FIXER_CATCH_MULT[tier] : 1;
 }
 
 export function scoutDogs(p: Player): number {

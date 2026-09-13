@@ -130,13 +130,14 @@ export const DIFFICULTIES: readonly Difficulty[] = ['easy', 'normal', 'hard'] as
  * exist so the harness can price something no competent agent ever reaches.
  *
  * `careless` is the only way to measure the bankruptcy rate D6 asks for, because a stable that
- * plays well never goes bust. `trainer` and `trader` are GDD §20 Q2's two roads — are they worth
- * the same? — and the crook is Phase D's, because §13 does not exist to be played yet.
+ * plays well never goes bust. `trainer`, `trader` and `crook` are GDD §20 Q2's three roads — are
+ * they worth the same? — and `mixed` plays all three at once, which is §2.1's "they are meant to
+ * be mixable" turned into a number for the first time.
  *
  * They are deliberately **not offered to players**: Title.tsx and lib/seedLink.ts both enumerate
  * the three difficulties by hand, so nothing here can leak into a season setup.
  */
-export type MeasurementAgent = 'careless' | 'trainer' | 'trader';
+export type MeasurementAgent = 'careless' | 'trainer' | 'trader' | 'crook' | 'mixed';
 export type AiAgent = Difficulty | MeasurementAgent;
 
 export type Phase =

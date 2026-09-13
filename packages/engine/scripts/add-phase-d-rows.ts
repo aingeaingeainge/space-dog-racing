@@ -49,7 +49,7 @@ const ROWS: Row[] = [
   ],
   [
     'Sabotage: fee',
-    1200,
+    500,
     'Take fitness off one runner that is not yours, after the prices have gone up. Needs a Proper or Prime Fixer (§8.3)',
   ],
   [
@@ -59,29 +59,31 @@ const ROWS: Row[] = [
   ],
   [
     'Fixing: chance the stewards catch you',
-    0.35,
+    0.25,
     'GDD §13’s starting point. Per job, rolled on race day so it is rolled after the bets are struck — which is what lets the fine be sized against the bet',
   ],
   [
-    'Fixing: catch chance multiplier, Prime fixer',
-    0.5,
-    '§8.3’s Prime tier halves the chance of being caught. The only thing the top tier buys, so the ladder reads',
+    'Fixing: catch chance multiplier, Rough fixer',
+    1.5,
+    '⚠️ The Fixer’s ladder is a ladder of THIS number rather than of what he will do. It started out as a ladder of abilities — a Rough man could buy a box and not get at a dog — and that starved the road: a Proper-or-better fixer turns up rarely enough that a crook had a working one in 30% of its weeks, first arriving in week 6.5. Any fixer does either job now; what you pay for is how well he covers his tracks (D41)',
   ],
+  ['Fixing: catch chance multiplier, Proper fixer', 1],
+  ['Fixing: catch chance multiplier, Prime fixer', 0.5],
   [
     'Fixing: fine, flat part',
-    1500,
+    1200,
     'Charged on a catch, on top of the fee already paid and whatever the job was worth',
   ],
   [
     'Fixing: fine, multiple of what you had on that race',
-    0.5,
+    0.25,
     '⚠️ The whole deterrent design in one number. §8.4’s supplement forfeits the *purse*, so its punishment scales with the size of the race while its benefit is a fixed speed bump — backwards from tempting. §13’s edge is a percentage of the stake, so the fine is a multiple of the stake: it grows with what the crime was actually for. Must stay below (the betting edge ÷ the catch chance) or no stake is ever worth fixing',
   ],
   [],
   ['Betting (GDD §10 / §20 Q7 — the guard on the rich-get-richer channel)'],
   [
     'Max stake per race (flat ceiling)',
-    4000,
+    8000,
     '⚠️ Applies alongside the 50%-of-cash fraction; the binding one is whichever is lower. §10: the crook’s edge is a percentage, so its cash value scales with what you can stake and the leader earns most from the identical fixer’s fee. The fraction alone cannot stop that. Collar Prime lifts it for the Grand Final, which is the one week the road is allowed to pay in a burst',
   ],
   [

@@ -14,7 +14,7 @@ import {
   raceType,
 } from './content/raceTypes';
 import { createStartingDog, emptyPlanetState, type IdGen } from './economy/market';
-import { bestTier } from './economy/staff';
+import { fixerCatchMult } from './economy/staff';
 import { emptyCargo } from './economy/goods';
 import { KIBBLE_ID } from './content/goods';
 import { mulberry32, type Rng } from './rng';
@@ -231,10 +231,17 @@ export function dopingCatchRate(s: GameState): number {
   return currentPlanet(s).special.dopingCatch ?? balance.supplementCatchBase;
 }
 
-/** How often the stewards notice a bought box or a nobbled dog here (GDD §13). */
+/**
+ * How often the stewards notice a bought box or a nobbled dog (GDD §13).
+ *
+ * Two factors and nothing else: **where you are** — the planet's own row, from Lagrange Lows'
+ * 20% to Holy Bark's 60% — and **who you employ**, which is the whole of the Fixer's ladder
+ * (D41). Multiplied rather than added, so a careful man is worth more at Cosmodrome than at
+ * Lagrange Lows, which is the right way round.
+ */
 export function fixCatchRate(s: GameState, p: Player): number {
   const base = currentPlanet(s).special.fixCatch ?? balance.fixCatchBase;
-  return bestTier(p, 'fixer') === 'prime' ? base * balance.fixCatchPrimeMult : base;
+  return Math.max(0, Math.min(1, base * fixerCatchMult(p)));
 }
 
 /**

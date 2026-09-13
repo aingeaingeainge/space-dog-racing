@@ -14,7 +14,14 @@ import {
   type Good,
 } from '../content/goods';
 import { cargoTotal } from '../economy/goods';
-import { buyPriceFor, cargoCap, hasStaff, trainerPoints, wageBill } from '../economy/staff';
+import {
+  bestStaff,
+  buyPriceFor,
+  cargoCap,
+  hasStaff,
+  trainerPoints,
+  wageBill,
+} from '../economy/staff';
 import {
   RACE_TYPE_IDS,
   STAT_KEYS,
@@ -22,6 +29,7 @@ import {
   type Cargo,
   type Dog,
   type GoodId,
+  type GoodTier,
   type StaffId,
   type StaffRole,
   type GameState,
@@ -357,6 +365,31 @@ export interface HireOptions {
   cover?: number;
   /** Ignore the cover test and take the dearest thing on offer. The careless agent's line. */
   reckless?: boolean;
+  /**
+   * Do not take this role below this grade, and trade up to it if a better one turns up.
+   *
+   * ⚠️ **Only one role on the ladder needs this and it is the Fixer** (GDD §8.3, §13). Every other
+   * tier withholds a *number* — a Rough trainer is a worse trainer — so a cheap one is worth having
+   * and `keepStaff`'s "best tier you can cover" is the right rule. A **Rough fixer cannot sabotage
+   * at all**: he knows a steward and not a man who can get at a dog. So a crook who fills its slot
+   * with one has bought a 250-a-week wage and two thirds of nothing, and — because `hasStaff` then
+   * reads true — would never look again. Measured: a crook that takes whatever fixer turns up
+   * nobbles **nothing all season**.
+   *
+   * Keyed by role so it says what it is about rather than applying to the want list wholesale.
+   */
+  minTier?: Partial<Record<StaffRole, GoodTier>>;
+  /**
+   * Take the **cheapest** grade on offer in these roles rather than the best the stable can cover.
+   *
+   * ⚠️ The Fixer is the only role this makes sense for, and the reason is that he is the only one
+   * whose value is **per job** rather than per week. A Prime trainer at 1,400 a week works on every
+   * dog on every Train week, so paying up is paying for more of something you use constantly. A
+   * Prime fixer at 1,400 a week does the same two jobs a Rough one at 250 does — he is simply
+   * caught less — so over a season the dear man costs 15,000 to save a handful of fines. Measured:
+   * the fixer's wage, not the deterrent, is what made §13 a net loss.
+   */
+  cheapest?: StaffRole[];
 }
 
 /**
@@ -393,14 +426,31 @@ export function keepStaff(plan: Plan, opts: HireOptions = {}): void {
   if (slots <= 0) return;
   for (const role of want) {
     if (slots <= 0) return;
+    // The Plan exists so an agent never issues an action the reducer would refuse, and §13 adds the
+    // first refusal in the hiring path that is about *who* rather than about free slots: a stable
+    // the stewards have caught may not take another Fixer this season, and under Clean Sport there
+    // is nothing for one to do. An agent that kept asking would throw rather than simply waste a
+    // week — measured, and this is the line that fixes it.
+    if (role === 'fixer' && (p.flags.fixerBarred || s.toggles.cleanSport)) continue;
+    const floor = opts.minTier?.[role];
+    const have = bestStaff(p, role);
+    // Somebody in this role already, and either no floor to meet or a hire that meets it: done.
+    const wantsBetter =
+      !!floor && !!have && TIER_ORDER.indexOf(have.tier) < TIER_ORDER.indexOf(floor);
     // A forced stack takes the same role again; everything else takes one of each.
-    if (!forced && (hasStaff(p, role) || plan.hiredRoles.has(role))) continue;
+    if (!forced && ((hasStaff(p, role) && !wantsBetter) || plan.hiredRoles.has(role))) continue;
     if (forced && plan.hiredRoles.has(role)) continue;
-    const offers = s.planet.staff.filter((o) => o.role === role && !plan.takenStaff.has(o.id));
+    let offers = s.planet.staff.filter((o) => o.role === role && !plan.takenStaff.has(o.id));
+    if (floor)
+      offers = offers.filter((o) => TIER_ORDER.indexOf(o.tier) >= TIER_ORDER.indexOf(floor));
     if (!offers.length) continue;
-    // Best tier first, then whatever the stable can actually cover.
-    const ranked = [...offers].sort(
-      (a, b) => TIER_ORDER.indexOf(b.tier) - TIER_ORDER.indexOf(a.tier),
+    // Best tier first, then whatever the stable can actually cover — unless this is a role whose
+    // value is per job rather than per week, in which case the cheapest man who will do it wins.
+    const dearestFirst = !opts.cheapest?.includes(role);
+    const ranked = [...offers].sort((a, b) =>
+      dearestFirst
+        ? TIER_ORDER.indexOf(b.tier) - TIER_ORDER.indexOf(a.tier)
+        : TIER_ORDER.indexOf(a.tier) - TIER_ORDER.indexOf(b.tier),
     );
     const weeks = Math.min(cover, weeksLeft);
     const pick = opts.reckless
@@ -408,6 +458,14 @@ export function keepStaff(plan: Plan, opts: HireOptions = {}): void {
       : ranked.find((o) => plan.cash > plan.reserve + o.wage * weeks);
     if (!pick) continue;
     if (opts.reckless && plan.cash <= pick.wage) continue;
+    // Trading up: the slot is full and what is in it cannot do the job, so it goes first. Only
+    // ever reachable through `minTier`, which only the Fixer uses — see HireOptions.
+    // The action is queued; `p.staff` is the live object and is left alone — see the note in
+    // `decideCrook`, where the same mistake threw.
+    if (wantsBetter && have) {
+      out.push({ t: 'FireStaff', playerId, staffId: have.id });
+      slots++;
+    }
     out.push({ t: 'HireStaff', playerId, staffId: pick.id });
     plan.cash -= pick.wage;
     plan.hired++;

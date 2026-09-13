@@ -93,16 +93,17 @@ export const STAFF_ROLES: readonly StaffRoleRow[] = [
   {
     role: 'fixer',
     label: 'Fixer',
-    blurb: 'Knows a steward, and knows a man who can get at a dog (GDD §13)',
+    blurb:
+      'Knows a steward, and knows a man who can get at a dog. Better ones get caught less (§13)',
     // ✅ Hireable as of v2 Phase D. He was withdrawn in M4 session 1 because nothing read
     // `staff.fixer` except a wage, and GDD §19's 2026-09-08 decision kept him out through three
     // phases on the grounds that charging for a service the game does not provide is a trap rather
     // than a difficulty. §13 is built, so he is back, and every line below is now a rule.
     hireable: true,
     effect: {
-      rough: `Buy your dog's box for ${balance.bribeCost} — placed before the draw is made`,
-      proper: `Bribes, and for ${balance.sabotageCost} takes ${balance.sabotageFitness} fitness off a rival after the prices have gone up`,
-      prime: `Bribes and sabotage, and the stewards catch him half as often (${Math.round(balance.fixCatchBase * balance.fixCatchPrimeMult * 100)}% rather than ${Math.round(balance.fixCatchBase * 100)}%)`,
+      rough: `Buys a box (${balance.bribeCost}) or gets at a rival (${balance.sabotageCost}) — but the stewards know his face: caught ${Math.round(balance.fixCatchBase * balance.fixCatchMultRough * 100)}% of the time`,
+      proper: `The same two jobs, and he is careful: caught ${Math.round(balance.fixCatchBase * balance.fixCatchMultProper * 100)}% of the time`,
+      prime: `The same two jobs, and nobody has ever proved a thing: caught ${Math.round(balance.fixCatchBase * balance.fixCatchMultPrime * 100)}% of the time`,
     },
   },
 ];
@@ -178,16 +179,22 @@ export const TIPSTER_REACH: Record<GoodTier, { band: number; card: number }> = {
 };
 
 /**
- * What each grade of Fixer will actually do (GDD §13, §8.3).
+ * How likely the stewards are to notice, by the grade of man you employ (GDD §13, §8.3).
  *
- * A **Rough** fixer knows a steward and nothing else, so he can buy a box and cannot get at a dog.
- * That is the one place on the whole ladder where a tier withholds an *ability* rather than a
- * number, and it is deliberate: the bribe is the cheap, legal-ish half of the road and the
- * sabotage is the half with the punishment tail, so the 250-a-week man should not be able to sell
- * you the second one.
+ * ⚠️ **This started out as a ladder of *abilities* — a Rough fixer could buy a box and not get at
+ * a dog — and that was wrong in a way only measurement showed.** It read well: the cheap half of
+ * the road has no punishment tail, so why should the cheap man sell you the half that does? What
+ * it actually did was starve the road. A Proper-or-better fixer turns up at 30% of the 45% of
+ * planet-weeks that offer one at all, so a crook had a working fixer in **30% of its weeks, first
+ * arriving in week 6.5** — half the season gone before the road opened, and the road's own
+ * acceptance rows unreachable for want of a man rather than for want of a rule.
+ *
+ * So the Fixer's ladder is a ladder of a **number**, which is how every other role on it works
+ * (D41). Any fixer will do either job; what you pay for is how well he covers his tracks. That
+ * also gives the tiers something a player can feel: the same job, three prices, three risks.
  */
-export const FIXER_CAN: Record<GoodTier, { bribe: boolean; sabotage: boolean }> = {
-  rough: { bribe: true, sabotage: false },
-  proper: { bribe: true, sabotage: true },
-  prime: { bribe: true, sabotage: true },
+export const FIXER_CATCH_MULT: Record<GoodTier, number> = {
+  rough: balance.fixCatchMultRough,
+  proper: balance.fixCatchMultProper,
+  prime: balance.fixCatchMultPrime,
 };

@@ -4,7 +4,7 @@ import { raceType } from '../content/raceTypes';
 import { good, STOCK_UNLIMITED } from '../content/goods';
 import { staffTitle } from '../content/staff';
 import { cargoTotal } from '../economy/goods';
-import { buyPriceFor, cargoCap, fixerCan } from '../economy/staff';
+import { buyPriceFor, cargoCap, hasFixer } from '../economy/staff';
 import { dogSalePrice, weakestStat } from '../economy/dogValue';
 import { loanCap, outstanding } from '../economy/loans';
 import { upgradePrice } from '../economy/market';
@@ -324,13 +324,7 @@ function fixThisWeek(s: GameState, playerId: Id, kind: 'bribe' | 'sabotage'): bo
 function fixerOrFail(s: GameState, p: Player, action: Action, kind: 'bribe' | 'sabotage'): void {
   if (s.toggles.cleanSport) fail('Clean Sport: no bribes, no nobbling', action);
   if (p.flags.fixerBarred) fail('The stewards have your name — your fixer is struck off', action);
-  const can = fixerCan(p);
-  if (!can.bribe) fail('You have nobody on the books who knows a steward', action);
-  if (kind === 'sabotage' && !can.sabotage)
-    fail(
-      'A Rough fixer knows a steward, not a man who can get at a dog — you want a Proper one',
-      action,
-    );
+  if (!hasFixer(p)) fail('You have nobody on the books who knows a steward', action);
   if (fixThisWeek(s, p.id, kind)) fail('Your fixer has done his one job this weekend', action);
 }
 

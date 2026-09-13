@@ -245,14 +245,18 @@ const NAMES_BY_ROLE: Partial<Record<StaffRole, readonly string[]>> = {
  * one, a vet works out of the back room at another — get a guaranteed appearance rather than a
  * guaranteed tier: what is on offer there is *someone*, not someone good.
  *
- * ⚠️ **No Fixer.** §13's sabotage and steward bribes are not actions yet, so hiring one would be a
- * wage bill for nothing — a trap rather than a difficulty (GDD §19, 2026-09-08). `HIREABLE_ROLES`
- * is the single place that says so, and the Saloon reads the same list.
+ * ✅ **The Fixer is among them as of Phase D**, and Lagrange Lows guarantees one because its row
+ * has always said "Fixer for hire". `HIREABLE_ROLES` is the single place that decides who can be
+ * offered at all, and the Saloon reads the same list.
  */
 export function rollStaff(planet: Planet, rng: Rng, nextId: IdGen): StaffOffer[] {
   const offers: StaffOffer[] = [];
   const sp = planet.special;
   for (const role of HIREABLE_ROLES) {
+    // The three planets whose row promises somebody in particular (GDD §12). Lagrange Lows says
+    // "Fixer for hire (§13)" and, until Phase D, nothing read that flag at all — the Fixer was not
+    // hireable anywhere, so the special was a line of prose. It is a rule now, and it is what makes
+    // the crook's road something a player can find on purpose rather than wait for.
     const guaranteed = (role === 'trainer' && !!sp.trainer) || (role === 'vet' && !!sp.vet);
     if (!guaranteed && !rng.chance(balance.staffAppearChance)) continue;
     const tier = rollTier(rng, 1);
