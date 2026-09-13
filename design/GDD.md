@@ -1,10 +1,26 @@
 # Space Dog Racing — Game Design Document
 
 **Working title:** Space Dog Racing
-**Version:** 0.5 — 12 September 2026 (v1 shipped at tag `m4`; v2 Phase A at `v2a`, Phase B at `v2b`, Phase C at `v2c`)
+**Version:** 0.6 — 13 September 2026 (v1 shipped at tag `m4`; v2 Phase A at `v2a`, Phase B at `v2b`, Phase C at `v2c`, Phase D at `v2d`)
 **Author:** Jesse Colbert, with Claude as design partner
 **Status:** v2 design. ⚖️ marks a tunable that lives in `space_dog_racing_economy.xlsx`; ❓ marks an open decision; **[measured]** marks a number this design was tested against and **[estimate]** one that is a starting point for the phase that builds it.
 
+> **What changed in 0.6, in one paragraph.** Phase D is built and v2 is complete. §13 exists in
+> code for the first time — the Fixer is hireable, a steward will sell you a box, a man will take
+> fitness off a rival after the prices have gone up, and the stewards will fine you a flat sum plus
+> a quarter of what you had on the race. **The edge is real and the road does not pay**: the same
+> crook with §13 switched off ends **3,498 Bones richer** (D42), because a percentage edge on the
+> 3,000 a stable can stake cannot carry a Fixer's weekly wage for a man it uses twice. Two things
+> inside that are worth more than the headline — betting turns **positive for the first time in the
+> project** (−713 → +1,885), and the crook's p10 collapses 15,349 → 2,592, which is §2.1's
+> punishment tail working exactly as written. Along the way the steward's bribe turned out to buy
+> **nothing** (the trap draw was read in one place in the whole simulation) and an accidental
+> tie-break was silently worth 9.1% against 17.3% between identical dogs; both are fixed and the
+> draw is now a real decision (D37), which bought Q12 a third of a week that nothing aimed at it
+> ever has. §2.1's "the roads are meant to be mixable" is measured for the first time and is **not
+> true** (D43). §9.3's information cards are finally paid, and the championship purse is a third
+> of the size §4.3 estimated (D39).
+>
 > **What changed in 0.5, in one paragraph.** Phase C is built. §8.1's ladder, §8.2's twelve feeds,
 > §8.3's six roles in three slots, §9.2's two fuel levers and §7.5's wage bill are what the game
 > does rather than what it intended, and every ⚖️ in those sections is a cell in the spreadsheet.
@@ -115,7 +131,22 @@ netWorth = cash
 
 Highest net worth wins. Tie-break: most Open wins, then most Majors.
 
-**The championship purse.** Points accrue from race finishes all season and are paid out once, at the Galactic Collar, as prize money. It is a purse, not a scoreboard: it rewards racing breadth, which is the trainer's road only, so it is deliberately modest — **12,000 / 6,000 / 3,000 to the top three on points [estimate]**, about 6% of a champion's end worth. Points **10 / 6 / 3 / 1** for the first four home in any race [estimate].
+**The championship purse.** Points accrue from race finishes all season and are paid out once, at the Galactic Collar, as prize money. It is a purse, not a scoreboard: it rewards racing breadth, which is the trainer's road only, so it is deliberately modest — **5,000 / 2,500 / 1,250 to the top three on points** ⚖️. Points **10 / 6 / 3 / 1** for the first four home in any race ⚖️. ✅ Built.
+
+⚠️ **The estimate was 12,000 / 6,000 / 3,000 and "about 6% of a champion's end worth", and it
+was two and a half times too big (D39).** A champion ends on about 70,000, so 12,000 is **15.5%**
+— and the shape is the giveaway: swept over 200 seasons a cell, **p10 does not move at all while
+p90 rises 16%**, because the purse is paid in the last week of the season to whoever is already in
+front. 5,000 lands at 7.1%, which is the number §4.3 meant. It costs the "decided by" week a
+tenth of a week (6.80 with no purse, 6.70 at 5,000, 6.71 at 12,000), so the hope that a
+late-paying purse would delay the season's decision is answered: it does the opposite, very
+slightly.
+
+✅ **Points are derived from the race archive, not stored.** `RaceResult` already carries the
+finishing order and the owner of each runner on the day, so a field on the Player would be a
+second copy to keep honest — the same argument that kept the dossier out of state (D36). Selling
+a dog does not sell the points it has already won you, and the standings cannot drift out of step
+with the results they are a scoreboard of.
 
 ## 5. Dogs
 
@@ -259,6 +290,38 @@ bends       : bump chance 0.30 within 1.2 m, −30% v for 0.5 s ⚖️  was 0.10
 The constants above were found by sweep and give **speed 23.0% / stamina 20.4% / accel 15.8% / trap 14.4%** — the rating-weight order, for the first time — with **accel peaking on sprints and trap on tight bends**, which is what §5.1 has claimed since the first draft **[measured]**.
 
 **Costs of the change, honestly:** the §6.2 calibration moves from 52.4% to 57.9% (a balanced 65 against seven 50s; the target band is 45–60%, so it holds but sits near the top), a 480 m race runs 33.8 s instead of 31.6 s, and the bookie's `oddsScale` will want refitting — the sim now runs slightly hotter than the model at every rating. **That last one is a feature if it is chosen and a bug if it is not:** a known, small, stable divergence between the sim and the bookie is exactly the edge the crook's road needs, and Phase A should decide its size deliberately rather than inherit it.
+
+✅ **Phase D adds the draw, and it is the one rule change to the simulation since (D37).**
+
+```
+insideness  = (4.5 − trap) / 7                       +0.5 at trap 1, −0.5 at trap 8
+topSpeed   *= 1 + trapDrawEdge × insideness × bend   ⚖️ 0.018, and zero where there are no bends
+bendCraft   = trapStat − trapTraffic × insideness    ⚖️ 20; the lower comes off worse in a clash
+```
+
+**The rail is the short way round, and the rail is where the traffic is.** Two numbers pulling
+opposite ways, so which end of the boxes a dog wants depends on the dog — and **zero on a track
+with no bends**, which makes the Void Derby's straight a race where the draw provably does not
+matter and the screens say so.
+
+⚠️ **This exists because §13's steward bribe bought nothing.** Measured before it was built: the
+trap *number* was read in exactly one place in the whole simulation — the Nervy trait's penalty at
+traps 1 and 8. Trap *craft* decided the bends; the draw decided nothing, so "choose your dog's
+trap draw, 800" was §8.4's supplement again.
+
+⚠️ **And measuring it turned up a bug that had been in every race with bends since M0.**
+`victim = ri.trapStat <= rj.trapStat ? i : j` made the lower array index — which is the lower trap
+— the victim of *every* bend clash between two dogs of equal craft. Between eight identical dogs
+on a tight 480 that was worth **trap 1 winning 9.1% against trap 8's 17.3%** [measured]. Nothing
+intended it and nothing printed it. It is now `bendCraft`: deliberate, sized in the spreadsheet,
+and paid for by the shorter trip on the rail.
+
+**Measured**, one dog walked across all eight boxes against seven craft-50 rivals, 9,000 races a
+box on a tight 480: choosing your box is worth **+3.5 points of win rate**, to a good-craft dog
+and a poor one alike, tapering with the bends to nothing on a straight. It costs the economy
+**1.3%** of mean end worth, leaves stat leverage unmoved and in rating-weight order, and moves the
+"decided by" week **6.6 → 6.9** — which is Q12 responding, for the first time, to something nobody
+aimed at it.
 
 **Everything in this block is `balance.json` — no code changes.** It moves the golden snapshot once and shifts the whole economy, which is why it is Phase A's first commit and not a corner of a later one.
 
@@ -610,7 +673,7 @@ Three slots, filled with any combination — three trainers if you like. **No st
 |---|---|---|---|---|
 | **Trainer** | trainer | +1 stat point per Train week | +2 | +4 |
 | **Vet** | protects the asset | injury −1 week | injury halved, Rest +5 | injury halved, Rest +10, −25% injury chance |
-| **Fixer** | crook | steward bribe only | bribe + sabotage | bribe + sabotage, detection halved |
+| **Fixer** | crook | bribe + sabotage, caught ×1.5 | bribe + sabotage, caught ×1.0 | bribe + sabotage, caught ×0.5 |
 | **Scout** | trainer / trader | +1 dog in every market | +2 dogs, one priced under book | +3 dogs, one under book, stats shown for pups |
 | **Trader** | trader | +10 hold | +20 hold, Proper goods stocked | +30 hold, Prime goods stocked, −5% buy prices |
 | **Tipster** | trader / crook | this planet's card a phase early | next week's card and food band | next *two* weeks' planets and cards |
@@ -659,8 +722,20 @@ Fixer all over again: a wage for a service the game gives away. Rough sells next
 Proper adds the band a week further out, Prime sells both. The AI's `planetAhead` guard is raised by
 exactly the hire, so no agent sees further than a player with the same Tipster.
 
-✅ **The Fixer is still not hireable.** §13 does not exist, so his row is marked unhireable in one
-place and never reaches a planet. GDD §19's 2026-09-08 decision stands through Phase C.
+✅ **The Fixer is hireable as of Phase D**, and GDD §19's 2026-09-08 decision — no wage for a
+service the game does not provide — is discharged rather than overturned: §13 exists, so every
+line on his row is a rule. Lagrange Lows guarantees one, because its row has promised "Fixer for
+hire" since M0 and nothing ever read the flag.
+
+⚠️ **His ladder is a ladder of a *number*, and the version that was not cost the road its
+existence (D41).** He shipped mid-phase with a Rough man who could buy a box and not get at a dog,
+which reads well — the cheap half of the road has no punishment tail, so why should the cheap man
+sell you the half that does? What it did was starve the road: a Proper-or-better fixer turns up at
+30% of the 45% of planet-weeks that offer one, so a crook had a working fixer in **30% of its
+weeks, first arriving in week 6.5**. Any fixer now does either job and what you pay for is how
+well he covers his tracks. Same crook, same seeds: **67% of weeks, first arriving in week 3.8**.
+Every other role on the ladder withholds a number rather than an ability, and the exception was
+the mistake.
 
 ⚠️ **A Trader's hold is a wage, not an asset**, so letting one go takes the capacity with him. Firing
 is **refused** while the hold is over the ship's own capacity — the same shape as "withdraw the dog
@@ -727,7 +802,7 @@ Two consequences to own:
 |---|---|---|---|---|
 | Saloon rumours | **2 weeks** | can be wrong — it is a rumour | free | ✅ Built |
 | Dossier (**Galaxy Map**) | the week after next, in full | exact | **650** | ✅ Built |
-| Event cards | varies | usually exact, sometimes a lie | varies | ⏳ Phase C |
+| Event cards | 2 weeks | **usually exact, sometimes a lie** | 150–260 | ✅ Built (Phase D) |
 | **Tipster** (staff) | 1–2 weeks, standing | exact | a wage | ⏳ Phase C |
 
 ✅ **Built, and the dossier adds nothing to GameState.** The whole circuit is in `calendar`
@@ -752,7 +827,17 @@ gossip about and the Saloon was silent most weeks.
 staff ladder (§8.3), and its ladder starts one rung higher than the table above because next week's
 kibble band turned out to be free already — see §8.3.
 
-**The information event cards did not land, and the reason is the snapshot rule rather than the
+✅ **The information cards landed in Phase D, and what they add is the thing the other three
+carriers cannot do.** A drunk navigator sells the week after next for 260 and two drinks; a
+customs clerk sells the kibble band two weeks out for 200 and is **wrong a quarter of the time**;
+a tout sells next week's card for 150 and is wrong a fifth of the time. A dossier is a purchase
+you chose and a rumour is free; a card is an **offer you did not ask for, at a price you did not
+set, from a source you cannot check**. They add nothing to `GameState` — what a card sells is a
+log line addressed to the buyer (D5, D36) — and a card that lies writes a line that is wrong with
+nothing anywhere marking it. The lie is rolled when the card is *drawn*, so a human and an AI meet
+the same manifest and the rng stream does not depend on which button is pressed.
+
+⚠️ **The Phase C note, kept: the reason they slipped twice was the snapshot rule rather than the
 work.** Adding a card re-weights the whole deck and moves the golden digest; Phase C's two moves were
 spent on the goods record and the ladder's content, and a third was not available. Prime offers, the
 other job §11 gives the deck, turned out not to need a card at all — the shelf's own 5% stock chance
@@ -772,7 +857,24 @@ Bookies open after declarations lock. **Win** and **Place**, any race, any dog, 
 
 Betting is zero-sum minus the house, and is only a road **because §13 manufactures the knowledge that makes it positive**. See §13.
 
+✅ **And it now is.** Phase D's ablation — the same crook agent, the same seeds, with §13 switched
+off — moves betting income from **−713 to +1,885** a season. The sentence above has been an
+intention since 0.2; it is a measurement as of `v2d`.
+
 ⚠️ **Max stake is a rich-get-richer channel.** The crook's edge is a *percentage*, so its cash value scales with what you can stake, which means the leader earns most from the same fixer's fee. Phase D must cap the crook's road with a flat stake ceiling as well as a fractional one ⚖️.
+
+✅ **Built: `maxStakeFlat` is 8,000, applied alongside the 50% fraction, and the lower one binds**
+(§20 Q7). Collar Prime multiplies it by 3, because §2.1 gives the crook's road "bursts, at the
+biggest races" and the Grand Final is the one week where letting it have one costs the rest of the
+design nothing. The guard holds: `leadConversion` split on whether a stable bet reads **leader
+−0.11 against trailer −0.05**, so having had a bet costs a leader *more* than a trailer.
+
+⚠️ **And the measurement turned the question around.** The flat ceiling is not what binds in
+practice — the **fraction** is, at about 3,000 on a stable carrying six or seven thousand. The
+ceiling matters only to a stable that has borrowed itself a bankroll, which is exactly the crook.
+So §20 Q7's "what ceiling stops the leader" has an answer, and a more interesting question is left
+behind it: can a road whose edge is a percentage ever be a third road while the bankroll is a
+racing stable's working capital? See §13 and §20 Q15.
 
 ## 11. Events
 
@@ -796,10 +898,10 @@ Four Major venues and fourteen regular planets, unchanged from v1 in name, track
 
 | Planet | Track | Food | Special |
 |---|---|---|---|
-| **Cosmodrome** *(Major — The Cosmodrome Classic)* | Standard 480, wide | 80–110 | Bank; strict stewards (30%); buyers +15%; sells finished dogs |
+| **Cosmodrome** *(Major — The Cosmodrome Classic)* | Standard 480, wide | 80–110 | Bank; strict stewards (doping 30%, fixing 50%); buyers +15%; sells finished dogs |
 | **Ossuary** *(Major — The Bonemeal Cup)* | Staying 600, tight, hazard ×1.5 | 80–110 | Shark; dog values +10%; *Stayer* shines |
 | **Blackreach** *(Major — The Void Derby)* | Sprint 350, no bends | 90–130 | Turn order reversed; *Sprinter* paradise |
-| **Collar Prime** *(Major — The Galactic Collar)* | Standard 480, medium | 90–130 | Always week 13; championship purse paid here; margin 10%, max stake 100% |
+| **Collar Prime** *(Major — The Galactic Collar)* | Standard 480, medium | 90–130 | Always week 13; championship purse paid here; margin 10%, max stake 100% and the flat ceiling ×3 |
 | **Kibbleton Prime** | Standard, wide | 40–60 | Cheapest; best place to load |
 | **Rustgut** | Standard, tight | 110–140 | Cheap knackered dogs; rarely stocks above Rough |
 | **Neon Snout** | Standard | 100–140 | Margin 10%; everything else +20% |
@@ -808,32 +910,140 @@ Four Major venues and fourteen regular planets, unchanged from v1 in name, track
 | **Glassfall** | Sprint 350, slippery | 85–120 | Acceleration matters more; food spoils without a cold store |
 | **Port Slobber** | Standard | 70–100 | Every staff role for hire; 10% tax on winnings; bank |
 | **Vatgrown** | Standard | 45–70 | Supplements legal; **the pup market**; always Prime pup feed |
-| **Old Wembley** | Standard, classic | 70–100 | Doping catch 40%; purse +20% |
-| **Hushmarket** | Standard, tight | 100–140 | Fell-off-a-ship dogs and goods at 60%; shark |
+| **Old Wembley** | Standard, classic | 70–100 | Doping catch 40%, fixing 55%; purse +20% |
+| **Hushmarket** | Standard, tight | 100–140 | Fell-off-a-ship dogs and goods at 60%; stewards catch 25%; shark |
 | **Sunbleach** | Standard, hazard ×1.2 | 100–130 | Fitness −5 on arrival; cheap kennel modules |
 | **Tinkertown** | Sprint 350 | 70–100 | Engine upgrades −40%; muzzles |
-| **Holy Bark** | Staying 600, serene | 45–70 | No betting; no upkeep; +5 fitness |
-| **Lagrange Lows** | Standard, tight | 100–140 | **Fixer for hire (§13)**; shark; locals are *Nervy* |
+| **Holy Bark** | Staying 600, serene | 45–70 | No betting — so no sabotage either; no upkeep; +5 fitness; stewards catch 60% |
+| **Lagrange Lows** | Standard, tight | 100–140 | **A Fixer is always for hire (§13)**; stewards catch 20%; shark; locals are *Nervy* |
 
 ## 13. The crook's road
 
-⚠️ **This section is the one part of the GDD that has never existed in code.** The Fixer was withdrawn from hire in M4 session 1 because nothing read `staff.fixer` except a 350-a-week wage. He returns when this does.
+✅ **Built at `v2d`. This was the one part of the GDD that had never existed in code** — the Fixer
+was withdrawn from hire in M4 session 1 because nothing read `staff.fixer` except a 350-a-week
+wage, and three phases upheld that on the grounds that charging for a service the game does not
+provide is a trap rather than a difficulty. Every line below is now a rule.
 
-- **Steward bribe** (Fixer, 800 ⚖️) — choose your dog's trap draw.
-- **Sabotage** (Fixer, 1,200 ⚖️) — target one rival dog in one race: **−25 fitness for that race** ⚖️.
+- **Steward bribe** (Fixer, 800 ⚖️) — choose your dog's trap draw. ✅ Placed in the **planet phase**,
+  because the draw is made when declarations lock, and honoured **last** in `lockDeclarations` —
+  after the shuffle, after wide runners are put outside, after the dodgy-steward card — because a
+  bribe a later rule could undo would be §8.4 wearing a hat.
+- **Sabotage** (Fixer, 500 ⚖️) — target one runner that is not yours in one race: **−25 fitness for
+  that race** ⚖️. ✅ Placed in the **betting phase**, and *that is the mechanic* (see below).
 - **Supplement** — §8.4, unchanged.
-- **Throwing a race** — stays out. Measured at exactly ±0 for the Hard AI, and deliberately losing tends to feel bad.
+- **Throwing a race** — stays out. Measured at exactly ±0 for the Hard AI, and deliberately losing
+  tends to feel bad.
 
-**Why −25 and not the −15 the first draft proposed.** Measured on a Gold-class field (my rating-58 dog, one rival at 68, six locals at 58): nobbling the rival by 15 moves his win rate 35.4% → 20.5% and mine 8.8% → 12.1%, worth +163 of purse EV against a 1,200 fee — not a strategy. At **−25** he falls to 11.6% and mine rises to 13.4%, and, crucially, **because the bookie still prices him at 68, backing my own dog at its unmoved 9.12 odds is worth +23% EV** **[measured]**.
+**Why −25 and not the −15 the first draft proposed.** Measured on a Gold-class field (my rating-58
+dog, one rival at 68, six locals at 58): nobbling the rival by 15 moves his win rate 35.4% → 20.5%
+and mine 8.8% → 12.1%, worth +163 of purse EV against the fee — not a strategy. At **−25** he
+falls to 11.6% and mine rises to 13.4%, and, crucially, **because the bookie still prices him at
+68, backing my own dog at its unmoved 9.12 odds is worth +23% EV** **[measured]**.
 
-**The money is in the bookie, not the purse** — +288 of purse EV against a betting edge that scales with the stake. That is the honest shape of the crook's road and it dictates two things: the Fixer's economics must be capped by a stake ceiling (§10), and the deterrent must be sized against the *bet*, not the race.
+✅ **Re-measured in Phase D on the fields the game actually produces, and +23% holds.**
+`npm run harness -- --fix`, 5,850 locked fields across 150 real seasons:
+
+| what you back | mean edge | p50 | p90 | share worth backing |
+|---|---|---|---|---|
+| a stable-owned runner (§13 as written) | **23.2%** | 13.2% | 58.3% | 83.8% |
+| the best price left on the board (§10) | **27.4%** | 15.4% | 67.2% | 93.0% |
+| …of those, at a Major | **33.1%** | 18.8% | 79.9% | 95.3% |
+
+⚠️ **The second row is a correction to this section.** §13 describes the move as "backing your own
+dog at its unmoved odds", which is one case of a more general fact: nobbling the favourite lifts
+the true chance of **every other runner in the race** while all eight prices stand still, and §10
+has allowed a bet on any dog in any race since v1. A crook restricted to its own runner found a
+positive fix in **10 of 1,600 stable-weeks** — a mid stable's dog is a 2% chance at 42/1, and 45%
+of nearly nothing is nearly nothing. The honest optimum is to nobble the favourite and take
+whichever price the market is now most wrong about (D38).
+
+**The money is in the bookie, not the purse** — +288 of purse EV against a betting edge that scales
+with the stake. That is the honest shape of the crook's road and it dictates two things: the
+Fixer's economics must be capped by a stake ceiling (§10), and the deterrent must be sized against
+the *bet*, not the race.
+
+### ⚠️ The phase a sabotage sits in *is* the mechanic
+
+A nobbling lands in the **betting** phase and nowhere else. The prices are struck when
+declarations lock and nothing re-prices them, so a job placed after the lock is money in a market
+that has not heard about it. Placed any earlier it would either be priced in, or could only reach
+the stables that happened to declare before you — an edge handed to whoever went last. The dog's
+**stated** fitness never moves: `nobbled` is a separate figure and the field table goes on printing
+the number the victim and the book both believe. That divergence is not untidiness to be cleaned
+up later; it is the road.
+
+One consequence to own: **Holy Bark has no bookie, so it skips the betting phase, so no sabotage is
+possible there at all.** A bought box still is. The crook's road needs a market to sell into, which
+is coherent rather than a limitation.
+
+### The deterrent, and what measuring it found
 
 **Two hard constraints, or this road eats the game:**
 
-1. **Getting caught must be severe, and must not scale with the purse.** Guaranteed information is worth a great deal and the punishment tail is the only thing holding the road in line. A fine of 3,000 at 25% detection is −750 expected against a gross of roughly +1,400 — not enough. Phase D's starting point is **detection 35% at Rough, and a penalty compounded of a fine, the Fixer barred for the rest of the season, and the wronged stable being told who did it** ⚖️.
-2. **It must not be strictly better than the other two.** Measure all three against each other before it ships (§20 Q2).
+1. **Getting caught must be severe, and must not scale with the purse.** ✅ Built as **a flat fine
+   plus a quarter of what you had on that race** ⚖️, rolled **on race day** — after the bets are
+   struck, which is the only order in which a fine can be sized against a bet at all. The purse is
+   untouched, because taking it would be §8.4 again: a punishment that grows with the race while
+   the benefit does not. The Fixer is struck off and no other will work for the stable for the rest
+   of the season, which is the half of the deterrent that grows with how often the road is used.
+2. **It must not be strictly better than the other two.** ✅ Measured (§20 Q2). It is not; it is
+   considerably worse.
 
-All shady options are off under the **Clean Sport** toggle.
+⚠️ **This section feared the deterrent was too light, and it was far too heavy.** 0.4 reasoned:
+"a fine of 3,000 at 25% detection is −750 expected against a gross of roughly +1,400 — not enough."
+**The gross was the part that was wrong.** A stable's affordable stake is about 3,000, because the
+50%-of-cash fraction binds on six or seven thousand of working capital, so an average fix grosses
+about **840** — not 1,400. At the specified 1,200 fee and 35% detection the average fix **loses
+money at any stake a stable can reach**. Swept, 150–250 seasons a cell:
+
+| catch | fine | fee | ceiling | crook mean | fixes a season | caught |
+|---|---|---|---|---|---|---|
+| 0.35 | 1,500 + 0.50 × stake | 1,200 | 4,000 | 29,493 | 0.8 | 36% |
+| 0.30 | 1,500 + 0.25 × stake | 1,200 | 4,000 | 29,533 | 1.0 | 38% |
+| 0.25 | 1,500 + 0.25 × stake | 800 | 4,000 | 31,607 | 1.4 | 46% |
+| **0.25** | **1,200 + 0.25 × stake** | **500** | **8,000** | **34,600** | **2.6** | **64%** |
+
+Settled at the last row, with the catch rate multiplied by the planet (Lagrange Lows 20% up to
+Holy Bark 60%) and by the grade of fixer (×1.5 / ×1.0 / ×0.5). The constraint that shapes the whole
+thing is one line: **the fine's stake multiple must stay below (the edge ÷ the catch chance), or
+no stake is ever worth fixing.**
+
+### ⚠️ And the road still does not pay (D42)
+
+The ablation — the same crook agent, the same seeds, once with §13 and once with it switched off,
+250 seasons:
+
+| crook | mean | p10 | p90 | betting income |
+|---|---|---|---|---|
+| with §13 | **26,957** | 2,592 | 46,667 | **+1,885** |
+| §13 ablated | **30,455** | 15,349 | 51,362 | −713 |
+
+**Working the road costs 3,498 Bones of end worth.** The deterrent is not what eats it — the
+**wage** is. A Fixer is charged every week and used about twice a season, against a gross of 840 a
+fix. The same arithmetic shows up from the other side in §14: teaching the Hard AI to take a Fixer
+into its third slot *and work him* costs it 9.5 points of head-to-head.
+
+Two things inside that table are worth more than the headline. **Betting is positive for the first
+time in this project** (−713 → +1,885), so §10's "only a road because §13 manufactures the
+knowledge" is a measurement rather than an intention. And the **p10 collapses 15,349 → 2,592**,
+which is §2.1's punishment tail working exactly as described.
+
+What is left is a named lever rather than a fix: **the stake, and where the money for it comes
+from.** A percentage edge on three thousand Bones cannot carry a weekly wage. The two honest moves
+are a Fixer who is not a weekly wage, or a bankroll that is not a racing stable's working capital
+— and §20 Q15's loan shark is the second of those, at 10% a week, which the measurement says is
+too dear for it.
+
+All shady options are off under the **Clean Sport** toggle. ✅ Both actions and the hire refuse
+under it, and the Saloon, the hub and the walk-through all respect the refusal rather than offering
+a button the reducer throws on.
+
+⚠️ **§13's third penalty — "the wronged stable being told who did it" — is logged and does nothing,
+and that is a decision rather than an omission (D40).** The line is public, so it reaches every
+stable at the table; but an AI holds no grudge, so in single-player it is flavour. Making it bite
+means retaliation, which is a rule this document does not describe and a fourth thing to balance.
+It is a **multiplayer** feature, written up for M6 (§18), and the fine and the season ban are sized
+to carry the whole deterrent without it.
 
 ## 14. AI stables
 
@@ -858,6 +1068,33 @@ gap exist, so a market dog is credited with rating points for each race type the
 field a runner for, and `sellAgeingDog` will not sell the last dog that could take a Veterans
 trap. Worth ±0 in head-to-head and kept for the same reason the Bronze throw is.
 
+⚠️ **Phase D tried two more things on Hard and rejected both, and the second is a finding about
+§13 rather than about Hard.** It beats Normal **57.7%** against the 63–68% row.
+
+| Hard's betting, 300 seasons | beats Normal | mean | p10 | bet income |
+|---|---|---|---|---|
+| a flat fraction of cash (kept) | **58.3%** | 41,109 | 9,390 | +867 |
+| quarter-Kelly on the edge it measured | 56.7% | 37,915 | 11,061 | −178 |
+
+§14 has asked since M4 for Hard to price its own information, and it does — then stakes the same
+fraction of cash whether the edge is 16% or 90%, which is most of the way to not knowing. Sizing
+by it is *worse*, and the reason is specific: **Kelly stakes more as the price shortens**, so it
+moves money off the long shots — which is exactly where `effectiveRating` finds its edge, because
+a fed dog that has not had the results yet is a dog the book has long — and onto short ones, where
+Hard's own estimate is least likely to beat the book's. Sizing a bet by an edge you have
+*measured* is right; sizing it by one you have *estimated* is right only where the estimate is
+good, and Hard's is good in one corner of the board.
+
+| Hard's third slot, 200 seasons | beats Normal | mean | p10 | fixes |
+|---|---|---|---|---|
+| trainer + vet (kept) | **58.8%** | 41,663 | 8,919 | 0.0 |
+| trainer + vet + fixer, **and working him** | 49.3% | 33,973 | 7,460 | 0.8 |
+
+That is D30's question re-asked now that §13 gives the third slot something to do, and the answer
+is a flat no by **9.5 points** — the same per-job-value-against-per-week-wage arithmetic that stops
+the crook's own road paying (§13). Both are kept behind `HARD_KNOBS` with the tables in the
+comment, so the next session does not re-try them.
+
 ⚠️ **Easy is unchanged, and the attempt to fix it is recorded as D26.** An Easy that puts its
 good dog in the wrong race turns out to be *stronger* than one that puts a random dog in a random
 race, so the card's third option makes the ladder worse rather than better.
@@ -872,8 +1109,12 @@ Each AI stable keeps its name, colour, portrait and one-line personality.
 4. **Kennels** — ⚠️ **the new centre of the game.** Each dog as a card with **Race / Train / Rest** as the primary control, its fitness trajectory, what feed it would eat, and what it would gain.
 5. **Market** — dogs (mostly pups), feeds by tier with chevrons, items, staff by tier, dossiers.
 6. **Docks** — ship, and a multi-good hold gauge with price history.
-7. **Race Office** — ✅ three race cards, each naming **its entry criterion**, with your eligible dogs, everyone's declarations, and the **week ledger** (§6.5) that prints what a run costs.
-8. **Bookie** — odds, stake slider.
+7. **Race Office** — ✅ three race cards, each naming **its entry criterion**, with your eligible dogs, everyone's declarations, the **week ledger** (§6.5) that prints what a run costs, and ✅ **the steward's box** (§13), priced against this race's purse and this track's bends — which on a track with no bends says plainly that the box is a starting position and to keep your money.
+8. **Bookie** — odds, stake slider, and ✅ **the Fixer's counter** (§13): what nobbling the
+   favourite is worth *in Bones on the stake dialled in*, what the stewards cost you if they
+   notice, and the stake at which the whole thing stops losing. A button reading "−25 fitness · 500
+   Bones" would be §8.4's supplement in a new coat — a correct rule with its price in the wrong
+   units — and §13's road is a percentage edge whose cash value **is** the stake.
 9. **Race view** — unchanged.
 10. **Leaderboard** — cash, dogs, ship, cargo, debt, net worth, championship points, syringes.
 11. **Season end** — podium, worth chart, moments, championship purse.
@@ -952,6 +1193,13 @@ Moved to **M6, behind v2**. Building a server for rules that are about to change
 | **2026-09-12** | **D33 — feed eaten is a running cost, not a failed trade** | `stats.tradeIncome` is sold minus bought, so a stable that bought a crate of Prime speed feed and fed it to a dog looked like a trader who had lost 900 Bones — which is why "trade" read as a loss for three phases. §7.2 already lists feed eaten among the weekly costs. The crate's value now moves to costs at consumption, valued at what it would have fetched, and Normal's trade income reads **+1,939**. Same class of fix as Phase B's gross road split: you cannot balance three roads while one of the numbers measures something else |
 | **2026-09-12** | **D34 — a hotspot flags what CHANGES, not what is always there** | The market got several times deeper and `hub-clicks` went 13.9 → 15.3 against a 14.5 budget. The culprit was not the new market: it was "you could afford an engine tier", firing in **533 of 650 planet phases**, true every week once true at all. A permanent fit does not expire and a bank does not close, so both became quiet-line material; stock, prices and who is drinking here do expire, so they stayed news. Back to **13.9** with a market several times deeper, which is §8.5's "spend the difference on better summaries" done properly rather than promised |
 | **2026-09-12** | **D35 — the Tipster's ladder starts at next week's card, not next week's band** | §9.3's table gives a Rough tipster "next week's kibble band", but the band has always been free in the build: the Docks prints it and `tradeFoodPlan` reads it, and that one-week visibility is what makes the trade a judgement. Selling it would have been the Fixer again — a wage for what the game gives away |
+| **2026-09-13** | **D37 — ⚠️ the trap *draw* gets a real effect: the rail is the short way round and where the traffic is** | §13's steward bribe sells you your dog's box, and **the box was worth nothing**: the trap number was read in one place in the whole simulation (the Nervy trait at traps 1 and 8), so the bribe was §8.4's supplement again. Measuring it also turned up a bug of M0's vintage — the bend tie-break made the **lower array index**, which is the lower trap, the victim of every clash between two dogs of equal craft, worth **9.1% against 17.3%** between identical dogs on a tight 480. Two numbers now, pulling opposite ways: `trapDrawEdge` 0.018 makes the inside faster, `trapTraffic` 20 makes it need craft to hold. Choosing your box is worth **+3.5 points of win rate** on tight bends and nothing on a straight. Cost: 1.3% of the economy; bought: the season decided at 6.9 instead of 6.6, which is Q12 moving for something nobody aimed at it |
+| **2026-09-13** | **D38 — a sabotage is placed in the *betting* phase, and a crook may back any runner rather than only its own** | The phase is the mechanic: the prices are struck at the lock, so a job placed after it is money in a market that has not heard. Earlier it would be priced in, or could only reach whoever declared before you. And §13's "backing your own dog at its unmoved odds" is one case of a general fact — nobbling the favourite lifts the true chance of *every* other runner while all eight prices stand still, which §10 has allowed a bet on since v1. Restricted to its own runner a crook found a positive fix in **10 of 1,600 stable-weeks**; a mid stable's dog is a 2% chance at 42/1 |
+| **2026-09-13** | **D39 — the championship purse is 5,000 / 2,500 / 1,250, and points are derived rather than stored** | §4.3 estimated 12,000 and called it "about 6% of a champion's end worth"; measured, a champion ends on 70,000 and 12,000 is **15.5%**. The shape is the giveaway: swept over 200 seasons a cell, **p10 does not move at all while p90 rises 16%**, because the purse is paid in the last week to whoever is already in front. 5,000 lands at 7.1%. Points come off `RaceResult`'s own finishing order and owner-on-the-day, so a field would be a second copy to keep honest — D36's argument again |
+| **2026-09-13** | **D40 — "the wronged stable is told who did it" is logged and inert until M6** | §13's third penalty. The line is public and reaches the whole table, but an AI holds no grudge, so in single-player it is flavour. Making it bite means retaliation — a rule the GDD does not describe and a fourth thing to balance in a phase that already carries a three-road pass. Jesse's call: write it up for M6 and size the fine and the season ban to carry the deterrent without it |
+| **2026-09-13** | **D41 — ⚠️ the Fixer's ladder is a ladder of a *number*, not of abilities** | He shipped mid-phase with a Rough man who could buy a box and not get at a dog. It reads well — the cheap half of the road has no punishment tail — and it **starved the road**: a Proper-or-better fixer turns up at 30% of the 45% of planet-weeks that offer one, so a crook had a working fixer in **30% of its weeks, first arriving in week 6.5**. Any fixer does either job now and what you pay for is how well he covers his tracks (caught ×1.5 / ×1.0 / ×0.5). Same crook, same seeds: **67% of weeks, week 3.8**. Every other role on the ladder withholds a number rather than an ability; the exception was the mistake |
+| **2026-09-13** | **D42 — ⚠️ §13 is built, correctly priced, and does not pay. The wage is what eats it, not the deterrent** | The ablation, 250 seasons, the same agent and seeds with the road switched off: **crook 26,957 with §13 against 30,455 without**. The edge is real and re-measured (23.2% on your own runner, 27.4% on the best price left) and **betting turns positive for the first time in the project**, −713 → +1,885; the p10 collapses 15,349 → 2,592, which is §2.1's punishment tail working. But a stable can stake about 3,000, so a fix grosses ~840, and a Fixer is a *weekly* wage for a man used *twice a season*. §14's mirror image: teaching Hard to take one and work him costs 9.5 points of head-to-head. The deterrent was swept out — §13 feared it was too light and it was far too heavy — and what is left is a named lever: the stake, and where the money for it comes from |
+| **2026-09-13** | **D43 — ⚠️ the three roads are *not* mixable, measured for the first time** | §2.1: "They are meant to be mixable… and should be about as rich as one that commits." The mixed agent plays the same steps as the other three with one options object each, and over 400 seasons in the same seasons it ends on **25,803** against the trader's 29,532 and the trainer's 35,644 — worse than every single road. Three roads compete for three staff slots, one kennel's cash and one week's attention. Whether that is a fault is a design question rather than a measurement one, and it is Jesse's: committing is a *decision*, and a game whose safe answer is "a bit of each" has fewer of them — but §2.1 promises otherwise in print |
 | **2026-09-12** | **D36 — `leadConversion` reads the action stream rather than `PlayerSeasonStats`** | §7a.4 specifies a two-field addition to the engine's stats. The harness applies every action itself, so "this stable bought a Prime thing" is already in front of it; doing it there added nothing to GameState and kept the golden snapshot at its two moves. The same argument that kept the dossier out of state in Phase B |
 
 ## 20. Open questions ❓
@@ -972,6 +1220,22 @@ Moved to **M6, behind v2**. Building a server for rules that are about to change
     trader's is the safe one (12,208 to 54,367). One road wins big, the other rarely loses. That is a
     better outcome than "equal" and it is exactly the shape pillar 1 wanted.
 
+    ✅ **Phase D adds the other two, 400 seasons, all four in the same seasons:**
+
+    | agent | mean | p10 | p90 | p90/p10 | prize | trade | bet | fixes | caught |
+    |---|---|---|---|---|---|---|---|---|---|
+    | trainer | **35,644** | 7,592 | 77,094 | 10.2 | 38,123 | 589 | 0 | 0.0 | — |
+    | trader | 29,532 | 8,995 | 50,232 | **5.6** | 23,834 | 5,511 | 0 | 0.0 | — |
+    | crook | 28,785 | 1,295 | 77,072 | **59.5** | 27,421 | 1,231 | 1,311 | 2.1 | 61.0% |
+    | mixed | **25,803** | 3,192 | 45,815 | 14.4 | 31,136 | 1,995 | 614 | 0.8 | 30.5% |
+
+    **23.8% apart against a 15% target — missed.** The spread row is met on the half that matters:
+    the crook is by far the widest (59.5 against the trainer's 10.2), which is §2.1's "high, with a
+    punishment tail". The half that is not met was already wrong: BUILD_PLAN says "the trainer
+    narrowest" and Phase C measured the opposite — **the trader** is the safe road, at 5.6.
+
+    ⚠️ And the mixed row is the finding: see D43. Playing all three is worse than any one of them.
+
     ⚠️ **Two things to hold onto.** The trader's own trade income is **6,680** against BUILD_PLAN §6b's
     8–15k row, so that row is *missed* even though the road pays: what is short is the income line, not
     the outcome. Diagnosis in §9.2 — the road is bound by the cash to buy stock, and the honest next
@@ -987,7 +1251,7 @@ Moved to **M6, behind v2**. Building a server for rules that are about to change
 7. ~~**Q4 — What is the right `oddsScale` after D12?**~~ — **answered: 15.5** (from 17.5; the least-squares best fit is 15.25 and the bowl is flat between 15.0 and 15.5). 15.5 minimises the *worst-case* error across ratings 35–75 at 2.1 points. It leaves the bookie under-pricing the very best dogs by that 2.1 — a deliberate, stable divergence in the direction §6.2 wants, and small enough that backing favourites blind still loses to the 15% margin. **At 17.5 the gap was 8.4 points at rating 65**, which is a standing overlay big enough to beat the margin: free money for anyone who noticed, and Phase D's crook would have been balanced against a bug. The edge the crook's road needs comes from what the bookie *cannot see* — a fed dog, a supplement, a sabotage — not from a mis-fitted scale.
 8. **Q5 — Does the fact-gated card feel arbitrary under the fog?** Measured to work structurally (§6.3); untested as an experience.
 9. ~~**Q6 — How big does the hold have to be, and how cheap the fuel, before the trader's road pays?**~~ — **answered: fuel 2 a crate and a 1,400 hold, and the first upgrade is the only one worth buying.** Sized by ablation rather than estimate (§9.2's table): the first +20 hold returns **1,506 against 1,400 paid**, the second 996, the third 395 and the fifth less than nothing. The useful half of the answer is the shape rather than the number — **capacity has sharply diminishing returns because the road is bound by the cash to buy stock, not the room to put it in** — and that is now printed on the Docks' own cargo row so a player meets it before paying for it.
-10. **Q7 — What flat stake ceiling keeps the crook's road from scaling with the leader's bankroll?** (§10)
+10. ~~**Q7 — What flat stake ceiling keeps the crook's road from scaling with the leader's bankroll?**~~ — **answered: 8,000, ×3 at Collar Prime — and the question turns out to be the wrong one.** The guard works: `leadConversion` split on whether a stable bet reads **leader −0.11 against trailer −0.05**, so having had a bet costs a leader *more* than a trailer. But the flat ceiling is **not what binds in practice** — the 50%-of-cash fraction is, at about 3,000 on a stable carrying six or seven thousand. The ceiling only reaches a stable that has borrowed itself a bankroll, which is exactly the crook, and it is the **single biggest lever on whether §13 pays at all** (the sweep in §13: 4,000 → 8,000 is worth more than the fee, the fine and the catch rate put together), because the edge is a percentage and the fee is not. The question left behind it is Q17.
 11. **Q8 — Retirement at age 7, or decay?** Default: decay, player chooses. Veterans races (§6.3) make an old dog worth keeping for the first time, which may settle this on its own.
 12. **Q9 — Reputation as a visible stat?** Default: still v2-plus.
 13. **Q10 — Does the human ever see the exact bookie probability?** Default: odds only.
@@ -999,9 +1263,13 @@ Moved to **M6, behind v2**. Building a server for rules that are about to change
 
 17. **Q14 — Is `races per dog` the wrong measure, or is the game still under-racing?** It reads **5.1** against a 7–9 band and has now missed in three phases running (v1 5.2, Phase A 5.2, Phase B 4.8). Phase C moved it *up* a little, for the first time, because a stable with feed aboard has a reason to keep a dog in work. But the band was set when every dog raced every week, and §6.3's card plus §5.7's fitness together mean a five-dog stable entering 1.97 races a weekend over 13 weekends is **5.1 runs a dog by arithmetic** — 1.97 × 13 ÷ 5. To reach 7 a stable would have to own fewer dogs or fill more of the card, and both are things the design deliberately pushes the other way. Worth deciding whether the target should be 5–6 rather than tuning toward 7.
 
+⚠️ **Q15's answer turned out to be about the wrong road.** The crook agent borrows from Fat Tony because its edge is a percentage of what it can stake, and 10% a week is still dear enough that it barely helps (see D42 and Q17). The trader's road is bound by cash too, but a trader can at least *hold* what it buys; a crook's bankroll is spent and settled in the same weekend. If Tony is ever the answer to anything, it is the crook.
+
 18. **Q15 — Should the trader be able to borrow more?** The trader agent's road pays (Q2) but its trade income is 6,680 against an 8–15k row, and the binding constraint is measured: cash, not capacity or margin. The bank lends 5,000 at 3% a week and the agent now uses it; Fat Tony lends 15,000 at 10% and it does not. A road financed on Tony's terms is a different and more interesting game than one financed on the bank's, and it is the sort of thing §13's phase could price properly.
 
-19. **Q16 — Is the Prime trainer too strong when it lands early?** `--pups` reads a pup reaching par at **week 4** with a Prime trainer and plain kibble, against week 8 with a Rough one. That is a big lever, and with Prime feed on top it is bigger. `leadConversion` says the Prime tier is not amplifying the leader (Q3), so the guards are holding *in aggregate* — but a Prime trainer hired in week 2 by a stable that then buys a pup is a specific line the aggregate may be hiding. Worth a probe rather than a change.
+19. **Q17 — Can a road whose edge is a percentage ever be a third road, while the bankroll is a racing stable's working capital?** This is what is left of §13 after D42. The edge is real and re-measured (23–27% of the stake); the stake is about 3,000 because that is half of what a stable is carrying; so a fix grosses ~840 and a Fixer costs 250–1,400 a **week** for a man used **twice a season**. Every other lever was swept and the arithmetic did not move. The two honest next moves are a Fixer who is not a weekly wage — a retainer, a per-job hire at the Saloon, or a man who does something *every* week so the wage is earned — or a bankroll that is not working capital, which is Q15's loan shark and which the measurement says is too dear at 10% a week. Deciding between those is a design question, not a tuning one.
+
+20. **Q16 — Is the Prime trainer too strong when it lands early?** `--pups` reads a pup reaching par at **week 4** with a Prime trainer and plain kibble, against week 8 with a Rough one. That is a big lever, and with Prime feed on top it is bigger. `leadConversion` says the Prime tier is not amplifying the leader (Q3), so the guards are holding *in aggregate* — but a Prime trainer hired in week 2 by a stable that then buys a pup is a specific line the aggregate may be hiding. Worth a probe rather than a change.
 
 ## 21. The v2 list — what is deliberately out
 

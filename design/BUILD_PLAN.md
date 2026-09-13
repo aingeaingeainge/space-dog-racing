@@ -182,7 +182,11 @@ Each milestone ends with: tests green, harness run, a short demo Jesse can click
 
 ### M5 — ~~Online multiplayer~~ → **renumbered M6 and moved behind v2** (GDD §19, D16)
 
-**M5 no longer exists.** Online multiplayer is now M6 and runs *after* the four v2 phases below. Building a server for rules that are about to change is the wrong order: v2 rewrites declarations, eligibility, the goods market, staff, and adds a whole information layer, and every one of those is protocol surface. Nothing in v2 breaks the engine's purity, so M6 is exactly the job it always was — just later. Its spec is kept verbatim at §6b.9 for when it comes round.
+**M5 no longer exists.** Online multiplayer is now M6 and runs *after* the four v2 phases below.
+⚠️ **Phase D adds one thing to its scope: §13's third penalty.** "The wronged stable is told who did
+it" is logged publicly and does nothing, because an AI holds no grudge — so the social half of the
+crook's deterrent is a multiplayer feature (GDD D40). The fine and the season ban are sized to
+carry the deterrent without it, so M6 gains a *reason* rather than a dependency. Building a server for rules that are about to change is the wrong order: v2 rewrites declarations, eligibility, the goods market, staff, and adds a whole information layer, and every one of those is protocol surface. Nothing in v2 breaks the engine's purity, so M6 is exactly the job it always was — just later. Its spec is kept verbatim at §6b.9 for when it comes round.
 
 ---
 
@@ -312,21 +316,71 @@ two roads. The 65% prize share is retired as a target in favour of §20 Q2's dir
 **Goal:** the third road exists, and all three are worth the same.
 
 **Deliverables**
-1. **GDD §13 built:** the Fixer returns to hire; steward bribe; sabotage at −25 fitness; detection, fines, the season ban, and telling the wronged stable who did it.
-2. **A flat stake ceiling** alongside the fractional one (GDD §20 Q7).
-3. **Championship points and the purse at the Collar (D3).**
-4. **The three-path balance pass** — the whole point of the phase.
-5. **Harness rebuild, part 4**: the crook agent; the three-way comparison as a first-class printout.
+1. **GDD §13 built:** ✅ the Fixer returns to hire; steward bribe; sabotage at −25 fitness;
+   detection, fines and the season ban. Telling the wronged stable who did it is **logged and
+   inert until M6** (D40) — an AI holds no grudge, so making it bite means retaliation, which is a
+   rule the GDD does not describe.
+2. **A flat stake ceiling** alongside the fractional one (GDD §20 Q7). ✅ 8,000, ×3 at the Collar.
+3. **Championship points and the purse at the Collar (D3).** ✅ Built, and **re-sized to a third of
+   the estimate** (D39): points are derived from the race archive rather than stored.
+4. **The three-path balance pass** — the whole point of the phase. ✅ Done, and the answer is that
+   the third road does not pay (D42) and the three do not mix (D43).
+5. **Harness rebuild, part 4**: ✅ the crook agent, a **mixed** agent playing all three, the
+   four-way printout, `--fix` (what a nobbling is worth against the fields the game actually
+   makes), `infoSpend` / `infoROI`, and `leadConversion` split on whether the stable bet.
+6. **⚠️ One deliverable the plan did not anticipate: the trap draw (D37).** §13's bribe sells you
+   your dog's box and the box was worth nothing — the trap number was read in one place in the
+   whole simulation. Landed **alone, first, with a full re-baseline**, which is §11's own
+   prescription for a change to the race model.
 
-**Accept when**
-| Measure | Target |
-|---|---|
-| trainer / trader / crook agent mean end worth | within 15% of each other |
-| each path's p90/p10 spread | distinct — the crook widest, the trainer narrowest |
-| crook agent caught at least once | 40–70% of seasons |
-| a caught crook's mean end worth | below the trainer agent's |
-| a mixed agent (all three) | not worse than the best single path |
-| Hard beats Normal | 63–68% |
+**Accept when** — ✅ built and measured at tag `v2d`. **Three of seven met, one half-met, and the
+three misses are the phase's findings rather than its loose ends**; see
+`claude/V2_PHASE_D_NOTES.md`.
+
+| Measure | Target | Measured | |
+|---|---|---|---|
+| trainer / trader / crook agent mean end worth | within 15% of each other | **23.8% apart** — 35,644 / 29,532 / 28,785 | ❌ |
+| each path's p90/p10 spread | distinct — the crook widest, the trainer narrowest | crook **59.5**, mixed 14.4, trainer 10.2, trader **5.6** | ⚠️ crook widest ✅; "trainer narrowest" was already contradicted in Phase C (GDD §20 Q2) and the **trader** is the safe road |
+| crook agent caught at least once | 40–70% of seasons | **61.0%** | ✅ |
+| a caught crook's mean end worth | below the trainer agent's | 38,281 against 35,644 | ❌ **and the row is confounded** — see below |
+| a mixed agent (all three) | not worse than the best single path | **25,803** against the trainer's 35,644 | ❌ GDD D43 |
+| Hard beats Normal | 63–68% | **57.7%** | ❌ both candidates ablated and rejected (GDD §14) |
+| `hub-clicks.ts` | ≤ 14.5 | **14.3** | ✅ |
+| `npm test` | green, golden snapshot moved only in named commits | 22 green, moved **three** times, each named | ✅ |
+| `npm run lint` | clean | clean | ✅ |
+| `season-check.ts` exercises the bribe, the sabotage and a caught crook | walked, not survived | 8 jobs, 3 enquiries, 3 bans; the run **fails** if any is zero | ✅ |
+
+⚠️ **Two rows cannot mean what they say, and that is worth more than either of them.**
+
+*"The trainer narrowest"* was written before anything was measured and Phase C measured the
+opposite (§20 Q2: "the trainer's road is the volatile one and the trader's is the safe one"). Read
+as *the crook widest, the trader narrowest*, the row is met.
+
+*"A caught crook's mean end worth, below the trainer agent's"* reads as **crime does not pay** and
+measures something else. Naively it comes out backwards — a caught crook makes 38,281 where one
+that fixed and got away with it makes **14,117** — because a crook that never gets caught is mostly
+one whose road never opened, so "clean" quietly means *poor and honest by accident*, while fixing
+often enough to be caught requires the bankroll to fix often. The harness now splits on "fixed at
+least once" and prints the caveat. **The row's real question is answered by an ablation instead**:
+the same agent and seeds with §13 switched off ends **3,498 Bones richer** (GDD D42), which is the
+only comparison that holds everything else equal. Same class of problem as D25's `apLoss%`.
+
+**The re-baseline**, 800 all-Normal seasons: mean end worth **32,543** (p10 8,582, p50 26,323, p90
+68,646), prize 33,632 · trade +1,893 · betting −849 · costs 24,119, bankruptcy 0.1%. Fitness at
+declaration 71.5 with 19.8% below 60; races per dog **5.1** and dogs at week 13 **3.83**. Purse
+pool 358,685 posted with **53.8%** reaching a player. Prize share **78.2%** gross — up, because the
+championship purse is prize money by §4.3's own definition. Head to head: Normal beats Easy
+**80.8%**, **Hard beats Normal 57.7%** (v1 60.6, A 56.8, B 53.9, C 58.6). Calibration **57.4%**;
+stat leverage **24.6 / 18.8 / 15.9 / 15.1**, unmoved and in rating-weight order after the draw
+landed under them. Season decided by week **6.7** (was 6.6; the draw took it to 6.9 and the
+championship purse gave most of that back). Careless bankruptcy **4.0%** against 5–10%, a near-miss
+inside one standard error.
+
+⚠️ **§13 is built and does not pay, and that is the headline (GDD D42).** The edge is real — 23.2%
+of the stake on your own runner, 27.4% on the best price left, re-measured over 5,850 real locked
+fields — and **betting turns positive for the first time in the project**. What eats it is the
+Fixer's *weekly* wage against a road used *twice a season*, and every other lever was swept out
+before that was clear. GDD §20 Q17 carries what is left.
 
 ### 6b.9 — M6, online multiplayer (2–3 sessions, after v2)
 
@@ -559,6 +613,15 @@ Roughly 8–11 builder sessions to the shipped v1.
 - **⚠️ The §6.2 rebalance invalidates every measured number below the race level.** Purses, dog values, the AI's whole EV model and the three difficulty targets were all fitted to constants that are about to move. *Mitigation:* it is Phase A's first commit, alone, with a full re-baseline immediately after and before anything else in Phase A lands. If the economy moves more than ~20%, re-fit purses before building on top.
 - **⚠️ The pup band is narrow.** 4 points a week and the mechanic is dead; 8 and the season is over by week 10 (GDD §5.6). *Mitigation:* the acceptance criterion is the *week a pup reaches par*, not a stat number, so the builder tunes toward the outcome. Report the whole curve, not the single figure.
 - ~~**⚠️ Three roads is arithmetic, and the arithmetic is brutal.**~~ **Closed for two roads out of three, and the purse cut turned out to be the wrong lever entirely.** Trading needed 4× and got it: the trader agent's road ends level with the trainer's, **1.4% apart on the mean** with visibly different spreads (GDD §20 Q2). The cut was measured and killed (D29) — the ratio it was meant to move is invariant to it. Betting is still a rounding error and is Phase D's. The honest position is **two roads plus a side hustle**, said out loud, until §13 exists.
+
+⚠️ **Phase D built §13 and the honest position did not change — it got more precise.** Betting is
+no longer a rounding error: the crook ablation moves it **−713 → +1,885**, so §10's claim that
+betting is a road once §13 manufactures the knowledge is now a measurement. But the road as a whole
+**costs 3,498 Bones** against the same agent with it switched off (GDD D42), because a percentage
+edge on the 3,000 a stable can stake cannot carry a Fixer's weekly wage for a man used twice a
+season. So: **two roads, a third that is real and priced and currently a bad buy, and a named lever
+— the stake** (GDD §20 Q17). And §2.1's "they are meant to be mixable" is measured for the first
+time and is not true of the game as built (D43).
 - ~~**The Prime tier amplifies the leader.**~~ **Measured and it does not:** a Prime offer is worth +0.11 places to a stable ahead at week 6 and +0.24 to one behind (GDD §20 Q3). The consumable-food and wage-not-purchase shapes are holding, and the ugly rubber band stays out.
 - **The fog reads as arbitrary rather than fresh.** *Mitigation:* the pool of race types stays small and memorable; `cardCoverage` measures it; and it is the first thing on the Phase B playtest checklist. This one cannot be settled by the harness — it is an experience question and only Jesse can answer it.
 - **Pace.** v2 adds a per-dog weekly decision across up to six dogs, a busier market and an information layer, to a season already running an hour. *Mitigation:* 13.3 clicks a weekend is a budget with a number on it; `venueStatus` and the Kennels summary are where the difference gets spent; and if Phase C breaches it, the fix is summaries, not fewer decisions.
