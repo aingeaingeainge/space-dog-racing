@@ -255,6 +255,8 @@ export function runEndTurn(ctx: Ctx): void {
   s.races = null;
   s.fields = null;
   s.declarations = emptyDeclarations();
+  // This weekend's bought boxes and nobbled dogs go with the card they were about (GDD §13).
+  s.fixes = [];
   s.locked = false;
   s.planet.marketDogIds = [];
 

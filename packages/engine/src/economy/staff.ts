@@ -1,5 +1,6 @@
 import { balance } from '../content/balance';
 import {
+  FIXER_CAN,
   SCOUT_DOGS,
   TIPSTER_REACH,
   TRADER_HOLD,
@@ -65,7 +66,11 @@ export function vetRestBonus(p: Player): number {
 }
 
 /** Weeks knocked off a fresh injury, and whether the rest of it is halved (GDD §8.3). */
-export function vetInjuryRelief(p: Player): { weeksOff: number; halve: boolean; chanceCut: number } {
+export function vetInjuryRelief(p: Player): {
+  weeksOff: number;
+  halve: boolean;
+  chanceCut: number;
+} {
   const tier = bestTier(p, 'vet');
   if (!tier) return { weeksOff: 0, halve: false, chanceCut: 0 };
   return {
@@ -73,6 +78,18 @@ export function vetInjuryRelief(p: Player): { weeksOff: number; halve: boolean; 
     halve: tier !== 'rough',
     chanceCut: tier === 'prime' ? balance.vetInjuryCutPrime : 0,
   };
+}
+
+/**
+ * What this stable's Fixer will do for it (GDD §13, §8.3), or neither if it has not got one.
+ *
+ * The **best** fixer on the books acts, the same as every other role, so two Proper fixers are two
+ * wages and one capability — D7's no-stacking-penalty design, which is the absence of a bonus
+ * rather than a penalty.
+ */
+export function fixerCan(p: Player): { bribe: boolean; sabotage: boolean } {
+  const tier = bestTier(p, 'fixer');
+  return tier ? FIXER_CAN[tier] : { bribe: false, sabotage: false };
 }
 
 export function scoutDogs(p: Player): number {

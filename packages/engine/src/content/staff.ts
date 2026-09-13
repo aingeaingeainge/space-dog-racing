@@ -22,10 +22,11 @@ export interface StaffRoleRow {
   /** What the role is for, in the words the Saloon prints. */
   blurb: string;
   /**
-   * Hireable at all. The **Fixer is false** until GDD §13 exists: his abilities are sabotage and
-   * steward bribes, neither of which is an action yet, so hiring him would be a wage bill for
-   * nothing. Charging for a service the game does not provide is a trap rather than a difficulty
-   * (GDD §19, 2026-09-08), and that decision stands through Phase C.
+   * Hireable at all. **All six are, as of v2 Phase D**, and the flag is kept rather than deleted
+   * because of what it was for: the Fixer was `false` for three phases on the grounds that his
+   * abilities were not actions, so hiring him would have been a wage bill for nothing — charging
+   * for a service the game does not provide is a trap rather than a difficulty (GDD §19,
+   * 2026-09-08). That is the test any seventh role has to pass before this flag is set on it.
    */
   hireable: boolean;
   /** One line per tier, in the dog's or the stable's own numbers, for the Saloon to print. */
@@ -80,7 +81,8 @@ export const STAFF_ROLES: readonly StaffRoleRow[] = [
   {
     role: 'tipster',
     label: 'Tipster',
-    blurb: 'Standing information: what is coming up the circuit, without buying a dossier each week',
+    blurb:
+      'Standing information: what is coming up the circuit, without buying a dossier each week',
     hireable: true,
     effect: {
       rough: "Next week's race card — you already know where you are going, not what runs there",
@@ -91,13 +93,16 @@ export const STAFF_ROLES: readonly StaffRoleRow[] = [
   {
     role: 'fixer',
     label: 'Fixer',
-    blurb: 'Steward bribes and sabotage (GDD §13)',
-    // Not hireable. See `hireable` above: §13 does not exist yet and a wage for nothing is a trap.
-    hireable: false,
+    blurb: 'Knows a steward, and knows a man who can get at a dog (GDD §13)',
+    // ✅ Hireable as of v2 Phase D. He was withdrawn in M4 session 1 because nothing read
+    // `staff.fixer` except a wage, and GDD §19's 2026-09-08 decision kept him out through three
+    // phases on the grounds that charging for a service the game does not provide is a trap rather
+    // than a difficulty. §13 is built, so he is back, and every line below is now a rule.
+    hireable: true,
     effect: {
-      rough: 'Steward bribes only',
-      proper: 'Bribes and sabotage',
-      prime: 'Bribes, sabotage, and half the chance of being caught',
+      rough: `Buy your dog's box for ${balance.bribeCost} — placed before the draw is made`,
+      proper: `Bribes, and for ${balance.sabotageCost} takes ${balance.sabotageFitness} fitness off a rival after the prices have gone up`,
+      prime: `Bribes and sabotage, and the stewards catch him half as often (${Math.round(balance.fixCatchBase * balance.fixCatchPrimeMult * 100)}% rather than ${Math.round(balance.fixCatchBase * 100)}%)`,
     },
   },
 ];
@@ -170,4 +175,19 @@ export const TIPSTER_REACH: Record<GoodTier, { band: number; card: number }> = {
   rough: { band: 1, card: 1 },
   proper: { band: 2, card: 1 },
   prime: { band: 2, card: 2 },
+};
+
+/**
+ * What each grade of Fixer will actually do (GDD §13, §8.3).
+ *
+ * A **Rough** fixer knows a steward and nothing else, so he can buy a box and cannot get at a dog.
+ * That is the one place on the whole ladder where a tier withholds an *ability* rather than a
+ * number, and it is deliberate: the bribe is the cheap, legal-ish half of the road and the
+ * sabotage is the half with the punishment tail, so the 250-a-week man should not be able to sell
+ * you the second one.
+ */
+export const FIXER_CAN: Record<GoodTier, { bribe: boolean; sabotage: boolean }> = {
+  rough: { bribe: true, sabotage: false },
+  proper: { bribe: true, sabotage: true },
+  prime: { bribe: true, sabotage: true },
 };

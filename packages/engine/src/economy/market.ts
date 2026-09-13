@@ -80,6 +80,7 @@ export function createDog(spec: DogSpec, rng: Rng, nextId: IdGen): Dog {
     outOfMoneyFor: 0,
     supplemented: false,
     raceBonus: 0,
+    nobbled: 0,
     // GDD §5.7: every dog starts the week pointed at a race. That is the state a player who
     // touches nothing gets, and it is v1's behaviour, so the Kennels is a decision you may
     // take rather than a form you must fill in.

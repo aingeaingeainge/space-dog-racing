@@ -190,7 +190,21 @@ export interface PlanetSpecial {
   noBetting?: boolean;
   bettingMargin?: number; // overrides balance.bettingMargin
   maxStakeFraction?: number; // overrides balance.maxStakeFraction
+  /**
+   * Multiplies the flat stake ceiling here (GDD §10, §20 Q7). Collar Prime is the only row that
+   * carries one: the crook's road "pays in bursts, at the biggest races", and the Grand Final is
+   * the one week it is allowed to.
+   */
+  maxStakeFlatMult?: number;
   dopingCatch?: number; // overrides balance.supplementCatchBase
+  /**
+   * How often the stewards catch a bribe or a sabotage here (GDD §13), overriding
+   * `balance.fixCatchBase`. A separate number from `dopingCatch` rather than a scaling of it,
+   * because a planet's attitude to a syringe and its attitude to a bought steward are two
+   * different facts about the place — Vatgrown makes supplements *legal* and would still put you
+   * in front of a panel for nobbling a dog.
+   */
+  fixCatch?: number;
   buyerBonus?: number; // buyers pay +x of value when you sell a dog here
   dogValueMod?: number; // multiplier on market asking prices (and sale prices) here
   shipDiscount?: number; // fraction off ship upgrades
@@ -286,6 +300,17 @@ export interface Dog {
   outOfMoneyFor: number;
   supplemented: boolean; // supplement fed this weekend (cleared after the race)
   raceBonus: number; // temporary speed-stat bonus for this weekend's race (supplement, lucky bone)
+  /**
+   * Fitness somebody has taken off this dog for this weekend's race only (GDD §13).
+   *
+   * Deliberately **not** a change to `fitness`. The whole of the crook's road is the gap between
+   * what the bookie knows and what you know (§2.1): the prices go up when declarations lock, the
+   * sabotage lands after that, and the book never re-prices. So the dog's *stated* fitness — the
+   * number on the field table, the number the victim sees — stays exactly where it was, and only
+   * the runner handed to `simulateRace` is lighter. Cleared with `raceBonus` after the card, the
+   * same way a supplement is, because both are facts about one weekend rather than about a dog.
+   */
+  nobbled: number;
   weekState: WeekState; // GDD §5.7 — what this dog is doing with the week
   trainStat: StatKey; // which stat a Train week works on; ignored in the other two states
   askingPrice?: number; // while ownerId === 'market'
@@ -336,6 +361,14 @@ export interface Player {
     arriveFirstNextWeek: boolean;
     rivalTrap8: boolean; // dodgy steward: rival's best Gold dog drawn trap 8 this week
     tipOff: boolean; // a local runner is not trying this week
+    /**
+     * Caught fixing: no Fixer may be hired for the rest of the season (GDD §13).
+     *
+     * Half of §13's penalty and the half that grows with how often you use the road, because the
+     * thing it takes away is the road itself. The other half — telling the wronged stable who did
+     * it — is logged publicly and does nothing until M6; see the note on `catchFixers`.
+     */
+    fixerBarred: boolean;
   };
   sponsorWeeks: number; // Glorbo's Meat Paste: dogs eat double
   fanClubDogId?: Id;
@@ -427,6 +460,31 @@ export interface CalendarEntry {
    * built, so the fog can hide it and a dossier can sell it.
    */
   card: RaceTypeId[];
+}
+
+/**
+ * A job the Fixer has done this weekend (GDD §13). Cleared at endTurn with everything else that is
+ * about one card.
+ *
+ * A list on `GameState` rather than fields on the Player, because a fix is *addressed* to a race
+ * and a dog the way a declaration and a bet are, and because both screens and the stewards want to
+ * iterate them. `caught` is written on race day rather than when the job is placed: the fine is
+ * sized against what the crook had on that race, so the roll has to happen after the bets are
+ * struck, or the deterrent could not be sized against the bet at all.
+ */
+export interface Fix {
+  playerId: Id;
+  /** `bribe` chooses your own dog's box before the draw; `sabotage` takes fitness off a rival's. */
+  kind: 'bribe' | 'sabotage';
+  week: number;
+  race: RaceTypeId;
+  /** Your dog, for a bribe. Somebody else's — a rival's or a local — for a sabotage. */
+  dogId: Id;
+  /** The box bought, 1..`traps`. Bribes only. */
+  trap?: number;
+  fee: number;
+  /** Rolled on race day. The fine and the ban follow from it. */
+  caught: boolean;
 }
 
 export interface Bet {
@@ -540,6 +598,8 @@ export interface GameState {
   pendingEvent: PendingEvent | null;
   eventQueue: Id[]; // players still to draw an event this week
   bets: Bet[];
+  /** This weekend's bought boxes and nobbled dogs (GDD §13). Cleared with the card at endTurn. */
+  fixes: Fix[];
   results: RaceResult[]; // all past races (tick logs pruned)
   eventLog: LogLine[];
   toggles: Toggles;
@@ -595,6 +655,23 @@ export type Action =
   /** By id, not by role: three trainers are legal, so a role no longer identifies a hire. */
   | { t: 'FireStaff'; playerId: Id; staffId: StaffId }
   | { t: 'SetDogState'; playerId: Id; dogId: Id; state: WeekState; stat?: StatKey }
+  /**
+   * GDD §13. Buy your own dog's box, before the draw is made — so `planetPre`, alongside the
+   * declaration it depends on.
+   */
+  | { t: 'BribeSteward'; playerId: Id; race: RaceTypeId; dogId: Id; trap: number }
+  /**
+   * GDD §13. Take fitness off a runner that is not yours, **after the prices have gone up** — so
+   * `betting`, which is the phase that exists between the draw and the race.
+   *
+   * The phase is the mechanic. §13's edge is not the purse (+288 against a 1,200 fee is a losing
+   * move); it is that "the bookie still prices him at 68". A sabotage placed before the lock would
+   * be priced into the odds and be worth nothing but its purse EV, and one placed in `planetPre`
+   * could only target the stables that had already declared — an advantage handed to whoever
+   * happened to go last. After the lock, every runner is known and every price is already on the
+   * board.
+   */
+  | { t: 'Sabotage'; playerId: Id; race: RaceTypeId; dogId: Id }
   | { t: 'BuyUpgrade'; playerId: Id; upgrade: UpgradeId; dogId?: Id; week?: number }
   | { t: 'Borrow'; playerId: Id; lender: 'bank' | 'shark'; amount: number }
   | { t: 'Repay'; playerId: Id; lender: 'bank' | 'shark'; amount: number }

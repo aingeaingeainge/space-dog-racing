@@ -4,7 +4,7 @@ import { raceType } from '../content/raceTypes';
 import { good, STOCK_UNLIMITED } from '../content/goods';
 import { staffTitle } from '../content/staff';
 import { cargoTotal } from '../economy/goods';
-import { buyPriceFor, cargoCap } from '../economy/staff';
+import { buyPriceFor, cargoCap, fixerCan } from '../economy/staff';
 import { dogSalePrice, weakestStat } from '../economy/dogValue';
 import { loanCap, outstanding } from '../economy/loans';
 import { upgradePrice } from '../economy/market';
@@ -15,7 +15,7 @@ import {
   dog,
   eligible,
   log,
-  maxStakeFraction,
+  maxStakeFor,
   player,
   thisWeeksCard,
   type Ctx,
@@ -155,7 +155,10 @@ export function placeBet(ctx: Ctx, action: Extract<Action, { t: 'PlaceBet' }>): 
   const alreadyStaked = s.bets
     .filter((b) => b.playerId === p.id && b.week === s.week && b.race === action.race)
     .reduce((sum, b) => sum + b.stake, 0);
-  const cap = Math.floor(p.cash * maxStakeFraction(s));
+  // Two ceilings, and the lower one binds (GDD §10, §20 Q7). The fractional one has been here
+  // since v1; the flat one is Phase D's guard on the rich-get-richer channel §13's percentage edge
+  // would otherwise open.
+  const cap = maxStakeFor(s, p);
   if (alreadyStaked + stake > cap) fail(`Max stake on this race is ${cap}`, action);
   pay(p, stake, action);
   const margin = bettingMargin(s);
@@ -237,8 +240,12 @@ export function hireStaff(ctx: Ctx, action: Extract<Action, { t: 'HireStaff' }>)
   const p = activeOrFail(s, action.playerId, action);
   const offer = s.planet.staff.find((o) => o.id === action.staffId);
   if (!offer) fail('Nobody by that name is for hire here', action);
-  if (offer.role === 'fixer')
-    fail('GDD §13 does not exist yet — nothing for a fixer to do', action);
+  // §13: a stable caught fixing loses its Fixer and may not take another on this season. The only
+  // refusal in the hiring path that is about *who* rather than about how many slots are left.
+  if (offer.role === 'fixer' && p.flags.fixerBarred)
+    fail('The stewards have your name — nobody will fix for you again this season', action);
+  if (offer.role === 'fixer' && s.toggles.cleanSport)
+    fail('Clean Sport: there is nothing for a fixer to do', action);
   if (p.staff.length >= balance.staffSlots)
     fail(`All ${balance.staffSlots} staff slots are full — let somebody go first`, action);
   p.staff.push(offer);
@@ -303,6 +310,120 @@ export function setDogState(ctx: Ctx, action: Extract<Action, { t: 'SetDogState'
   }
   d.weekState = action.state;
   if (action.stat) d.trainStat = action.stat;
+}
+
+/**
+ * The Fixer's week (GDD §13). One job of each kind a weekend: he is one man with one week's work
+ * in him, and the cap is what stops the road from being a lever you simply hold down.
+ */
+function fixThisWeek(s: GameState, playerId: Id, kind: 'bribe' | 'sabotage'): boolean {
+  return s.fixes.some((f) => f.playerId === playerId && f.week === s.week && f.kind === kind);
+}
+
+/** The refusals both shady acts share, in the order a player meets them. */
+function fixerOrFail(s: GameState, p: Player, action: Action, kind: 'bribe' | 'sabotage'): void {
+  if (s.toggles.cleanSport) fail('Clean Sport: no bribes, no nobbling', action);
+  if (p.flags.fixerBarred) fail('The stewards have your name — your fixer is struck off', action);
+  const can = fixerCan(p);
+  if (!can.bribe) fail('You have nobody on the books who knows a steward', action);
+  if (kind === 'sabotage' && !can.sabotage)
+    fail(
+      'A Rough fixer knows a steward, not a man who can get at a dog — you want a Proper one',
+      action,
+    );
+  if (fixThisWeek(s, p.id, kind)) fail('Your fixer has done his one job this weekend', action);
+}
+
+/**
+ * Buy your own dog's box (GDD §13, `bribeCost`).
+ *
+ * `planetPre`, because the draw is made when declarations lock — so this is placed *before* the
+ * boxes are pulled out of the hat, alongside the declaration it depends on, and `lockDeclarations`
+ * honours it when the field is built.
+ *
+ * What it is worth is a real number rather than a flourish, and only since D37: choosing your box
+ * is worth about **+3.5 points of win rate** on a tight-bend track, tapering to nothing where the
+ * track has no bends at all [measured]. The Race Office prints that in Bones against this race's
+ * purse, which is the difference between a decision and §8.4's supplement.
+ */
+export function bribeSteward(ctx: Ctx, action: Extract<Action, { t: 'BribeSteward' }>): void {
+  const { s } = ctx;
+  planetPhase(s, action, 'planetPre');
+  const p = activeOrFail(s, action.playerId, action);
+  fixerOrFail(s, p, action, 'bribe');
+  if (!thisWeeksCard(s).includes(action.race))
+    fail(`There is no ${raceType(action.race).label} on this weekend's card`, action);
+  const d = dog(s, action.dogId);
+  if (d.ownerId !== p.id) fail('Not your dog', action);
+  if (s.declarations[action.race][p.id] !== d.id)
+    fail(
+      `${d.name} is not standing in the ${raceType(action.race).label} — declare it first`,
+      action,
+    );
+  const trap = Math.trunc(action.trap);
+  if (!(trap >= 1 && trap <= balance.traps)) fail(`There are ${balance.traps} boxes`, action);
+  pay(p, balance.bribeCost, action);
+  p.stats.costs += balance.bribeCost;
+  s.fixes.push({
+    playerId: p.id,
+    kind: 'bribe',
+    week: s.week,
+    race: action.race,
+    dogId: d.id,
+    trap,
+    fee: balance.bribeCost,
+    caught: false,
+  });
+  log(s, `A steward finds ${d.name} a place in trap ${trap}.`, p.id);
+}
+
+/**
+ * Take fitness off a runner that is not yours (GDD §13, `sabotageCost`, `sabotageFitness`).
+ *
+ * ⚠️ **The phase is the mechanic, and it is the whole of §13.** The purse side of a sabotage is
+ * worth +288 against a 1,200 fee — *a losing move*, and D8 says so in as many words. The road only
+ * pays because "the bookie still prices him at 68": the prices are struck when declarations lock
+ * and nothing re-prices them, so a nobbling placed in the betting phase is money in a market that
+ * has not heard about it. Placed any earlier it would either be priced in, or could only reach the
+ * stables that happened to declare before you.
+ *
+ * The dog's **stated** fitness does not move — `nobbled` is a separate figure and the field table
+ * keeps printing the number the victim and the book both believe. That is not a nicety; it is the
+ * informational gap the road is made of.
+ *
+ * Any runner but your own, rather than §13's narrower "one rival dog": a local is very often the
+ * one in front, and a rule that let the favourite walk because nobody owned it would be a rule
+ * about ownership rather than about racing. Recorded as D39.
+ */
+export function sabotage(ctx: Ctx, action: Extract<Action, { t: 'Sabotage' }>): void {
+  const { s } = ctx;
+  planetPhase(s, action, 'betting');
+  const p = activeOrFail(s, action.playerId, action);
+  fixerOrFail(s, p, action, 'sabotage');
+  if (!s.locked || !s.fields) fail('Wait until the field is out', action);
+  const field = s.fields.find((f) => f.race === action.race);
+  const entry = field?.entries.find((e) => e.dogId === action.dogId);
+  if (!entry) fail('That dog is not in that race', action);
+  const d = dog(s, action.dogId);
+  if (d.ownerId === p.id) fail('Your own dog', action);
+  pay(p, balance.sabotageCost, action);
+  p.stats.costs += balance.sabotageCost;
+  d.nobbled += balance.sabotageFitness;
+  s.fixes.push({
+    playerId: p.id,
+    kind: 'sabotage',
+    week: s.week,
+    race: action.race,
+    dogId: d.id,
+    fee: balance.sabotageCost,
+    caught: false,
+  });
+  // Addressed to the buyer. Nobody else hears about it unless the stewards do (see catchFixers).
+  log(
+    s,
+    `${d.name} will not be himself in the ${raceType(action.race).label} — ${balance.sabotageFitness} fitness, and the book has not noticed.`,
+    p.id,
+  );
 }
 
 export function buyUpgrade(ctx: Ctx, action: Extract<Action, { t: 'BuyUpgrade' }>): void {

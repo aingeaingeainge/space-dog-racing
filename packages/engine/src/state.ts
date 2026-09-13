@@ -14,6 +14,7 @@ import {
   raceType,
 } from './content/raceTypes';
 import { createStartingDog, emptyPlanetState, type IdGen } from './economy/market';
+import { bestTier } from './economy/staff';
 import { emptyCargo } from './economy/goods';
 import { KIBBLE_ID } from './content/goods';
 import { mulberry32, type Rng } from './rng';
@@ -32,6 +33,10 @@ import type {
 import { ActionError, RACE_TYPE_IDS } from './types';
 
 /**
+ * 5 for v2 Phase D: dogs carry a `nobbled` figure, the state carries this weekend's `fixes`, and
+ * a stable can be barred from hiring a Fixer — so `Action` gains `BribeSteward` and `Sabotage`
+ * and a Phase C log cannot replay on this engine.
+ *
  * 4 for v2 Phase C: the hold is a record of crates per good rather than a single number, a
  * planet posts a price and a shelf depth per good rather than one `foodBuy`/`foodSell` pair, and
  * `TradeFood` names the good it is trading. A Phase B log cannot replay on this engine — its
@@ -44,7 +49,7 @@ import { ActionError, RACE_TYPE_IDS } from './types';
  * The web save is seed + log (store/persist.ts), which is why SAVE_VERSION moves with it and an
  * old save fails soft to the title screen rather than replaying into a different game.
  */
-export const STATE_VERSION = 4;
+export const STATE_VERSION = 5;
 export const MAJOR_WEEKS: readonly number[] = [4, 7, 10];
 
 /**
@@ -199,8 +204,83 @@ export function maxStakeFraction(s: GameState): number {
   return currentPlanet(s).special.maxStakeFraction ?? balance.maxStakeFraction;
 }
 
+/**
+ * The **flat** stake ceiling here (GDD §10, §20 Q7), before the fractional one is considered.
+ *
+ * ⚠️ This is a guard rather than a tuning knob, and §10 says why in one sentence: *"Max stake is a
+ * rich-get-richer channel."* §13's edge is a percentage, so its cash value is whatever you can
+ * stake — which means the stable already in front earns most from the identical fixer's fee, and a
+ * ceiling expressed as a fraction of cash cannot stop that, because it *is* the fraction of a
+ * bigger number. A flat ceiling is the only shape that binds a rich stable and leaves a poor one
+ * alone.
+ *
+ * Collar Prime lifts it, and only Collar Prime: §2.1 gives the crook's road "bursts, at the biggest
+ * races", and the Grand Final is the one week of the season where letting it have one costs the
+ * rest of the design nothing.
+ */
+export function maxStakeFlat(s: GameState): number {
+  return balance.maxStakeFlat * (currentPlanet(s).special.maxStakeFlatMult ?? 1);
+}
+
+/** What a stable may have on one race: the fractional ceiling and the flat one, lower wins. */
+export function maxStakeFor(s: GameState, p: Player): number {
+  return Math.floor(Math.min(p.cash * maxStakeFraction(s), maxStakeFlat(s)));
+}
+
 export function dopingCatchRate(s: GameState): number {
   return currentPlanet(s).special.dopingCatch ?? balance.supplementCatchBase;
+}
+
+/** How often the stewards notice a bought box or a nobbled dog here (GDD §13). */
+export function fixCatchRate(s: GameState, p: Player): number {
+  const base = currentPlanet(s).special.fixCatch ?? balance.fixCatchBase;
+  return bestTier(p, 'fixer') === 'prime' ? base * balance.fixCatchPrimeMult : base;
+}
+
+/**
+ * Championship points as they stand (GDD §4.3, D3): 10 / 6 / 3 / 1 for the first four home in
+ * **any** race, all season.
+ *
+ * ⚠️ **Derived from the race archive rather than stored, and that is the whole implementation
+ * note.** `RaceResult` already carries the finishing order and, on each entry, who owned the dog
+ * when it ran — so the points are a fact the state already holds, and a field would be a second
+ * copy of it to keep honest. Same argument as Phase B's dossier (D36) and for the same payoff:
+ * a scoreboard that cannot drift out of step with the results it is a scoreboard of.
+ *
+ * Local runners score nothing. Points belong to the stable that owned the dog **on the day**, so
+ * selling a dog does not sell the points it has already won you.
+ */
+export function championshipPoints(s: GameState): Record<Id, number> {
+  const table = [
+    balance.champPoints1,
+    balance.champPoints2,
+    balance.champPoints3,
+    balance.champPoints4,
+  ];
+  const points: Record<Id, number> = {};
+  for (const p of s.players) points[p.id] = 0;
+  for (const r of [...s.results, ...(s.races ?? [])]) {
+    r.order.slice(0, table.length).forEach((dogId, i) => {
+      const e = r.entries.find((x) => x.dogId === dogId);
+      if (!e || e.local || e.ownerId === 'local') return;
+      if (points[e.ownerId] !== undefined) points[e.ownerId]! += table[i]!;
+    });
+  }
+  return points;
+}
+
+/**
+ * The championship standings, richest in points first (GDD §4.3).
+ *
+ * Ties break on the stable id, which is arbitrary and **deliberately** so: it is a function of the
+ * state and nothing else, so the same season pays the same purse on every machine. A tie-break
+ * that reached for net worth would make the purse depend on the thing it is paid into.
+ */
+export function championshipTable(s: GameState): { playerId: Id; points: number }[] {
+  const points = championshipPoints(s);
+  return s.players
+    .map((p) => ({ playerId: p.id, points: points[p.id] ?? 0 }))
+    .sort((a, b) => b.points - a.points || (a.playerId < b.playerId ? -1 : 1));
 }
 
 /**
@@ -263,6 +343,7 @@ export function createSeason(setup: SeasonSetup): GameState {
     pendingEvent: null,
     eventQueue: [],
     bets: [],
+    fixes: [],
     results: [],
     eventLog: [],
     toggles: {
@@ -307,6 +388,7 @@ export function createSeason(setup: SeasonSetup): GameState {
         arriveFirstNextWeek: false,
         rivalTrap8: false,
         tipOff: false,
+        fixerBarred: false,
       },
       sponsorWeeks: 0,
       stats: {

@@ -3,6 +3,7 @@ import { runEndTurn } from './phases/endTurn';
 import { resolveEvent } from './phases/events';
 import {
   borrow,
+  bribeSteward,
   buyDog,
   buyUpgrade,
   declare,
@@ -10,6 +11,7 @@ import {
   hireStaff,
   placeBet,
   repay,
+  sabotage,
   sellDog,
   setDogState,
   tradeFood,
@@ -87,6 +89,12 @@ export function reduceMut(s: GameState, action: Action): GameState {
       break;
     case 'SetDogState':
       setDogState(ctx, action);
+      break;
+    case 'BribeSteward':
+      bribeSteward(ctx, action);
+      break;
+    case 'Sabotage':
+      sabotage(ctx, action);
       break;
     case 'BuyUpgrade':
       buyUpgrade(ctx, action);

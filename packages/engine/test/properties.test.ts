@@ -9,6 +9,8 @@ import {
   netWorthBreakdown,
   cargoTotal,
   cargoCap,
+  championshipPoints,
+  hasStaff,
   player,
   raceType,
   reduceMut,
@@ -111,6 +113,48 @@ function checkInvariants(s: GameState, lastAction: Action): void {
       'w.total === Math.round(p.cash) + dogs + shipValue(p) + the hold at local sell prices - debt(p)',
     );
   }
+  const card = thisWeeksCard(s);
+  // GDD §13: the Fixer's week. Four statements, all of them things a screen or a sweep will lean
+  // on, and none of them true of any state before Phase D.
+  for (const p of s.players) {
+    // Struck off means struck off: a barred stable has nobody on the books who would do it again.
+    if (p.flags.fixerBarred)
+      assert(!hasStaff(p, 'fixer'), `${p.id} is barred and still employs a fixer`);
+  }
+  for (const kind of ['bribe', 'sabotage'] as const) {
+    const perPlayer = new Map<string, number>();
+    for (const f of s.fixes) {
+      if (f.kind !== kind || f.week !== s.week) continue;
+      perPlayer.set(f.playerId, (perPlayer.get(f.playerId) ?? 0) + 1);
+    }
+    for (const [pid, n] of perPlayer)
+      assert(n <= 1, `${pid} has ${n} ${kind}s down this weekend — the fixer has one job in him`);
+  }
+  for (const f of s.fixes) {
+    assert(card.includes(f.race), `a ${f.kind} on the ${f.race}, which is not on the card`);
+    if (f.kind === 'bribe') {
+      assert(f.trap !== undefined, 'a bribe with no box bought');
+      assert(f.trap! >= 1 && f.trap! <= balance.traps, `box ${f.trap} does not exist`);
+      // If the field is out, the box that was paid for is the box the dog is in — the bribe is
+      // applied last in lockDeclarations precisely so that nothing can quietly undo it.
+      const field = s.fields?.find((x) => x.race === f.race);
+      const entry = field?.entries.find((e) => e.dogId === f.dogId);
+      if (entry) assert(entry.trap === f.trap, `bought trap ${f.trap}, drew ${entry.trap}`);
+    }
+    const d = s.dogs[f.dogId];
+    if (d && f.kind === 'sabotage') assert(d.ownerId !== f.playerId, 'nobbled its own dog');
+  }
+  for (const d of Object.values(s.dogs)) {
+    assert(d.nobbled >= 0 && Number.isInteger(d.nobbled), `nobbled ${d.nobbled}`);
+    // A nobbling is a fact about one card. Outside the window between the lock and the end of the
+    // races there is no such thing, which is what makes clearing it with the other race-day buffs
+    // the whole of its lifetime.
+    if (!s.locked || s.races) assert(d.nobbled === 0, `${d.id} still carries ${d.nobbled} nobbled`);
+  }
+  // GDD §4.3: the championship is derived from the archive, so it can never disagree with it.
+  const points = championshipPoints(s);
+  for (const p of s.players) assert((points[p.id] ?? 0) >= 0, 'negative championship points');
+
   // GDD §6.3: a weekend's card is exactly three races, run in a fixed order with the headline
   // race last, and no race appears on it twice. Every week of the season, not just this one —
   // the card is drawn when the calendar is built, so a bad draw is a bug from week 1.
@@ -125,7 +169,6 @@ function checkInvariants(s: GameState, lastAction: Action): void {
   // and satisfies that race's own entry criterion (checked while declarations are still open —
   // ratings and win counts move after the race).
   const declared = new Set<string>();
-  const card = thisWeeksCard(s);
   for (const race of s.locked ? [] : RACE_TYPE_IDS) {
     for (const [pid, dogId] of Object.entries(s.declarations[race])) {
       assert(card.includes(race), `dog ${dogId} declared in the ${race}, which is not on the card`);
