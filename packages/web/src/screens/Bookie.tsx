@@ -19,6 +19,13 @@ import { TicketCard } from '../components/TicketCard';
 import { BettingSlip, type SlipRow } from '../components/BettingSlip';
 import { useKeys } from '../lib/keys';
 import { raceLabel, raceTone } from '../lib/selectors';
+import {
+  bookieBlindSpot,
+  fieldMeanFitness,
+  impliedProbability,
+  stakeLine,
+  stakeValue,
+} from '../lib/priceTag';
 import { useGame } from '../store/gameStore';
 
 /**
@@ -103,6 +110,24 @@ function RaceBetting({
   const place = (dogId: string, kind: 'win' | 'place') =>
     dispatch({ t: 'PlaceBet', playerId: me.id, race, dogId, kind, stake: wanted });
 
+  /**
+   * The two sentences this screen was missing (GDD §10). A price is a ratio; a bet is in Bones —
+   * so the stake dialled in is priced against the runner most worth pricing it against, and the
+   * book's blind spot is named for every dog in the race where there is one to name.
+   *
+   * Own runners first, because a stable's own dogs are the ones whose fitness and stat bars it has
+   * been looking at all week, and §5.3's informational edge is worth nothing unless somebody says
+   * out loud that the book cannot see it.
+   */
+  const meanFit = fieldMeanFitness(s, field);
+  const mine = field.filter((e) => e.ownerId === me.id);
+  const priced = mine[0] ?? [...field].sort((a, b) => b.winProb - a.winProb)[0];
+  const value = priced && wanted >= 10 ? stakeValue(wanted, priced.odds) : null;
+  const blind = [...mine, ...field.filter((e) => e.ownerId !== me.id)]
+    .map((e) => bookieBlindSpot(s, e, meanFit))
+    .filter((x): x is string => !!x)
+    .slice(0, 3);
+
   return (
     <TicketCard
       cls={raceLabel(race)}
@@ -132,28 +157,39 @@ function RaceBetting({
               : 'Not enough cash for a bet on this race.'
             : `Room for ${formatBones(room)} more on this race.`}
         </span>
+        {value && priced ? (
+          <span>
+            <b>{formatBones(value.stake)}</b> on {priced.name} at {priced.odds.toFixed(2)}{' '}
+            {stakeLine(value, formatBones)} · the book gives it{' '}
+            {Math.round(impliedProbability(priced.odds, margin) * 100)}%
+          </span>
+        ) : null}
       </div>
+
+      {blind.length ? <Notes lines={blind} /> : null}
 
       <FieldTable
         s={s}
         meId={me.id}
         field={field}
         margin={margin}
-        oddsCell={(e, kind, odds) => (
-          <NeonButton
-            disabled={wanted < 10}
-            title={
-              wanted < 10
-                ? 'Set a stake first'
-                : kind === 'win'
-                  ? `${formatBones(wanted)} to win — returns ${formatBones(Math.round(wanted * odds))}`
-                  : `${formatBones(wanted)} on a top-three finish — returns ${formatBones(Math.round(wanted * odds))}`
-            }
-            onClick={() => place(e.dogId, kind)}
-          >
-            {odds.toFixed(2)}
-          </NeonButton>
-        )}
+        oddsCell={(e, kind, odds) => {
+          const v = stakeValue(wanted, odds);
+          return (
+            <NeonButton
+              disabled={wanted < 10}
+              title={
+                wanted < 10
+                  ? 'Set a stake first'
+                  : `${formatBones(wanted)} ${kind === 'win' ? 'to win' : 'on a top-three finish'} — ` +
+                    `${stakeLine(v, formatBones)}`
+              }
+              onClick={() => place(e.dogId, kind)}
+            >
+              {odds.toFixed(2)}
+            </NeonButton>
+          );
+        }}
       />
 
       <BetSlips s={s} bets={bets} race={race} />

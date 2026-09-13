@@ -20,6 +20,7 @@
  */
 import {
   balance,
+  baseRating,
   bestFeedAboard,
   cargoTotal,
   dogValue,
@@ -31,6 +32,7 @@ import {
   type Good,
   type Id,
   type Player,
+  type RaceEntry,
   type StatKey,
 } from '@sdr/engine';
 
@@ -185,6 +187,101 @@ export function cratesForTrainees(s: GameState, me: Player): { trainees: number;
     if (g && me.cargo[g.id] > 0) covered++;
   }
   return { trainees, covered };
+}
+
+/**
+ * What a stake is actually worth, in Bones, at the price on the board (GDD §10).
+ *
+ * The bookie has always printed decimal odds, which is the price and not the decision. A player
+ * deciding whether to have 2,000 on a 6.16 shot is deciding about a **12,320 return, a 10,320
+ * profit, and 2,000 gone** — three numbers the screen made them work out. Odds are a ratio; a
+ * betting decision is in Bones, the same way a feed crate's decision is in this dog's rating and
+ * not in "+2–4 Speed" (see the note at the head of this module).
+ *
+ * This matters more in Phase D than it did before, because §13's whole road is a percentage edge
+ * whose cash value is the stake — so a crook who cannot see the stake in Bones cannot price the
+ * fixer's fee against it.
+ */
+export interface StakeValue {
+  stake: number;
+  odds: number;
+  /** What comes back over the counter if it lands: stake × odds. */
+  returns: number;
+  /** Returns less the stake. */
+  profit: number;
+  /** What the slip is worth if it loses — the stake, gone. */
+  loss: number;
+}
+
+export function stakeValue(stake: number, odds: number): StakeValue {
+  const returns = Math.round(stake * odds);
+  return { stake, odds, returns, profit: returns - stake, loss: stake };
+}
+
+/** "returns 12,320 — a 10,320 profit, or 2,000 gone" — the sentence a price is not. */
+export function stakeLine(v: StakeValue, fmt: (n: number) => string): string {
+  return `returns ${fmt(v.returns)} — a ${fmt(v.profit)} profit, or ${fmt(v.loss)} gone`;
+}
+
+/** What the bookie's price says the chance is, once its own margin is taken back out. */
+export function impliedProbability(odds: number, margin: number): number {
+  return Math.min(1, (1 - margin) / Math.max(1.01, odds));
+}
+
+/**
+ * What the bookie is not pricing about one runner (GDD §10, §5.3).
+ *
+ * The book is a model of **public ratings and nothing else** — that is the sentence §5.3 and §10
+ * both rest on, and it is the only reason betting can ever be a road rather than a tax. But a
+ * player could only act on it by holding two screens in their head: the odds here, and the stat
+ * bars over in the Kennels.
+ *
+ * So the gap gets printed. Three things move a dog and leave its rating alone, and each one is a
+ * clause here only when it is actually true of this dog:
+ *
+ * - **Fitness.** `RaceEntry` carries a rating and the field table prints the fitness beside it;
+ *   what was missing was that the *price* only knows the first of the two.
+ * - **Stats that have outgrown the rating** (§5.3's `effectiveRating`) — a month with a trainer,
+ *   a track-day pass. Exactly what the Hard AI acts on, said out loud so a player can too.
+ * - **A supplement**, and from Phase D a nobbling, neither of which the book has seen.
+ *
+ * Returns null when there is nothing to say, so a dog the bookie has right adds no noise.
+ */
+export function bookieBlindSpot(
+  s: GameState,
+  entry: RaceEntry,
+  fieldMeanFitness: number,
+): string | null {
+  const d = s.dogs[entry.dogId];
+  if (!d) return null;
+  const clauses: string[] = [];
+  const stats = baseRating(d);
+  if (stats > d.rating) {
+    clauses.push(`stats worth ${stats} against the ${d.rating} it is priced on`);
+  }
+  const fitGap = Math.round(d.fitness - fieldMeanFitness);
+  if (Math.abs(fitGap) >= 6) {
+    clauses.push(
+      `${d.fitness} fitness against a field averaging ${Math.round(fieldMeanFitness)}` +
+        (fitGap > 0 ? '' : ' — it is the tired one here'),
+    );
+  }
+  if (d.supplemented) clauses.push('a supplement nobody declared');
+  if (!clauses.length) return null;
+  return `${d.name} is priced at rating ${entry.rating}. The book does not see ${clauses.join(', nor ')}.`;
+}
+
+/** The mean fitness of the runners in a field — what one dog's condition is read against. */
+export function fieldMeanFitness(s: GameState, field: readonly RaceEntry[]): number {
+  let total = 0;
+  let n = 0;
+  for (const e of field) {
+    const d = s.dogs[e.dogId];
+    if (!d) continue;
+    total += d.fitness;
+    n++;
+  }
+  return n ? total / n : 0;
 }
 
 export interface HoldEconomics {
