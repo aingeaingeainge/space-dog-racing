@@ -56,6 +56,37 @@ function onBend(frac: number, windows: [number, number][]): boolean {
 }
 
 /**
+ * How far inside the boxes a trap is: **+0.5 at trap 1, −0.5 at the outside trap**, symmetric
+ * about the middle (GDD §6.2, D37).
+ *
+ * Two rules read it and they pull opposite ways, which is the whole point: the rail is the short
+ * way round, and the rail is where the traffic is. Symmetric so that a full field's draw is worth
+ * nothing in aggregate — the draw redistributes a race, it does not add speed to one.
+ */
+function insideness(trap: number): number {
+  return ((balance.traps + 1) / 2 - trap) / (balance.traps - 1);
+}
+
+/**
+ * Whose line gives way when two dogs meet on a bend (GDD §5.1, §6.2, D37).
+ *
+ * Trap craft decides it, **adjusted for where the dog is drawn**: a dog on the rail has less room
+ * to work with, so it needs the craft to hold its line and comes off worse when it has not got it.
+ * The lower score is the victim.
+ *
+ * ⚠️ **This replaces a tie-break that was doing the same job by accident and doing it far too
+ * hard.** `ri.trapStat <= rj.trapStat ? i : j` made the lower array index — which is the lower
+ * trap — the victim of every clash between two dogs of equal craft, and in a field of identical
+ * dogs on a tight track that was worth **trap 1 winning 9.1% against trap 8's 17.3%** [measured].
+ * Nothing intended it, nothing printed it, and it has been in every race with bends since M0.
+ * Now the rule is deliberate, its size is a number in the spreadsheet, and it is paid for by the
+ * shorter trip on the rail — so which end of the draw a dog wants depends on the dog.
+ */
+function bendCraft(r: Runner): number {
+  return r.trapStat - balance.trapTraffic * insideness(r.trap);
+}
+
+/**
  * Tick model ported from design/economy_sim.py run_race(), with the GDD §6.2 additions:
  * bend interference, trait modifiers and a tick log for the renderer. Every random number
  * comes from `rng`; the same runners + rng give the same race on any machine.
@@ -71,6 +102,12 @@ export function simulateRace(runners: readonly Runner[], ctx: RaceContext, rng: 
   // side by side on a bend (about half a second).
   const bumpPerTick = balance.raceBumpChance / bumpTicks;
   const bendMult = track.bends === 'tight' ? 1.5 : track.bends === 'wide' ? 0.6 : 1;
+  /**
+   * How much the **draw** matters here (GDD §6.2, D37). Zero on a track with no bends, because a
+   * trap number on a straight is a starting position and nothing else — which is what `--stats`
+   * measures and what the Void Derby's 350 m straight is for.
+   */
+  const drawMult = windows.length ? bendMult : 0;
 
   const pos = new Float64Array(n);
   const vel = new Float64Array(n);
@@ -94,12 +131,16 @@ export function simulateRace(runners: readonly Runner[], ctx: RaceContext, rng: 
       rng.uniform(balance.raceBreakMin, balance.raceBreakMax);
   }
 
-  // Static per-dog multipliers from traits and the track.
+  // Static per-dog multipliers from traits, the track, and the draw.
   const mult = new Float64Array(n).fill(1);
   const fadeShift = new Float64Array(n);
   for (let i = 0; i < n; i++) {
     const r = runners[i]!;
     const t = r.traits;
+    // The draw: a shorter trip on the rail, a longer one out wide (GDD §6.2, D37). `inside` runs
+    // +0.5 at trap 1 to −0.5 at trap 8, so the effect is symmetric about the middle of the boxes
+    // and a full-width field neither gains nor loses speed on average.
+    mult[i]! *= 1 + balance.trapDrawEdge * insideness(r.trap) * drawMult;
     if (t.includes('railer') && track.bends === 'tight') mult[i]! *= 1.03;
     if (t.includes('mudlark') && track.mud) mult[i]! *= 1.05;
     if (t.includes('showboat') && ctx.major) mult[i]! *= 1.03;
@@ -155,8 +196,8 @@ export function simulateRace(runners: readonly Runner[], ctx: RaceContext, rng: 
           p *= 1 - (Math.min(ri.trapStat, rj.trapStat) / 100) * 0.5;
           if (ri.traits.includes('wideRunner') || rj.traits.includes('wideRunner')) p *= 0.25;
           if (rng.chance(p)) {
-            // The dog with the worse trap craft comes off worse.
-            const victim = ri.trapStat <= rj.trapStat ? i : j;
+            // The dog with less craft for the line it is on comes off worse — see bendCraft.
+            const victim = bendCraft(ri) <= bendCraft(rj) ? i : j;
             const other = victim === i ? j : i;
             bumpedUntil[victim] = t + bumpTicks;
             events.push({

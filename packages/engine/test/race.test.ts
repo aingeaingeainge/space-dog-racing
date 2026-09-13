@@ -15,24 +15,43 @@ const track = { distance: 480, length: 'standard' as const, bends: 'medium' as c
 
 function field(rng: ReturnType<typeof mulberry32>, qualities: number[]): Runner[] {
   let n = 0;
-  return qualities.map((q, i) => {
-    const d = fitRating(
-      createDog({ quality: q, age: 3, owner: 'local', traits: [] }, rng, (p) => `${p}${n++}`),
-      q,
-      q,
-    );
-    return {
-      id: d.id,
-      trap: i + 1,
-      speed: d.speed,
-      accel: d.accel,
-      stamina: d.stamina,
-      trapStat: d.trap,
-      fitness: 90,
-      form: 0,
-      traits: [],
-    };
-  });
+  return draw(
+    qualities.map((q) => {
+      const d = fitRating(
+        createDog({ quality: q, age: 3, owner: 'local', traits: [] }, rng, (p) => `${p}${n++}`),
+        q,
+        q,
+      );
+      return {
+        id: d.id,
+        trap: 0,
+        speed: d.speed,
+        accel: d.accel,
+        stamina: d.stamina,
+        trapStat: d.trap,
+        fitness: 90,
+        form: 0,
+        traits: [],
+      };
+    }),
+  );
+}
+
+/**
+ * Number the boxes by where a runner actually stands in the field — the engine's own rule
+ * (`lockDeclarations` builds entries in trap order and `runnerFrom` passes `e.trap`), so a runner's
+ * trap is always its position in the field and never a label carried over from somewhere else.
+ *
+ * ⚠️ **The calibration test below used to shuffle the field *after* numbering it**, which read as
+ * a random draw and was not one: the hero was created first, so it was numbered trap 1 and then
+ * ran from trap 1 in every one of the 1,200 races however the array was reordered. That cost
+ * nothing while the trap number was worth nothing, and the moment D37 gave the draw an effect it
+ * became the difference between a hero on a random draw (57.4%, and what the harness's own
+ * `--calibrate` measures) and a hero permanently on the best one (60.9%). Numbering after the
+ * shuffle is the stronger assertion and the one the test always meant to make.
+ */
+function draw(runners: Runner[]): Runner[] {
+  return runners.map((r, i) => ({ ...r, trap: i + 1 }));
 }
 
 describe('simulateRace', () => {
@@ -59,7 +78,7 @@ describe('simulateRace', () => {
     const n = 1200;
     let wins = 0;
     for (let i = 0; i < n; i++) {
-      const runners = rng.shuffle(field(rng, [65, 50, 50, 50, 50, 50, 50, 50]));
+      const runners = draw(rng.shuffle(field(rng, [65, 50, 50, 50, 50, 50, 50, 50])));
       const hero = runners.find((r) => r.id === 'dog0')!.id;
       if (
         simulateRace(runners, { track, major: false }, mulberry32(rng.int(0, 1e9))).order[0] ===

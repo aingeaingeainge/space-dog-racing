@@ -154,6 +154,31 @@ const LABELS: Record<string, string> = {
   'Ship engine: starting tier': 'shipStartSpeed',
   'Ship engine: arrival roll per tier': 'arrivalSpeedMult',
   'Ship engine upgrade price': 'shipEngineCost',
+  // ---- v2 Phase D ----
+  // The draw (GDD §6.2, D37). Two numbers pulling opposite ways: the rail is the short way round
+  // and the rail is where the traffic is, so which end of the boxes a dog wants depends on its
+  // trap craft. Sweeping them together is the only way to size either.
+  'Trap draw: top-speed edge across the width of the boxes': 'trapDrawEdge',
+  'Trap draw: trap craft the rail costs, across the width of the boxes': 'trapTraffic',
+  // §13's two shady acts and the deterrent, which is the half that had never been measured.
+  'Steward bribe: fee': 'bribeCost',
+  'Sabotage: fee': 'sabotageCost',
+  'Sabotage: fitness taken off the target for that race': 'sabotageFitness',
+  'Fixing: chance the stewards catch you': 'fixCatchBase',
+  'Fixing: catch chance multiplier, Prime fixer': 'fixCatchPrimeMult',
+  'Fixing: fine, flat part': 'fixFineBase',
+  'Fixing: fine, multiple of what you had on that race': 'fixFineStakeMult',
+  // The guard on §10's rich-get-richer channel (GDD §20 Q7).
+  'Max stake per race (flat ceiling)': 'maxStakeFlat',
+  'Max stake per race (flat ceiling), Collar Prime multiple': 'maxStakeFlatFinalMult',
+  // The championship purse (GDD §4.3, D3). A purse, not a scoreboard.
+  'Championship points: 1st': 'champPoints1',
+  'Championship points: 2nd': 'champPoints2',
+  'Championship points: 3rd': 'champPoints3',
+  'Championship points: 4th': 'champPoints4',
+  'Championship purse: 1st on points': 'champPurse1',
+  'Championship purse: 2nd on points': 'champPurse2',
+  'Championship purse: 3rd on points': 'champPurse3',
 };
 
 const wb = XLSX.read(readFileSync(xlsxPath));

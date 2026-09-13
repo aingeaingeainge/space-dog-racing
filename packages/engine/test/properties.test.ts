@@ -144,6 +144,13 @@ function checkInvariants(s: GameState, lastAction: Action): void {
     assert(s.fields.length === card.length, 'a field per race on the card');
     for (const { race, entries } of s.fields) {
       assert(entries.length === balance.traps, 'field size');
+      entries.forEach((e, i) => {
+        // A runner's trap is its position in the field, boxes 1..8 with no gaps and no repeats.
+        // Nothing asserted this while the trap number was worth nothing; D37 gives the draw an
+        // effect and §13's steward bribe *moves a dog between boxes*, so "the field is the draw"
+        // is now load-bearing rather than incidental.
+        assert(e.trap === i + 1, `entry ${i} in the ${race} is in trap ${e.trap}`);
+      });
       for (const e of entries) {
         assert(!inRace.has(e.dogId), 'dog in two races');
         inRace.add(e.dogId);
