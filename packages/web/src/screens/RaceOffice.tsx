@@ -1,7 +1,10 @@
+import { useState } from 'react';
 import {
   vetRestBonus,
   balance,
+  bestStaff,
   formatBones,
+  hasFixer,
   planetOf,
   purseFor,
   thisWeeksCard,
@@ -14,6 +17,7 @@ import { DogThumb } from '../components/DogCard';
 import { Panel } from '../components/Panel';
 import { TicketCard } from '../components/TicketCard';
 import { Badge, Notes, StableName, Traits } from '../components/ui';
+import { NeonButton } from '../components/NeonButton';
 import { trackText } from '../lib/planetText';
 import {
   cannotRunReason,
@@ -27,7 +31,77 @@ import {
   raceTone,
   TRAPS,
 } from '../lib/selectors';
+import { priceABox } from '../lib/priceTag';
 import { useGame } from '../store/gameStore';
+
+/**
+ * A word with a steward (GDD §13). The bribe belongs on the declaration screen because it is a
+ * decision about the *draw*, and the draw is made when declarations lock — so this is the last
+ * moment it can be placed, standing next to the entry it depends on.
+ *
+ * ⚠️ **Priced in Bones, at this race's purse, on this track.** "Choose your dog's trap draw, 800"
+ * is §8.4's supplement again: a rule with its price in the wrong units, and worse, a rule that was
+ * worth nothing at all until D37 gave the draw an effect. `priceABox` reads the engine's own
+ * `drawAdvantage`, which is zero on a track with no bends — so on the Void Derby's straight this
+ * panel says plainly that the box is a starting position and to keep your money.
+ */
+function StewardsBox({
+  s,
+  me,
+  race,
+  dogId,
+}: {
+  s: GameState;
+  me: Player;
+  race: RaceTypeId;
+  dogId: string;
+}) {
+  const dispatch = useGame((g) => g.dispatch);
+  const [trap, setTrap] = useState(1);
+  if (s.toggles.cleanSport || !hasFixer(me) || !dogId) return null;
+  const bought = s.fixes.find(
+    (f) => f.playerId === me.id && f.week === s.week && f.kind === 'bribe',
+  );
+  const entry = s.fields?.find((f) => f.race === race)?.entries.find((e) => e.dogId === dogId);
+  const price = priceABox(s, race, entry?.odds ?? null, 0);
+  const fixer = bestStaff(me, 'fixer');
+  const why = me.flags.fixerBarred
+    ? 'The stewards have your name'
+    : bought
+      ? bought.race === race
+        ? `Already bought trap ${bought.trap}`
+        : 'Your fixer has done his one job this weekend'
+      : me.cash < price.fee
+        ? `You cannot cover the ${formatBones(price.fee)}`
+        : null;
+
+  return (
+    <div className="stack tight-p">
+      <span className="muted">{price.line}</span>
+      <div className="row">
+        <label>
+          <span className="muted">Box</span>{' '}
+          <select value={trap} onChange={(e) => setTrap(Number(e.target.value))}>
+            {Array.from({ length: TRAPS }, (_, i) => (
+              <option key={i + 1} value={i + 1}>
+                {i + 1}
+                {i === 0 ? ' — the rail' : i === TRAPS - 1 ? ' — widest' : ''}
+              </option>
+            ))}
+          </select>
+        </label>
+        <NeonButton
+          disabled={!!why || price.advantage <= 0}
+          title={why ?? `${fixer?.name ?? 'Your fixer'} has a word with a steward`}
+          onClick={() => dispatch({ t: 'BribeSteward', playerId: me.id, race, dogId, trap })}
+        >
+          Have a word · {formatBones(price.fee)}
+        </NeonButton>
+        {why ? <span className="why">{why}</span> : null}
+      </div>
+    </div>
+  );
+}
 
 /**
  * What the week costs, dog by dog (GDD §5.7, §6.5).
@@ -132,9 +206,11 @@ export function RaceOffice({ s, me }: { s: GameState; me: Player }) {
               : planet.track.length === 'staying'
                 ? 'A staying trip: Stayers and stamina.'
                 : null,
-            planet.track.bends === 'tight'
-              ? 'Tight bends: Railers gain, everyone else risks a bump.'
-              : null,
+            planet.track.bends === 'none'
+              ? 'No bends at all: the draw is a starting position and nothing more.'
+              : planet.track.bends === 'tight'
+                ? 'Tight bends: the rail is the short way round and where the traffic is, so the draw matters most here — and a dog needs the trap craft to hold the inside line.'
+                : 'The draw counts for something on these bends: inside is shorter, outside is cleaner.',
             entry?.grandFinal
               ? `The Grand Final — purses ×${balance.finalMult}.`
               : major
@@ -205,6 +281,8 @@ export function RaceOffice({ s, me }: { s: GameState; me: Player }) {
                 {declaredHere} declared · {Math.max(0, TRAPS - declaredHere)} local dogs will fill
                 the rest, rating about {localRatingFor(race, major)}
               </p>
+
+              <StewardsBox s={s} me={me} race={race} dogId={mine} />
 
               <table className="rivals">
                 <tbody>

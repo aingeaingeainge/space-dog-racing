@@ -1,7 +1,12 @@
 import { useState } from 'react';
 import {
+  balance,
+  bestStaff,
   bettingMargin,
   formatBones,
+  hasFixer,
+  maxStakeFlat,
+  maxStakeFor,
   maxStakeFraction,
   planetOf,
   purseFor,
@@ -23,6 +28,7 @@ import {
   bookieBlindSpot,
   fieldMeanFitness,
   impliedProbability,
+  priceASabotage,
   stakeLine,
   stakeValue,
 } from '../lib/priceTag';
@@ -49,7 +55,7 @@ export function Bookie({ s, me }: { s: GameState; me: Player }) {
     <>
       <Panel
         title="The bookie"
-        sub={`${planet.name} · margin ${Math.round(margin * 100)}% · max stake ${Math.round(frac * 100)}% of cash per race`}
+        sub={`${planet.name} · margin ${Math.round(margin * 100)}% · max stake ${Math.round(frac * 100)}% of cash or ${formatBones(maxStakeFlat(s))}, whichever is less`}
         actions={
           <NeonButton variant="primary" onClick={runRaces} title="key: Enter">
             Run the races
@@ -69,16 +75,17 @@ export function Bookie({ s, me }: { s: GameState; me: Player }) {
             margin < 0.15
               ? `A ${Math.round(margin * 100)}% book — the friendliest odds on the circuit.`
               : `The book takes ${Math.round(margin * 100)}%, so betting is a losing game unless you know something.`,
-            frac >= 1
-              ? 'Collar Prime lets you stake everything you have on a single race.'
-              : `You may not have more than ${Math.round(frac * 100)}% of your cash on any one race.`,
+            `You may not have more than ${Math.round(frac * 100)}% of your cash on one race, ` +
+              `and never more than ${formatBones(maxStakeFlat(s))} whatever you are holding — ` +
+              'the lower of the two. The flat one is what stops a big enough bankroll turning a ' +
+              'percentage edge into a procession.',
             'You can back your own dogs, or lay into a rival. Nobody else at this table sees your slips.',
           ]}
         />
       </Panel>
 
       {thisWeeksCard(s).map((race) => (
-        <RaceBetting key={race} s={s} me={me} race={race} margin={margin} frac={frac} />
+        <RaceBetting key={race} s={s} me={me} race={race} margin={margin} />
       ))}
     </>
   );
@@ -89,13 +96,11 @@ function RaceBetting({
   me,
   race,
   margin,
-  frac,
 }: {
   s: GameState;
   me: Player;
   race: RaceTypeId;
   margin: number;
-  frac: number;
 }) {
   const dispatch = useGame((g) => g.dispatch);
   const [stake, setStake] = useState(100);
@@ -103,7 +108,9 @@ function RaceBetting({
   const purse = purseFor(s, race);
   const bets = s.bets.filter((b) => b.playerId === me.id && b.week === s.week && b.race === race);
   const already = bets.reduce((sum, b) => sum + b.stake, 0);
-  const cap = Math.floor(me.cash * frac);
+  // Both ceilings, the lower binding — the same rule `placeBet` enforces, so the slider cannot
+  // offer a stake the reducer would refuse (GDD §10, §20 Q7).
+  const cap = maxStakeFor(s, me);
   const room = Math.max(0, Math.min(cap - already, Math.floor(me.cash)));
   const wanted = Math.max(0, Math.min(stake, room));
 
@@ -168,6 +175,8 @@ function RaceBetting({
 
       {blind.length ? <Notes lines={blind} /> : null}
 
+      <FixerCounter s={s} me={me} race={race} stake={wanted} />
+
       <FieldTable
         s={s}
         meId={me.id}
@@ -194,6 +203,83 @@ function RaceBetting({
 
       <BetSlips s={s} bets={bets} race={race} />
     </TicketCard>
+  );
+}
+
+/**
+ * The Fixer's counter (GDD §13), and the reason this phase built `priceASabotage`.
+ *
+ * ⚠️ **A button that said "−25 fitness · 500 Bones" would be §8.4's supplement in a new coat**: a
+ * correct rule with its price in the wrong units. §13's road is a *percentage* edge whose cash
+ * value is the stake, so the only honest way to offer it is with the stake in the same sentence —
+ * what the edge is worth on the money you have dialled in, what the stewards cost you if they
+ * notice, and the stake at which the whole thing stops losing.
+ *
+ * It sits under the odds rather than in the Saloon deliberately: the job is only possible once the
+ * prices are up, and this is the screen where the prices are.
+ */
+function FixerCounter({
+  s,
+  me,
+  race,
+  stake,
+}: {
+  s: GameState;
+  me: Player;
+  race: RaceTypeId;
+  stake: number;
+}) {
+  const dispatch = useGame((g) => g.dispatch);
+  if (s.toggles.cleanSport || !hasFixer(me)) return null;
+  const already = s.fixes.some(
+    (f) => f.playerId === me.id && f.week === s.week && f.kind === 'sabotage',
+  );
+  const price = priceASabotage(s, me, race, Math.max(stake, 0));
+  if (!price) return null;
+  const fixer = bestStaff(me, 'fixer');
+  const why = me.flags.fixerBarred
+    ? 'The stewards have your name — nobody will fix for you again this season'
+    : already
+      ? 'Your fixer has done his one job this weekend'
+      : me.cash < price.fee
+        ? `You cannot cover the ${formatBones(price.fee)}`
+        : null;
+
+  return (
+    <div className="stack gap-t">
+      <Notes
+        lines={[
+          `${fixer?.name ?? 'Your fixer'} can get at ${price.target.name} — ${balance.sabotageFitness} fitness, ` +
+            `for ${formatBones(price.fee)}. The book has already priced this race and will not price it again.`,
+          `Afterwards the best value on the board is ${price.back.name} at ${price.back.odds.toFixed(2)}: ` +
+            `worth ${(price.edge * 100).toFixed(0)}% more than it pays, so ` +
+            `${formatBones(price.bettingGain)} on the ${formatBones(stake)} you have dialled in` +
+            (price.purseGain > 0 ? `, plus ${formatBones(price.purseGain)} of purse` : '') +
+            '.',
+          `The stewards here catch ${Math.round(price.catchRate * 100)}% of jobs. If they catch this one it is ` +
+            `${formatBones(price.fine)} — ${formatBones(balance.fixFineBase)} plus a quarter of what you have on the race — ` +
+            `and ${fixer?.name ?? 'your fixer'} is struck off for the season.`,
+          price.net >= 0
+            ? `On the whole: ${formatBones(price.net)} to the good at this stake.`
+            : price.breakEven
+              ? `On the whole: ${formatBones(-price.net)} down at this stake. It turns a profit above ${formatBones(price.breakEven)} on the race.`
+              : `On the whole: ${formatBones(-price.net)} down, and no stake makes this one pay — the fine grows faster than the edge.`,
+        ]}
+      />
+      <div className="row">
+        <NeonButton
+          variant={price.net >= 0 ? 'primary' : undefined}
+          disabled={!!why}
+          title={why ?? `Have a word about ${price.target.name}`}
+          onClick={() =>
+            dispatch({ t: 'Sabotage', playerId: me.id, race, dogId: price.target.dogId })
+          }
+        >
+          Have a word about {price.target.name} · {formatBones(price.fee)}
+        </NeonButton>
+        {why ? <span className="why">{why}</span> : null}
+      </div>
+    </div>
   );
 }
 

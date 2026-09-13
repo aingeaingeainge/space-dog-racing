@@ -34,7 +34,10 @@ function rgb(hex: string): [number, number, number] {
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
 }
 
-const hex2 = (n: number) => Math.max(0, Math.min(255, Math.round(n))).toString(16).padStart(2, '0');
+const hex2 = (n: number) =>
+  Math.max(0, Math.min(255, Math.round(n)))
+    .toString(16)
+    .padStart(2, '0');
 
 /** `k` of `a` over `b`. Exact arithmetic only — this is presentation, but cheap is cheap. */
 function mix(a: string, b: string, k: number): string {

@@ -118,7 +118,8 @@ function colourClause(p: Planet): string {
 
 /** The track as a sentence, so a prompt reads like a brief. */
 function trackClause(p: Planet): string {
-  const bends = p.track.bends === 'none' ? 'dead straight, no bends at all' : `${p.track.bends} bends`;
+  const bends =
+    p.track.bends === 'none' ? 'dead straight, no bends at all' : `${p.track.bends} bends`;
   const extra = [
     p.track.hazard !== 1 ? 'the surface is hazardous and punishing' : null,
     p.track.slippery ? 'it is slippery underfoot' : null,
@@ -361,7 +362,10 @@ const STAFF_BRIEFS: [string, string][] = [
   ['vet-02', 'a gentle giant of a vet with reading spectacles and a bandage roll'],
   ['fixer-01', 'a fixer in a long coat, hands in pockets, standing in shadow'],
   ['fixer-02', 'a cheerful fixer with a briefcase full of things you should not have'],
-  ['fat-tony', 'Fat Tony Nebula: an enormous, immaculately dressed loan shark, all rings and teeth'],
+  [
+    'fat-tony',
+    'Fat Tony Nebula: an enormous, immaculately dressed loan shark, all rings and teeth',
+  ],
 ];
 
 const ownerPortraits: AssetSpec[] = OWNER_BRIEFS.map((brief, i) => ({
@@ -430,7 +434,7 @@ const UI_BRIEFS: UiBrief[] = [
     cap: 60,
     prompt:
       'Seamless tileable dark brushed-metal plate, scratched and slightly greasy, chunky hand-painted 1990s PC-game look, charcoal #1B1A22 with faint rust #6B3A22 staining, even lighting, no rivets, no text, square 1:1.',
-    },
+  },
   {
     id: 'rivet',
     w: 128,

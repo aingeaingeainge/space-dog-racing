@@ -149,12 +149,8 @@ push(
 );
 push();
 push('```text');
-push(
-  '1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime —',
-);
-push(
-  "Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything",
-);
+push('1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime —');
+push("Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything");
 push('slightly held together with tape');
 push('```');
 push();

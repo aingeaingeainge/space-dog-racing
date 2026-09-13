@@ -25,7 +25,13 @@ export function NeonButton({
   type = 'button',
   ...rest
 }: NeonButtonProps) {
-  const cls = ['nb', variant === 'default' ? null : variant, small ? 'small' : null, wide ? 'wide' : null, className]
+  const cls = [
+    'nb',
+    variant === 'default' ? null : variant,
+    small ? 'small' : null,
+    wide ? 'wide' : null,
+    className,
+  ]
     .filter(Boolean)
     .join(' ');
   return <button type={type} className={cls} {...rest} />;

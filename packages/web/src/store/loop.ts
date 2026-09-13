@@ -33,15 +33,7 @@ export function applyActions(base: GameState, actions: readonly Action[]): Appli
 }
 
 export type ScreenKind =
-  | 'seasonEnd'
-  | 'noHuman'
-  | 'bust'
-  | 'fields'
-  | 'race'
-  | 'results'
-  | 'pass'
-  | 'betting'
-  | 'planet';
+  'seasonEnd' | 'noHuman' | 'bust' | 'fields' | 'race' | 'results' | 'pass' | 'betting' | 'planet';
 
 export interface ScreenUi {
   /** Week whose races the table has already watched run. */

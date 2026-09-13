@@ -53,7 +53,10 @@ export function FieldTable({
                   {d ? <DogThumb dog={d} /> : null}
                   <b>{e.name}</b>
                   {d && d.ownerId === meId && d.supplemented ? (
-                    <Badge tone="hot" title="you fed this one a supplement — the bookie does not know">
+                    <Badge
+                      tone="hot"
+                      title="you fed this one a supplement — the bookie does not know"
+                    >
                       💉
                     </Badge>
                   ) : null}
@@ -70,9 +73,7 @@ export function FieldTable({
                 </td>
                 <td className="num">{e.rating}</td>
                 <td className="num">{d ? d.fitness : '—'}</td>
-                <td className="num">
-                  {oddsCell ? oddsCell(e, 'win', e.odds) : e.odds.toFixed(2)}
-                </td>
+                <td className="num">{oddsCell ? oddsCell(e, 'win', e.odds) : e.odds.toFixed(2)}</td>
                 <td className="num">
                   {oddsCell ? oddsCell(e, 'place', placeOdds) : placeOdds.toFixed(2)}
                 </td>

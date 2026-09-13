@@ -152,10 +152,20 @@ function ShareSeed({ setup }: { setup: Parameters<typeof seasonLinkFor>[0] }) {
 
   return (
     <>
-      <NeonButton onClick={copy} title="A link that fills this seed and table into the New Season screen">
+      <NeonButton
+        onClick={copy}
+        title="A link that fills this seed and table into the New Season screen"
+      >
         {state === 'copied' ? 'Link copied' : 'Copy a link to this season'}
       </NeonButton>
-      {state === 'shown' ? <input className="seed-link" readOnly value={link} onFocus={(e) => e.currentTarget.select()} /> : null}
+      {state === 'shown' ? (
+        <input
+          className="seed-link"
+          readOnly
+          value={link}
+          onFocus={(e) => e.currentTarget.select()}
+        />
+      ) : null}
     </>
   );
 }

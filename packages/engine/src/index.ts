@@ -6,6 +6,7 @@ export * from './season';
 export * from './economy';
 export * from './race/simulateRace';
 export * from './race/odds';
+export * from './race/draw';
 export { decide, decideNormal } from './ai';
 export { balance, currencyName, formatBones } from './content/balance';
 export { PLANETS, PLANET_BY_ID, planetOf } from './content/planets';

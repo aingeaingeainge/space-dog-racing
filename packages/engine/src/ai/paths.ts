@@ -11,6 +11,7 @@ import {
 import { outstanding } from '../economy/loans';
 import { hasFixer } from '../economy/staff';
 import { winProbabilities } from '../race/odds';
+import { drawAdvantage } from '../race/draw';
 import { bettingOpen } from '../phases/turn';
 import type { Action, GameState, Id, RaceTypeId } from '../types';
 import {
@@ -150,7 +151,8 @@ const CROOK_MIN_BACKABLE = 0.04;
 function buyABox(plan: Plan): void {
   const { s, p, playerId, out } = plan;
   if (s.toggles.cleanSport || p.flags.fixerBarred || !hasFixer(p)) return;
-  if (currentPlanet(s).track.bends === 'none') return;
+  const drawWorth = drawAdvantage(currentPlanet(s).track);
+  if (drawWorth <= 0) return; // a straight: the box is a starting position and nothing else
   if (plan.cash < balance.bribeCost + plan.reserve) return;
   // The richest race we are actually standing in.
   let best: { race: RaceTypeId; dogId: Id; purse: number } | null = null;
@@ -161,11 +163,10 @@ function buyABox(plan: Plan): void {
     if (!best || purse > best.purse) best = { race, dogId, purse };
   }
   if (!best) return;
-  // D37: the draw is worth about 3.5 points of win rate, so the purse side alone has to clear the
-  // fee before the betting side is counted. `fixCatchRate` is not in this sum: a caught bribe
-  // costs the fine and the fixer, and that is priced once, in `worthFixing`, for the sabotage —
-  // the bribe is the cheap half of the road and the agent treats it as such.
-  if (best.purse * 0.035 * 2 < balance.bribeCost) return;
+  // `drawAdvantage` is the engine's one definition of what choosing a box is worth (D37), so the
+  // agent and the Race Office price the same thing. Doubled because the purse is only half of it:
+  // the book does not price a draw either, so a bribed dog is also value at its own unmoved odds.
+  if (best.purse * drawWorth * 2 < balance.bribeCost) return;
   out.push({ t: 'BribeSteward', playerId, race: best.race, dogId: best.dogId, trap: 1 });
   plan.cash -= balance.bribeCost;
 }

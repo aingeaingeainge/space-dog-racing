@@ -21,7 +21,8 @@ export function useKeys(map: KeyMap): void {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       const el = e.target as HTMLElement | null;
       const tag = el?.tagName;
-      if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA' || el?.isContentEditable) return;
+      if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA' || el?.isContentEditable)
+        return;
       const fn = latest.current[e.key] ?? latest.current[e.key.toLowerCase()];
       if (!fn) return;
       e.preventDefault();

@@ -93,7 +93,10 @@ export function dogBody(body: number): Art | null {
 
 /** One of the 8 alien accessory overlays. */
 export function dogAccessory(accessory: number): Art | null {
-  return resolve(dogs, `../assets/dogs/accessories/accessory-${String(accessory).padStart(2, '0')}`);
+  return resolve(
+    dogs,
+    `../assets/dogs/accessories/accessory-${String(accessory).padStart(2, '0')}`,
+  );
 }
 
 /** The 8-frame top-down run cycle for a base body, nose-right. Session 2 feeds `spriteFor`. */

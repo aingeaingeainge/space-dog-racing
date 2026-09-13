@@ -41,11 +41,7 @@ export function TicketCard({
       </div>
       <div className="tear" />
       <div className="fill">
-        {sub ? (
-          <p className="muted tight-p">
-            {sub}
-          </p>
-        ) : null}
+        {sub ? <p className="muted tight-p">{sub}</p> : null}
         {children}
         {serial ? <div className="serial">{serial}</div> : null}
       </div>

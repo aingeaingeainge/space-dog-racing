@@ -88,8 +88,7 @@ export function WorthChart({ s }: { s: GameState }) {
   const max = Math.ceil(hi / step) * step;
   const span = max - min || 1;
 
-  const x = (week: number) =>
-    pad.l + (weeks <= 1 ? plotW / 2 : ((week - 1) / (weeks - 1)) * plotW);
+  const x = (week: number) => pad.l + (weeks <= 1 ? plotW / 2 : ((week - 1) / (weeks - 1)) * plotW);
   const y = (v: number) => pad.t + (1 - (v - min) / span) * plotH;
 
   const ticks: number[] = [];

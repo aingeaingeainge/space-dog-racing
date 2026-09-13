@@ -29,9 +29,7 @@ export function Signpost({
           ))}
         </div>
       ) : (
-        <p className="none flush">
-          {empty}
-        </p>
+        <p className="none flush">{empty}</p>
       )}
       {children}
     </div>

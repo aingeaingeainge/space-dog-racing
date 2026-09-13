@@ -24,15 +24,22 @@ import {
   bestFeedAboard,
   cargoTotal,
   dogValue,
+  drawAdvantage,
+  fixCatchRate,
+  formatBones,
   fuelCost,
+  planetOf,
+  purseFor,
   ratingWith,
   weakestStat,
+  winProbabilities,
   type Dog,
   type GameState,
   type Good,
   type Id,
   type Player,
   type RaceEntry,
+  type RaceTypeId,
   type StatKey,
 } from '@sdr/engine';
 
@@ -267,6 +274,9 @@ export function bookieBlindSpot(
     );
   }
   if (d.supplemented) clauses.push('a supplement nobody declared');
+  // §13's whole point, said out loud on the one screen where it is worth money.
+  if (d.nobbled > 0)
+    clauses.push(`the ${d.nobbled} fitness somebody took off it after the prices went up`);
   if (!clauses.length) return null;
   return `${d.name} is priced at rating ${entry.rating}. The book does not see ${clauses.join(', nor ')}.`;
 }
@@ -282,6 +292,158 @@ export function fieldMeanFitness(s: GameState, field: readonly RaceEntry[]): num
     n++;
   }
   return n ? total / n : 0;
+}
+
+/**
+ * What a bought box is worth, in Bones, on this track and in this race (GDD §13, D37).
+ *
+ * The two halves the fee has to clear, and neither of them is "+3.5% win rate":
+ * - the **purse** it moves your way, which scales with the race — so a box is worth buying at a
+ *   Major and not on a quiet Tuesday;
+ * - the **price**, because the book prices ratings and does not price a draw either, so a dog you
+ *   have moved to the rail is value at its own unmoved odds.
+ *
+ * `drawAdvantage` is the engine's own number (measured, and zero on a track with no bends), so
+ * this screen and the AI that buys boxes are pricing the same thing.
+ */
+/**
+ * What `sabotageFitness` is worth in rating points to the bookie's model — the conversion this
+ * screen has to make because the engine takes *fitness* off a runner and the book speaks only
+ * *rating*. Mirrors `SABOTAGE_RATING_POINTS` in the harness and `SABOTAGE_RATING_EQUIV` in
+ * `ai/paths.ts`; measured by `npm run harness -- --fix` and re-measured if D13's curve moves.
+ */
+export const SABOTAGE_RATING_POINTS = 10;
+
+export interface BoxPrice {
+  fee: number;
+  /** Win-rate points choosing the box is worth here, as a fraction. Zero on a straight. */
+  advantage: number;
+  purse: number;
+  purseGain: number;
+  /** What the advantage is worth on a stake of this size at the dog's own odds. */
+  bettingGain: number;
+  worthIt: boolean;
+  line: string;
+}
+
+export function priceABox(
+  s: GameState,
+  race: RaceTypeId,
+  entryOdds: number | null,
+  stake: number,
+): BoxPrice {
+  const advantage = drawAdvantage(planetOf(s.planet.planetId).track);
+  const purse = purseFor(s, race)[0];
+  const purseGain = Math.round(advantage * purse);
+  // A win-rate gain of `advantage` on a price of `odds` is worth `advantage × odds` per Bone on.
+  const bettingGain = entryOdds ? Math.round(advantage * entryOdds * stake) : 0;
+  const fee = balance.bribeCost;
+  const total = purseGain + bettingGain;
+  return {
+    fee,
+    advantage,
+    purse,
+    purseGain,
+    bettingGain,
+    worthIt: total > fee,
+    line:
+      advantage <= 0
+        ? 'No bends on this track — a box here is a starting position and nothing else. Save your money.'
+        : `Choosing the box is worth about ${(advantage * 100).toFixed(1)} points of a win here: ` +
+          `${formatBones(purseGain)} of purse` +
+          (bettingGain > 0
+            ? ` and ${formatBones(bettingGain)} on a ${formatBones(stake)} bet`
+            : '') +
+          `, against the ${formatBones(fee)} fee.`,
+  };
+}
+
+/**
+ * What nobbling one runner would be worth, in Bones, at the stake dialled in (GDD §13, §10).
+ *
+ * ⚠️ **This is the screen the phase exists for.** A Sabotage button that said "−25 fitness, 500
+ * Bones" would be §8.4's supplement wearing a hat: a correct rule with its price in the wrong
+ * units. §13's road is a *percentage* edge whose cash value is the stake, and a player who cannot
+ * see the stake and the fine in the same sentence cannot price the fee against either.
+ *
+ * Five numbers, all in Bones, all at the stake actually dialled in: what the fee is, what the edge
+ * is worth on that stake, what the purse moves if the dog is yours, what the stewards cost you if
+ * they notice, and what the whole thing comes to. The odds are the **posted** ones, because they
+ * are what the bookie will still be quoting after the job is done — that divergence is the road.
+ */
+export interface FixPrice {
+  fee: number;
+  catchRate: number;
+  /** The fine if the stewards notice, at this stake. */
+  fine: number;
+  target: RaceEntry;
+  /** The runner the stale board is most wrong about once the target has been got at. */
+  back: RaceEntry;
+  /** Expected return per Bone staked on `back`, minus the Bone. */
+  edge: number;
+  bettingGain: number;
+  purseGain: number;
+  expectedCost: number;
+  net: number;
+  /** Stake at which the whole thing breaks even, or null where no stake ever does. */
+  breakEven: number | null;
+}
+
+export function priceASabotage(
+  s: GameState,
+  me: Player,
+  race: RaceTypeId,
+  stake: number,
+): FixPrice | null {
+  const field = s.fields?.find((f) => f.race === race)?.entries;
+  if (!field || !field.length) return null;
+  // Whoever the book has shortest, and not one of ours — you cannot nobble your own.
+  let favIdx = -1;
+  field.forEach((e, k) => {
+    if (e.ownerId === me.id) return;
+    if (favIdx < 0 || e.winProb > field[favIdx]!.winProb) favIdx = k;
+  });
+  if (favIdx < 0) return null;
+  const after = field.map((e, k) =>
+    k === favIdx ? Math.max(5, e.rating - SABOTAGE_RATING_POINTS) : e.rating,
+  );
+  const trueP = winProbabilities(after);
+  let bestIdx = -1;
+  let bestEdge = 0;
+  field.forEach((e, k) => {
+    if (k === favIdx) return;
+    const edge = trueP[k]! * e.odds - 1;
+    if (bestIdx < 0 || edge > bestEdge) {
+      bestIdx = k;
+      bestEdge = edge;
+    }
+  });
+  if (bestIdx < 0) return null;
+  const back = field[bestIdx]!;
+  const catchRate = fixCatchRate(s, me);
+  const fine = Math.round(balance.fixFineBase + balance.fixFineStakeMult * stake);
+  const bettingGain = Math.round(bestEdge * stake);
+  const purseGain =
+    back.ownerId === me.id
+      ? Math.round((trueP[bestIdx]! - back.winProb) * purseFor(s, race)[0])
+      : 0;
+  const expectedCost = Math.round(balance.sabotageCost + catchRate * fine);
+  // Net of the *rate* per Bone, so the break-even is the stake at which the fixed costs are covered.
+  const netRate = bestEdge - catchRate * balance.fixFineStakeMult;
+  const fixed = balance.sabotageCost + catchRate * balance.fixFineBase - purseGain;
+  return {
+    fee: balance.sabotageCost,
+    catchRate,
+    fine,
+    target: field[favIdx]!,
+    back,
+    edge: bestEdge,
+    bettingGain,
+    purseGain,
+    expectedCost,
+    net: bettingGain + purseGain - expectedCost,
+    breakEven: netRate > 0 ? Math.ceil(fixed / netRate) : null,
+  };
 }
 
 export interface HoldEconomics {

@@ -237,7 +237,9 @@ if (listed.length) {
 }
 
 if (broken.length) {
-  console.log(`${broken.length} file${broken.length === 1 ? '' : 's'} the contract disagrees with:`);
+  console.log(
+    `${broken.length} file${broken.length === 1 ? '' : 's'} the contract disagrees with:`,
+  );
   for (const r of broken) console.log(`  ${r.spec.stem}.webp — ${r.problems.join('; ')}`);
   console.log('');
 }
@@ -300,10 +302,7 @@ const sizeOfGroup = (id: string): number => {
 const dogKit = sizeOfGroup('bodies') + sizeOfGroup('accessories');
 const runKit = sizeOfGroup('run');
 const uiKit = sizeOfGroup('ui');
-const everything = rows.reduce(
-  (n, r) => n + (r.state === 'webp' ? r.bytes : r.standInBytes),
-  0,
-);
+const everything = rows.reduce((n, r) => n + (r.state === 'webp' ? r.bytes : r.standInBytes), 0);
 
 const bundle = bundleJs + bundleCss;
 const firstPaint = bundle + fonts + backdrop + uiKit;
@@ -360,8 +359,7 @@ if (PRUNE) {
 }
 console.log('');
 
-const summary =
-  `${present.length} finished, ${placeholders.length} still a stand-in, ${missing.length} missing.`;
+const summary = `${present.length} finished, ${placeholders.length} still a stand-in, ${missing.length} missing.`;
 if (broken.length) {
   console.log(`${summary} ${broken.length} of the finished files do not match the contract.`);
   process.exit(1);

@@ -124,7 +124,7 @@ export function Saloon({ s, me }: { s: GameState; me: Player }) {
             sp.trainer && 'A trainer is always drinking here.',
             sp.vet && 'A vet works out of the back room.',
             sp.fixer &&
-              'A fixer is at the far table — nothing for him to do until the dark side is built.',
+              'There is always a fixer at the far table on this station. Whether that is a good thing is between you and the stewards.',
             sp.bank &&
               `The bank lends up to ${formatBones(balance.bankMax)} at ${Math.round(balance.bankRate * 100)}% a week.`,
             sp.shark && 'Fat Tony Nebula is holding court in the corner.',
@@ -146,11 +146,16 @@ export function Saloon({ s, me }: { s: GameState; me: Player }) {
         ) : null}
         {staffOnOffer.map((o) => {
           const why =
-            me.staff.length >= balance.staffSlots
-              ? `All ${balance.staffSlots} slots are full — let somebody go first`
-              : me.cash < o.wage
-                ? `You cannot cover the first week's ${formatBones(o.wage)}`
-                : null;
+            // §13: the stewards' ban is the one refusal in the hiring path that is about *who*.
+            o.role === 'fixer' && me.flags.fixerBarred
+              ? 'The stewards have your name — nobody will fix for you again this season'
+              : o.role === 'fixer' && s.toggles.cleanSport
+                ? 'Clean Sport: there is nothing for a fixer to do'
+                : me.staff.length >= balance.staffSlots
+                  ? `All ${balance.staffSlots} slots are full — let somebody go first`
+                  : me.cash < o.wage
+                    ? `You cannot cover the first week's ${formatBones(o.wage)}`
+                    : null;
           const already = me.staff.filter((x) => x.role === o.role);
           return (
             <div className="shop-row" key={o.id}>

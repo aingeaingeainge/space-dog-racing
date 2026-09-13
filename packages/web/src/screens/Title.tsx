@@ -199,7 +199,10 @@ export function Title() {
         {!canStart ? <p className="muted">A season needs at least one human stable.</p> : null}
       </Panel>
 
-      <Panel title="Complexity toggles" sub="GDD §13 — Gazillionaire-style, set before the season starts">
+      <Panel
+        title="Complexity toggles"
+        sub="GDD §13 — Gazillionaire-style, set before the season starts"
+      >
         <div className="grid2">
           <Toggle
             on={toggles.cleanSport}

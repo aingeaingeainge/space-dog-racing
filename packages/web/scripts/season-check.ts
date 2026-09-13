@@ -23,7 +23,8 @@ import {
   dogValue,
   fuelCost,
   loanCap,
-  maxStakeFraction,
+  hasFixer,
+  maxStakeFor,
   outstanding,
   planetOf,
   replay,
@@ -101,12 +102,30 @@ function planetTurn(s: GameState, p: Player, tally: Tally): Action[] {
   // them with whatever is drinking here and then lets them all go in week 9 — which is what walks
   // both the slot limit and the FireStaff refusal that guards a Trader's hold.
   if (pre) {
-    for (const offer of s.planet.staff) {
-      // Two of the three slots, so there is cash left for dogs and feed — and one slot free, which
-      // is what lets a later week walk the "slots are full" refusal when a third is taken.
-      if (p.staff.length + hires >= balance.staffSlots - 1) break;
-      if (offer.role === 'fixer') continue; // not hireable until GDD §13 exists
-      if (cash <= offer.wage * 4) continue;
+    // The Fixer first when one is drinking here, because §13's path is the one this check exists
+    // to walk and it is reachable through nothing else: two actions in two different phases, a
+    // roll on race day, and a refusal that outlives the season.
+    const offers = [...s.planet.staff].sort(
+      (a, b) => (b.role === 'fixer' ? 1 : 0) - (a.role === 'fixer' ? 1 : 0),
+    );
+    for (const offer of offers) {
+      // ⚠️ The Fixer is taken **first and deliberately**, into the last slot if that is what it
+      // takes (GDD §13). Phase C's walk-through skipped him because he was not hireable; the point
+      // of this check is to *exercise* a path rather than survive it, and §13's is the only one in
+      // the game with an action in two different phases, a roll on race day, and a refusal that
+      // outlives the season. A fixer here means the walk-through meets the bribe, the nobbling,
+      // the stewards' enquiry and the ban.
+      //
+      // Those last two are refusals the screens have to respect for the same reason the AI does:
+      // a Saloon that offered a barred stable another Fixer would be offering an action the
+      // reducer throws on — which is exactly what this check caught the first time it ran.
+      if (offer.role === 'fixer' && (p.flags.fixerBarred || s.toggles.cleanSport)) continue;
+      const mustHaveFixer = offer.role === 'fixer' && !hasFixer(p);
+      const room = mustHaveFixer ? balance.staffSlots : balance.staffSlots - 1;
+      if (p.staff.length + hires >= room) continue;
+      // Two weeks of cover for a fixer against four for everybody else: his value is per job
+      // rather than per week, which is the same reasoning the crook agent uses.
+      if (cash <= offer.wage * (mustHaveFixer ? 2 : 4)) continue;
       out.push({ t: 'HireStaff', playerId: p.id, staffId: offer.id });
       cash -= offer.wage;
       hires++;
@@ -117,6 +136,7 @@ function planetTurn(s: GameState, p: Player, tally: Tally): Action[] {
   // the check that a stable carrying more than its ship can hold is refused rather than spilled.
   if (pre && s.week === 9) {
     for (const o of p.staff) {
+      if (o.role === 'fixer') continue; // keep the fixer: §13's path runs to the Grand Final
       out.push({ t: 'FireStaff', playerId: p.id, staffId: o.id });
       bump(tally, 'FireStaff');
     }
@@ -295,6 +315,27 @@ function planetTurn(s: GameState, p: Player, tally: Tally): Action[] {
     const declares = declarations(s, kennel, p);
     out.push(...declares);
     bump(tally, 'Declare', declares.length);
+    // GDD §13, the Race Office half: buy a box for the runner in the richest race we filled. The
+    // draw is made at the lock, so this is the last moment it can be placed — and the swap is
+    // applied after every other rule that moves dogs between boxes, which is the thing worth
+    // walking rather than merely surviving.
+    const canFix =
+      !s.toggles.cleanSport &&
+      hasFixer(p) &&
+      !p.flags.fixerBarred &&
+      !s.fixes.some((f) => f.playerId === p.id && f.week === s.week && f.kind === 'bribe');
+    const richest = declares[0];
+    if (canFix && richest?.t === 'Declare' && richest.dogId && cash > balance.bribeCost * 3) {
+      out.push({
+        t: 'BribeSteward',
+        playerId: p.id,
+        race: richest.race,
+        dogId: richest.dogId,
+        trap: 1,
+      });
+      cash -= balance.bribeCost;
+      bump(tally, 'BribeSteward');
+    }
   }
   out.push({ t: 'EndPhase', playerId: p.id });
   return out;
@@ -304,13 +345,33 @@ function planetTurn(s: GameState, p: Player, tally: Tally): Action[] {
 function bettingTurn(s: GameState, p: Player, tally: Tally): Action[] {
   const out: Action[] = [];
   if (!s.fields) return [{ t: 'EndPhase', playerId: p.id }];
-  const frac = maxStakeFraction(s);
   let cash = p.cash;
+  // GDD §13, the Bookie half: nobble the favourite in the first race on the card, then back the
+  // second favourite into the price that has not moved. One job a weekend, so this fires at most
+  // once — and over three seeds and thirteen weeks it walks the stewards' enquiry, the fine sized
+  // against the stake, and the ban that stops the next hire.
+  const canNobble =
+    !s.toggles.cleanSport &&
+    hasFixer(p) &&
+    !p.flags.fixerBarred &&
+    !s.fixes.some((f) => f.playerId === p.id && f.week === s.week && f.kind === 'sabotage') &&
+    cash > balance.sabotageCost * 3;
+  if (canNobble) {
+    const first = s.fields[0];
+    const runners = first
+      ? [...first.entries].sort((a, b) => b.winProb - a.winProb).filter((e) => e.ownerId !== p.id)
+      : [];
+    if (first && runners[0]) {
+      out.push({ t: 'Sabotage', playerId: p.id, race: first.race, dogId: runners[0].dogId });
+      cash -= balance.sabotageCost;
+      bump(tally, 'Sabotage');
+    }
+  }
   for (const { race, entries } of s.fields) {
     const already = s.bets
       .filter((b) => b.playerId === p.id && b.week === s.week && b.race === race)
       .reduce((sum, b) => sum + b.stake, 0);
-    const cap = Math.floor(cash * frac);
+    const cap = maxStakeFor(s, { ...p, cash });
     const room = Math.max(0, Math.min(cap - already, Math.floor(cash)));
     if (room < 50) continue;
     const runners = [...entries].sort((a, b) => b.winProb - a.winProb);
@@ -324,7 +385,7 @@ function bettingTurn(s: GameState, p: Player, tally: Tally): Action[] {
     }
     const room2 = Math.max(
       0,
-      Math.min(Math.floor(cash * frac) - already - stake, Math.floor(cash)),
+      Math.min(maxStakeFor(s, { ...p, cash }) - already - stake, Math.floor(cash)),
     );
     if (outsider && outsider !== fav && room2 >= 50) {
       const stake2 = Math.min(50, room2);
@@ -366,6 +427,8 @@ function playSeason(seed: number, toggles?: SeasonSetup['toggles']) {
     TradeFood: 0,
     HireStaff: 0,
     FireStaff: 0,
+    BribeSteward: 0,
+    Sabotage: 0,
     SetDogState: 0,
     BuyUpgrade: 0,
     Borrow: 0,
@@ -448,6 +511,10 @@ const seeds = process.argv
   .filter((n) => !Number.isNaN(n));
 const toRun = seeds.length ? seeds : [42, 7, 1234, 90210];
 let failures = 0;
+/** §13's coverage across the whole run — see the acceptance note at the end. */
+let fixes = 0;
+let enquiries = 0;
+let barred = 0;
 for (const seed of toRun) {
   const variants: [string, SeasonSetup['toggles'] | undefined][] =
     seed === toRun[0]
@@ -489,11 +556,27 @@ for (const seed of toRun) {
       // Fuel and value helpers are display-only in the UI; check they still line up.
       if (fuelCost(0) !== balance.fuelBase) throw new Error('fuelCost drifted from balance.json');
       if (bettingMargin(state) <= 0) throw new Error('betting margin went to zero');
+      // §13, walked rather than merely survived. The stewards' enquiry is the one branch that
+      // cannot be reached by a season that simply runs: it needs a fixer hired, a job placed, a
+      // roll lost on race day, and a stable that then meets the refusal for the rest of the year.
+      fixes += (tally.BribeSteward ?? 0) + (tally.Sabotage ?? 0);
+      if (state.eventLog.some((l) => l.text.includes('enquiry'))) enquiries++;
+      if (human.flags.fixerBarred) barred++;
     } catch (e) {
       failures++;
       console.error(`seed ${seed} (${label}) FAILED: ${(e as Error).message}`);
     }
   }
 }
-console.log(failures ? `\n${failures} season(s) failed` : '\nAll seasons played out clean.');
+// ⚠️ An acceptance row rather than a statistic: BUILD_PLAN §6b Phase D asks that this check
+// *exercise* the bribe, the sabotage and a caught crook, the way Phase C made it buy feed rather
+// than only kibble. A run in which §13's paths are never walked has not checked them.
+console.log(
+  `\n§13 walked: ${fixes} jobs placed, ${enquiries} stewards' enquiries, ${barred} season-long bans served.`,
+);
+if (!failures && (fixes === 0 || enquiries === 0 || barred === 0)) {
+  console.error('§13 was not exercised — the bribe, the nobbling and a catch all have to happen.');
+  failures++;
+}
+console.log(failures ? `${failures} season(s) failed` : 'All seasons played out clean.');
 process.exit(failures ? 1 : 0);

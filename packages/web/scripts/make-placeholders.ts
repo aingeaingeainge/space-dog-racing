@@ -27,11 +27,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(here, '..', 'src', 'assets');
 
 const esc = (s: string) =>
-  s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+  s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
 /** Chop a line to something that fits the frame at the chosen size. */
 function clip(s: string, n: number): string {
@@ -57,7 +53,12 @@ function svgFor(a: AssetSpec): string {
   if (!small && !short) {
     lines.push({ t: clip(a.what, perLine), size: mid, fill: '#cfc9de', weight: 400 });
     lines.push({ t: `${a.stem}.webp`, size: mid, fill: '#8f8aa3', weight: 400 });
-    lines.push({ t: `${w} × ${h} · ${a.targetKb} kB target`, size: mid, fill: '#8f8aa3', weight: 400 });
+    lines.push({
+      t: `${w} × ${h} · ${a.targetKb} kB target`,
+      size: mid,
+      fill: '#8f8aa3',
+      weight: 400,
+    });
   }
   lines.push({
     t: 'PLACEHOLDER',
@@ -131,4 +132,6 @@ console.log(
     `(${(bytes / 1024).toFixed(0)} kB in total).`,
 );
 if (skipped)
-  console.log(`${skipped} slot${skipped === 1 ? '' : 's'} skipped — finished .webp art is already there.`);
+  console.log(
+    `${skipped} slot${skipped === 1 ? '' : 's'} skipped — finished .webp art is already there.`,
+  );

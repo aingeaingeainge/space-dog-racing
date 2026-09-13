@@ -334,6 +334,9 @@ export function venueStatus(
     Math.max(-1, ...me.staff.filter((o) => o.role === role).map((o) => TIER_ORDER.indexOf(o.tier)));
   const hireable = s.planet.staff.filter((o) => {
     if (o.wage > me.cash) return false;
+    // §13's two refusals. A hub that sent a barred stable to the Saloon for a Fixer would be
+    // flagging a button the reducer throws on, which is worse than flagging nothing.
+    if (o.role === 'fixer' && (me.flags.fixerBarred || s.toggles.cleanSport)) return false;
     const mineTier = bestInRole(o.role);
     // A free slot takes anything new; a full yard only takes a clear upgrade on what is in it.
     if (mineTier < 0) return staffSlotsFree > 0;

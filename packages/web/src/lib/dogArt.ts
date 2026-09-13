@@ -57,7 +57,9 @@ export const COAT_PALETTES: CoatPalette[] = [
 ];
 
 export function coatFor(palette: number): CoatPalette {
-  return COAT_PALETTES[((palette % COAT_PALETTES.length) + COAT_PALETTES.length) % COAT_PALETTES.length]!;
+  return COAT_PALETTES[
+    ((palette % COAT_PALETTES.length) + COAT_PALETTES.length) % COAT_PALETTES.length
+  ]!;
 }
 
 /** One canonical size, scaled down by whoever draws it: a card at 84–132 px, a table chip at 26. */

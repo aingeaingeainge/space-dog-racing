@@ -24,7 +24,10 @@ function rgb(hex: string): [number, number, number] {
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
 }
 
-const hex2 = (n: number) => Math.max(0, Math.min(255, Math.round(n))).toString(16).padStart(2, '0');
+const hex2 = (n: number) =>
+  Math.max(0, Math.min(255, Math.round(n)))
+    .toString(16)
+    .padStart(2, '0');
 
 /** Perceived brightness, the same weighting the race view uses to ink a saddle cloth. */
 function luma([r, g, b]: [number, number, number]): number {
@@ -56,13 +59,7 @@ function textOn(hex: string): string {
  * --accent-2, so no screen ever knows which rock it is standing on: put a new planet in the
  * data and its hub, buttons, panel headers and signpost tint themselves.
  */
-export function PlanetTheme({
-  planetId,
-  children,
-}: {
-  planetId?: Id | null;
-  children: ReactNode;
-}) {
+export function PlanetTheme({ planetId, children }: { planetId?: Id | null; children: ReactNode }) {
   const [a1, a2] = accentsFor(planetId);
   const style = {
     '--accent-1': a1,

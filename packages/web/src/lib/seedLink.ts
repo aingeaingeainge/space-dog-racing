@@ -102,7 +102,8 @@ export function parseSeasonLink(search: string): SharedSeason | null {
       const token = part.trim().toLowerCase();
       if (!token) continue;
       if (HUMAN_TOKENS.includes(token)) players.push({ name: '', kind: 'human' });
-      else if (AI_TOKENS[token]) players.push({ name: '', kind: 'ai', difficulty: AI_TOKENS[token] });
+      else if (AI_TOKENS[token])
+        players.push({ name: '', kind: 'ai', difficulty: AI_TOKENS[token] });
       if (players.length >= MAX_STABLES) break;
     }
   }
