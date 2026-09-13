@@ -103,11 +103,11 @@ const ROWS: Row[] = [
   ['Championship points: 4th', 1],
   [
     'Championship purse: 1st on points',
-    12000,
-    'Paid once, at the Galactic Collar, as prize money. About 6% of a champion’s end worth — D3 keeps it small because net worth is the only condition under which all three roads compete',
+    5000,
+    '⚠️ §4.3 estimated 12,000 and called it "about 6% of a champion\'s end worth"; measured, 12,000 is 15.5% — a champion ends on about 77,000 — and it lifts p90 by 16% against a p10 that does not move at all, because it is paid at week 13 to whoever is already in front. Swept at 12,000 / 8,000 / 5,000 / nothing: 5,000 lands at 7.1%, which is the number §4.3 meant',
   ],
-  ['Championship purse: 2nd on points', 6000],
-  ['Championship purse: 3rd on points', 3000],
+  ['Championship purse: 2nd on points', 2500],
+  ['Championship purse: 3rd on points', 1250],
 ];
 
 const setMode = process.argv.includes('--set');

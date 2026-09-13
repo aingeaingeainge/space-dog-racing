@@ -247,7 +247,7 @@ function bestFix(plan: Plan, stake: number): FixChoice | null {
  * §20 Q7's ceiling belongs — and exactly the rich-get-richer channel §10 warns about, seen from
  * the inside.
  */
-function workTheFix(plan: Plan): void {
+export function workTheFix(plan: Plan): void {
   const { s, p, playerId, out } = plan;
   if (!s.fields) return;
   const canSabotage =

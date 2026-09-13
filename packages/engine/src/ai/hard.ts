@@ -7,11 +7,11 @@ import {
   bettingMargin,
   currentPlanet,
   dopingCatchRate,
-  maxStakeFraction,
+  maxStakeFor,
   player,
   thisWeeksCard,
 } from '../state';
-import type { Action, Dog, GameState, Id, RaceTypeId } from '../types';
+import type { Action, Dog, GameState, Id, RaceTypeId, StaffRole } from '../types';
 import {
   bestAssignment,
   dogMarket,
@@ -35,6 +35,7 @@ import {
   type Plan,
   type StateOptions,
 } from './shared';
+import { workTheFix } from './paths';
 
 /**
  * How often Hard leaves the *first* race on the card to the locals and backs its runner in the
@@ -109,7 +110,12 @@ export function decideHard(s: GameState, playerId: Id): Action[] {
     if (s.phase === 'planetPre') feedSupplements(plan, declareForThisWeek(plan));
   }
 
-  if (s.phase === 'betting' && s.fields) placeBets(plan);
+  // §13, behind the ablation knob: a Hard stable that has taken a Fixer on has to actually work
+  // him, or the measurement is only of a wage. See HARD_KNOBS.
+  if (s.phase === 'betting' && s.fields) {
+    if (HARD_KNOBS.wantsFixer) workTheFix(plan);
+    else placeBets(plan);
+  }
 
   plan.out.push({ t: 'EndPhase', playerId });
   return plan.out;
@@ -170,7 +176,12 @@ const HARD_WANT = ['trainer', 'vet'] as const;
 function keepStaffHard(plan: Plan): void {
   const weeksLeft = balance.weeks - plan.s.week + 1;
   if (weeksLeft < 4) return; // too late for any wage to earn itself back
-  keepStaff(plan, { want: [...HARD_WANT], cover: weeksLeft });
+  // ⚠️ Phase D's question for D30: is a **Fixer** the first third hire a racing stable can
+  // profitably make? §13 gives the third slot something to do for the first time. Off, and the
+  // ablation is in HARD_KNOBS — the short version is that a fixer's value is per job and his wage
+  // is per week, which is the same arithmetic that stopped the crook's own road paying.
+  const want: StaffRole[] = HARD_KNOBS.wantsFixer ? [...HARD_WANT, 'fixer'] : [...HARD_WANT];
+  keepStaff(plan, { want, cover: weeksLeft, cheapest: ['fixer'] });
 }
 
 // Measured and rejected (M4): buying the kennel module and engine tiers cost Hard more than
@@ -359,10 +370,64 @@ function feedSupplements(plan: Plan, assignment: Assignment): void {
  */
 const EDGE_REQUIRED = 1.15;
 
+/**
+ * How hard Hard backs an edge it has actually measured (GDD §14, §10).
+ *
+ * ⚠️ **The one thing §14 asks for that Hard has never done.** It has priced its own runners by
+ * `effectiveRating` since M4 — the §5.3 edge, which any player can read off the stat bars — and
+ * then staked **the same fixed fraction of cash whether the edge was 16% or 90%**. Knowing
+ * something and not sizing the bet by it is most of the way to not knowing it.
+ *
+ * A quarter-Kelly on the edge it has just computed: for decimal odds `o` and a true probability
+ * `p`, the full-Kelly fraction is `(p·o − 1) / (o − 1)`, and `bestEdge` is already `p·o`. Quarter
+ * rather than full because Kelly is optimal for a bankroll that is only ever bet and this one also
+ * has to pay wages — and because the edge is Hard's own estimate, so a quarter is the discount for
+ * being wrong about it. Clamped so that a huge price on a long shot cannot turn into a plunge.
+ *
+ * `HARD_KNOBS.sizeBetsByEdge` ablates it; the numbers are in the phase notes.
+ */
+const KELLY_SHARE = 0.25;
+const KELLY_MAX_FRACTION = 0.2;
+
+/**
+ * Harness-only ablation switches for the two Phase D changes tried on Hard (BUILD_PLAN §7a).
+ *
+ * ⚠️ **Both are off, and both are off because they were measured rather than because nobody got to
+ * them.** §14 has asked for the first since M4 and the Phase D brief names the second; the numbers
+ * are in `claude/V2_PHASE_D_NOTES.md` and repeated here so the next session does not re-try them:
+ *
+ *   Hard's betting, 300 seasons          beats Normal   mean     p10     bet income
+ *   flat fraction of cash (kept)            58.3%      41,109   9,390        +867
+ *   quarter-Kelly on the measured edge       56.7%      37,915  11,061        −178
+ *
+ *   Hard's third slot, 200 seasons        beats Normal   mean     p10    fixes
+ *   trainer + vet (kept)                     58.8%      41,663   8,919    0.0
+ *   trainer + vet + fixer, working him       49.3%      33,973   7,460    0.8
+ *
+ * The second of those is D30's question re-asked with §13 in the game — is a Fixer the first third
+ * hire a racing stable can profitably make? — and the answer is a flat no, by **9.5 points**. It is
+ * the same arithmetic that stopped the crook's own road paying, seen from the other side: a fixer's
+ * value is per job and his wage is per week, and a stable that already earns well from purses has
+ * the most to lose by spending a slot on a man it uses twice.
+ *
+ * The Kelly result is the more interesting of the two and the reason is worth keeping: Kelly
+ * stakes *more* as the price shortens, so it moves money off the long shots — which is where
+ * `effectiveRating` finds its edge, because a fed dog that has not had the results yet is exactly
+ * a dog the book has long — and onto short ones, where Hard's own estimate is least likely to beat
+ * the book's. Sizing a bet by an edge you have measured is right; sizing it by an edge you have
+ * *estimated* is only right where the estimate is good, and Hard's is good in one corner of the
+ * board.
+ */
+export const HARD_KNOBS = {
+  /** Stake in proportion to the measured edge rather than a flat fraction of cash. */
+  sizeBetsByEdge: false,
+  /** Take a Fixer into the third slot, now that §13 gives one something to do. */
+  wantsFixer: false,
+};
+
 function placeBets(plan: Plan): void {
   const { s, p, playerId, out } = plan;
   if (!s.fields) return;
-  const stakeFraction = maxStakeFraction(s);
   const mine = new Set(p.dogIds);
   const [cheap, second] = cheapAndSecond(s);
   const threwTheCheapRace =
@@ -372,6 +437,8 @@ function placeBets(plan: Plan): void {
   for (const { race, entries: field } of s.fields) {
     let pick: { dogId: Id; kind: 'win' | 'place' } | null = null;
     let fraction = balance.aiBetFraction;
+    /** The price we took the edge at, so the stake can be sized against it. */
+    let pickOdds = 0;
 
     // Our own runners, priced on what we know rather than on the number the bookie reads.
     // Both markets get checked: on the same edge a place bet pays less and lands far more
@@ -391,7 +458,14 @@ function placeBets(plan: Plan): void {
       if (edge > bestEdge) {
         bestEdge = edge;
         pick = { dogId: e.dogId, kind };
+        pickOdds = kind === 'place' ? decimalOdds(e.placeProb, margin) : e.odds;
         fraction = balance.aiBetFraction * (kind === 'place' ? 6 : 4);
+        if (HARD_KNOBS.sizeBetsByEdge && pickOdds > 1.01) {
+          // Quarter-Kelly on the edge just measured. `bestEdge` is p×odds, so the full-Kelly
+          // fraction is (bestEdge − 1) / (odds − 1).
+          const kelly = (bestEdge - 1) / (pickOdds - 1);
+          fraction = Math.max(0, Math.min(KELLY_MAX_FRACTION, kelly * KELLY_SHARE));
+        }
       }
     }
 
@@ -411,8 +485,9 @@ function placeBets(plan: Plan): void {
       fraction = balance.aiBetFraction;
     }
 
-    const cap = Math.floor(plan.cash * stakeFraction);
-    const stake = Math.floor(Math.min(plan.cash * fraction, 2000, cap));
+    // The flat ceiling as well as the fractional one, now that §20 Q7 has put one in.
+    const cap = maxStakeFor(s, { ...p, cash: plan.cash });
+    const stake = Math.floor(Math.min(plan.cash * fraction, cap));
     if (stake < 50) continue;
     out.push({ t: 'PlaceBet', playerId, race, dogId: pick.dogId, kind: pick.kind, stake });
     plan.cash -= stake;

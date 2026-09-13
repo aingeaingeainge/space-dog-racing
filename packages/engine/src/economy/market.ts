@@ -257,7 +257,14 @@ export function rollStaff(planet: Planet, rng: Rng, nextId: IdGen): StaffOffer[]
     // "Fixer for hire (§13)" and, until Phase D, nothing read that flag at all — the Fixer was not
     // hireable anywhere, so the special was a line of prose. It is a rule now, and it is what makes
     // the crook's road something a player can find on purpose rather than wait for.
-    const guaranteed = (role === 'trainer' && !!sp.trainer) || (role === 'vet' && !!sp.vet);
+    // The three planets whose row promises somebody in particular (GDD §12). Lagrange Lows says
+    // "Fixer for hire (§13)" and, until Phase D, nothing read that flag at all — the Fixer was not
+    // hireable anywhere, so the special was a line of prose. It is a rule now, and it is what makes
+    // the crook's road something a player can go and find rather than wait for.
+    const guaranteed =
+      (role === 'trainer' && !!sp.trainer) ||
+      (role === 'vet' && !!sp.vet) ||
+      (role === 'fixer' && !!sp.fixer);
     if (!guaranteed && !rng.chance(balance.staffAppearChance)) continue;
     const tier = rollTier(rng, 1);
     const names = NAMES_BY_ROLE[role] ?? TRAINER_NAMES;

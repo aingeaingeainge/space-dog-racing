@@ -1,4 +1,6 @@
 import { balance } from './balance';
+import { planetOf } from './planets';
+import { OPEN_TYPE_ID, RACE_TYPES, raceType } from './raceTypes';
 import { TRAIT_IDS } from './traits';
 import { KIBBLE_ID } from './goods';
 import { createDog, type IdGen } from '../economy/market';
@@ -751,6 +753,131 @@ export const EVENTS: readonly EventCard[] = [
     weight: 6,
     kind: 'flavour',
     choices: [{ label: 'Enjoy it', apply: (ctx) => ctx.log('A quiet week.') }],
+  },
+
+  // -------------------------------------------------------------------------------------------
+  // §9.3's third carrier: information, sold from the deck. Phase B's debt, deferred twice.
+  //
+  // ⚠️ **These are the reason the fog has a fourth price, and they are the only carrier that can
+  // be wrong.** §9.3's table gives four ways to see past next week — a free Saloon rumour that may
+  // be wrong, a 650 dossier that is exact, a Tipster's standing wage, and the deck: "varies /
+  // usually exact, sometimes a lie / varies". Three shipped in Phases B and C; this is the fourth,
+  // and what it adds that the others cannot is a **price you did not choose and a source you
+  // cannot check**. A dossier is a purchase; a drunk navigator is an offer.
+  //
+  // They add nothing to `GameState`, exactly as the dossier does not (D5, D36): the circuit is
+  // already in `calendar` and the fog is a rule about who may look, so what a card sells is a log
+  // line addressed to the buyer. A card that lies writes a line that is wrong, and nothing
+  // anywhere marks it — which is the whole of "sometimes a lie".
+  // -------------------------------------------------------------------------------------------
+  {
+    id: 'drunkNavigator',
+    name: 'A navigator, three sheets to the wind',
+    text: 'A freighter navigator is telling the whole bar where the circuit goes after next week. He will tell you properly for a drink or two.',
+    weight: 4,
+    kind: 'choice',
+    // Only while there is a week past the free horizon left to sell.
+    roll: (ctx) =>
+      ctx.s.calendar[ctx.s.week - 1 + balance.dossierReach]
+        ? { price: Math.round(balance.dossierCost * 0.4) }
+        : null,
+    choices: [
+      {
+        label: 'Buy him a drink',
+        apply: (ctx) => {
+          const price = Number(ctx.params.price ?? 0);
+          if (ctx.p.cash < price) {
+            ctx.log('You cannot even afford the drink. He wanders off.');
+            return;
+          }
+          ctx.p.cash -= price;
+          ctx.p.stats.costs += price;
+          const week = ctx.s.week + balance.dossierReach;
+          const entry = ctx.s.calendar[week - 1]!;
+          const ahead = planetOf(entry.planetId);
+          ctx.log(
+            `Week ${week} (${price} and two drinks): ${ahead.name}${entry.major ? ` — ${ahead.event}` : ''}. ` +
+              `Kibble ${ahead.foodBand[0]}–${ahead.foodBand[1]}. ` +
+              `Card: ${entry.card.map((r) => raceType(r).label).join(', ')}.`,
+          );
+        },
+      },
+      { label: 'Leave him to it', apply: (ctx) => ctx.log('You leave him to it.') },
+    ],
+    // Worth it to a stable with a hold to price and cash to spare — which is the trader's road,
+    // and the same test `tradeFoodPlan` applies to a leg.
+    aiChoice: (ctx) =>
+      ctx.p.cash > Number(ctx.params.price ?? 0) * 6 && cargoTotal(ctx.p.cargo) > 10 ? 0 : 1,
+  },
+  {
+    id: 'customsManifest',
+    name: 'A clerk with a manifest',
+    text: 'A customs clerk has the freight manifests for the run after next. He is not supposed to show anyone. He would like 200 Bones.',
+    weight: 4,
+    kind: 'choice',
+    roll: (ctx) => {
+      const entry = ctx.s.calendar[ctx.s.week - 1 + balance.dossierReach];
+      if (!entry) return null;
+      // ⚠️ The lie is rolled **when the card is drawn**, not when the choice is taken, so that a
+      // human and an AI facing the same card face the same manifest — and so that the rng stream
+      // does not depend on which choice a player happens to make.
+      return { lying: ctx.rng.chance(0.25) ? 1 : 0, drift: ctx.rng.int(-25, 25) };
+    },
+    choices: [
+      {
+        label: 'Slip him 200',
+        apply: (ctx) => {
+          if (ctx.p.cash < 200) {
+            ctx.log('He looks at your pockets and thinks better of it.');
+            return;
+          }
+          ctx.p.cash -= 200;
+          ctx.p.stats.costs += 200;
+          const week = ctx.s.week + balance.dossierReach;
+          const ahead = planetOf(ctx.s.calendar[week - 1]!.planetId);
+          const drift = Number(ctx.params.lying) ? Number(ctx.params.drift) : 0;
+          const lo = Math.max(1, ahead.foodBand[0] + drift);
+          const hi = Math.max(lo + 1, ahead.foodBand[1] + drift);
+          ctx.log(`Manifest, week ${week}: kibble is running ${lo}–${hi} out there.`);
+        },
+      },
+      { label: 'Not interested', apply: (ctx) => ctx.log('The clerk shrugs and rolls it up.') },
+    ],
+    aiChoice: (ctx) => (ctx.p.cash > 2000 && cargoTotal(ctx.p.cargo) > 10 ? 0 : 1),
+  },
+  {
+    id: 'toutWithACard',
+    name: 'A tout with next week’s card',
+    text: 'Somebody at the bar has next week’s race card and wants 150 for it. He may even have it.',
+    weight: 4,
+    kind: 'choice',
+    roll: (ctx) => (ctx.s.calendar[ctx.s.week] ? { lying: ctx.rng.chance(0.2) ? 1 : 0 } : null),
+    choices: [
+      {
+        label: 'Give him 150',
+        apply: (ctx) => {
+          if (ctx.p.cash < 150) {
+            ctx.log('He wants cash, and you have not got it.');
+            return;
+          }
+          ctx.p.cash -= 150;
+          ctx.p.stats.costs += 150;
+          const entry = ctx.s.calendar[ctx.s.week]!;
+          // A lie is a card for the *right* week with the wrong races on it — plausible, unmarked,
+          // and exactly as useful as the truth until the traps open.
+          const card = Number(ctx.params.lying)
+            ? ctx.rng.shuffle(RACE_TYPES.filter((t) => t.drawn).map((t) => t.id)).slice(0, 2)
+            : entry.card.filter((r) => r !== OPEN_TYPE_ID);
+          ctx.log(
+            `Next week's card, allegedly: ${[...card, OPEN_TYPE_ID].map((r) => raceType(r).label).join(', ')}.`,
+          );
+        },
+      },
+      { label: 'He has not', apply: (ctx) => ctx.log('You tell him he has not.') },
+    ],
+    // Worth it to a stable deciding what to rest and what to raise — a card you can see is a card
+    // you can point a dog at. A Tipster already sells this standing, so a stable with one passes.
+    aiChoice: (ctx) => (ctx.p.cash > 3000 && !hasStaff(ctx.p, 'tipster') ? 0 : 1),
   },
 ];
 
