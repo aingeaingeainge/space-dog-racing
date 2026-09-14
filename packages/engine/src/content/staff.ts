@@ -16,17 +16,39 @@ import type { GoodTier, StaffRole } from '../types';
  * number on the row, so the ladder is one table a designer can read rather than six branches
  * spread across the phases.
  */
+/**
+ * What a Fixer's job costs, as a multiple of the fee on the row (GDD §13, E-D45).
+ *
+ * Declared above `STAFF_ROLES` because the Fixer's own row prints its price list and a `const`
+ * read during module initialisation has to exist by then — the same reason `FIXER_CATCH_MULT`
+ * further down is reached through `balance` rather than through itself. See `jobCost` for where
+ * the numbers come from.
+ */
+export const FIXER_JOB_MULT: Record<GoodTier, number> = {
+  rough: balance.fixJobMultRough,
+  proper: balance.fixJobMultProper,
+  prime: balance.fixJobMultPrime,
+};
+
 export interface StaffRoleRow {
   role: StaffRole;
   label: string;
   /** What the role is for, in the words the Saloon prints. */
   blurb: string;
   /**
-   * Hireable at all. **All six are, as of v2 Phase D**, and the flag is kept rather than deleted
-   * because of what it was for: the Fixer was `false` for three phases on the grounds that his
-   * abilities were not actions, so hiring him would have been a wage bill for nothing — charging
-   * for a service the game does not provide is a trap rather than a difficulty (GDD §19,
-   * 2026-09-08). That is the test any seventh role has to pass before this flag is set on it.
+   * Goes on the books for a weekly wage. **Five of the six do.**
+   *
+   * The Fixer was `false` for three phases because his abilities were not actions — charging a
+   * wage for a service the game does not provide is a trap rather than a difficulty (GDD §19,
+   * 2026-09-08). Phase D built §13 and set him `true`, and **that measured as the wrong shape
+   * rather than the wrong price**: the road lost 3,498 Bones against the same agent with it
+   * switched off, and every knob inside §13 was swept before it was clear that the *wage* was
+   * what ate it (D42). So he is `false` again, for the opposite reason — not "there is nothing
+   * for him to do" but "what he does is a job and a job is not a week" (E-D45). He is hired at
+   * `PlanetState.fixer`, per job, priced by the same three-tier ladder.
+   *
+   * That is the test a seventh role has to pass before this flag is set on it: is the thing it
+   * sells used *every week*? If it is used in bursts, it wants a price list and not a wage.
    */
   hireable: boolean;
   /** One line per tier, in the dog's or the stable's own numbers, for the Saloon to print. */
@@ -94,19 +116,49 @@ export const STAFF_ROLES: readonly StaffRoleRow[] = [
     role: 'fixer',
     label: 'Fixer',
     blurb:
-      'Knows a steward, and knows a man who can get at a dog. Better ones get caught less (§13)',
-    // ✅ Hireable as of v2 Phase D. He was withdrawn in M4 session 1 because nothing read
-    // `staff.fixer` except a wage, and GDD §19's 2026-09-08 decision kept him out through three
-    // phases on the grounds that charging for a service the game does not provide is a trap rather
-    // than a difficulty. §13 is built, so he is back, and every line below is now a rule.
-    hireable: true,
+      'Knows a steward, and knows a man who can get at a dog. Paid by the job, never by the week (§13)',
+    // ⚠️ Not on the books as of v2 Phase E, and the reason is the opposite of the one that kept
+    // him off them until Phase D. There is plenty for him to do — §13's two jobs are real and the
+    // edge is real — but a job is not a week, and a weekly wage for a man used twice a season is
+    // what measured the whole road as a 3,498-Bone mistake (D42). He is at `PlanetState.fixer`
+    // now: one man, this weekend, this price list (E-D45).
+    hireable: false,
     effect: {
-      rough: `Buys a box (${balance.bribeCost}) or gets at a rival (${balance.sabotageCost}) — but the stewards know his face: caught ${Math.round(balance.fixCatchBase * balance.fixCatchMultRough * 100)}% of the time`,
-      proper: `The same two jobs, and he is careful: caught ${Math.round(balance.fixCatchBase * balance.fixCatchMultProper * 100)}% of the time`,
-      prime: `The same two jobs, and nobody has ever proved a thing: caught ${Math.round(balance.fixCatchBase * balance.fixCatchMultPrime * 100)}% of the time`,
+      rough: `A box ${jobCost('bribe', 'rough')} or a nobbling ${jobCost('sabotage', 'rough')} — but the stewards know his face: caught ${Math.round(balance.fixCatchBase * balance.fixCatchMultRough * 100)}% of the time`,
+      proper: `A box ${jobCost('bribe', 'proper')} or a nobbling ${jobCost('sabotage', 'proper')}, and he is careful: caught ${Math.round(balance.fixCatchBase * balance.fixCatchMultProper * 100)}% of the time`,
+      prime: `A box ${jobCost('bribe', 'prime')} or a nobbling ${jobCost('sabotage', 'prime')}, and nobody has ever proved a thing: caught ${Math.round(balance.fixCatchBase * balance.fixCatchMultPrime * 100)}% of the time`,
     },
   },
 ];
+
+/**
+ * What a job costs, by the grade of man taking it (GDD §13, §8.3, E-D45).
+ *
+ * ⚠️ **This is the price list that replaced the wage, and it is the named exception to D11.**
+ * D11's second guard says *Prime staff are a weekly wage, not a purchase*, so the top tier is a
+ * liability when the run ends rather than an "I have already won" button. The Fixer is off the
+ * books, so that sentence cannot apply to him — and what replaces it is a stronger version of the
+ * same guard rather than a hole in it: a Prime job is paid **every time**, so a leader who wants
+ * the careful man buys him again on every race he fixes and can never bank him. A wage at least
+ * gets cheaper the more you use it. This does not.
+ *
+ * The ladder itself is untouched: the job carries the tier, the tier sets the price *and* the
+ * catch multiplier, and a planet-week offers one man at one grade — so you still cannot buy the
+ * good one wherever you like, which is D41's rule and §8.3's "rarity is the point".
+ *
+ * ⚠️ **Where the multipliers come from, since they are new and nothing else in the sweep fixes
+ * them.** The break-even is arithmetic: an edge `e` on a stake `S` against a catch chance `c`
+ * clears `S·(e − c·fixFineStakeMult) − fee − c·fixFineBase`. At the measured 27% edge that is
+ * roughly `0.21·S − fee − 300` for a Proper man, so the fee has to leave a fix worth placing at
+ * the stake a *borrowed* bankroll reaches (8,000, the flat ceiling) and not at the three thousand
+ * a racing stable carries spare. That is §2.1's crook column in one line — "in bursts, at the
+ * biggest races" — and it is the shape the wage could not produce, because a wage is charged in
+ * the quiet weeks too.
+ */
+export function jobCost(kind: 'bribe' | 'sabotage', tier: GoodTier): number {
+  const base = kind === 'bribe' ? balance.bribeCost : balance.sabotageCost;
+  return Math.round(base * FIXER_JOB_MULT[tier]);
+}
 
 export const STAFF_ROLE_BY_ID: Record<StaffRole, StaffRoleRow> = Object.fromEntries(
   STAFF_ROLES.map((r) => [r.role, r]),

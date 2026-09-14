@@ -32,14 +32,18 @@ export interface RoadSplit {
   /** Betting returns minus stakes struck (§10). Negative for most stables, which is the point. */
   betting: number;
   /**
-   * Wages, upkeep, fuel, feed, entry fees, event bills — everything that simply went out.
+   * What §13 cost: every job's fee, plus every fine the stewards took (GDD §13).
    *
-   * The crook's road is inside this figure at Phase E item 0 and comes out of it at item 1, when
-   * §13's jobs get an archive to be counted from. Named here so the next reader knows the column
-   * is missing rather than zero.
+   * ⚠️ **A cost and never an income, and that is the honest shape.** What fixing *earns* is
+   * already in `betting` and in `prize` — the whole road is that a nobbled favourite makes some
+   * other price wrong, and a bought box makes your own dog quicker. So this column is what the
+   * crook paid for those two, which is exactly the number that decides whether the road was worth
+   * walking, and the only way a player could otherwise find it is by remembering.
    */
+  fixes: number;
+  /** Wages, upkeep, fuel, feed, entry fees, event bills — everything that simply went out. */
   costs: number;
-  /** `prize + trade + betting − costs`: the season's ledger, before what it left you owning. */
+  /** `prize + trade + betting − fixes − costs`: the ledger, before what it left you owning. */
   net: number;
 }
 
@@ -51,10 +55,29 @@ export interface RoadSplit {
  * paid and nothing back, and `betIncome` is the figure the ledger actually moved.
  */
 export function roadSplit(s: GameState, p: Player): RoadSplit {
-  void s; // the crook's column reads `s.fixArchive`; see the note above
   const prize = p.stats.prizeIncome;
   const trade = p.stats.tradeIncome;
   const betting = p.stats.betIncome;
   const costs = p.stats.costs;
-  return { prize, trade, betting, costs, net: prize + trade + betting - costs };
+  // Both lists, because the last weekend of the season has not been swept into the archive yet
+  // when the Season End screen reads this. `endTurn` archives and then finishes, so at every other
+  // moment in the season one of the two is empty and the sum is the same either way.
+  let fixes = 0;
+  for (const f of [...s.fixArchive, ...s.fixes]) {
+    if (f.playerId !== p.id) continue;
+    fixes += f.fee + (f.fine ?? 0);
+  }
+  return { prize, trade, betting, fixes, costs, net: prize + trade + betting - fixes - costs };
+}
+
+/** How the crook's road actually went: jobs bought, and how many of them the stewards noticed. */
+export function fixTally(s: GameState, p: Player): { jobs: number; caught: number } {
+  let jobs = 0;
+  let caught = 0;
+  for (const f of [...s.fixArchive, ...s.fixes]) {
+    if (f.playerId !== p.id) continue;
+    jobs++;
+    if (f.caught) caught++;
+  }
+  return { jobs, caught };
 }

@@ -1,5 +1,11 @@
 import { balance } from '../content/balance';
-import { emptyPlanetState, rollFinds, rollMarketDogs, rollStaff } from '../economy/market';
+import {
+  emptyPlanetState,
+  rollFinds,
+  rollFixer,
+  rollMarketDogs,
+  rollStaff,
+} from '../economy/market';
 import { rollGoodPrices } from '../economy/food';
 import { cargoTotal, spoilCargo } from '../economy/goods';
 import { currentPlanet, emptyDeclarations, log, type Ctx } from '../state';
@@ -21,6 +27,10 @@ export function runArrival(ctx: Ctx): void {
     ps.marketDogIds.push(d.id);
   }
   ps.staff = rollStaff(planet, rng, ctx.nextId);
+  // Who is at the far table this weekend (GDD §13). Rolled with the rest of the planet because
+  // that is what he is now — a thing this planet-week has, like the crates on the shelf and the
+  // dogs on the block, rather than somebody on your books (E-D45).
+  ps.fixer = rollFixer(planet, rng);
   ps.muzzlesInStock = !!planet.special.muzzles || rng.chance(0.3);
   ps.trackDayPasses = rng.chance(0.5);
   // What each stable's own staff turned up for it (GDD §8.3). In `s.players` order rather than

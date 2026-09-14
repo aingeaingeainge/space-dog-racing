@@ -255,7 +255,11 @@ export function runEndTurn(ctx: Ctx): void {
   s.races = null;
   s.fields = null;
   s.declarations = emptyDeclarations();
-  // This weekend's bought boxes and nobbled dogs go with the card they were about (GDD §13).
+  // This weekend's bought boxes and nobbled dogs go with the card they were about (GDD §13) —
+  // into the archive first, the same way the week's races go into `results` once their tick logs
+  // have been pruned. A season's fixing cannot be derived from anything once `fixes` is cleared,
+  // and it is half of what the Season End screen needs to say what the crook's road cost.
+  for (const f of s.fixes) s.fixArchive.push(f);
   s.fixes = [];
   s.locked = false;
   s.planet.marketDogIds = [];

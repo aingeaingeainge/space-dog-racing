@@ -14,7 +14,7 @@ import {
   raceType,
 } from './content/raceTypes';
 import { createStartingDog, emptyPlanetState, type IdGen } from './economy/market';
-import { fixerCatchMult } from './economy/staff';
+import { FIXER_CATCH_MULT } from './content/staff';
 import { emptyCargo } from './economy/goods';
 import { KIBBLE_ID } from './content/goods';
 import { mulberry32, type Rng } from './rng';
@@ -22,6 +22,7 @@ import type {
   CalendarEntry,
   Dog,
   GameState,
+  GoodTier,
   Id,
   Phase,
   Planet,
@@ -33,6 +34,12 @@ import type {
 import { ActionError, RACE_TYPE_IDS } from './types';
 
 /**
+ * 6 for v2 Phase E: the Fixer is hired by the **job** rather than by the week, so he lives on
+ * `PlanetState.fixer` instead of in `Player.staff`, every `Fix` carries the man and his grade,
+ * and the season's fixing is archived in `fixArchive`. A Phase D log cannot replay on this
+ * engine — its `HireStaff` actions can name a fixer, and nothing here would know what to do with
+ * one.
+ *
  * 5 for v2 Phase D: dogs carry a `nobbled` figure, the state carries this weekend's `fixes`, and
  * a stable can be barred from hiring a Fixer — so `Action` gains `BribeSteward` and `Sabotage`
  * and a Phase C log cannot replay on this engine.
@@ -235,13 +242,19 @@ export function dopingCatchRate(s: GameState): number {
  * How often the stewards notice a bought box or a nobbled dog (GDD §13).
  *
  * Two factors and nothing else: **where you are** — the planet's own row, from Lagrange Lows'
- * 20% to Holy Bark's 60% — and **who you employ**, which is the whole of the Fixer's ladder
+ * 20% to Holy Bark's 60% — and **who did the job**, which is the whole of the Fixer's ladder
  * (D41). Multiplied rather than added, so a careful man is worth more at Cosmodrome than at
  * Lagrange Lows, which is the right way round.
+ *
+ * ⚠️ **The tier is the job's, not the stable's (E-D45).** It used to be read off `Player.staff`,
+ * which was the only shape available while the Fixer was a hire and which quietly assumed a
+ * stable's fixing was all done by one man. Per job, it is not: a crook can buy a box from a Rough
+ * man on Monday and a nobbling from a careful one three planets later, and each job is priced and
+ * risked on its own. So the caller passes the tier off the `Fix`.
  */
-export function fixCatchRate(s: GameState, p: Player): number {
+export function fixCatchRate(s: GameState, tier: GoodTier): number {
   const base = currentPlanet(s).special.fixCatch ?? balance.fixCatchBase;
-  return Math.max(0, Math.min(1, base * fixerCatchMult(p)));
+  return Math.max(0, Math.min(1, base * FIXER_CATCH_MULT[tier]));
 }
 
 /**
@@ -351,6 +364,7 @@ export function createSeason(setup: SeasonSetup): GameState {
     eventQueue: [],
     bets: [],
     fixes: [],
+    fixArchive: [],
     results: [],
     eventLog: [],
     toggles: {

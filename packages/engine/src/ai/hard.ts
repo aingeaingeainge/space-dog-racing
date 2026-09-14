@@ -11,7 +11,7 @@ import {
   player,
   thisWeeksCard,
 } from '../state';
-import type { Action, Dog, GameState, Id, RaceTypeId, StaffRole } from '../types';
+import type { Action, Dog, GameState, Id, RaceTypeId } from '../types';
 import {
   bestAssignment,
   dogMarket,
@@ -110,10 +110,9 @@ export function decideHard(s: GameState, playerId: Id): Action[] {
     if (s.phase === 'planetPre') feedSupplements(plan, declareForThisWeek(plan));
   }
 
-  // §13, behind the ablation knob: a Hard stable that has taken a Fixer on has to actually work
-  // him, or the measurement is only of a wage. See HARD_KNOBS.
+  // §13, behind the ablation knob. See HARD_KNOBS.
   if (s.phase === 'betting' && s.fields) {
-    if (HARD_KNOBS.wantsFixer) workTheFix(plan);
+    if (HARD_KNOBS.worksTheFix) workTheFix(plan);
     else placeBets(plan);
   }
 
@@ -176,12 +175,11 @@ const HARD_WANT = ['trainer', 'vet'] as const;
 function keepStaffHard(plan: Plan): void {
   const weeksLeft = balance.weeks - plan.s.week + 1;
   if (weeksLeft < 4) return; // too late for any wage to earn itself back
-  // ⚠️ Phase D's question for D30: is a **Fixer** the first third hire a racing stable can
-  // profitably make? §13 gives the third slot something to do for the first time. Off, and the
-  // ablation is in HARD_KNOBS — the short version is that a fixer's value is per job and his wage
-  // is per week, which is the same arithmetic that stopped the crook's own road paying.
-  const want: StaffRole[] = HARD_KNOBS.wantsFixer ? [...HARD_WANT, 'fixer'] : [...HARD_WANT];
-  keepStaff(plan, { want, cover: weeksLeft, cheapest: ['fixer'] });
+  // D30, and it survives Phase E untouched: two hires, not three. The question Phase D asked here
+  // — is a **Fixer** the first third hire a racing stable can profitably make? — is no longer
+  // askable, because the Fixer is not a hire (E-D45). What is left of it is `HARD_KNOBS.worksTheFix`
+  // below, which is about whether Hard buys §13's *jobs*, and that costs no slot at all.
+  keepStaff(plan, { want: [...HARD_WANT], cover: weeksLeft });
 }
 
 // Measured and rejected (M4): buying the kennel module and engine tiers cost Hard more than
@@ -421,8 +419,15 @@ const KELLY_MAX_FRACTION = 0.2;
 export const HARD_KNOBS = {
   /** Stake in proportion to the measured edge rather than a flat fraction of cash. */
   sizeBetsByEdge: false,
-  /** Take a Fixer into the third slot, now that §13 gives one something to do. */
-  wantsFixer: false,
+  /**
+   * Work §13's road — buy jobs from whoever is drinking here, and bet into the stale board.
+   *
+   * ⚠️ **This is not Phase D's `wantsFixer` re-asked, and it must not be treated as though it
+   * were.** That knob spent a *staff slot* on a fixer and lost 9.5 points by it; the per-job hire
+   * spends no slot, so the only thing left of the question is whether Hard should buy the jobs.
+   * Ablated in Phase E — see `claude/V2_PHASE_E_NOTES.md`.
+   */
+  worksTheFix: false,
 };
 
 function placeBets(plan: Plan): void {

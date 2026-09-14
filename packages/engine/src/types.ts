@@ -363,11 +363,18 @@ export interface Player {
     rivalTrap8: boolean; // dodgy steward: rival's best Gold dog drawn trap 8 this week
     tipOff: boolean; // a local runner is not trying this week
     /**
-     * Caught fixing: no Fixer may be hired for the rest of the season (GDD §13).
+     * Struck off: nobody will take a job from this stable for the rest of the season (GDD §13).
      *
      * Half of §13's penalty and the half that grows with how often you use the road, because the
      * thing it takes away is the road itself. The other half — telling the wronged stable who did
      * it — is logged publicly and does nothing until M6; see the note on `catchFixers`.
+     *
+     * ⚠️ **It got simpler when the Fixer stopped being a hire (E-D45).** It used to mean "your
+     * fixer is gone and you may not take another on", which needed the flag *and* a staff list to
+     * remove him from. A per-job road has no books to strike a man off, so the flag is the whole
+     * ban: every job placed anywhere for the rest of the season is refused, wherever the crook
+     * travels and whoever is drinking there. The name is kept because every screen, refusal and
+     * walk-through already reads it.
      */
     fixerBarred: boolean;
   };
@@ -446,8 +453,36 @@ export interface PlanetState {
    */
   finds: Record<Id, StableFinds>;
   staff: StaffOffer[];
+  /**
+   * Who is at the far table this week, and what grade of man he is (GDD §13, E-D45).
+   *
+   * ⚠️ **This is where the Fixer lives now, and it is why he is not in `staff`.** He was a hire
+   * with a weekly wage through Phase D and the road measured as a net loss of 3,498 Bones because
+   * of it: a percentage edge on the three thousand a stable can stake cannot carry 250–1,400 a
+   * week for a man used twice a season (D42). So he is hired **per job**, and a job is bought at
+   * the moment there is one — which makes him a property of the *planet-week* rather than of the
+   * stable, exactly like the dogs on the shelf and the crates in the market.
+   *
+   * The grade is the whole of his ladder: it sets what the job costs and how well he covers his
+   * tracks, so you still cannot buy the good one everywhere (D41's rule, kept). `null` on the
+   * 55% of planet-weeks where nobody is about, which is what makes the road something you find
+   * rather than something you hold.
+   */
+  fixer: FixerOffer | null;
   muzzlesInStock: boolean;
   trackDayPasses: boolean;
+}
+
+/**
+ * A man at the far table, for one weekend (GDD §13).
+ *
+ * No id, because nothing addresses him: there is no hire to refer back to and no books to take
+ * him off. A name so the log line and the stewards' enquiry can say who it was, and a tier, which
+ * is the price list and the risk in one number.
+ */
+export interface FixerOffer {
+  name: string;
+  tier: GoodTier;
 }
 
 export interface CalendarEntry {
@@ -484,8 +519,21 @@ export interface Fix {
   /** The box bought, 1..`traps`. Bribes only. */
   trap?: number;
   fee: number;
+  /**
+   * The man who took the job, and how good he was (GDD §13, E-D45).
+   *
+   * ⚠️ **The job carries the tier, and that is what keeps D11's ladder intact after the Fixer
+   * stopped being a wage.** Every other role withholds a *number* behind a weekly price; the
+   * Fixer withholds the same number behind a per-job one. So the catch chance is read off the
+   * fix rather than off the stable, which is also the only shape that stays honest when a crook
+   * buys a box from a Rough man on Monday and a nobbling from a Prime one three planets later.
+   */
+  fixer: string;
+  tier: GoodTier;
   /** Rolled on race day. The fine and the ban follow from it. */
   caught: boolean;
+  /** What the stewards took, once they have. Undefined until then, and zero never happens. */
+  fine?: number;
 }
 
 export interface Bet {
@@ -601,6 +649,19 @@ export interface GameState {
   bets: Bet[];
   /** This weekend's bought boxes and nobbled dogs (GDD §13). Cleared with the card at endTurn. */
   fixes: Fix[];
+  /**
+   * Every fix of the season, swept in from `fixes` at endTurn — the same shape as `results`
+   * archiving the week's races once their tick logs have been pruned.
+   *
+   * ⚠️ **Added for a screen, and that is allowed to be the reason.** D5 and D36 say a derived
+   * figure does not get a field; but a season's fixing cannot be derived from anything, because
+   * `fixes` is deliberately cleared with the card it was about. Without this the Season End
+   * screen can tell a stable what its betting returned and not what the road cost it, which is
+   * exactly the half of the arithmetic that decides whether §13 was worth walking. Fees and
+   * fines come straight off it, so `stats.costs` no longer carries them and the five columns of
+   * `roadSplit` add up.
+   */
+  fixArchive: Fix[];
   results: RaceResult[]; // all past races (tick logs pruned)
   eventLog: LogLine[];
   toggles: Toggles;

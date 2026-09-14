@@ -334,9 +334,6 @@ export function venueStatus(
     Math.max(-1, ...me.staff.filter((o) => o.role === role).map((o) => TIER_ORDER.indexOf(o.tier)));
   const hireable = s.planet.staff.filter((o) => {
     if (o.wage > me.cash) return false;
-    // §13's two refusals. A hub that sent a barred stable to the Saloon for a Fixer would be
-    // flagging a button the reducer throws on, which is worse than flagging nothing.
-    if (o.role === 'fixer' && (me.flags.fixerBarred || s.toggles.cleanSport)) return false;
     const mineTier = bestInRole(o.role);
     // A free slot takes anything new; a full yard only takes a clear upgrade on what is in it.
     if (mineTier < 0) return staffSlotsFree > 0;
@@ -355,6 +352,21 @@ export function venueStatus(
   const lender =
     (planet.special.bank && outstanding(me, 'bank') < loanCap('bank')) ||
     (planet.special.shark && outstanding(me, 'shark') < loanCap('shark'));
+  /**
+   * The far table (GDD §13, E-D45) — in the quiet line, and deliberately never worth a walk.
+   *
+   * A man is about on roughly half of planet-weeks, so flagging the Saloon for him would light the
+   * hotspot every other week and §15.3's click budget would pay for it. It would also be pointing
+   * at the wrong screen: the Saloon sells nothing now: his jobs are bought at the Race Office
+   * before the draw and at the Bookie after the prices are up, against that race's purse and that
+   * slip's stake. So what the hub owes a player here is one clause of *knowledge* — the road is
+   * open this week, at this grade — which is pillar 4's "price what you have been offered the
+   * instant it appears", at no click.
+   */
+  const farTable =
+    s.planet.fixer && !s.toggles.cleanSport && !me.flags.fixerBarred
+      ? `${TIER_LABEL[s.planet.fixer.tier]} fixer at the far table`
+      : null;
 
   const saloon: VenueStatus = !inTurn
     ? nothing('Shut while the races are on')
@@ -373,6 +385,7 @@ export function venueStatus(
               .map((o) => `${TIER_LABEL[o.tier]} ${o.role} ${formatBones(o.wage)}/wk`)
               .join(', '),
             lender ? (planet.special.shark ? 'and Fat Tony is in' : 'and the bank is open') : null,
+            farTable,
           ]
             .filter(Boolean)
             .join(' · '),
@@ -385,6 +398,7 @@ export function venueStatus(
               ? `${hireable.map((o) => `${TIER_LABEL[o.tier]} ${o.role}`).join(', ')} about, if you want one`
               : 'Nobody worth hiring',
             lender ? (planet.special.shark ? 'Fat Tony is in' : 'the bank is open') : null,
+            farTable,
           ]
             .filter(Boolean)
             .join(' · '),

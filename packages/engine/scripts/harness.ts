@@ -20,13 +20,14 @@
  * declarations lock, which costs nothing and leaves the engine alone.
  */
 import { balance } from '../src/content/balance';
-import { good, GOODS, TIER_LABEL } from '../src/content/goods';
+import { good, GOODS, TIER_LABEL, TIER_ORDER } from '../src/content/goods';
 import { createDog, fitRating } from '../src/economy/market';
 import { baseRating, dogValue } from '../src/economy/dogValue';
 import { netWorth } from '../src/economy/netWorth';
 import { cargoTotal } from '../src/economy/goods';
 import { bestStaff, cargoCap, infoReach } from '../src/economy/staff';
 import { roadSplit } from '../src/economy/roadSplit';
+import { FIXER_CATCH_MULT, jobCost } from '../src/content/staff';
 import { clamp, mulberry32 } from '../src/rng';
 import { createSeason, eligible, FREE_HORIZON, player, thisWeeksCard } from '../src/state';
 import { decide } from '../src/ai';
@@ -66,6 +67,8 @@ interface Args {
   leadConversion: boolean;
   /** §7a.5's three-way printout: the trainer and the trader in the same seasons. */
   roads: boolean;
+  /** §13's ablation: the crook agent with the road worked and with it switched off (D42). */
+  crookAblation: boolean;
   /** §6b's cargo-payback ablation: run the trader with and without buying hold. */
   holdPayback: boolean;
   /** D7's stacking row: three of one role against a mixed three, in the same seasons. */
@@ -87,6 +90,7 @@ function parseArgs(argv: string[]): Args {
     autoplan: false,
     leadConversion: false,
     roads: false,
+    crookAblation: false,
     holdPayback: false,
     stacking: false,
     fix: false,
@@ -108,6 +112,7 @@ function parseArgs(argv: string[]): Args {
     else if (a === '--autoplan') args.autoplan = true;
     else if (a === '--leadConversion' || a === '--lead') args.leadConversion = true;
     else if (a === '--roads') args.roads = true;
+    else if (a === '--crookAblation') args.crookAblation = true;
     else if (a === '--holdPayback' || a === '--hold') args.holdPayback = true;
     else if (a === '--stacking') args.stacking = true;
     else if (a === '--fix') args.fix = true;
@@ -173,6 +178,16 @@ interface AgentStats {
    */
   worthClean: number[];
   worthCleanFixer: number[];
+  /**
+   * What §13 cost this stable: fees plus fines, off `fixArchive` (E item 1).
+   *
+   * ⚠️ **It used to be inside `costs` and being inside `costs` is why nobody could see it.** The
+   * road's *earnings* have always been legible — they are in `bet` and in `prize` — and what it
+   * cost was folded in with the wages and the fuel, so the one comparison that decides whether the
+   * road is worth walking could only be made by ablation. It is a column now, here and on the
+   * Season End screen, from the same `roadSplit`.
+   */
+  fixSpend: number[];
   betsStruck: number[];
   /**
    * §7a.4's `infoSpend` / `infoROI`. Bones spent looking past the fog — dossiers, a Tipster's
@@ -790,6 +805,7 @@ export function runHarness(args: Args): string {
         worthCaught: [],
         worthClean: [],
         worthCleanFixer: [],
+        fixSpend: [],
         betsStruck: [],
         infoSpend: [],
         legCovered: [],
@@ -910,6 +926,7 @@ export function runHarness(args: Args): string {
       st.prize.push(split.prize);
       st.trade.push(split.trade);
       st.bet.push(split.betting);
+      st.fixSpend.push(split.fixes);
       st.costs.push(split.costs);
       st.dogsBought.push(p.stats.dogsBought);
       if (p.flags.bankrupt) st.bankrupt++;
@@ -1277,7 +1294,7 @@ export function runHarness(args: Args): string {
     lines.push('');
     lines.push('The roads, side by side (BUILD_PLAN §7a.5, GDD §20 Q2)');
     lines.push(
-      '  agent       mean      p10      p90   p90/p10     prize    trade   bet   fixes  caught  winRate',
+      '  agent       mean      p10      p90   p90/p10     prize    trade   bet   fixed  jobs  caught  winRate',
     );
     for (const a of roadAgents) {
       const st = byAgent.get(a)!;
@@ -1288,7 +1305,8 @@ export function runHarness(args: Args): string {
         `  ${a.padEnd(8)} ${fmt(mean(st.worth)).padStart(8)} ${fmt(p10).padStart(8)} ` +
           `${fmt(p90).padStart(8)} ${(p10 > 0 ? (p90 / p10).toFixed(1) : '—').padStart(9)} ` +
           `${fmt(mean(st.prize)).padStart(9)} ${fmt(mean(st.trade)).padStart(8)} ` +
-          `${fmt(mean(st.bet)).padStart(6)} ${mean(st.fixes).toFixed(1).padStart(6)} ` +
+          `${fmt(mean(st.bet)).padStart(6)} ${fmt(-mean(st.fixSpend)).padStart(6)} ` +
+          `${mean(st.fixes).toFixed(1).padStart(5)} ` +
           `${pct(st.caught / Math.max(1, st.seasons)).padStart(7)} ` +
           `${pct(st.wins / Math.max(1, st.seasons)).padStart(8)}`,
       );
@@ -1920,18 +1938,30 @@ export function runFixProbe(seasons = 120, seed = 1): string {
     `  A stable-owned runner is in the race at all in ${pct(racesWithOwn / Math.max(1, races))} of them.`,
   );
 
-  // What it costs, and therefore what it takes to be worth doing.
+  // What it costs, and therefore what it takes to be worth doing. ⚠️ Three rows now rather than
+  // one: the Fixer is hired by the job, so the fee *and* the catch chance both depend on the grade
+  // of man drinking on the planet you happen to be on (E-D45), and the break-even stake is the
+  // number that shows what the three grades are actually offering each other.
   lines.push('');
-  lines.push('What one nobbling costs, and the stake it takes to clear it');
+  lines.push('What one nobbling costs, by the grade of man taking it, and the stake it clears at');
+  lines.push('  grade     fee   caught   fixed cost   % of the stake   break-even at a 27% edge');
+  for (const tier of TIER_ORDER) {
+    const fee = jobCost('sabotage', tier);
+    const qt = balance.fixCatchBase * FIXER_CATCH_MULT[tier];
+    const fixedT = fee + qt * balance.fixFineBase;
+    const perBoneT = qt * balance.fixFineStakeMult;
+    const netT = 0.27 - perBoneT;
+    lines.push(
+      `  ${TIER_LABEL[tier].padEnd(8)} ${fmt(fee).padStart(5)} ${pct(qt).padStart(7)} ` +
+        `${fmt(fixedT).padStart(12)} ${(perBoneT * 100).toFixed(1).padStart(14)}%   ` +
+        `${(netT > 0 ? fmt(Math.ceil(fixedT / netT)) : 'never').padStart(12)}`,
+    );
+  }
+  lines.push('');
   const q = balance.fixCatchBase;
-  const fixed = balance.sabotageCost + q * balance.fixFineBase;
+  const fixed = jobCost('sabotage', 'proper') + q * balance.fixFineBase;
   const perBone = q * balance.fixFineStakeMult;
-  lines.push(
-    `  fee ${fmt(balance.sabotageCost)} + ${pct(q)} × flat fine ${fmt(balance.fixFineBase)} = ${fmt(fixed)} fixed,`,
-  );
-  lines.push(
-    `  plus ${pct(q)} × ${balance.fixFineStakeMult} of the stake = ${(perBone * 100).toFixed(1)}% of it.`,
-  );
+  lines.push('  The sweep below is the Proper man, who is the middle of that ladder.');
   lines.push(
     '  edge   net of the fine   break-even stake   at the flat ceiling of ' +
       fmt(balance.maxStakeFlat),
@@ -1950,6 +1980,93 @@ export function runFixProbe(seasons = 120, seed = 1): string {
   lines.push(
     '  §8.4’s purse forfeit is the wrong shape: it scales with the race, not with the bet.',
   );
+  return lines.join('\n');
+}
+
+/**
+ * ⚠️ **The ablation the crook's road lives or dies by (GDD D42, E-D45).**
+ *
+ * The same agent, the same seeds, once with §13 and once with it switched off — because "is the
+ * road worth walking" is a *difference*, not a comparison against a different agent playing a
+ * different game. Phase D ran this by hand and it produced the phase's headline finding; it is a
+ * harness mode now so the next session can re-run it in one command instead of rebuilding the
+ * scaffolding and hoping it matches.
+ *
+ * With `crookMayFix` off the crook is exactly a cheap racing stable, which is the right control:
+ * before Phase E that switched off a wage *and* the jobs together, and now there is no wage, so
+ * it switches off only the jobs — which is a cleaner ablation than the one that produced D42.
+ */
+export function runCrookAblation(seasons = 250, seed = 1): string {
+  const lines: string[] = [];
+  const ai: AiAgent[] = Array(6).fill('crook');
+  const run = (
+    mayFix: boolean,
+  ): { worth: number[]; bet: number; fixSpend: number; jobs: number; caught: number } => {
+    PATH_KNOBS.crookMayFix = mayFix;
+    const worth: number[] = [];
+    let bet = 0;
+    let fixSpend = 0;
+    let jobs = 0;
+    let caught = 0;
+    let n = 0;
+    for (let i = 0; i < seasons; i++) {
+      const sample = emptySample();
+      const { state } = playSeason(seed + i, ai, sample);
+      for (const p of state.players) {
+        const split = roadSplit(state, p);
+        worth.push(netWorth(state, p));
+        bet += split.betting;
+        fixSpend += split.fixes;
+        jobs += sample.fixes.get(p.id) ?? 0;
+        if (p.flags.fixerBarred) caught++;
+        n++;
+      }
+    }
+    return {
+      worth,
+      bet: bet / Math.max(1, n),
+      fixSpend: fixSpend / Math.max(1, n),
+      jobs: jobs / Math.max(1, n),
+      caught: caught / Math.max(1, n),
+    };
+  };
+
+  lines.push(
+    `The crook’s road, ablated — ${seasons} seasons of six crooks, the same seeds both rows`,
+  );
+  lines.push('');
+  lines.push('  §13          mean      p10      p90    betting   fixing   jobs   caught');
+  const rows: { label: string; r: ReturnType<typeof run> }[] = [
+    { label: 'worked', r: run(true) },
+    { label: 'ablated', r: run(false) },
+  ];
+  PATH_KNOBS.crookMayFix = true;
+  for (const { label, r } of rows) {
+    const sorted = [...r.worth].sort((a, b) => a - b);
+    lines.push(
+      `  ${label.padEnd(10)} ${fmt(mean(r.worth)).padStart(8)} ${fmt(quantile(sorted, 0.1)).padStart(8)} ` +
+        `${fmt(quantile(sorted, 0.9)).padStart(8)} ${fmt(r.bet).padStart(10)} ` +
+        `${fmt(-r.fixSpend).padStart(8)} ${r.jobs.toFixed(1).padStart(6)} ${pct(r.caught).padStart(8)}`,
+    );
+  }
+  const worked = mean(rows[0]!.r.worth);
+  const ablated = mean(rows[1]!.r.worth);
+  const diff = worked - ablated;
+  lines.push('');
+  lines.push(
+    `  Walking the road is worth ${diff >= 0 ? '+' : ''}${fmt(diff)} of end worth — ` +
+      `${diff > 0 ? 'MET' : 'MISSED'} against BUILD_PLAN §6b’s row (better with §13 than without).`,
+  );
+  lines.push(
+    '  ⚠️ This is the only comparison that holds everything else equal, and it is what BUILD_PLAN’s',
+  );
+  lines.push(
+    '  "a caught crook’s worth, below the trainer’s" row was reaching for and could not express:',
+  );
+  lines.push(
+    '  a crook that never gets caught is mostly one whose road never opened, so splitting on the',
+  );
+  lines.push('  catch measures selection rather than crime (D42).');
   return lines.join('\n');
 }
 
@@ -2091,6 +2208,8 @@ function main() {
   else if (args.autoplan) console.log(runAutoplan(args.seasons));
   else if (args.holdPayback) console.log(runHoldPayback(args.seasons, args.seed));
   else if (args.stacking) console.log(runStacking(args.seasons, args.seed));
+  else if (args.crookAblation)
+    console.log(runCrookAblation(args.seasons === 50 ? 250 : args.seasons, args.seed));
   else if (args.fix) console.log(runFixProbe(args.seasons === 50 ? 120 : args.seasons, args.seed));
   else console.log(runHarness(args));
 }

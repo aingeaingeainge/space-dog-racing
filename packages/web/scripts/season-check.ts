@@ -22,8 +22,8 @@ import {
   dogSalePrice,
   dogValue,
   fuelCost,
+  jobCost,
   loanCap,
-  hasFixer,
   maxStakeFor,
   outstanding,
   planetOf,
@@ -102,30 +102,15 @@ function planetTurn(s: GameState, p: Player, tally: Tally): Action[] {
   // them with whatever is drinking here and then lets them all go in week 9 — which is what walks
   // both the slot limit and the FireStaff refusal that guards a Trader's hold.
   if (pre) {
-    // The Fixer first when one is drinking here, because §13's path is the one this check exists
-    // to walk and it is reachable through nothing else: two actions in two different phases, a
-    // roll on race day, and a refusal that outlives the season.
-    const offers = [...s.planet.staff].sort(
-      (a, b) => (b.role === 'fixer' ? 1 : 0) - (a.role === 'fixer' ? 1 : 0),
-    );
-    for (const offer of offers) {
-      // ⚠️ The Fixer is taken **first and deliberately**, into the last slot if that is what it
-      // takes (GDD §13). Phase C's walk-through skipped him because he was not hireable; the point
-      // of this check is to *exercise* a path rather than survive it, and §13's is the only one in
-      // the game with an action in two different phases, a roll on race day, and a refusal that
-      // outlives the season. A fixer here means the walk-through meets the bribe, the nobbling,
-      // the stewards' enquiry and the ban.
-      //
-      // Those last two are refusals the screens have to respect for the same reason the AI does:
-      // a Saloon that offered a barred stable another Fixer would be offering an action the
-      // reducer throws on — which is exactly what this check caught the first time it ran.
-      if (offer.role === 'fixer' && (p.flags.fixerBarred || s.toggles.cleanSport)) continue;
-      const mustHaveFixer = offer.role === 'fixer' && !hasFixer(p);
-      const room = mustHaveFixer ? balance.staffSlots : balance.staffSlots - 1;
-      if (p.staff.length + hires >= room) continue;
-      // Two weeks of cover for a fixer against four for everybody else: his value is per job
-      // rather than per week, which is the same reasoning the crook agent uses.
-      if (cash <= offer.wage * (mustHaveFixer ? 2 : 4)) continue;
+    // ⚠️ §13 is not hired here any more (E-D45). The Fixer used to be taken first and deliberately,
+    // into the last slot if that is what it took, because his was the only path in the game with an
+    // action in two phases, a roll on race day and a refusal that outlives the season — and none of
+    // it was reachable without a hire. It is reachable without one now: the jobs are bought where
+    // they are placed, so the walk-through's Race Office and Bookie steps below carry the whole of
+    // the road and this loop is back to being about slots and wages.
+    for (const offer of s.planet.staff) {
+      if (p.staff.length + hires >= balance.staffSlots - 1) continue;
+      if (cash <= offer.wage * 4) continue;
       out.push({ t: 'HireStaff', playerId: p.id, staffId: offer.id });
       cash -= offer.wage;
       hires++;
@@ -136,7 +121,6 @@ function planetTurn(s: GameState, p: Player, tally: Tally): Action[] {
   // the check that a stable carrying more than its ship can hold is refused rather than spilled.
   if (pre && s.week === 9) {
     for (const o of p.staff) {
-      if (o.role === 'fixer') continue; // keep the fixer: §13's path runs to the Grand Final
       out.push({ t: 'FireStaff', playerId: p.id, staffId: o.id });
       bump(tally, 'FireStaff');
     }
@@ -319,13 +303,17 @@ function planetTurn(s: GameState, p: Player, tally: Tally): Action[] {
     // draw is made at the lock, so this is the last moment it can be placed — and the swap is
     // applied after every other rule that moves dogs between boxes, which is the thing worth
     // walking rather than merely surviving.
+    // The man is this weekend's man and his price is his own (E-D45), so the walk-through prices
+    // the job the same way the Race Office does rather than against a constant.
+    const fixer = s.planet.fixer;
+    const fee = fixer ? jobCost('bribe', fixer.tier) : 0;
     const canFix =
       !s.toggles.cleanSport &&
-      hasFixer(p) &&
+      !!fixer &&
       !p.flags.fixerBarred &&
       !s.fixes.some((f) => f.playerId === p.id && f.week === s.week && f.kind === 'bribe');
     const richest = declares[0];
-    if (canFix && richest?.t === 'Declare' && richest.dogId && cash > balance.bribeCost * 3) {
+    if (canFix && richest?.t === 'Declare' && richest.dogId && cash > fee * 3) {
       out.push({
         t: 'BribeSteward',
         playerId: p.id,
@@ -333,7 +321,7 @@ function planetTurn(s: GameState, p: Player, tally: Tally): Action[] {
         dogId: richest.dogId,
         trap: 1,
       });
-      cash -= balance.bribeCost;
+      cash -= fee;
       bump(tally, 'BribeSteward');
     }
   }
@@ -350,12 +338,14 @@ function bettingTurn(s: GameState, p: Player, tally: Tally): Action[] {
   // second favourite into the price that has not moved. One job a weekend, so this fires at most
   // once — and over three seeds and thirteen weeks it walks the stewards' enquiry, the fine sized
   // against the stake, and the ban that stops the next hire.
+  const fixer = s.planet.fixer;
+  const fee = fixer ? jobCost('sabotage', fixer.tier) : 0;
   const canNobble =
     !s.toggles.cleanSport &&
-    hasFixer(p) &&
+    !!fixer &&
     !p.flags.fixerBarred &&
     !s.fixes.some((f) => f.playerId === p.id && f.week === s.week && f.kind === 'sabotage') &&
-    cash > balance.sabotageCost * 3;
+    cash > fee * 3;
   if (canNobble) {
     const first = s.fields[0];
     const runners = first
@@ -363,7 +353,7 @@ function bettingTurn(s: GameState, p: Player, tally: Tally): Action[] {
       : [];
     if (first && runners[0]) {
       out.push({ t: 'Sabotage', playerId: p.id, race: first.race, dogId: runners[0].dogId });
-      cash -= balance.sabotageCost;
+      cash -= fee;
       bump(tally, 'Sabotage');
     }
   }
@@ -557,8 +547,9 @@ for (const seed of toRun) {
       if (fuelCost(0) !== balance.fuelBase) throw new Error('fuelCost drifted from balance.json');
       if (bettingMargin(state) <= 0) throw new Error('betting margin went to zero');
       // §13, walked rather than merely survived. The stewards' enquiry is the one branch that
-      // cannot be reached by a season that simply runs: it needs a fixer hired, a job placed, a
-      // roll lost on race day, and a stable that then meets the refusal for the rest of the year.
+      // cannot be reached by a season that simply runs: it needs a man on the planet, a job bought
+      // from him, a roll lost on race day, and a stable that then meets the refusal for the rest of
+      // the year. The hire is gone (E-D45); the other four are what this counts.
       fixes += (tally.BribeSteward ?? 0) + (tally.Sabotage ?? 0);
       if (state.eventLog.some((l) => l.text.includes('enquiry'))) enquiries++;
       if (human.flags.fixerBarred) barred++;

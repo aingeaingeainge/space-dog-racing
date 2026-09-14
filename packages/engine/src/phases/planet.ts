@@ -4,7 +4,8 @@ import { raceType } from '../content/raceTypes';
 import { good, STOCK_UNLIMITED } from '../content/goods';
 import { staffTitle } from '../content/staff';
 import { cargoTotal } from '../economy/goods';
-import { buyPriceFor, cargoCap, hasFixer } from '../economy/staff';
+import { buyPriceFor, cargoCap } from '../economy/staff';
+import { jobCost } from '../content/staff';
 import { dogSalePrice, weakestStat } from '../economy/dogValue';
 import { loanCap, outstanding } from '../economy/loans';
 import { upgradePrice } from '../economy/market';
@@ -23,6 +24,7 @@ import {
 import {
   ActionError,
   type Action,
+  type FixerOffer,
   type GameState,
   type Id,
   type Player,
@@ -231,8 +233,9 @@ export function tradeFood(ctx: Ctx, action: Extract<Action, { t: 'TradeFood' }>)
  * exists to leave out: the price is the gate, and whether stacking dominates is something to
  * measure rather than to forbid.
  *
- * The Fixer is not hireable (`content/staff.ts`), so his row never reaches a planet and the refusal
- * here is a backstop rather than a rule a player meets.
+ * The Fixer is not on this list and has not been since Phase E: his row is `hireable: false`, so
+ * `rollStaff` never offers him and no refusal about him is needed here. He is hired a job at a
+ * time, at `PlanetState.fixer`, and §13's two refusals live with the jobs (E-D45).
  */
 export function hireStaff(ctx: Ctx, action: Extract<Action, { t: 'HireStaff' }>): void {
   const { s } = ctx;
@@ -240,12 +243,6 @@ export function hireStaff(ctx: Ctx, action: Extract<Action, { t: 'HireStaff' }>)
   const p = activeOrFail(s, action.playerId, action);
   const offer = s.planet.staff.find((o) => o.id === action.staffId);
   if (!offer) fail('Nobody by that name is for hire here', action);
-  // §13: a stable caught fixing loses its Fixer and may not take another on this season. The only
-  // refusal in the hiring path that is about *who* rather than about how many slots are left.
-  if (offer.role === 'fixer' && p.flags.fixerBarred)
-    fail('The stewards have your name — nobody will fix for you again this season', action);
-  if (offer.role === 'fixer' && s.toggles.cleanSport)
-    fail('Clean Sport: there is nothing for a fixer to do', action);
   if (p.staff.length >= balance.staffSlots)
     fail(`All ${balance.staffSlots} staff slots are full — let somebody go first`, action);
   p.staff.push(offer);
@@ -320,12 +317,33 @@ function fixThisWeek(s: GameState, playerId: Id, kind: 'bribe' | 'sabotage'): bo
   return s.fixes.some((f) => f.playerId === playerId && f.week === s.week && f.kind === kind);
 }
 
-/** The refusals both shady acts share, in the order a player meets them. */
-function fixerOrFail(s: GameState, p: Player, action: Action, kind: 'bribe' | 'sabotage'): void {
+/**
+ * The refusals both shady acts share, in the order a player meets them — and the man who will do
+ * it, because after Phase E that is the same question (E-D45).
+ *
+ * ⚠️ **The season ban got simpler rather than harder.** It used to mean "your fixer is struck off
+ * *and* you may not take another on", which needed the flag and a staff list to empty. There are
+ * no books now, so `fixerBarred` is the whole of it: the flag refuses every job, on every planet,
+ * for the rest of the season, however many men are drinking wherever the crook travels.
+ *
+ * The one-job-of-each-kind-a-weekend cap survives the change unaltered, and the reason it should
+ * is that it was never about the wage: it is one man with one week's work in him, and it is what
+ * stops the road being a lever you hold down.
+ */
+function fixerOrFail(
+  s: GameState,
+  p: Player,
+  action: Action,
+  kind: 'bribe' | 'sabotage',
+): FixerOffer {
   if (s.toggles.cleanSport) fail('Clean Sport: no bribes, no nobbling', action);
-  if (p.flags.fixerBarred) fail('The stewards have your name — your fixer is struck off', action);
-  if (!hasFixer(p)) fail('You have nobody on the books who knows a steward', action);
-  if (fixThisWeek(s, p.id, kind)) fail('Your fixer has done his one job this weekend', action);
+  if (p.flags.fixerBarred)
+    fail('The stewards have your name — nobody will take your money this season', action);
+  const fixer = s.planet.fixer;
+  if (!fixer) fail('Nobody here knows a steward worth knowing', action);
+  if (fixThisWeek(s, p.id, kind))
+    fail(`${fixer.name} has done his one job for you this weekend`, action);
+  return fixer;
 }
 
 /**
@@ -344,7 +362,7 @@ export function bribeSteward(ctx: Ctx, action: Extract<Action, { t: 'BribeStewar
   const { s } = ctx;
   planetPhase(s, action, 'planetPre');
   const p = activeOrFail(s, action.playerId, action);
-  fixerOrFail(s, p, action, 'bribe');
+  const fixer = fixerOrFail(s, p, action, 'bribe');
   if (!thisWeeksCard(s).includes(action.race))
     fail(`There is no ${raceType(action.race).label} on this weekend's card`, action);
   const d = dog(s, action.dogId);
@@ -356,8 +374,11 @@ export function bribeSteward(ctx: Ctx, action: Extract<Action, { t: 'BribeStewar
     );
   const trap = Math.trunc(action.trap);
   if (!(trap >= 1 && trap <= balance.traps)) fail(`There are ${balance.traps} boxes`, action);
-  pay(p, balance.bribeCost, action);
-  p.stats.costs += balance.bribeCost;
+  const fee = jobCost('bribe', fixer.tier);
+  pay(p, fee, action);
+  // ⚠️ Not into `stats.costs`: the crook's road is its own column on the Season End screen and in
+  // the harness, and a fee counted in two places would be counted twice (E item 0/1). `fixArchive`
+  // is where it is read back from.
   s.fixes.push({
     playerId: p.id,
     kind: 'bribe',
@@ -365,10 +386,12 @@ export function bribeSteward(ctx: Ctx, action: Extract<Action, { t: 'BribeStewar
     race: action.race,
     dogId: d.id,
     trap,
-    fee: balance.bribeCost,
+    fee,
+    fixer: fixer.name,
+    tier: fixer.tier,
     caught: false,
   });
-  log(s, `A steward finds ${d.name} a place in trap ${trap}.`, p.id);
+  log(s, `${fixer.name} finds ${d.name} a place in trap ${trap}, ${fee}.`, p.id);
 }
 
 /**
@@ -393,15 +416,15 @@ export function sabotage(ctx: Ctx, action: Extract<Action, { t: 'Sabotage' }>): 
   const { s } = ctx;
   planetPhase(s, action, 'betting');
   const p = activeOrFail(s, action.playerId, action);
-  fixerOrFail(s, p, action, 'sabotage');
+  const fixer = fixerOrFail(s, p, action, 'sabotage');
   if (!s.locked || !s.fields) fail('Wait until the field is out', action);
   const field = s.fields.find((f) => f.race === action.race);
   const entry = field?.entries.find((e) => e.dogId === action.dogId);
   if (!entry) fail('That dog is not in that race', action);
   const d = dog(s, action.dogId);
   if (d.ownerId === p.id) fail('Your own dog', action);
-  pay(p, balance.sabotageCost, action);
-  p.stats.costs += balance.sabotageCost;
+  const fee = jobCost('sabotage', fixer.tier);
+  pay(p, fee, action);
   d.nobbled += balance.sabotageFitness;
   s.fixes.push({
     playerId: p.id,
@@ -409,7 +432,9 @@ export function sabotage(ctx: Ctx, action: Extract<Action, { t: 'Sabotage' }>): 
     week: s.week,
     race: action.race,
     dogId: d.id,
-    fee: balance.sabotageCost,
+    fee,
+    fixer: fixer.name,
+    tier: fixer.tier,
     caught: false,
   });
   // Addressed to the buyer. Nobody else hears about it unless the stewards do (see catchFixers).

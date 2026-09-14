@@ -9,11 +9,11 @@ import {
   thisWeeksCard,
 } from '../state';
 import { outstanding } from '../economy/loans';
-import { hasFixer } from '../economy/staff';
+import { jobCost } from '../content/staff';
 import { winProbabilities } from '../race/odds';
 import { drawAdvantage } from '../race/draw';
 import { bettingOpen } from '../phases/turn';
-import type { Action, GameState, Id, RaceTypeId } from '../types';
+import type { Action, FixerOffer, GameState, Id, RaceTypeId, StaffRole } from '../types';
 import {
   buyFeedPlan,
   declareBest,
@@ -110,6 +110,20 @@ export const PATH_KNOBS = {
   crookMayFix: true,
 };
 
+/**
+ * The crook's own ablations, kept beside `PATH_KNOBS` for the same reason: a measurement agent's
+ * decisions are only worth what the table that chose them says, and a knob with the table in its
+ * comment is how the next session knows not to re-try it.
+ */
+export const CROOK_KNOBS = {
+  /**
+   * What the crook puts in the staff slots the Fixer stopped occupying (E-D45).
+   *
+   * Ablated over the same seasons and seeds — see `claude/V2_PHASE_E_NOTES.md` for the table.
+   */
+  want: ['trainer'] as StaffRole[],
+};
+
 // ---------------------------------------------------------------------------------------------
 // Road 3: the crook (GDD §13, BUILD_PLAN §7a.5). The steps below are shared with the mixed agent,
 // because "plays all three roads" has to mean *these* lines and not a second implementation of
@@ -147,13 +161,34 @@ const CROOK_MIN_BACKABLE = 0.04;
  * is worth it at a Major and not at a cheap Tuesday. Trap 1 every time, because D37's measurement
  * is that the rail is worth about +3.5 points of win rate on a bend and nothing at all on a
  * straight — so on a track with no bends this step correctly does nothing.
+ *
+ * ⚠️ **The price is this weekend's man's price (E-D45).** There is no fixer on the books to check
+ * for and no wage already sunk, so the whole of the decision is here: is there somebody drinking
+ * on this planet, and is what he charges less than what the box is worth in this race. That is
+ * the shape the per-job hire was for.
  */
+/**
+ * Is §13 open to this stable, here, this week — and is the agent allowed to walk it at all?
+ *
+ * The knob is the last clause on purpose: `crookMayFix` is the harness's ablation switch, and it
+ * has to take away **the jobs and nothing else**, so that the control is the same agent playing
+ * the same season with one road shut. Before Phase E it also took away a wage, which made the
+ * ablated crook a slightly richer stable for a reason that had nothing to do with §13 (E-D45).
+ */
+function fixerFor(plan: Plan): FixerOffer | null {
+  const { s, p } = plan;
+  if (s.toggles.cleanSport || p.flags.fixerBarred || !PATH_KNOBS.crookMayFix) return null;
+  return s.planet.fixer;
+}
+
 function buyABox(plan: Plan): void {
-  const { s, p, playerId, out } = plan;
-  if (s.toggles.cleanSport || p.flags.fixerBarred || !hasFixer(p)) return;
+  const { s, playerId, out } = plan;
+  const fixer = fixerFor(plan);
+  if (!fixer) return;
   const drawWorth = drawAdvantage(currentPlanet(s).track);
   if (drawWorth <= 0) return; // a straight: the box is a starting position and nothing else
-  if (plan.cash < balance.bribeCost + plan.reserve) return;
+  const fee = jobCost('bribe', fixer.tier);
+  if (plan.cash < fee + plan.reserve) return;
   // The richest race we are actually standing in.
   let best: { race: RaceTypeId; dogId: Id; purse: number } | null = null;
   for (const race of thisWeeksCard(s)) {
@@ -166,9 +201,9 @@ function buyABox(plan: Plan): void {
   // `drawAdvantage` is the engine's one definition of what choosing a box is worth (D37), so the
   // agent and the Race Office price the same thing. Doubled because the purse is only half of it:
   // the book does not price a draw either, so a bribed dog is also value at its own unmoved odds.
-  if (best.purse * drawWorth * 2 < balance.bribeCost) return;
+  if (best.purse * drawWorth * 2 < fee) return;
   out.push({ t: 'BribeSteward', playerId, race: best.race, dogId: best.dogId, trap: 1 });
-  plan.cash -= balance.bribeCost;
+  plan.cash -= fee;
 }
 
 /**
@@ -202,9 +237,14 @@ interface FixChoice {
 }
 
 function bestFix(plan: Plan, stake: number): FixChoice | null {
-  const { s, p, playerId } = plan;
-  if (!s.fields || stake < 100) return null;
-  const q = fixCatchRate(s, p);
+  const { s, playerId } = plan;
+  const fixer = fixerFor(plan);
+  if (!s.fields || !fixer || stake < 100) return null;
+  // Both halves of the price are this weekend's man: what he charges, and how likely the stewards
+  // are to notice him (E-D45). A careful man is dearer and the fine is rarer, which is the trade
+  // the grade exists to offer.
+  const fee = jobCost('sabotage', fixer.tier);
+  const q = fixCatchRate(s, fixer.tier);
   const expectedFine = q * (balance.fixFineBase + balance.fixFineStakeMult * stake);
   let choice: FixChoice | null = null;
   for (const race of thisWeeksCard(s)) {
@@ -229,7 +269,7 @@ function bestFix(plan: Plan, stake: number): FixChoice | null {
       if (trueP[k]! < CROOK_MIN_BACKABLE) return;
       const bettingGain = stake * (trueP[k]! * e.odds - 1);
       const purseGain = e.ownerId === playerId ? (trueP[k]! - e.winProb) * purse : 0;
-      const value = bettingGain + purseGain - balance.sabotageCost - expectedFine;
+      const value = bettingGain + purseGain - fee - expectedFine;
       if (value > 0 && (!choice || value > choice.value))
         choice = { race, target: entries[favIdx]!.dogId, on: e.dogId, stake, value };
     });
@@ -251,14 +291,15 @@ function bestFix(plan: Plan, stake: number): FixChoice | null {
 export function workTheFix(plan: Plan): void {
   const { s, p, playerId, out } = plan;
   if (!s.fields) return;
-  const canSabotage =
-    !s.toggles.cleanSport && !p.flags.fixerBarred && hasFixer(p) && bettingOpen(s);
-  const bank = Math.max(0, Math.floor(plan.cash - plan.reserve - balance.sabotageCost));
+  const fixer = fixerFor(plan);
+  const canSabotage = !!fixer && bettingOpen(s);
+  const fee = fixer ? jobCost('sabotage', fixer.tier) : 0;
+  const bank = Math.max(0, Math.floor(plan.cash - plan.reserve - fee));
   const choice = canSabotage ? bestFix(plan, Math.min(maxStakeFor(s, p), bank)) : null;
 
   if (choice) {
     out.push({ t: 'Sabotage', playerId, race: choice.race, dogId: choice.target });
-    plan.cash -= balance.sabotageCost;
+    plan.cash -= fee;
     const stake = Math.min(maxStakeFor(s, { ...p, cash: plan.cash }), choice.stake);
     if (stake >= 100) {
       out.push({
@@ -315,7 +356,11 @@ export function workTheFix(plan: Plan): void {
 function bettingBank(plan: Plan): void {
   const { s, p, playerId, out } = plan;
   const weeksLeft = balance.weeks - s.week;
-  const working = hasFixer(p) && !p.flags.fixerBarred && !s.toggles.cleanSport;
+  // A job, not a hire: the bank is worth borrowing on the weeks there is a man to spend it with
+  // (E-D45). Which also makes the loan a *burst* rather than a standing debt, because the fixer is
+  // not about every week and `repayLoans` below clears it when he is not.
+  const fixer = fixerFor(plan);
+  const working = !!fixer;
   // Late on, or with no fixer left to use it, the bank is just a bill: clear it.
   if (!working || weeksLeft < 2) {
     repayLoans(plan);
@@ -324,7 +369,7 @@ function bettingBank(plan: Plan): void {
   if (!currentPlanet(s).special.shark) return;
   // Enough to pay for a job and push against the ceiling, twice over — a bank that covers one fix
   // is a bank that is empty the week after a losing bet.
-  const want = maxStakeFlat(s) * 2 + balance.sabotageCost * 2;
+  const want = maxStakeFlat(s) * 2 + jobCost('sabotage', fixer.tier) * 2;
   if (plan.cash >= want) return;
   const room = balance.sharkMax - outstanding(p, 'shark');
   const take = Math.min(room, Math.ceil((want - plan.cash) / 500) * 500);
@@ -354,39 +399,27 @@ export function decideCrook(s: GameState, playerId: Id): Action[] {
   const plan = startPlan(s, playerId);
 
   if (s.phase === 'planetPre' || s.phase === 'planetPost') {
-    // ⚠️ Two departures from the other agents, and both are about the *shape* of this road.
+    // ⚠️ **The whole of this step used to be about the fixer's wage, and there is no wage now.**
     //
-    // **`cover: 4` rather than the whole season**: a trainer's value compounds, so the trainer and
-    // the trader agents will only sign one they can pay to week 13. A fixer's value is *per job*,
-    // so four weeks of cover is the honest gate and waiting until week 9 to be certain of the wage
-    // would be waiting out the road.
-    // ⚠️ **Halving the reserve was tried here and is worse, which is worth recording.** A crook
+    // Phase D's crook signed a fixer on the week before a Major and let him go once it had been
+    // run, at `cover: 2` and cheapest-first, because a man charged every week for a road used
+    // twice a season is what measured §13 as a 3,498-Bone loss (D42). Hiring him at all is gone
+    // with E-D45: the road is bought a job at a time, in `buyABox` and `workTheFix`, out of the
+    // cash this weekend's decision needs and nothing more.
+    //
+    // ⚠️ **Which leaves the slot this road's staff used to occupy, and the crook now spends it on
+    // a trainer.** D30's finding is that three slots is more than a racing stable can profitably
+    // fill and the crook's second-most-valuable hire is the one that keeps it with a dog worth
+    // backing — which was true while the fixer had the first slot and is more useful now that he
+    // does not. Ablated: see the table in the notes.
+    //
+    // ⚠️ **Halving the reserve was tried here and is worse, which is worth keeping.** A crook
     // holds a betting bank rather than a fortnight of bills, so letting it run closer to the wind
     // looked obviously right: it took the mean end worth 33,540 → 26,797 and the p10 8,746 →
     // 4,554, because the freed cash went into dogs and feed in the weeks it had no fixer and was
     // gone in the weeks it did. The bank has to be *borrowed* for the week it is wanted, which is
     // what `bettingBank` does — it cannot be scraped out of the running costs.
-    //
-    // `cover: 2` rather than the trainer's whole season: a trainer's value compounds, so it is worth
-    // only signing one you can pay to week 13; a fixer's value is per job, and a crook that waits
-    // until the wage is certain waits out the road. Measured at `cover: 4` the first working fixer
-    // arrived in **week 6.5** — half the season gone before the road opened at all.
-    // ⚠️ **A fixer for the big weeks, and not a day longer.** This is the line the whole road
-    // turned on, and it was found by ablation rather than by design: a crook that keeps a fixer on
-    // the books all season pays a wage every week for a man it uses **twice**, and §13 measured as
-    // a *net loss* of 3,498 Bones against the same agent with the road switched off — even though
-    // the betting column itself went −713 → +1,885, which is the first time betting has been
-    // positive in this project.
-    //
-    // §2.1 said it in the first place: the crook's road pays "in bursts, at the biggest races".
-    // So the fixer is taken on the week before a Major and let go once it has been run. The wage
-    // becomes a cost of the burst rather than a standing charge, which is what a per-job road can
-    // actually carry.
-    keepStaff(plan, {
-      want: PATH_KNOBS.crookMayFix ? ['fixer'] : [],
-      cover: 2,
-      cheapest: ['fixer'],
-    });
+    keepStaff(plan, { want: CROOK_KNOBS.want, cover: 4 });
     bettingBank(plan);
     if (s.phase === 'planetPre') {
       dogMarket(plan, { buyCashMultiple: 4, minRatingGain: 6, keepReserve: true });

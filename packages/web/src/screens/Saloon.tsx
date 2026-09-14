@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import {
   balance,
+  fixCatchRate,
   formatBones,
+  jobCost,
   loanCap,
   outstanding,
   planetOf,
@@ -124,7 +126,7 @@ export function Saloon({ s, me }: { s: GameState; me: Player }) {
             sp.trainer && 'A trainer is always drinking here.',
             sp.vet && 'A vet works out of the back room.',
             sp.fixer &&
-              'There is always a fixer at the far table on this station. Whether that is a good thing is between you and the stewards.',
+              'There is always somebody at the far table on this station. Whether that is a good thing is between you and the stewards.',
             sp.bank &&
               `The bank lends up to ${formatBones(balance.bankMax)} at ${Math.round(balance.bankRate * 100)}% a week.`,
             sp.shark && 'Fat Tony Nebula is holding court in the corner.',
@@ -134,6 +136,8 @@ export function Saloon({ s, me }: { s: GameState; me: Player }) {
           ]}
         />
       </Panel>
+
+      <FarTable s={s} me={me} />
 
       <Rumours s={s} />
 
@@ -146,16 +150,11 @@ export function Saloon({ s, me }: { s: GameState; me: Player }) {
         ) : null}
         {staffOnOffer.map((o) => {
           const why =
-            // §13: the stewards' ban is the one refusal in the hiring path that is about *who*.
-            o.role === 'fixer' && me.flags.fixerBarred
-              ? 'The stewards have your name — nobody will fix for you again this season'
-              : o.role === 'fixer' && s.toggles.cleanSport
-                ? 'Clean Sport: there is nothing for a fixer to do'
-                : me.staff.length >= balance.staffSlots
-                  ? `All ${balance.staffSlots} slots are full — let somebody go first`
-                  : me.cash < o.wage
-                    ? `You cannot cover the first week's ${formatBones(o.wage)}`
-                    : null;
+            me.staff.length >= balance.staffSlots
+              ? `All ${balance.staffSlots} slots are full — let somebody go first`
+              : me.cash < o.wage
+                ? `You cannot cover the first week's ${formatBones(o.wage)}`
+                : null;
           const already = me.staff.filter((x) => x.role === o.role);
           return (
             <div className="shop-row" key={o.id}>
@@ -262,6 +261,58 @@ export function Saloon({ s, me }: { s: GameState; me: Player }) {
  * calendar and the planets' price bands (lib/rumours.ts); a band is not a price, so the tip can be
  * wrong.
  */
+/**
+ * The far table (GDD §13, E-D45) — a price list rather than a hire.
+ *
+ * ⚠️ **This panel is the whole of what changed about the Fixer, said in one screen.** Through
+ * Phase D he was a row in "For hire" above, with a wage charged every week to the Grand Final;
+ * the road measured as a 3,498-Bone loss because of it, and the arithmetic was never close (D42).
+ * So he has no Hire button now. What he has is a name, a grade and two prices — and the decision
+ * to pay one of them is taken where the job is, at the Race Office before the draw and at the
+ * Bookie after the prices are up, against that race's purse and that slip's stake.
+ *
+ * The reason it is still worth a panel here rather than nothing at all: §9.3's fog means a player
+ * arriving on a planet does not otherwise know whether the road is open this week, and pillar 4
+ * says they should be able to price what they have been offered the instant it appears. A price
+ * list you read on arrival is exactly that, and it costs no click to walk past.
+ */
+function FarTable({ s, me }: { s: GameState; me: Player }) {
+  const fixer = s.planet.fixer;
+  if (s.toggles.cleanSport) return null;
+  if (!fixer) {
+    return (
+      <Panel title="The far table" sub="§13 — nobody worth knowing, this week">
+        <p className="muted flush">
+          Nobody here knows a steward worth knowing. Try somewhere with worse lighting.
+        </p>
+      </Panel>
+    );
+  }
+  const barred = me.flags.fixerBarred;
+  return (
+    <Panel title="The far table" sub="paid by the job, never by the week">
+      <p className="flush">
+        <b>
+          {fixer.name}{' '}
+          <span className="muted">
+            — <Tier tier={fixer.tier} /> fixer
+          </span>
+        </b>
+      </p>
+      <Notes
+        lines={[
+          `A box for one of your runners: ${formatBones(jobCost('bribe', fixer.tier))}. Bought at the Race Office, before the draw is made.`,
+          `A word with somebody else's: ${formatBones(jobCost('sabotage', fixer.tier))}. Bought at the Bookie, after the prices are up and while they stay up.`,
+          `The stewards here notice about ${Math.round(fixCatchRate(s, fixer.tier) * 100)}% of jobs. If they notice one of yours it is ${formatBones(balance.fixFineBase)} plus a quarter of what you had on the race, and nobody will take your money again this season.`,
+          barred
+            ? 'They already have your name. He will not take your money.'
+            : 'One job of each kind a weekend — he is one man with one week in him.',
+        ]}
+      />
+    </Panel>
+  );
+}
+
 function Rumours({ s }: { s: GameState }) {
   const heard = rumours(s);
   return (

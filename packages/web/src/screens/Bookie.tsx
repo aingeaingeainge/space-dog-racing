@@ -1,16 +1,15 @@
 import { useState } from 'react';
 import {
   balance,
-  bestStaff,
   bettingMargin,
   formatBones,
-  hasFixer,
   maxStakeFlat,
   maxStakeFor,
   maxStakeFraction,
   planetOf,
   purseFor,
   thisWeeksCard,
+  TIER_LABEL,
   type Bet,
   type GameState,
   type Player,
@@ -217,6 +216,12 @@ function RaceBetting({
  *
  * It sits under the odds rather than in the Saloon deliberately: the job is only possible once the
  * prices are up, and this is the screen where the prices are.
+ *
+ * ⚠️ **And from Phase E it is also where the man is hired** (E-D45). There is no standing fixer to
+ * have taken on three planets ago: this counter names whoever is drinking here this week, prices
+ * his job at his own rate, and the button both hires him and sets him to work. A player who does
+ * not come to this screen has not passed up a service they were paying for — they simply have not
+ * walked the road this weekend, which is what a road ought to feel like.
  */
 function FixerCounter({
   s,
@@ -230,17 +235,17 @@ function FixerCounter({
   stake: number;
 }) {
   const dispatch = useGame((g) => g.dispatch);
-  if (s.toggles.cleanSport || !hasFixer(me)) return null;
+  if (s.toggles.cleanSport || !s.planet.fixer) return null;
   const already = s.fixes.some(
     (f) => f.playerId === me.id && f.week === s.week && f.kind === 'sabotage',
   );
   const price = priceASabotage(s, me, race, Math.max(stake, 0));
   if (!price) return null;
-  const fixer = bestStaff(me, 'fixer');
+  const fixer = price.fixer;
   const why = me.flags.fixerBarred
-    ? 'The stewards have your name — nobody will fix for you again this season'
+    ? 'The stewards have your name — nobody will take your money this season'
     : already
-      ? 'Your fixer has done his one job this weekend'
+      ? `${fixer.name} has done his one job for you this weekend`
       : me.cash < price.fee
         ? `You cannot cover the ${formatBones(price.fee)}`
         : null;
@@ -249,8 +254,9 @@ function FixerCounter({
     <div className="stack gap-t">
       <Notes
         lines={[
-          `${fixer?.name ?? 'Your fixer'} can get at ${price.target.name} — ${balance.sabotageFitness} fitness, ` +
-            `for ${formatBones(price.fee)}. The book has already priced this race and will not price it again.`,
+          `${fixer.name}, ${TIER_LABEL[fixer.tier].toLowerCase()}, can get at ${price.target.name} — ` +
+            `${balance.sabotageFitness} fitness, for ${formatBones(price.fee)}, paid on the job. ` +
+            `The book has already priced this race and will not price it again.`,
           `Afterwards the best value on the board is ${price.back.name} at ${price.back.odds.toFixed(2)}: ` +
             `worth ${(price.edge * 100).toFixed(0)}% more than it pays, so ` +
             `${formatBones(price.bettingGain)} on the ${formatBones(stake)} you have dialled in` +
@@ -258,7 +264,7 @@ function FixerCounter({
             '.',
           `The stewards here catch ${Math.round(price.catchRate * 100)}% of jobs. If they catch this one it is ` +
             `${formatBones(price.fine)} — ${formatBones(balance.fixFineBase)} plus a quarter of what you have on the race — ` +
-            `and ${fixer?.name ?? 'your fixer'} is struck off for the season.`,
+            `and ${fixer.name} is struck off — nobody will take your money again this season.`,
           price.net >= 0
             ? `On the whole: ${formatBones(price.net)} to the good at this stake.`
             : price.breakEven

@@ -1,5 +1,6 @@
 import { balance } from '../content/balance';
 import {
+  FIXER_NAMES,
   NAME_FIRST,
   NAME_SECOND,
   NAME_SOLO,
@@ -15,6 +16,7 @@ import { HIREABLE_ROLES } from '../content/staff';
 import { TRAIT_IDS } from '../content/traits';
 import type {
   Dog,
+  FixerOffer,
   GoodId,
   GoodMarket,
   GoodTier,
@@ -245,26 +247,20 @@ const NAMES_BY_ROLE: Partial<Record<StaffRole, readonly string[]>> = {
  * one, a vet works out of the back room at another — get a guaranteed appearance rather than a
  * guaranteed tier: what is on offer there is *someone*, not someone good.
  *
- * ✅ **The Fixer is among them as of Phase D**, and Lagrange Lows guarantees one because its row
- * has always said "Fixer for hire". `HIREABLE_ROLES` is the single place that decides who can be
- * offered at all, and the Saloon reads the same list.
+ * ⚠️ **The Fixer is not among them, and was for exactly one phase.** He went on the books in
+ * Phase D and came off them in Phase E: a weekly wage for a man used twice a season is what
+ * measured §13 as a net loss (D42, E-D45). He is rolled by `rollFixer` below instead, into
+ * `PlanetState.fixer`, and hired one job at a time. `HIREABLE_ROLES` is the single place that
+ * decides who can be offered at all, and the Saloon reads the same list.
  */
 export function rollStaff(planet: Planet, rng: Rng, nextId: IdGen): StaffOffer[] {
   const offers: StaffOffer[] = [];
   const sp = planet.special;
   for (const role of HIREABLE_ROLES) {
-    // The three planets whose row promises somebody in particular (GDD §12). Lagrange Lows says
-    // "Fixer for hire (§13)" and, until Phase D, nothing read that flag at all — the Fixer was not
-    // hireable anywhere, so the special was a line of prose. It is a rule now, and it is what makes
-    // the crook's road something a player can find on purpose rather than wait for.
-    // The three planets whose row promises somebody in particular (GDD §12). Lagrange Lows says
-    // "Fixer for hire (§13)" and, until Phase D, nothing read that flag at all — the Fixer was not
-    // hireable anywhere, so the special was a line of prose. It is a rule now, and it is what makes
-    // the crook's road something a player can go and find rather than wait for.
-    const guaranteed =
-      (role === 'trainer' && !!sp.trainer) ||
-      (role === 'vet' && !!sp.vet) ||
-      (role === 'fixer' && !!sp.fixer);
+    // The two planets whose row promises somebody in particular (GDD §12) — a trainer is always
+    // about at one and a vet works out of the back room at another. Lagrange Lows' promise of a
+    // Fixer is kept by `rollFixer` now that he is not a hire.
+    const guaranteed = (role === 'trainer' && !!sp.trainer) || (role === 'vet' && !!sp.vet);
     if (!guaranteed && !rng.chance(balance.staffAppearChance)) continue;
     const tier = rollTier(rng, 1);
     const names = NAMES_BY_ROLE[role] ?? TRAINER_NAMES;
@@ -280,6 +276,35 @@ export function rollStaff(planet: Planet, rng: Rng, nextId: IdGen): StaffOffer[]
     });
   }
   return offers;
+}
+
+/**
+ * Who is at the far table this week (GDD §13, §12, E-D45).
+ *
+ * ⚠️ **A planet-week offers one man at one grade, and that is deliberate.** He is not on a shelf
+ * beside the trainers and the vets: he is not a hire, there is nothing to compare, and a crook
+ * choosing between a Rough and a Prime fixer on the same station would be choosing a risk
+ * appetite rather than playing the hand it was dealt (pillar 2). So the draw is the same one the
+ * goods and the staff use — 70 / 25 / 5 — and what it settles is what this weekend's road costs
+ * and how dangerous it is.
+ *
+ * **Lagrange Lows still guarantees one**, because its row has promised "Fixer for hire (§13)"
+ * since M0 and that promise survived his leaving the staff ladder. The guarantee is of *someone*,
+ * not of someone good — the same rule the trainer planet and the vet planet get.
+ *
+ * ⚠️ **Its own appearance chance rather than `staffAppearChance`, and the difference matters.**
+ * A hire persists: at 45% a crook that signed one in week 3 had him every week after, which is
+ * how D41 turned 45% of planet-weeks into a working fixer in 67% of them. A job does not persist,
+ * so this number *is* how often the road can be walked. It is a separate row so that raising one
+ * does not quietly raise the other.
+ */
+export function rollFixer(planet: Planet, rng: Rng): FixerOffer | null {
+  const here = !!planet.special.fixer || rng.chance(balance.fixerHereChance);
+  if (!here) return null;
+  // Same ladder, same draw as the goods and the staff — `rollStaff`'s guaranteed roles skip the
+  // appearance chance the same way, so the stream already varies by planet and this adds nothing
+  // new to that.
+  return { name: rng.pick(FIXER_NAMES), tier: rollTier(rng, 1) };
 }
 
 /**
@@ -385,6 +410,7 @@ export function emptyPlanetState(planetId: Id): PlanetState {
     marketDogIds: [],
     finds: {},
     staff: [],
+    fixer: null,
     muzzlesInStock: false,
     trackDayPasses: false,
   };

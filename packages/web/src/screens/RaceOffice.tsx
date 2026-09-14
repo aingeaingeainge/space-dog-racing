@@ -2,12 +2,11 @@ import { useState } from 'react';
 import {
   vetRestBonus,
   balance,
-  bestStaff,
   formatBones,
-  hasFixer,
   planetOf,
   purseFor,
   thisWeeksCard,
+  TIER_LABEL,
   type Dog,
   type GameState,
   type Player,
@@ -58,26 +57,30 @@ function StewardsBox({
 }) {
   const dispatch = useGame((g) => g.dispatch);
   const [trap, setTrap] = useState(1);
-  if (s.toggles.cleanSport || !hasFixer(me) || !dogId) return null;
+  // Hired at the moment there is a job, from whoever is on this planet this week (E-D45).
+  const fixer = s.planet.fixer;
+  if (s.toggles.cleanSport || !fixer || !dogId) return null;
   const bought = s.fixes.find(
     (f) => f.playerId === me.id && f.week === s.week && f.kind === 'bribe',
   );
   const entry = s.fields?.find((f) => f.race === race)?.entries.find((e) => e.dogId === dogId);
   const price = priceABox(s, race, entry?.odds ?? null, 0);
-  const fixer = bestStaff(me, 'fixer');
   const why = me.flags.fixerBarred
-    ? 'The stewards have your name'
+    ? 'The stewards have your name — nobody will take your money this season'
     : bought
       ? bought.race === race
         ? `Already bought trap ${bought.trap}`
-        : 'Your fixer has done his one job this weekend'
+        : `${fixer.name} has done his one job for you this weekend`
       : me.cash < price.fee
         ? `You cannot cover the ${formatBones(price.fee)}`
         : null;
 
   return (
     <div className="stack tight-p">
-      <span className="muted">{price.line}</span>
+      <span className="muted">
+        {fixer.name}, {TIER_LABEL[fixer.tier].toLowerCase()}, is drinking here this week.{' '}
+        {price.line}
+      </span>
       <div className="row">
         <label>
           <span className="muted">Box</span>{' '}
@@ -92,7 +95,7 @@ function StewardsBox({
         </label>
         <NeonButton
           disabled={!!why || price.advantage <= 0}
-          title={why ?? `${fixer?.name ?? 'Your fixer'} has a word with a steward`}
+          title={why ?? `${fixer.name} has a word with a steward`}
           onClick={() => dispatch({ t: 'BribeSteward', playerId: me.id, race, dogId, trap })}
         >
           Have a word · {formatBones(price.fee)}

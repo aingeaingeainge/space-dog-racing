@@ -10,7 +10,7 @@ import {
   cargoTotal,
   cargoCap,
   championshipPoints,
-  hasStaff,
+  jobCost,
   player,
   raceType,
   reduceMut,
@@ -114,12 +114,30 @@ function checkInvariants(s: GameState, lastAction: Action): void {
     );
   }
   const card = thisWeeksCard(s);
-  // GDD §13: the Fixer's week. Four statements, all of them things a screen or a sweep will lean
-  // on, and none of them true of any state before Phase D.
-  for (const p of s.players) {
-    // Struck off means struck off: a barred stable has nobody on the books who would do it again.
-    if (p.flags.fixerBarred)
-      assert(!hasStaff(p, 'fixer'), `${p.id} is barred and still employs a fixer`);
+  // GDD §13: the Fixer's week. All of them things a screen or a sweep leans on.
+  //
+  // ⚠️ Phase E's version of "struck off means struck off" is the opposite shape to Phase D's. It
+  // used to check that a barred stable had nobody on the *books*; the Fixer is not on the books
+  // any more, so what the ban has to mean is that no *job* was bought after the enquiry that
+  // barred them. Which is the stronger statement, and the one the ban is actually for (E-D45).
+  assert(
+    !s.players.some((p) => p.staff.some((o) => o.role === 'fixer')),
+    'a fixer is on somebody’s books — he is hired by the job now',
+  );
+  {
+    const barredAt = new Map<string, number>();
+    for (const f of [...s.fixArchive, ...s.fixes]) {
+      if (!f.caught) continue;
+      const at = barredAt.get(f.playerId);
+      if (at === undefined || f.week < at) barredAt.set(f.playerId, f.week);
+    }
+    for (const f of [...s.fixArchive, ...s.fixes]) {
+      const at = barredAt.get(f.playerId);
+      if (at !== undefined)
+        assert(f.week <= at, `${f.playerId} bought a job in week ${f.week}, barred since ${at}`);
+    }
+    for (const [pid] of barredAt)
+      assert(player(s, pid).flags.fixerBarred, `${pid} was caught and is not barred`);
   }
   for (const kind of ['bribe', 'sabotage'] as const) {
     const perPlayer = new Map<string, number>();
@@ -144,6 +162,21 @@ function checkInvariants(s: GameState, lastAction: Action): void {
     const d = s.dogs[f.dogId];
     if (d && f.kind === 'sabotage') assert(d.ownerId !== f.playerId, 'nobbled its own dog');
   }
+  // Every job is somebody's job, at somebody's price (E-D45). The fee on the record has to be the
+  // price list's answer for the grade that took it, or the Season End column is adding up numbers
+  // the player was never charged.
+  for (const f of [...s.fixArchive, ...s.fixes]) {
+    assert(f.fixer.length > 0, 'a job with nobody’s name on it');
+    assert(
+      f.fee === jobCost(f.kind, f.tier),
+      `a ${f.kind} by a ${f.tier} man cost ${f.fee}, price list says ${jobCost(f.kind, f.tier)}`,
+    );
+    assert(f.caught || f.fine === undefined, 'a fine on a job the stewards never noticed');
+  }
+  // The archive is the season, and this week is not in it yet: a fix is swept in at endTurn, so
+  // the two lists never hold the same job twice and the split cannot double-count.
+  for (const f of s.fixArchive)
+    assert(f.week < s.week, `week ${f.week} archived during week ${f.week}`);
   for (const d of Object.values(s.dogs)) {
     assert(d.nobbled >= 0 && Number.isInteger(d.nobbled), `nobbled ${d.nobbled}`);
     // A nobbling is a fact about one card. Outside the window between the lock and the end of the

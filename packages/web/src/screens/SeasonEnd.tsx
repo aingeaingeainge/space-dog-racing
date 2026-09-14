@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { formatBones, planetOf, roadSplit, type GameState } from '@sdr/engine';
+import { fixTally, formatBones, planetOf, roadSplit, type GameState } from '@sdr/engine';
 import { Panel } from '../components/Panel';
 import { StableName } from '../components/ui';
 import { OwnerBlurb, OwnerFace } from '../components/Owner';
@@ -132,7 +132,12 @@ export function SeasonEnd({ s }: { s: GameState }) {
  * Pretending otherwise would be a nicer table and a worse instrument.
  */
 function RoadsWalked({ s }: { s: GameState }) {
-  const rows = standings(s).map((r) => ({ ...r, split: roadSplit(s, r.player) }));
+  const rows = standings(s).map((r) => ({
+    ...r,
+    split: roadSplit(s, r.player),
+    tally: fixTally(s, r.player),
+  }));
+  const anyFixing = rows.some((r) => r.tally.jobs > 0);
   return (
     <Panel
       title="The roads walked"
@@ -147,6 +152,7 @@ function RoadsWalked({ s }: { s: GameState }) {
               <th className="num">Prize money</th>
               <th className="num">Trading</th>
               <th className="num">Betting</th>
+              {anyFixing ? <th className="num">Fixing</th> : null}
               <th className="num">Costs</th>
               <th className="num">Ledger</th>
             </tr>
@@ -160,6 +166,11 @@ function RoadsWalked({ s }: { s: GameState }) {
                 <td className="num">{formatBones(r.split.prize)}</td>
                 <td className="num">{signed(r.split.trade)}</td>
                 <td className="num">{signed(r.split.betting)}</td>
+                {anyFixing ? (
+                  <td className="num" title={fixLine(r.tally)}>
+                    {r.tally.jobs ? formatBones(-r.split.fixes) : '—'}
+                  </td>
+                ) : null}
                 <td className="num">{formatBones(-r.split.costs)}</td>
                 <td className="num">
                   <b>{signed(r.split.net)}</b>
@@ -171,12 +182,22 @@ function RoadsWalked({ s }: { s: GameState }) {
       </div>
       <p className="muted">
         Prize money is what the purses paid, trading is goods sold less goods bought, betting is
-        returns less stakes. Costs are the wages, upkeep, fuel and feed that went out whatever you
-        were doing. The ledger is those four; what is left over is in the dogs, the ship and the
-        hold, which is why it does not match the net worth below.
+        returns less stakes.{' '}
+        {anyFixing
+          ? 'Fixing is what the boxes, the nobblings and the stewards cost — what they earned is already in the betting and the prize money. '
+          : ''}
+        Costs are the wages, upkeep, fuel and feed that went out whatever you were doing. The ledger
+        is those columns; what is left over is in the dogs, the ship and the hold, which is why it
+        does not match the net worth below.
       </p>
     </Panel>
   );
+}
+
+/** "3 jobs, 1 of them noticed" — the sentence a Bones figure on its own is not. */
+function fixLine(t: { jobs: number; caught: number }): string {
+  if (!t.jobs) return 'never went near the far table';
+  return `${t.jobs} job${t.jobs === 1 ? '' : 's'}, ${t.caught ? `${t.caught} noticed` : 'none noticed'}`;
 }
 
 /** A figure that can go either way reads better with its sign on the front. */

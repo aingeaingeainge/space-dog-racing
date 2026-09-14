@@ -181,6 +181,16 @@ const LABELS: Record<string, string> = {
   'Championship purse: 1st on points': 'champPurse1',
   'Championship purse: 2nd on points': 'champPurse2',
   'Championship purse: 3rd on points': 'champPurse3',
+  // ---- v2 Phase E ----
+  // The Fixer's price list (GDD §13, E-D45). He left the staff ladder when D42's arithmetic said a
+  // percentage edge on a racing stable's working capital cannot carry a weekly wage, and these
+  // four rows are the whole of what replaced it: three job-price multipliers on the fees above,
+  // and how often a man is about at all — which, for a job rather than a hire, *is* how often the
+  // road can be walked.
+  'Fixing: job price multiplier, Rough fixer': 'fixJobMultRough',
+  'Fixing: job price multiplier, Proper fixer': 'fixJobMultProper',
+  'Fixing: job price multiplier, Prime fixer': 'fixJobMultPrime',
+  'Fixing: chance a fixer is drinking here at all, per planet-week': 'fixerHereChance',
 };
 
 const wb = XLSX.read(readFileSync(xlsxPath));

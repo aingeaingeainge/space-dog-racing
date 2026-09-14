@@ -28,12 +28,14 @@ import {
   fixCatchRate,
   formatBones,
   fuelCost,
+  jobCost,
   planetOf,
   purseFor,
   ratingWith,
   weakestStat,
   winProbabilities,
   type Dog,
+  type FixerOffer,
   type GameState,
   type Good,
   type Id,
@@ -315,6 +317,8 @@ export function fieldMeanFitness(s: GameState, field: readonly RaceEntry[]): num
 export const SABOTAGE_RATING_POINTS = 10;
 
 export interface BoxPrice {
+  /** The man selling it this weekend, or null where nobody is about (GDD §13). */
+  fixer: FixerOffer | null;
   fee: number;
   /** Win-rate points choosing the box is worth here, as a fraction. Zero on a straight. */
   advantage: number;
@@ -337,10 +341,14 @@ export function priceABox(
   const purseGain = Math.round(advantage * purse);
   // A win-rate gain of `advantage` on a price of `odds` is worth `advantage × odds` per Bone on.
   const bettingGain = entryOdds ? Math.round(advantage * entryOdds * stake) : 0;
-  const fee = balance.bribeCost;
+  // This weekend's man at this weekend's rate (E-D45). Null where nobody is drinking here, which
+  // is the honest answer to "what would a box cost" when there is nobody to buy one from.
+  const fixer = s.planet.fixer;
+  const fee = fixer ? jobCost('bribe', fixer.tier) : 0;
   const total = purseGain + bettingGain;
   return {
     fee,
+    fixer,
     advantage,
     purse,
     purseGain,
@@ -372,6 +380,8 @@ export function priceABox(
  * are what the bookie will still be quoting after the job is done — that divergence is the road.
  */
 export interface FixPrice {
+  /** The man taking the job this weekend — his name and his grade (GDD §13). */
+  fixer: FixerOffer;
   fee: number;
   catchRate: number;
   /** The fine if the stewards notice, at this stake. */
@@ -420,19 +430,27 @@ export function priceASabotage(
   });
   if (bestIdx < 0) return null;
   const back = field[bestIdx]!;
-  const catchRate = fixCatchRate(s, me);
+  // ⚠️ Both halves of the price are **this weekend's man** (E-D45): what he charges for the job,
+  // and how well he covers his tracks. So the counter under the odds moves from planet to planet
+  // with whoever is drinking there, which is the road being something you find rather than
+  // something you hold.
+  const fixer = s.planet.fixer;
+  if (!fixer) return null;
+  const fee = jobCost('sabotage', fixer.tier);
+  const catchRate = fixCatchRate(s, fixer.tier);
   const fine = Math.round(balance.fixFineBase + balance.fixFineStakeMult * stake);
   const bettingGain = Math.round(bestEdge * stake);
   const purseGain =
     back.ownerId === me.id
       ? Math.round((trueP[bestIdx]! - back.winProb) * purseFor(s, race)[0])
       : 0;
-  const expectedCost = Math.round(balance.sabotageCost + catchRate * fine);
+  const expectedCost = Math.round(fee + catchRate * fine);
   // Net of the *rate* per Bone, so the break-even is the stake at which the fixed costs are covered.
   const netRate = bestEdge - catchRate * balance.fixFineStakeMult;
-  const fixed = balance.sabotageCost + catchRate * balance.fixFineBase - purseGain;
+  const fixed = fee + catchRate * balance.fixFineBase - purseGain;
   return {
-    fee: balance.sabotageCost,
+    fee,
+    fixer,
     catchRate,
     fine,
     target: field[favIdx]!,

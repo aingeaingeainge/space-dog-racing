@@ -1,6 +1,5 @@
 import { balance } from '../content/balance';
 import {
-  FIXER_CATCH_MULT,
   SCOUT_DOGS,
   TIPSTER_REACH,
   TRADER_HOLD,
@@ -80,23 +79,13 @@ export function vetInjuryRelief(p: Player): {
   };
 }
 
-/** Has this stable got somebody who will do a job at all (GDD §13)? */
-export function hasFixer(p: Player): boolean {
-  return hasStaff(p, 'fixer');
-}
-
-/**
- * How much more or less likely the stewards are to notice, given who is doing it (GDD §13, §8.3).
- *
- * The **best** fixer on the books acts, the same as every other role, so two Proper fixers are two
- * wages and one capability — D7's no-stacking-penalty design, which is the absence of a bonus
- * rather than a penalty. With nobody on the books there is nothing to do, so the multiplier is
- * never asked for.
+/*
+ * ⚠️ `hasFixer` and `fixerCatchMult` used to live here and are gone (E-D45). The Fixer is not on
+ * the books any more — "have I got one" is now "is one drinking on this planet this week", which
+ * is `s.planet.fixer`, and "how careful is he" is a property of the *job* rather than of the
+ * stable, read off the `Fix` by `fixCatchRate`. Neither question belongs to a staff list, and
+ * leaving stubs here that always answered no would have been a quiet trap for the next caller.
  */
-export function fixerCatchMult(p: Player): number {
-  const tier = bestTier(p, 'fixer');
-  return tier ? FIXER_CATCH_MULT[tier] : 1;
-}
 
 export function scoutDogs(p: Player): number {
   const tier = bestTier(p, 'scout');

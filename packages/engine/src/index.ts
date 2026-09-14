@@ -36,7 +36,10 @@ export {
   type Good,
 } from './content/goods';
 export {
+  FIXER_CATCH_MULT,
+  FIXER_JOB_MULT,
   HIREABLE_ROLES,
+  jobCost,
   SCOUT_DOGS,
   STAFF_ROLES,
   STAFF_ROLE_BY_ID,

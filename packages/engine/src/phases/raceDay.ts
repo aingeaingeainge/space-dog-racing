@@ -1,5 +1,5 @@
 import { balance } from '../content/balance';
-import { bestStaff, vetInjuryRelief } from '../economy/staff';
+import { vetInjuryRelief } from '../economy/staff';
 type VetRelief = ReturnType<typeof vetInjuryRelief>;
 import { OPEN_TYPE_ID, raceType } from '../content/raceTypes';
 import { pow10 } from '../determinism';
@@ -195,8 +195,11 @@ function rollInjury(ctx: Ctx, d: Dog, hazard: number, relief: VetRelief): number
  *    the money is lost, and the stewards are at the door. Undoing it as well would make the whole
  *    mechanic a coin flip on its own main effect, and §13 asks for severe rather than random.
  *
- * The Fixer is struck off and no other will work for this stable again this season, which is the
- * half of the deterrent that grows with how often the road is used.
+ * The man is struck off and no other will take the stable's money again this season, which is the
+ * half of the deterrent that grows with how often the road is used. ⚠️ **That half got simpler
+ * when the Fixer stopped being a hire (E-D45)**, and is worth watching for it: there is no longer
+ * a wage to stop paying, so being caught takes away the road and nothing else. It still bites,
+ * because the road is the thing the crook was paying for.
  *
  * ⚠️ **§13's third penalty — "the wronged stable is told who did it" — is logged and does nothing,
  * and that is a decision rather than an omission (D40).** The line is public, so it reaches every
@@ -210,16 +213,18 @@ function catchFixers(ctx: Ctx, race: RaceResult['race']): void {
   for (const fix of s.fixes) {
     if (fix.week !== s.week || fix.race !== race || fix.caught) continue;
     const p = player(s, fix.playerId);
-    if (!ctx.rng.chance(fixCatchRate(s, p))) continue;
+    // The grade is the job's, not the stable's: a crook who bought a box from a Rough man and a
+    // nobbling from a careful one is two different risks in the same weekend (E-D45).
+    if (!ctx.rng.chance(fixCatchRate(s, fix.tier))) continue;
     fix.caught = true;
     const staked = s.bets
       .filter((b) => b.playerId === p.id && b.week === s.week && b.race === race)
       .reduce((sum, b) => sum + b.stake, 0);
     const fine = Math.round(balance.fixFineBase + balance.fixFineStakeMult * staked);
     p.cash -= fine;
-    p.stats.costs += fine;
-    const gone = bestStaff(p, 'fixer');
-    if (gone) p.staff = p.staff.filter((o) => o.id !== gone.id);
+    // The fine belongs to the crook's column and not to the general costs line, the same as the
+    // fees that bought the job — `roadSplit` reads both off `fixArchive` (E item 1).
+    fix.fine = fine;
     p.flags.fixerBarred = true;
     const d = s.dogs[fix.dogId];
     const what =
@@ -231,7 +236,7 @@ function catchFixers(ctx: Ctx, race: RaceResult['race']): void {
       s,
       `Stewards' enquiry, ${raceType(race).label}: ${p.name} caught ${what}. ` +
         `Fined ${fine}${staked > 0 ? ` (${balance.fixFineBase} plus a share of the ${staked} they had on it)` : ''}` +
-        `${gone ? `, and ${gone.name} is struck off` : ''}. No fixer will work for them again this season.`,
+        `, and ${fix.fixer} is struck off. Nobody will take their money again this season.`,
     );
   }
 }
