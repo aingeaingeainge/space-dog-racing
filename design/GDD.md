@@ -1,10 +1,30 @@
 # Space Dog Racing — Game Design Document
 
 **Working title:** Space Dog Racing
-**Version:** 0.6 — 13 September 2026 (v1 shipped at tag `m4`; v2 Phase A at `v2a`, Phase B at `v2b`, Phase C at `v2c`, Phase D at `v2d`)
+**Version:** 0.7 — 14 September 2026 (v1 shipped at tag `m4`; v2 Phase A at `v2a`, Phase B at `v2b`, Phase C at `v2c`, Phase D at `v2d`, Phase E at `v2e`)
 **Author:** Jesse Colbert, with Claude as design partner
 **Status:** v2 design. ⚖️ marks a tunable that lives in `space_dog_racing_economy.xlsx`; ❓ marks an open decision; **[measured]** marks a number this design was tested against and **[estimate]** one that is a starting point for the phase that builds it.
 
+> **What changed in 0.7, in one paragraph.** Phase E changed the *shape* of one hire and most of
+> the phase followed from it. **The Fixer is no longer staff**: he is one man at the far table of
+> whatever planet you are on this week, hired a **job at a time** at his own grade's price, and the
+> road that cost 3,498 Bones to walk in Phase D now pays **+6,061** on the same ablation (D45,
+> §13). Nothing else about §13 moved — the fee, the fine, the catch rate and the stake ceiling are
+> the numbers Phase D swept — so the whole of that 9,500-Bone swing is the difference between a
+> wage and a price list. §2.1's "the roads are meant to be mixable" is **true as measured**: the
+> three roads land **3.8% apart** against a 15% target, the closest they have ever been, and a
+> stable playing all three ends above the best single road (D46, §20 Q2). ⚠️ **Three of this
+> phase's findings are negative and they are the ones worth keeping.** Hard's head-to-head was
+> chased through six ablations and **none of its decisions is a bad one** — two are load-bearing —
+> so whatever keeps it off 63–68% is not on that list (D49). `apLoss` is retired as a debt and
+> replaced with a **bound** rather than a figure (D48). And the careless bankruptcy row turns out
+> to have been measuring a cascade rather than ruin: the flag fires 3.6% of the time and **15.7% of
+> careless stables end on nothing or less** (D51). `infoROI` is repaired and says information is
+> not currently paying for itself (D44). Races per dog gets a band that is arithmetic rather than a
+> guess (D50). ⚠️ **None of it has been played.** Phase D was not playtested either, so `v2e` is
+> two phases of unplayed change and the checklist at the end of `claude/V2_PHASE_E_NOTES.md` is
+> written for both.
+>
 > **What changed in 0.6, in one paragraph.** Phase D is built and v2 is complete. §13 exists in
 > code for the first time — the Fixer is hireable, a steward will sell you a box, a man will take
 > fitness off a rival after the prices have gone up, and the stewards will fine you a flat sum plus
@@ -88,6 +108,37 @@ Every rule in this document is tested against the question *does this make one o
 | The thing that can kill it | a Prime trainer's wage bill outliving the run of form | a hold full of kibble and nowhere good to sell it | getting caught |
 
 They are meant to be mixable. A stable that trains a pup, pays for it by trading, and backs it at 9/1 when it is ready is playing all three, and should be about as rich as one that commits.
+
+✅ **True as measured, as of Phase E — and it was a wage and a badly written agent rather than a
+rule (D46).** D43 measured the sentence for the first time in Phase D and found a mixed stable
+**28% behind** the trainer. Phase E relaxed each of the three suspects it named, one at a time, on
+the same seeds, with the control row that makes the cash suspect mean anything:
+
+| relaxed | mixed mean | against the trainer |
+|---|---|---|
+| nothing — Phase D's intensities | 32,148 | +1.6% |
+| a fourth staff slot | **32,148** | +1.6% |
+| twice the starting cash | 44,163 | +39.5% |
+| every road at full intensity | 34,185 | +8.0% |
+| *(control)* the trainer on twice the cash | 41,304 | +30.5% |
+
+⚠️ **The slot row is identical to the Bone**: a mixed stable never fills three slots even when
+offered four, so that suspect is not small, it is *zero*. The cash row lifts the mixed stable 37.4%
+and the trainer 30.5%, so nearly all of it is compound interest rather than anything about mixing.
+What is left is attention — worth +6.3% — and the Fixer's wage, which D45 removed and which is why
+the first row is already *ahead* of the trainer rather than 28% behind it.
+
+Four roads in the same seasons, 400 of them, two stables each:
+
+| agent | mean | p10 | p90 | p90/p10 | prize | trade | bet | fixing | caught |
+|---|---|---|---|---|---|---|---|---|---|
+| trainer | 32,526 | 7,082 | 70,454 | 9.9 | 34,241 | 1,041 | 0 | 0 | — |
+| trader | 33,758 | 10,964 | 61,795 | **5.6** | 24,746 | 7,720 | 0 | 0 | — |
+| crook | 33,529 | 4,742 | 87,861 | **18.5** | 27,482 | 1,657 | 3,203 | −2,269 | 49.4% |
+| **mixed** | **36,598** | 5,917 | 79,934 | 13.5 | 36,510 | 3,381 | 1,439 | −1,017 | 23.8% |
+
+**3.8% apart** against a 15% target, and the mixed stable above the best single road. The spread
+is §2.1's own column read back: the crook widest, the trader narrowest, the trainer between them.
 
 ## 3. Players and session
 
@@ -673,7 +724,7 @@ Three slots, filled with any combination — three trainers if you like. **No st
 |---|---|---|---|---|
 | **Trainer** | trainer | +1 stat point per Train week | +2 | +4 |
 | **Vet** | protects the asset | injury −1 week | injury halved, Rest +5 | injury halved, Rest +10, −25% injury chance |
-| **Fixer** | crook | bribe + sabotage, caught ×1.5 | bribe + sabotage, caught ×1.0 | bribe + sabotage, caught ×0.5 |
+| **Fixer** ⚠️ *not staff* | crook | bribe + sabotage, caught ×1.5, job ×1.0 | caught ×1.0, job ×1.5 | caught ×0.5, job ×2.0 |
 | **Scout** | trainer / trader | +1 dog in every market | +2 dogs, one priced under book | +3 dogs, one under book, stats shown for pups |
 | **Trader** | trader | +10 hold | +20 hold, Proper goods stocked | +30 hold, Prime goods stocked, −5% buy prices |
 | **Tipster** | trader / crook | this planet's card a phase early | next week's card and food band | next *two* weeks' planets and cards |
@@ -722,13 +773,24 @@ Fixer all over again: a wage for a service the game gives away. Rough sells next
 Proper adds the band a week further out, Prime sells both. The AI's `planetAhead` guard is raised by
 exactly the hire, so no agent sees further than a player with the same Tipster.
 
-✅ **The Fixer is hireable as of Phase D**, and GDD §19's 2026-09-08 decision — no wage for a
-service the game does not provide — is discharged rather than overturned: §13 exists, so every
-line on his row is a rule. Lagrange Lows guarantees one, because its row has promised "Fixer for
+⚠️ **The Fixer is on this table and is not one of the three slots** (D45). Phase D put him on the
+wage ladder and Phase E took him off it: he is hired **by the job**, at `PlanetState.fixer`, and
+his row is kept here because the *ladder* still applies to him — the grade sets what a job costs
+and how well he covers his tracks. What does not apply is the wage, and §13 has the arithmetic.
+GDD §19's 2026-09-08 decision — no wage for a service the game does not provide — was discharged
+in Phase D and is now superseded by a sharper version of itself: **no wage for a service used in
+bursts**, whether or not the game provides it.
+
+✅ **Which frees the third slot, and nothing wanted it.** D30 found three slots is more than a
+racing stable can profitably fill; with the Fixer gone, the crook agent was ablated head-to-head on
+what to do with the room — nothing, a trainer, or a trainer and a vet — and every pairing came in
+inside the standard error. So the slot is worth nothing to a stable that does not race for its
+living either, which is D30 confirmed from a direction it did not anticipate. Lagrange Lows guarantees one, because its row has promised "Fixer for
 hire" since M0 and nothing ever read the flag.
 
 ⚠️ **His ladder is a ladder of a *number*, and the version that was not cost the road its
-existence (D41).** He shipped mid-phase with a Rough man who could buy a box and not get at a dog,
+existence (D41).** *(Phase E kept this rule and changed what the number is attached to: the price
+list as well as the catch rate, and both carried on the job rather than on a hire.)* He shipped mid-phase with a Rough man who could buy a box and not get at a dog,
 which reads well — the cheap half of the road has no punishment tail, so why should the cheap man
 sell you the half that does? What it did was starve the road: a Proper-or-better fixer turns up at
 30% of the 45% of planet-weeks that offer one, so a crook had a working fixer in **30% of its
@@ -919,16 +981,24 @@ Four Major venues and fourteen regular planets, unchanged from v1 in name, track
 
 ## 13. The crook's road
 
-✅ **Built at `v2d`. This was the one part of the GDD that had never existed in code** — the Fixer
-was withdrawn from hire in M4 session 1 because nothing read `staff.fixer` except a 350-a-week
-wage, and three phases upheld that on the grounds that charging for a service the game does not
-provide is a trap rather than a difficulty. Every line below is now a rule.
+✅ **Built at `v2d`, and re-shaped at `v2e`. This was the one part of the GDD that had never
+existed in code** — the Fixer was withdrawn from hire in M4 session 1 because nothing read
+`staff.fixer` except a 350-a-week wage, and three phases upheld that on the grounds that charging
+for a service the game does not provide is a trap rather than a difficulty. Every line below is
+now a rule.
 
-- **Steward bribe** (Fixer, 800 ⚖️) — choose your dog's trap draw. ✅ Placed in the **planet phase**,
+⚠️ **He went back on the staff ladder for exactly one phase.** Phase D made him hireable and
+measured the road as a net loss because of it; Phase E took him off again for the opposite reason
+to the original one — not "there is nothing for him to do" but **"what he does is a job, and a job
+is not a week"** (D45). He lives at `PlanetState.fixer` now: one man, this planet, this weekend,
+this price list. The test that leaves a seventh role off the wage ladder is the same one: *is the
+thing it sells used every week?* If it is used in bursts, it wants a price list.
+
+- **Steward bribe** (a fixer's job, 800 ⚖️ × his grade) — choose your dog's trap draw. ✅ Placed in the **planet phase**,
   because the draw is made when declarations lock, and honoured **last** in `lockDeclarations` —
   after the shuffle, after wide runners are put outside, after the dodgy-steward card — because a
   bribe a later rule could undo would be §8.4 wearing a hat.
-- **Sabotage** (Fixer, 500 ⚖️) — target one runner that is not yours in one race: **−25 fitness for
+- **Sabotage** (a fixer's job, 500 ⚖️ × his grade) — target one runner that is not yours in one race: **−25 fitness for
   that race** ⚖️. ✅ Placed in the **betting phase**, and *that is the mechanic* (see below).
 - **Supplement** — §8.4, unchanged.
 - **Throwing a race** — stays out. Measured at exactly ±0 for the Hard AI, and deliberately losing
@@ -1008,31 +1078,75 @@ Holy Bark 60%) and by the grade of fixer (×1.5 / ×1.0 / ×0.5). The constraint
 thing is one line: **the fine's stake multiple must stay below (the edge ÷ the catch chance), or
 no stake is ever worth fixing.**
 
-### ⚠️ And the road still does not pay (D42)
+### ⚠️ It did not pay, and then the Fixer stopped being a wage (D42 → D45)
 
-The ablation — the same crook agent, the same seeds, once with §13 and once with it switched off,
-250 seasons:
+Phase D's ablation — the same crook agent, the same seeds, once with §13 and once with it switched
+off, 250 seasons — read **26,957 with the road against 30,455 without**: working it cost **3,498
+Bones**. The deterrent was not what ate it. Every knob inside this section had been swept, and what
+was left was the arithmetic in one line: *a Fixer is charged every week and used about twice a
+season, against a gross of about 840 a fix.*
 
-| crook | mean | p10 | p90 | betting income |
-|---|---|---|---|---|
-| with §13 | **26,957** | 2,592 | 46,667 | **+1,885** |
-| §13 ablated | **30,455** | 15,349 | 51,362 | −713 |
+✅ **Phase E took the wage away, and nothing else.** The Fixer is not staff. He is one man at the
+far table of whatever planet you are on this weekend, at one grade, and you hire him **for the
+job**: a box at the Race Office before the draw, a word at the Bookie after the prices are up. The
+fee, the fine, the catch rate and the stake ceiling are the numbers Phase D swept, untouched. Same
+ablation, same seeds, 250 seasons:
 
-**Working the road costs 3,498 Bones of end worth.** The deterrent is not what eats it — the
-**wage** is. A Fixer is charged every week and used about twice a season, against a gross of 840 a
-fix. The same arithmetic shows up from the other side in §14: teaching the Hard AI to take a Fixer
-into its third slot *and work him* costs it 9.5 points of head-to-head.
+| crook | mean | p10 | p90 | betting | fixing | jobs | caught |
+|---|---|---|---|---|---|---|---|
+| the road worked | **39,630** | 3,912 | 101,312 | **+7,938** | −2,426 | 1.6 | 52.1% |
+| §13 ablated | 33,568 | 16,348 | 54,678 | −891 | 0 | 0.0 | 0.0% |
 
-Two things inside that table are worth more than the headline. **Betting is positive for the first
-time in this project** (−713 → +1,885), so §10's "only a road because §13 manufactures the
-knowledge" is a measurement rather than an intention. And the **p10 collapses 15,349 → 2,592**,
-which is §2.1's punishment tail working exactly as described.
+**Walking the road is worth +6,061 of end worth** — a swing of about 9,500 Bones from a change of
+*shape* rather than of price, and the row BUILD_PLAN §6b had never met. Betting is not merely
+positive now but the crook's second income line, and the **p10 still collapses 16,348 → 3,912**,
+so §2.1's punishment tail survives the road becoming worth walking, which is the outcome that
+mattered.
 
-What is left is a named lever rather than a fix: **the stake, and where the money for it comes
-from.** A percentage edge on three thousand Bones cannot carry a weekly wage. The two honest moves
-are a Fixer who is not a weekly wage, or a bankroll that is not a racing stable's working capital
-— and §20 Q15's loan shark is the second of those, at 10% a week, which the measurement says is
-too dear for it.
+⚠️ **The ablation is also cleaner than D42's.** Switching the road off used to switch off a *wage*
+as well, so the control was a slightly richer stable for a reason that had nothing to do with §13.
+With no wage to remove, the two arms differ in exactly the jobs.
+
+**The price list, and why the grades are priced the way they are.** A job costs the fee on the row
+times the man's grade: ×1.0 Rough, ×1.5 Proper, ×2.0 Prime ⚖️. The multipliers are derived from the
+same break-even the deterrent was sized against — a fix clears `S × (edge − fineStakeMult × catch)
+− fee − fineBase × catch` — and are chosen so the three grades break even at roughly the **same
+stake**:
+
+| grade | fee | caught | fixed cost | % of the stake | break-even at a 27% edge |
+|---|---|---|---|---|---|
+| Rough | 500 | 37.5% | 950 | 9.4% | **5,391** |
+| Proper | 750 | 25.0% | 1,050 | 6.3% | **5,061** |
+| Prime | 1,000 | 12.5% | 1,150 | 3.1% | **4,817** |
+
+Which makes the grade a choice about **variance** rather than a ladder of whether the road pays at
+all: the careful man is dearer per job and very slightly better per Bone, and what he really buys is
+a smaller chance of the season ban — the half of the deterrent that grows with use. And every one of
+those break-evens is above the ~3,000 a racing stable carries spare and below the 8,000 flat
+ceiling a *borrowed* bankroll reaches, which is §2.1's crook column in one line: **in bursts, at the
+biggest races**. A wage could not produce that shape, because a wage is charged in the quiet weeks
+too.
+
+⚠️ **This is the named exception to D11**, and it has to be written down as one. D11's second guard
+is *"Prime staff are a weekly wage, not a purchase"*, so the top tier is a liability when the run
+ends rather than an "I have already won" button. That sentence cannot apply to a man who is not on
+the books — and what replaces it is a **stronger** version of the same guard rather than a hole in
+it: a Prime job is paid *every time*, so a leader who wants the careful man buys him again on every
+race he fixes and can never bank him. A wage at least gets cheaper the more you use it. The ladder
+itself is untouched: the job carries the tier, the tier sets the price *and* the catch multiplier,
+and a planet-week offers one man at one grade, so you still cannot buy the good one wherever you
+like (D41's rule, kept).
+
+**The season ban got simpler rather than harder.** Being struck off used to mean "your fixer is gone
+*and* you may not take another on", which needed a flag and a staff list to empty. There are no
+books now, so `flags.fixerBarred` is the whole of it: every job, on every planet, refused for the
+rest of the season, however many men are drinking wherever you travel.
+
+**What is left of §20 Q17.** The question was whether a road whose edge is a percentage can be a
+third road while the bankroll is a racing stable's working capital. The answer is **yes, if the
+road is not also a standing charge** — the bankroll was never the binding half. §20 Q15's loan shark
+is still how a crook reaches the ceiling, and 10% a week is still dear, but it is now a burst of
+borrowing for a week there is a man to spend it with rather than a permanent second bill.
 
 All shady options are off under the **Clean Sport** toggle. ✅ Both actions and the hire refuse
 under it, and the Saloon, the hub and the walk-through all respect the refusal rather than offering
@@ -1200,6 +1314,15 @@ Moved to **M6, behind v2**. Building a server for rules that are about to change
 | **2026-09-13** | **D41 — ⚠️ the Fixer's ladder is a ladder of a *number*, not of abilities** | He shipped mid-phase with a Rough man who could buy a box and not get at a dog. It reads well — the cheap half of the road has no punishment tail — and it **starved the road**: a Proper-or-better fixer turns up at 30% of the 45% of planet-weeks that offer one, so a crook had a working fixer in **30% of its weeks, first arriving in week 6.5**. Any fixer does either job now and what you pay for is how well he covers his tracks (caught ×1.5 / ×1.0 / ×0.5). Same crook, same seeds: **67% of weeks, week 3.8**. Every other role on the ladder withholds a number rather than an ability; the exception was the mistake |
 | **2026-09-13** | **D42 — ⚠️ §13 is built, correctly priced, and does not pay. The wage is what eats it, not the deterrent** | The ablation, 250 seasons, the same agent and seeds with the road switched off: **crook 26,957 with §13 against 30,455 without**. The edge is real and re-measured (23.2% on your own runner, 27.4% on the best price left) and **betting turns positive for the first time in the project**, −713 → +1,885; the p10 collapses 15,349 → 2,592, which is §2.1's punishment tail working. But a stable can stake about 3,000, so a fix grosses ~840, and a Fixer is a *weekly* wage for a man used *twice a season*. §14's mirror image: teaching Hard to take one and work him costs 9.5 points of head-to-head. The deterrent was swept out — §13 feared it was too light and it was far too heavy — and what is left is a named lever: the stake, and where the money for it comes from |
 | **2026-09-13** | **D43 — ⚠️ the three roads are *not* mixable, measured for the first time** | §2.1: "They are meant to be mixable… and should be about as rich as one that commits." The mixed agent plays the same steps as the other three with one options object each, and over 400 seasons in the same seasons it ends on **25,803** against the trader's 29,532 and the trainer's 35,644 — worse than every single road. Three roads compete for three staff slots, one kennel's cash and one week's attention. Whether that is a fault is a design question rather than a measurement one, and it is Jesse's: committing is a *decision*, and a game whose safe answer is "a bit of each" has fewer of them — but §2.1 promises otherwise in print |
+| **2026-09-14** | **D45 — ⚠️ the Fixer leaves the staff ladder and is hired by the job. The named exception to D11** | D42 measured §13 as a 3,498-Bone net loss with every knob inside it already swept, and named the wage as the thing eating it. Phase E took the wage away and changed nothing else: he is one man at `PlanetState.fixer`, on one planet, for one weekend, at a price list of ×1.0 / ×1.5 / ×2.0 on the fees ⚖️, with the job carrying the tier so the catch chance belongs to the job rather than to the stable. Same ablation, same seeds: **+6,061 instead of −3,498**, a swing of ~9,500 Bones from a change of shape. D11's "Prime staff are a weekly wage, not a purchase" cannot apply to a man who is not on the books, and what replaces it is stronger: a Prime job is paid every time, so a leader can never bank the careful man. The season ban got *simpler* — no books to strike him off, so `fixerBarred` is the whole of it |
+| **2026-09-14** | **D46 — the three roads mix after all; D43 was a wage and a badly written agent, not a rule** | Each of D43's three suspects relaxed on its own, same seeds, with the control row that makes the cash suspect mean anything. **A fourth staff slot is worth zero to the Bone** — a mixed stable never fills three. **Twice the cash lifts the mixed stable 37.4% and the trainer 30.5%**, so nearly all of it is compound interest. What is left is attention (+6.3%) and D45's wage. The mixed agent now plays each road at the intensity the single-road agent plays it and fixes opportunistically, which costs it no slot: four roads in the same seasons come in **3.8% apart** against a 15% target, the closest they have been, with the mixed stable above the best single road. **No rule changed** |
+| **2026-09-14** | **D47 — Hard was comparing two different rulers, and it is a defect whether or not it moves a head-to-head** | Since M4 Hard has rated its own dogs by `effectiveRating` (stats, not the public number) and `expectedField` has gone on rating every rival by the public number, because it never took a ruler. So every race Hard priced compared a generous estimate of itself against a plain one of the field. Repaired — one ruler, both sides. ⚠️ **Worth +2.5 points three-against-three and −0.2 at the standing table**, i.e. nothing; kept on correctness, and its comment says so rather than claiming a gain |
+| **2026-09-14** | **D48 — `apLoss` is a bound, not a figure, and that closes it rather than carrying it** | Re-anchoring both rollouts to `hash(seed, week)` at each week boundary cancels the part of the difference that is pure draw-mismatch: sd 20,041 → 17,810, and the mean stops wandering (Phase D read −1,047 at 568 rollouts; this reads −54 at 2,488, s.e. 357). Read as an interval, **one week of naive play costs under ±714 Bones on a ~32,000 season** — under 2.2%. That is the game saying one week in thirteen is worth very little at season end, the same shape as Q12, not a broken instrument. A point estimate needs the engine to key randomness by event rather than by sequence, which is a rebalance of every number in the game to sharpen one measure. **Declined, in writing** |
+| **2026-09-14** | **D49 — ⚠️ a head-to-head is a property of the table it is played at, and none of Hard's decisions is a bad one** | The Phase E ablation was first run three Hard against three Normal and disagreed with the project's standing measure — D47 read +2.5 there and −0.2 at the standing table (easy, normal ×3, hard ×2), which is the configuration every "hard beats normal" number in this project has been quoted from. Re-run there, 800 seasons: holding the best dog out the week before a Major is worth **2.1 points**, selling before the age tick **1.9**, working §13 per job **−4.4**, and the two rating variants are inside the error. **So there is no bad decision left in Hard to take away**, and whatever keeps it off 63–68% is not on that list. Six phases: 60.6 → 56.8 → 53.9 → 58.6 → 57.7 → **57.8** |
+| **2026-09-14** | **D50 — races per dog is 5–6, not 7–9: the band was set for a game that no longer exists** | The identity, measured this phase: a stable enters **1.97** of the weekend's three races and owns **4.98** distinct dogs across the season, and 1.97 × 13 ÷ 4.98 = **5.14**, which is the figure. Reaching 7 needs entries above 2.68 of three or fewer than 3.7 distinct dogs. The first is unreachable while §5.7's fitness binds (a stable is *eligible* for all three 76.3% of weeks and actually fills all three 23.3%) and the second contradicts §5.6's pup problem and the market being a road. Both are things the design deliberately pushes the other way, so the band was fitted to v1, where every dog raced every week. **Adopted: 5–6**, which the game meets |
+| **2026-09-14** | **D51 — ⚠️ `bankruptRate` measures a cascade, not ruin, and the careless row was reading the wrong one** | At 400 seasons careless bankruptcy read 4.0% and was called a near-miss inside one standard error. At **1,600** seasons it reads **3.6% ± 0.5**, three standard errors outside the 5–10% band — a real miss, not noise. But the flag fires only when endTurn's whole cascade fails in one week (Fat Tony covers, then repossesses, then the cheapest dogs are sold); a stable can grind down to nothing across thirteen weeks without ever tripping it. Measured directly: **15.7% of careless stables end on nothing or less** and 24.4% under 2,000. So §7.5's intent — carelessness ruins you — is met several times over, and the 5–10% band is a band of the wrong quantity. The band's numbers are **left alone** because nothing re-derives them; what changes is what BUILD_PLAN says it is a band *of*, and the ruin row is reported beside it |
+| **2026-09-14** | **D52 — `oddsScale` stays at 15.5, decided on the error profile rather than deferred again** | Q4 left 15.5 against a least-squares best fit of 15.75 with the profile at 15.75 never printed. Printed: worst-case error across ratings 35–75 is 1.9 points at 15.5 and **1.4 at 15.75**, and the rms is a hair better at 15.75 too — so on symmetric error 15.75 wins. It loses on the criterion §20 Q4 actually names: the danger is the **overlay**, the bookie *under*-rating a dog and leaving free money, and the largest overlay anywhere in 35–75 is **0.5 points at 15.5 against 1.3 at 15.75**, all of it at rating 65 where stables actually race. Against a 15% margin neither is dangerous, and the design's own criterion picks 15.5. **Settled, not carried** |
+| **2026-09-14** | **D53 — the spread row reads "the crook widest, the trader narrowest"** | BUILD_PLAN has said "the trainer narrowest" since before anything was measured, and Phase C (§20 Q2) and Phase D both measured the opposite. Phase E measures it a third time — crook 18.5, trainer 9.9, trader **5.6** — and the row is corrected rather than carried into a sixth phase as a row everybody knows is wrong |
 | **2026-09-12** | **D36 — `leadConversion` reads the action stream rather than `PlayerSeasonStats`** | §7a.4 specifies a two-field addition to the engine's stats. The harness applies every action itself, so "this stable bought a Prime thing" is already in front of it; doing it there added nothing to GameState and kept the golden snapshot at its two moves. The same argument that kept the dossier out of state in Phase B |
 
 ## 20. Open questions ❓
@@ -1234,7 +1357,21 @@ Moved to **M6, behind v2**. Building a server for rules that are about to change
     punishment tail". The half that is not met was already wrong: BUILD_PLAN says "the trainer
     narrowest" and Phase C measured the opposite — **the trader** is the safe road, at 5.6.
 
-    ⚠️ And the mixed row is the finding: see D43. Playing all three is worse than any one of them.
+    ⚠️ And the mixed row was the finding: see D43. ✅ **Phase E, four roads in the same 400 seasons,
+    two stables each — and the three are 3.8% apart, the closest they have ever been (D46):**
+
+    | agent | mean | p10 | p90 | p90/p10 | prize | trade | bet | fixing | caught |
+    |---|---|---|---|---|---|---|---|---|---|
+    | trainer | 32,526 | 7,082 | 70,454 | 9.9 | 34,241 | 1,041 | 0 | 0 | — |
+    | trader | 33,758 | 10,964 | 61,795 | **5.6** | 24,746 | 7,720 | 0 | 0 | — |
+    | crook | 33,529 | 4,742 | 87,861 | **18.5** | 27,482 | 1,657 | 3,203 | −2,269 | 49.4% |
+    | **mixed** | **36,598** | 5,917 | 79,934 | 13.5 | 36,510 | 3,381 | 1,439 | −1,017 | 23.8% |
+
+    The mixed stable is **above** the best single road, so §2.1's sentence and BUILD_PLAN's last
+    unmet acceptance row are both met. Two things did it and neither was a rule: D45's per-job
+    Fixer, which stopped a mixed stable paying a wage for a road it works twice a season, and the
+    agent playing each road at the intensity the single-road agent plays it. ⚠️ The spread row
+    reads **the crook widest, the trader narrowest** for the third measurement running (D53).
 
     ⚠️ **Two things to hold onto.** The trader's own trade income is **6,680** against BUILD_PLAN §6b's
     8–15k row, so that row is *missed* even though the road pays: what is short is the income line, not
@@ -1258,16 +1395,15 @@ Moved to **M6, behind v2**. Building a server for rules that are about to change
 14. ~~**Q11 — What replaces `naive%`?**~~ — **answered, half of it: `autoplan%` works and reads 8.8%; `apLoss%` cannot work as specified.** The autoplan is BUILD_PLAN §7a.3's own definition and the comparison is exact — the agent and the autoplan agree on the entries 32.3% of the time, on the states 27.3%, and on both 8.8%, over 7,800 stable-weeks. That is below the 15–30% band, and the honest gloss is that Normal's plan and the naive plan rarely coincide rather than that either is right. **`apLoss%` is a measurement problem, not a balance one** — see D25. Fixing it needs the engine to fork a per-decision rng stream so two rollouts share their downstream draws.
 15. **Q12 — Why is the season decided *earlier* than v1? Phase C's two late-paying roads moved it 6.4 → 6.6, which is a tenth of the way and honest about it.** The Phase C prompt's own hypothesis was that a road paying *late* — a pup arriving at week 10, a hold that finally has something worth carrying — would delay the decision where another cheap race could not. Both were built and the number moved **0.2 weeks**. So the hypothesis is not refuted but it is not the answer either: the roads pay late enough to lift the floor (p10 8,052 → 9,113) and not late enough to change who is winning. What is left of the diagnosis below stands.
     <br><br>**Q12, as originally written:** The "decided by" week reads **6.4** against v1's 7.6. The obvious lever was pulled on 12 September — the Consolation now reaches two weekends, coverage 29% → 71% — and **it moved the number not at all** (D28). What it moved was the *floor*: p10 end worth up 19%, Easy's head-to-head up 1.3 points, Hard's down 2.1. The diagnosis that follows is that the Consolation redistributes toward weak **dogs**, not weak **stables** — a leader has a dog that ran badly as often as anybody. A mechanic that actually delays the decision has to key off standing, and the design does not currently have one. Worth asking whether it should: the honest alternative is that a 13-week season with compounding prize money is decided at week 6 and the fix is somewhere else entirely.
-16. **Q13 — Is 76% too generous for a broad five-dog stable?** Unchanged at **76.3%** — Phase C touched neither the card nor eligibility, and the season fill rate is 1.97 of three against the probe's 76%, so fitness still binds long before eligibility does. Still worth deciding whether the band was the right target before tuning toward it.
-    <br><br>**Q13, as originally written:** §6.3's probe reads 76.3% against a 55–70% band, so eligibility constrains a well-spread stable less than the estimate assumed. It may not matter: in a real season the same stable fills all three only 20.4% of weeks, because fitness binds long before eligibility does. Worth deciding whether the band was ever the right target.
+16. **Q13 — Is 76% too generous for a broad five-dog stable? — ⚠️ examined and deliberately left alone (D50's neighbour).** Unchanged at **76.3%**, against a 55–70% band nobody can re-derive. What Phase E can say is that the band is in **tension with Q14's**, and the mechanism is arithmetic: eligibility is a *ceiling*, fitness is what binds under it, and a real season turns a 76.3% ceiling into all three races filled **23.3%** of weeks and 1.97 entries a weekend. Tightening eligibility toward 55–70% would pull the season fill rate down with it, and races per dog is `entries × 13 ÷ dogs` — so meeting this band would push Q14's band further out of reach. Two targets cannot both be right when one is the ceiling of the other. **Nothing is moved**, because moving a number this phase missed is the failure the standing instruction guards against and 55–70 has no derivation to argue with; what is recorded is that the row to watch is the **season fill rate**, not the probe.
 
-17. **Q14 — Is `races per dog` the wrong measure, or is the game still under-racing?** It reads **5.1** against a 7–9 band and has now missed in three phases running (v1 5.2, Phase A 5.2, Phase B 4.8). Phase C moved it *up* a little, for the first time, because a stable with feed aboard has a reason to keep a dog in work. But the band was set when every dog raced every week, and §6.3's card plus §5.7's fitness together mean a five-dog stable entering 1.97 races a weekend over 13 weekends is **5.1 runs a dog by arithmetic** — 1.97 × 13 ÷ 5. To reach 7 a stable would have to own fewer dogs or fill more of the card, and both are things the design deliberately pushes the other way. Worth deciding whether the target should be 5–6 rather than tuning toward 7.
+17. ~~**Q14 — Is `races per dog` the wrong measure, or is the game still under-racing?**~~ — **answered: the measure is right and the band was fitted to v1. Adopted 5–6 (D50).** It reads **5.1** against a 7–9 band and has missed in every phase since v1 (5.2, 5.2, 4.8, 5.1, 5.1, 5.1). The identity, both halves measured this phase: a stable enters **1.97** of the weekend's three races and owns **4.98** distinct dogs across a season, and 1.97 × 13 ÷ 4.98 = **5.14**. So the figure is not a symptom, it is arithmetic on two numbers the design chose on purpose. Reaching 7 needs entries above **2.68 of three** or fewer than **3.7 distinct dogs**. The first is unreachable while §5.7's fitness binds — §6.3's probe says a broad five-dog stable is *eligible* for all three 76.3% of weeks and a real season fills all three **23.3%** of them, so eligibility is not what is stopping it — and the second contradicts §5.6's pup problem and §8.5's market being a road worth walking. Both are things this design pushes the other way, which is exactly what a wrong target looks like. The band is **5–6** and the game meets it.
 
 ⚠️ **Q15's answer turned out to be about the wrong road.** The crook agent borrows from Fat Tony because its edge is a percentage of what it can stake, and 10% a week is still dear enough that it barely helps (see D42 and Q17). The trader's road is bound by cash too, but a trader can at least *hold* what it buys; a crook's bankroll is spent and settled in the same weekend. If Tony is ever the answer to anything, it is the crook.
 
 18. **Q15 — Should the trader be able to borrow more?** The trader agent's road pays (Q2) but its trade income is 6,680 against an 8–15k row, and the binding constraint is measured: cash, not capacity or margin. The bank lends 5,000 at 3% a week and the agent now uses it; Fat Tony lends 15,000 at 10% and it does not. A road financed on Tony's terms is a different and more interesting game than one financed on the bank's, and it is the sort of thing §13's phase could price properly.
 
-19. **Q17 — Can a road whose edge is a percentage ever be a third road, while the bankroll is a racing stable's working capital?** This is what is left of §13 after D42. The edge is real and re-measured (23–27% of the stake); the stake is about 3,000 because that is half of what a stable is carrying; so a fix grosses ~840 and a Fixer costs 250–1,400 a **week** for a man used **twice a season**. Every other lever was swept and the arithmetic did not move. The two honest next moves are a Fixer who is not a weekly wage — a retainer, a per-job hire at the Saloon, or a man who does something *every* week so the wage is earned — or a bankroll that is not working capital, which is Q15's loan shark and which the measurement says is too dear at 10% a week. Deciding between those is a design question, not a tuning one.
+19. ~~**Q17 — Can a road whose edge is a percentage ever be a third road, while the bankroll is a racing stable's working capital?**~~ — **answered: yes, provided the road is not also a standing charge (D45).** The two honest moves were a Fixer who is not a weekly wage or a bankroll that is not working capital. Jesse chose the first, and it was the whole of it: the fee, the fine, the catch rate and the stake ceiling are all still the numbers Phase D swept, and the same ablation on the same seeds goes from **−3,498 to +6,061**. So the bankroll was never the binding half — **the standing charge was**, and a percentage edge can carry a *price list* on the two or three weekends a season it is worth paying. What the bankroll still decides is the *size* of the burst: the break-evens sit at 4,800–5,400 against the ~3,000 a stable carries spare and the 8,000 a borrowed bank reaches, which is why §20 Q15's shark is the crook's lender and not the trader's.
 
 20. **Q16 — Is the Prime trainer too strong when it lands early?** `--pups` reads a pup reaching par at **week 4** with a Prime trainer and plain kibble, against week 8 with a Rough one. That is a big lever, and with Prime feed on top it is bigger. `leadConversion` says the Prime tier is not amplifying the leader (Q3), so the guards are holding *in aggregate* — but a Prime trainer hired in week 2 by a stable that then buys a pup is a specific line the aggregate may be hiding. Worth a probe rather than a change.
 

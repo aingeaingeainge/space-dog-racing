@@ -382,6 +382,69 @@ fields — and **betting turns positive for the first time in the project**. Wha
 Fixer's *weekly* wage against a road used *twice a season*, and every other lever was swept out
 before that was clear. GDD §20 Q17 carries what is left.
 
+### Phase E — make the roads real (1 session)
+
+**Goal:** the third road is worth walking, the three mix, and every target is one somebody can
+argue with arithmetic.
+
+**Deliverables**
+1. **The income split by road on the Season End screen.** ✅ Prize, trading, betting, fixing, costs
+   and the ledger they add to, for every stable. The arithmetic is `roadSplit` in the engine so the
+   harness and the screen cannot disagree about what a road earned.
+2. **⚠️ The Fixer stops being a weekly wage (GDD D45).** ✅ He leaves `Player.staff` for
+   `PlanetState.fixer` — one man, one planet, one weekend — and is hired **by the job** at a price
+   list of ×1.0 / ×1.5 / ×2.0 on the fees. The job carries the tier, so the catch chance belongs to
+   the job. The one snapshot move of the phase.
+3. **The mixability diagnosis (GDD D43 → D46).** ✅ `--mixability` relaxes each of D43's three
+   suspects on its own with the control row that makes the cash suspect mean anything. **No rule
+   changed**: a fourth slot is worth zero, the cash lift is compound interest, and what was left
+   was the wage and an agent playing every road at a third intensity.
+4. **Hard's decisions, ablated (GDD D47, D49).** ✅ Six of them, at the standing table. The result
+   is negative and is the deliverable: none of Hard's decisions is a bad one.
+5. **The four unexamined targets, decided in writing (GDD D50–D53).** ✅ Two corrected with
+   arithmetic, one deliberately left alone with the tension that stops it being moved written down,
+   one row fixed that has been wrong since before anything was measured.
+6. **The instrument debts (GDD D44, D48).** ✅ `infoROI` attributes profit to the crate that earned
+   it; `apLoss` is retired as a debt and reported as a bound.
+
+**Accept when** — ✅ built and measured at tag `v2e`. **Five rows flip from missed to met, and the
+three that do not are the phase's findings**; see `claude/V2_PHASE_E_NOTES.md`.
+
+| Measure | Target | Measured | |
+|---|---|---|---|
+| trainer / trader / crook mean end worth | within 15% of each other | **3.8% apart** — 32,526 / 33,758 / 33,529 | ✅ |
+| a mixed agent playing all three | not worse than the best single path | **36,598** against the trader's 33,758 | ✅ |
+| the crook's road, ablated | better with §13 than without | **+6,061** (39,630 against 33,568) | ✅ |
+| each path's p90/p10 spread | distinct — **the crook widest, the trader narrowest** (corrected, D53) | crook **18.5**, mixed 13.5, trainer 9.9, trader **5.6** | ✅ |
+| crook agent caught at least once | 40–70% of seasons | **49.4%** | ✅ |
+| Hard beats Normal | 63–68% | **57.8%** | ❌ and there is no bad decision left to remove (D49) |
+| `hub-clicks.ts` | ≤ 14.5 | **14.1** | ✅ |
+| races per dog | **5–6** (was 7–9; re-derived, D50) | **5.1** | ✅ |
+| careless bankruptcy, the **flag** | the 5–10% band is a band of the wrong quantity (D51) | **3.6% ± 0.5** at 1,600 seasons | ❌ and reported as a cascade measure |
+| careless stables ending on nothing or less | what D6 was actually asking | **15.7%** | ✅ §7.5's intent, several times over |
+| a broad five-dog stable fills all three | 55–70% — ⚠️ in tension with races per dog, left alone (D50) | **76.3%** | ❌ and deliberately not tuned toward |
+| `npm test` | green, golden snapshot moved only in its named commits | 22 green, moved **once** | ✅ |
+| `npm run lint` | clean | clean | ✅ |
+| `npm run build` | → `packages/web/dist` | yes | ✅ |
+| `season-check.ts` exercises a job, a caught crook and a served ban | walked, not survived | 7 jobs, 4 enquiries, 4 bans; the run **fails** if any is zero | ✅ |
+
+⚠️ **One snapshot move, not two, and that is the honest count.** The budget was two; nothing
+measured this phase demanded a balance number move, so nothing moved one. The Fixer's shape change
+is the only commit that touches the golden season — and it changes it only in the dog **ids**,
+because `rollStaff` no longer allocates a staff id for a fixer. Every race result, margin, cash and
+net worth in the golden season is **identical**, which is the cleanest possible statement of what
+D45 did: it changed nothing about a season in which nobody works §13, because Normal never hired a
+fixer in the first place.
+
+**The re-baseline**, 800 all-Normal seasons: mean end worth **32,543** (p10 8,582, p50 26,323, p90
+68,646), prize 33,632 · trade +1,893 · betting −849 · costs 24,119, bankruptcy 0.1%, fitness at
+declaration 71.5 with 19.8% below 60, races per dog **5.1**, dogs at week 13 **3.83**, purse share
+**53.8%**, prize share **78.2%** gross, decided by week **6.7**, autoplan% **8.9%**, hub-clicks
+**14.1** — every one of them unchanged from `v2d` to the Bone, for the reason above. Head to head:
+Normal beats Easy **81.0%**, **Hard beats Normal 57.8%**, Hard beats Easy 84.9%. Calibration
+**57.4%**; `oddsScale` stays at 15.5 on the error profile (D52). Stat leverage **24.6 / 18.8 / 15.9
+/ 15.1**, all in band.
+
 ### 6b.9 — M6, online multiplayer (2–3 sessions, after v2)
 
 Unchanged from the old M5 in every respect; see §9's Prompt M6. `Action` gains `SetDogState` and the goods record, and `RaceClass` becomes `RaceType`, so the protocol surface is larger than it was — but it is still just the action log.
@@ -440,7 +503,9 @@ That is the v2 shape of "just enter everything", and it is what a player does be
 
 **`cardCoverage`** — for each race type, the share of weekends where the stable had an eligible, fit dog. This is the number that says whether the fog plus fact-gating is a decision or a lottery (GDD §20 Q5).
 
-**`infoSpend` and `infoROI`** — Bones spent on dossiers, tipsters and information events, and the trade profit on the legs that information covered, minus the same stable's profit on uncovered legs. Prices the information economy directly (GDD §9.2).
+**`infoSpend` and `infoROI`** — Bones spent on dossiers, tipsters and information events, and the trade profit on the crates that information covered, minus the same stable's profit on crates bought blind. Prices the information economy directly (GDD §9.2).
+
+⚠️ **Rebuilt in Phase E and the rebuild is a lesson about measures rather than about trading (GDD D44).** It read *negative* for two phases because a "leg" was week w's sales against week w−1's purchases, and a hold does not turn over neatly every week. A crate now carries the week it was bought and whether the stable could see past the free horizon **at that moment**, and a sale is matched against the oldest crates first, so profit belongs to the information behind it. Two further errors of the same family surfaced on the way: the informed flag was written at `endTurn`, *after* the phase the buying happens in, so a crate tagged from it carried last week's answer; and the first working version reported season **totals**, which are dominated by volume — a stable is informed for a few weeks and blind for the rest, so the blind bucket wins any comparison of totals whatever information is worth. It reports **per crate**. It lives in the harness and not on the hold: the harness applies every action itself, so a state field would be a second copy of a fact D36 exists to keep out, and would move the golden snapshot to build an instrument.
 
 #### 7a.5 The four new agents
 
@@ -451,11 +516,11 @@ The existing `easy` / `normal` / `hard` measure *difficulty*. These measure *str
 | **`careless`** | enters everything, never rests, never trains, hires whatever is offered, never repays a loan, buys the dearest dog it can reach | **D6**: is the bankruptcy rate 5–10%? Nothing else can measure it, because a competent agent never goes bust |
 | **`trainer`** | buys pups, trains them, keeps a trainer and a vet, does not trade beyond eating, never bets | **Q2**, road 1 |
 | **`trader`** | keeps three cheap dogs, buys hold and information, works the spread, races only when the purse is free money | **Q2**, road 2 |
-| **`crook`** | keeps a mid stable, hires a Fixer, sabotages the favourite in the richest race it is in, backs its own dog | **Q2**, road 3, and it is the only way to price §13 before it ships |
+| **`crook`** | keeps a mid stable, **buys a fixer's jobs where one is drinking**, sabotages the favourite in the richest race it is in, backs whichever price the stale board is wrongest about | **Q2**, road 3, and it is the only way to price §13. ⚠️ It hires **nobody**: the Fixer it was named for is not a hire (D45), and the freed slot was ablated head-to-head and is worth nothing either way (D46) |
 
 Each takes the same `Plan` steps in `ai/shared.ts` with a different options object — the M4 session 1 refactor already made every step configurable, and that is the shape this depends on.
 
-**The three-way printout is the deliverable**, not the agents: mean / p10 / p90 end worth for `trainer`, `trader`, `crook` in the same seasons, with the road split beside it. **Target: within 15% of each other on the mean, and visibly different in spread.**
+**The three-way printout is the deliverable**, not the agents: mean / p10 / p90 end worth for `trainer`, `trader`, `crook` in the same seasons, with the road split beside it. **Target: within 15% of each other on the mean, and visibly different in spread — the crook widest, the trader narrowest** (corrected in Phase E; the plan said "the trainer narrowest" before anything was measured and three phases have now measured the opposite, GDD D53). ✅ **Met at `v2e`: 3.8% apart, crook 18.5 against the trader's 5.6.**
 
 ⚠️ **A caveat to state in the printout.** Three hand-written agents measure whether three roads *can* pay, not whether they are *balanced against a good player*. Jesse beat three Hard and three Normal stables with a line no agent plays. The agents are a floor test, not a proof.
 
@@ -468,7 +533,18 @@ npm run harness -- --seasons 400 --ai careless,normal,normal,normal             
 npm run harness -- --seasons 400 --leadConversion                                 # Q3
 npm run harness -- --seasons 200 --autoplan                                       # the rollout, sampled
 npm run harness -- --calibrate
+npm run harness -- --seasons 400 --ai trainer,trader,crook,mixed,trainer,trader,crook,mixed  # the roads
+npm run harness -- --crookAblation --seasons 250    # §13 with the road on and off (D45)
+npm run harness -- --mixability --seasons 400       # which constraint binds a mixed stable (D46)
+npm run harness -- --hardAblation --seasons 800     # Hard's own decisions, at the standing table
 ```
+
+⚠️ **The last three are ablations and every one of them has a rig that can lie.** `--hardAblation`
+was first written three Hard against three Normal and disagreed with the project's standing measure
+about what helps (GDD D49); `--mixability` needs its control row or the cash suspect reads as
+compound interest (D46); `--crookAblation` before Phase E switched off a wage as well as the jobs,
+so its control was a richer stable for an unrelated reason (D45). **A head-to-head is a property of
+the table it is played at.** Run an ablation at the table the acceptance row is about.
 
 At v1's ~77 ms a season, 800 seasons is about a minute. The rollout mode is roughly 4× that and should say so.
 
@@ -622,6 +698,16 @@ edge on the 3,000 a stable can stake cannot carry a Fixer's weekly wage for a ma
 season. So: **two roads, a third that is real and priced and currently a bad buy, and a named lever
 — the stake** (GDD §20 Q17). And §2.1's "they are meant to be mixable" is measured for the first
 time and is not true of the game as built (D43).
+
+✅ **Closed at `v2e`, and the lever turned out to be the wrong one.** The stake was never the
+binding half: the **standing charge** was. Taking the Fixer off the wage ladder and selling his
+work by the job — with the fee, the fine, the catch rate and the ceiling all left at the numbers
+Phase D swept — moves the same ablation from **−3,498 to +6,061** (GDD D45). With that one change
+the three roads come in **3.8% apart**, a mixed stable ends **above** the best single road, and
+D43's "not mixable" turns out to have been a wage plus an agent playing every road at a third
+intensity rather than anything about the rules (D46). The honest position is now **three roads,
+measured**, with the caveat §7a.5 attaches to every number the path agents produce: they measure
+whether the roads *can* pay, not whether they are balanced against a good player.
 - ~~**The Prime tier amplifies the leader.**~~ **Measured and it does not:** a Prime offer is worth +0.11 places to a stable ahead at week 6 and +0.24 to one behind (GDD §20 Q3). The consumable-food and wage-not-purchase shapes are holding, and the ugly rubber band stays out.
 - **The fog reads as arbitrary rather than fresh.** *Mitigation:* the pool of race types stays small and memorable; `cardCoverage` measures it; and it is the first thing on the Phase B playtest checklist. This one cannot be settled by the harness — it is an experience question and only Jesse can answer it.
 - **Pace.** v2 adds a per-dog weekly decision across up to six dogs, a busier market and an information layer, to a season already running an hour. *Mitigation:* 13.3 clicks a weekend is a budget with a number on it; `venueStatus` and the Kennels summary are where the difference gets spent; and if Phase C breaches it, the fix is summaries, not fewer decisions.
