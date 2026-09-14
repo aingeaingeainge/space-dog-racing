@@ -26,6 +26,7 @@ import { baseRating, dogValue } from '../src/economy/dogValue';
 import { netWorth } from '../src/economy/netWorth';
 import { cargoTotal } from '../src/economy/goods';
 import { bestStaff, cargoCap, infoReach } from '../src/economy/staff';
+import { roadSplit } from '../src/economy/roadSplit';
 import { clamp, mulberry32 } from '../src/rng';
 import { createSeason, eligible, FREE_HORIZON, player, thisWeeksCard } from '../src/state';
 import { decide } from '../src/ai';
@@ -902,10 +903,14 @@ export function runHarness(args: Args): string {
       st.seasons++;
       st.worth.push(netWorth(s, p));
       if (p.id === winner) st.wins++;
-      st.prize.push(p.stats.prizeIncome);
-      st.trade.push(p.stats.tradeIncome);
-      st.bet.push(p.stats.betIncome);
-      st.costs.push(p.stats.costs);
+      // ⚠️ One arithmetic, two readers: `SeasonEnd.tsx` prints this same split for every stable
+      // at the table, so the instrument and the screen cannot drift apart about what a road
+      // earned (Phase E item 0).
+      const split = roadSplit(s, p);
+      st.prize.push(split.prize);
+      st.trade.push(split.trade);
+      st.bet.push(split.betting);
+      st.costs.push(split.costs);
       st.dogsBought.push(p.stats.dogsBought);
       if (p.flags.bankrupt) st.bankrupt++;
       supplementsUsed += p.stats.supplementsUsed;

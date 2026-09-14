@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { formatBones, planetOf, type GameState } from '@sdr/engine';
+import { formatBones, planetOf, roadSplit, type GameState } from '@sdr/engine';
 import { Panel } from '../components/Panel';
 import { StableName } from '../components/ui';
 import { OwnerBlurb, OwnerFace } from '../components/Owner';
@@ -54,6 +54,8 @@ export function SeasonEnd({ s }: { s: GameState }) {
       </Panel>
 
       <Moments s={s} />
+
+      <RoadsWalked s={s} />
 
       <Panel title="Final standings" tight>
         <div className="table-wrap">
@@ -111,6 +113,75 @@ export function SeasonEnd({ s }: { s: GameState }) {
       </Panel>
     </div>
   );
+}
+
+/**
+ * Which road every stable actually walked, in Bones (GDD §2.1).
+ *
+ * ⚠️ **This is the only screen in the game that can tell a player what they *did*.** An hour of
+ * small decisions does not add up to a sentence on its own: a stable that believes it played the
+ * trainer's road and reads five thousand of trade profit has learnt something about itself, and a
+ * crook who spent more on fixers than the betting ever returned has learnt something sharper. The
+ * three income lines have been on `Player.stats` since M0 and the harness has printed exactly this
+ * split for `--roads` since Phase D; `roadSplit` in the engine is the one arithmetic both read, so
+ * the screen and the instrument cannot disagree about what a road earned.
+ *
+ * ⚠️ **The columns do not add up to net worth and the caption says so.** Two of the roads pay in
+ * *assets* rather than income — a trained dog's book value, a bought hold — so this table answers
+ * "where did the money come from" while the standings below answer "what is it worth now".
+ * Pretending otherwise would be a nicer table and a worse instrument.
+ */
+function RoadsWalked({ s }: { s: GameState }) {
+  const rows = standings(s).map((r) => ({ ...r, split: roadSplit(s, r.player) }));
+  return (
+    <Panel
+      title="The roads walked"
+      sub="where each stable's money came from — assets bought are not in here"
+      tight
+    >
+      <div className="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Stable</th>
+              <th className="num">Prize money</th>
+              <th className="num">Trading</th>
+              <th className="num">Betting</th>
+              <th className="num">Costs</th>
+              <th className="num">Ledger</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.player.id} className={r.player.kind === 'human' ? 'me' : ''}>
+                <td>
+                  <StableName player={r.player} />
+                </td>
+                <td className="num">{formatBones(r.split.prize)}</td>
+                <td className="num">{signed(r.split.trade)}</td>
+                <td className="num">{signed(r.split.betting)}</td>
+                <td className="num">{formatBones(-r.split.costs)}</td>
+                <td className="num">
+                  <b>{signed(r.split.net)}</b>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="muted">
+        Prize money is what the purses paid, trading is goods sold less goods bought, betting is
+        returns less stakes. Costs are the wages, upkeep, fuel and feed that went out whatever you
+        were doing. The ledger is those four; what is left over is in the dogs, the ship and the
+        hold, which is why it does not match the net worth below.
+      </p>
+    </Panel>
+  );
+}
+
+/** A figure that can go either way reads better with its sign on the front. */
+function signed(n: number): string {
+  return n > 0 ? `+${formatBones(n)}` : formatBones(n);
 }
 
 function Moments({ s }: { s: GameState }) {
