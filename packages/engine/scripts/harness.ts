@@ -33,7 +33,7 @@ import { createSeason, eligible, FREE_HORIZON, player, thisWeeksCard } from '../
 import { decide } from '../src/ai';
 import { MIX_KNOBS, PATH_KNOBS } from '../src/ai/paths';
 import { HARD_KNOBS } from '../src/ai/hard';
-import { STACK_OVERRIDE } from '../src/ai/shared';
+import { hash01, STACK_OVERRIDE } from '../src/ai/shared';
 import { isSeasonOver, needsAdvance, reduceMut } from '../src/reduce';
 import { simulateRace, type Runner } from '../src/race/simulateRace';
 import { winProbabilities } from '../src/race/odds';
@@ -206,6 +206,8 @@ interface AgentStats {
   infoSpend: number[];
   legCovered: number[];
   legUncovered: number[];
+  legCoveredUnits: number[];
+  legUncoveredUnits: number[];
 }
 
 /** Every stable is in the same season, so a pairing is a like-for-like comparison. */
@@ -299,6 +301,48 @@ interface SeasonSample {
   boughtByWeek: Map<Id, number[]>;
   soldByWeek: Map<Id, number[]>;
   informedAtWeek: Map<Id, boolean[]>;
+  /**
+   * ⚠️ **The crate, tagged — which is what `infoROI` needed and never had (D44).**
+   *
+   * Phase D's legs were week w's sales against week w−1's purchases, and read −65 a leg: covered
+   * legs *worse* than uncovered ones. The diagnosis then was that the measure was the suspect
+   * rather than the economy, because a hold does not turn over neatly every week — an informed
+   * stable buys deeper and holds longer, so its purchases and its sales fall in different buckets
+   * more often than an uninformed one's, and the split quietly compared two different things.
+   *
+   * So each purchase is a **lot** — the week, the unit cost, and whether the stable could see past
+   * the free horizon when it made it — and a sale is matched against the oldest lots first. Profit
+   * then belongs to the information that was or was not behind the crate that earned it, which is
+   * the question §7a.4 asked in the first place.
+   *
+   * ⚠️ **And it lives in the harness rather than on the hold.** The obvious fix is a field on
+   * `Cargo`, and it would be the second copy of a fact D36 exists to keep out: the harness applies
+   * every action itself, so it already knows the week, the price and the units of every crate
+   * bought. A state change would move the golden snapshot to build an instrument, which is exactly
+   * the trade the harness's own header note refuses.
+   */
+  lots: Map<Id, Map<GoodId, Lot[]>>;
+  legCovered: Map<Id, number>;
+  legUncovered: Map<Id, number>;
+  /**
+   * ⚠️ Crates sold out of each bucket — and the reason the numbers above are never reported on
+   * their own. A season total is dominated by **volume**: a stable is informed for part of the
+   * season and blind for the rest, so the blind bucket holds far more crates and earns more in
+   * total whatever the information was worth. That is the D42/D25 mistake in a third costume —
+   * a measure that answers a different question from the one asked. What §9.2 asks is what a crate
+   * bought knowing something returns against one bought blind, so the reported figure is **per
+   * crate**.
+   */
+  legCoveredUnits: Map<Id, number>;
+  legUncoveredUnits: Map<Id, number>;
+}
+
+/** One purchase, waiting to be sold (D44). FIFO: the oldest crates leave the hold first. */
+interface Lot {
+  week: number;
+  units: number;
+  unitCost: number;
+  informed: boolean;
 }
 
 export function emptySample(): SeasonSample {
@@ -329,6 +373,11 @@ export function emptySample(): SeasonSample {
     boughtByWeek: new Map(),
     soldByWeek: new Map(),
     informedAtWeek: new Map(),
+    lots: new Map(),
+    legCovered: new Map(),
+    legUncovered: new Map(),
+    legCoveredUnits: new Map(),
+    legUncoveredUnits: new Map(),
   };
 }
 
@@ -478,9 +527,34 @@ function soldThisPhase(actions: readonly Action[], playerId: Id): Set<Id> {
  * every stable's end worth. The forced week keeps the agent's own shopping and swaps only the
  * plan, so the two rollouts differ in exactly the thing being priced and nothing else.
  */
-function playOut(s: GameState, force: { playerId: Id; week: number } | null): Map<Id, number> {
+/**
+ * Play a season out from here, optionally forcing one stable's autoplan in one week (§7a.3).
+ *
+ * ⚠️ **`anchorWeeks` is D25's fix, and it is the whole of what Phase E tried on `apLoss`.** §7a.3
+ * asks for two rollouts "on the same downstream seed" and `GameState` carries one linear rng
+ * stream, so the instant the forced plan consumes a different number of draws every race, market
+ * and event afterwards is a different random season — sd 20,041 against an effect worth at most a
+ * week's purse. Re-anchoring the stream at each week boundary to `hash(seed, week)` makes the two
+ * arms share their draws again from the top of every week, so the part of the difference that is
+ * pure draw-mismatch cancels and the part that is the decision's consequence — a different dog,
+ * different cash, a different plan next week — survives, which is the part being priced.
+ *
+ * It is legitimate precisely because these are **counterfactual** rollouts rather than seasons
+ * anybody plays: the stream is still deterministic and still uniform, both arms are re-anchored
+ * identically, and nothing here touches the engine or a real season.
+ */
+function playOut(
+  s: GameState,
+  force: { playerId: Id; week: number } | null,
+  anchorWeeks = false,
+): Map<Id, number> {
   let guard = 0;
+  let anchored = 0;
   while (!isSeasonOver(s) && guard++ < 200_000) {
+    if (anchorWeeks && s.week !== anchored) {
+      anchored = s.week;
+      s.rng = Math.floor(hash01(s.seed, s.week, 'apLoss', 'anchor') * 4294967296);
+    }
     if (needsAdvance(s)) {
       reduceMut(s, { t: 'AdvancePhase' });
       continue;
@@ -549,8 +623,8 @@ export function runAutoplan(seasons = 200, seed = 1, sampleEvery = 4): string {
         if (auto.entries === own.entries && auto.states === own.states) agree++;
 
         if (who === rollFor && s.week % sampleEvery === 1 && auto.entries !== own.entries) {
-          const withAuto = playOut(structuredClone(s), { playerId: who, week: s.week });
-          const withOwn = playOut(structuredClone(s), null);
+          const withAuto = playOut(structuredClone(s), { playerId: who, week: s.week }, true);
+          const withOwn = playOut(structuredClone(s), null, true);
           losses.push((withOwn.get(who) ?? 0) - (withAuto.get(who) ?? 0));
           baseline.push(withOwn.get(who) ?? 0);
         }
@@ -593,13 +667,23 @@ export function runAutoplan(seasons = 200, seed = 1, sampleEvery = 4): string {
         : 'INSIDE two standard errors — this is noise, and reading a decision into it would be wrong.'
     }`,
     '',
-    '⚠️ **apLoss is structurally noisy and no feasible sample size fixes it.** §7a.3 asks for two',
-    'rollouts "on the same downstream seed", but GameState carries a single rng stream: the moment',
-    'the forced plan consumes a different number of draws, the rest of the season is a different',
-    'random season. So each sample is one decision plus thirteen weeks of variance — an sd of tens',
-    'of thousands against an effect worth at most a week\u2019s purse. autoplan% above is exact and',
-    'means what it says; apLoss should be read as an error bar around zero until the engine can',
-    'fork a per-decision stream.',
+    '⚠️ **apLoss is a BOUND, not a figure, and that is now a finding rather than a debt (D25,',
+    'revised E-D48).** §7a.3 asks for two rollouts "on the same downstream seed" and GameState',
+    'carries a single linear rng stream, so the instant the forced plan consumes a different number',
+    'of draws the rest of the season is a different random season. Phase E re-anchors the stream at',
+    'each week boundary in both arms, which cancels the part of the difference that is pure',
+    'draw-mismatch: sd 20,041 → ~17,800, a 13% cut and nothing like enough on its own. What it does',
+    'buy is that the mean is now stable under sampling instead of wandering — Phase D read −1,047 at',
+    '568 rollouts, this reads within a few hundred of zero at 2,500 — so the measure can be quoted',
+    'as an interval.',
+    '',
+    'Read the two standard errors above as the answer: **one week of naive play costs less than that',
+    'many Bones**, which on a ~32,000 season is under a couple of per cent. That is not a broken',
+    'instrument, it is the game saying a single week out of thirteen is worth very little at season',
+    'end — the same shape as §20 Q12, where the season is decided by compounding rather than by any',
+    'one weekend. Chasing a point estimate would need the engine to key its randomness by event',
+    'rather than by sequence, which is a rebalance of every number in the game to sharpen one',
+    'instrument. Not worth it, and said out loud rather than carried as "still unbuilt".',
     '',
     '⚠️ The forced week keeps the agent’s own shopping and swaps only the plan, so the two',
     'rollouts differ in exactly the thing being priced. A dog the agent buys *during* that week is',
@@ -636,6 +720,8 @@ export function playSeason(
   let sampledWeek = 0;
   let paidWeek = 0;
   let guard = 0;
+  /** `week|playerId` for stables that have bought a dossier this week — see the note in the lots. */
+  const dossierThisWeek = new Set<string>();
   // §7a.4's split point. Week 6 is the "decided by" week Phase B measured, which is exactly the
   // week at which "ahead" and "behind" start to mean something.
   const LEAD_WEEK = 6;
@@ -754,7 +840,13 @@ export function playSeason(
       // what a stable did.
       if (a.t === 'Sabotage' || a.t === 'BribeSteward') bumpMap(sample.fixes, who, 1);
       if (a.t === 'PlaceBet') bumpMap(sample.staked, who, a.stake);
-      if (a.t === 'BuyUpgrade' && a.upgrade === 'dossier') bumpMap(sample.infoSpend, who, -gained);
+      if (a.t === 'BuyUpgrade' && a.upgrade === 'dossier') {
+        bumpMap(sample.infoSpend, who, -gained);
+        // A dossier is information for the week it was bought in, and the crates bought after it
+        // are covered by it. `informedAtWeek` only ever read the Tipster, which is half the
+        // information economy §9.3 describes (D44).
+        dossierThisWeek.add(`${s.week}|${who}`);
+      }
       if (a.t === 'TradeFood') {
         const w = s.week - 1;
         const buys = sample.boughtByWeek.get(who) ?? Array(balance.weeks).fill(0);
@@ -763,6 +855,38 @@ export function playSeason(
         else sells[w] = (sells[w] ?? 0) + Math.abs(gained);
         sample.boughtByWeek.set(who, buys);
         sample.soldByWeek.set(who, sells);
+        // D44: the same trade again, as tagged lots matched FIFO. See `SeasonSample.lots`.
+        const byGood = sample.lots.get(who) ?? new Map<GoodId, Lot[]>();
+        const queue = byGood.get(a.good) ?? [];
+        const units = Math.abs(Math.trunc(a.units));
+        const perUnit = units > 0 ? Math.abs(gained) / units : 0;
+        if (a.units > 0) {
+          // ⚠️ Asked *now*, of the stable, rather than read off `informedAtWeek` — which is
+          // written at endTurn, after the planet phase this buy happens in, so at this moment it
+          // still holds last week's answer. The old leg measure read `seen[w − 1]` and was
+          // correct by accident of being a week behind; a tagged crate has to be tagged with what
+          // was true when it was bought.
+          const informed =
+            infoReach(p).band > FREE_HORIZON || dossierThisWeek.has(`${s.week}|${who}`);
+          queue.push({ week: s.week, units, unitCost: perUnit, informed });
+        } else {
+          let left = units;
+          while (left > 0 && queue.length) {
+            const lot = queue[0]!;
+            const take = Math.min(left, lot.units);
+            const profit = (perUnit - lot.unitCost) * take;
+            bumpMap(lot.informed ? sample.legCovered : sample.legUncovered, who, profit);
+            bumpMap(lot.informed ? sample.legCoveredUnits : sample.legUncoveredUnits, who, take);
+            lot.units -= take;
+            left -= take;
+            if (lot.units <= 0) queue.shift();
+          }
+          // Crates that were aboard before the first tracked buy (there are none in practice, but
+          // a spoiled or event-granted crate could be) are sold at no attributed profit rather
+          // than at an invented cost.
+        }
+        byGood.set(a.good, queue);
+        sample.lots.set(who, byGood);
       }
       // §7a.2's row per good, both ways, gross.
       if (a.t === 'TradeFood') {
@@ -819,6 +943,8 @@ export function runHarness(args: Args): string {
         infoSpend: [],
         legCovered: [],
         legUncovered: [],
+        legCoveredUnits: [],
+        legUncoveredUnits: [],
       };
       byAgent.set(d, st);
     }
@@ -975,18 +1101,14 @@ export function runHarness(args: Args): string {
         st.worthClean.push(worth);
         if (fixed) st.worthCleanFixer.push(worth);
       }
-      // §7a.4 infoROI: this stable's per-leg trade P&L, split by whether it was informed when it
-      // bought. Week w's sales against week w−1's purchases — see the note on SeasonSample.
+      // §7a.4 infoROI: this stable's trade P&L, attributed to the information behind the crate
+      // that earned it (D44). FIFO lots rather than week w's sales against week w−1's purchases —
+      // see the note on `SeasonSample.lots` for why the old shape could not answer the question.
       st.infoSpend.push(sample.infoSpend.get(p.id) ?? 0);
-      const buys = sample.boughtByWeek.get(p.id) ?? [];
-      const sells = sample.soldByWeek.get(p.id) ?? [];
-      const seen = sample.informedAtWeek.get(p.id) ?? [];
-      for (let w = 1; w < balance.weeks; w++) {
-        const profit = (sells[w] ?? 0) - (buys[w - 1] ?? 0);
-        if ((buys[w - 1] ?? 0) <= 0) continue;
-        if (seen[w - 1]) st.legCovered.push(profit);
-        else st.legUncovered.push(profit);
-      }
+      st.legCovered.push(sample.legCovered.get(p.id) ?? 0);
+      st.legUncovered.push(sample.legUncovered.get(p.id) ?? 0);
+      st.legCoveredUnits.push(sample.legCoveredUnits.get(p.id) ?? 0);
+      st.legUncoveredUnits.push(sample.legUncoveredUnits.get(p.id) ?? 0);
     }
     for (const race of RACE_TYPE_IDS) {
       bumpMap(coverOffered, race, sample.coverOffered.get(race) ?? 0);
@@ -1269,29 +1391,42 @@ export function runHarness(args: Args): string {
   if (infoRows.length) {
     lines.push('');
     lines.push('The information economy (§7a.4) — infoSpend and infoROI');
-    lines.push('  agent     spent    covered legs   uncovered legs   the difference   infoROI');
+    lines.push(
+      '  agent     spent   informed: crates  per crate    plain: crates  per crate   gap   infoROI',
+    );
     for (const [d, st] of infoRows) {
-      const cov = mean(st.legCovered);
-      const unc = mean(st.legUncovered);
+      const covUnits = mean(st.legCoveredUnits);
+      const uncUnits = mean(st.legUncoveredUnits);
+      const cov = covUnits > 0 ? mean(st.legCovered) / covUnits : 0;
+      const unc = uncUnits > 0 ? mean(st.legUncovered) / uncUnits : 0;
       const spend = mean(st.infoSpend);
-      const legs = st.legCovered.length / Math.max(1, args.seasons * args.ai.length);
+      // What the information was worth: the per-crate gap, on the crates it actually covered,
+      // against what was paid for it.
+      const worth = (cov - unc) * covUnits;
       lines.push(
-        `  ${d.padEnd(8)} ${fmt(spend).padStart(7)} ${fmt(cov).padStart(9)} (n ${String(st.legCovered.length).padStart(5)}) ` +
-          `${fmt(unc).padStart(9)} (n ${String(st.legUncovered.length).padStart(5)}) ` +
-          `${((cov - unc >= 0 ? '+' : '') + fmt(cov - unc)).padStart(14)}   ` +
-          `${spend > 0 ? ((cov - unc) * legs) / spend : 0}`.slice(0, 60),
+        `  ${d.padEnd(8)} ${fmt(spend).padStart(7)} ${covUnits.toFixed(1).padStart(16)} ` +
+          `${cov.toFixed(1).padStart(10)} ${uncUnits.toFixed(1).padStart(16)} ${unc.toFixed(1).padStart(10)} ` +
+          `${((cov - unc >= 0 ? '+' : '') + (cov - unc).toFixed(1)).padStart(7)}   ` +
+          `${spend > 0 ? (worth / spend).toFixed(2) : '—'}`,
       );
     }
     lines.push(
-      '  A leg is week w’s sales against week w−1’s purchases, split by whether the stable',
+      '  A crate carries the week it was bought and whether the stable could see past the free',
     );
     lines.push(
-      '  could see past the free horizon when it bought. Crude — a hold does not turn over',
+      '  horizon when it bought it; a sale is matched against the oldest crates first, so the',
+    );
+    lines.push('  profit belongs to the information that was or was not behind it (D44).');
+    lines.push(
+      '  ⚠️ Per CRATE, not per season: a stable is informed for part of the year and blind for the',
     );
     lines.push(
-      '  neatly every week — but the same measure on both sides, so what it reports is the',
+      '  rest, so the blind bucket holds far more crates and wins any comparison of totals whatever',
     );
-    lines.push('  *difference* information makes rather than the level of anything (GDD §9.2).');
+    lines.push(
+      '  the information was worth. infoROI is the per-crate gap across the crates information',
+    );
+    lines.push('  actually covered, against what was paid for it.');
   }
 
   // §7a.5's printout, now four roads wide plus the mixed agent. The deliverable is this table,
