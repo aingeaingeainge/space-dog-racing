@@ -31,7 +31,7 @@ import { FIXER_CATCH_MULT, jobCost } from '../src/content/staff';
 import { clamp, mulberry32 } from '../src/rng';
 import { createSeason, eligible, FREE_HORIZON, player, thisWeeksCard } from '../src/state';
 import { decide } from '../src/ai';
-import { PATH_KNOBS } from '../src/ai/paths';
+import { MIX_KNOBS, PATH_KNOBS } from '../src/ai/paths';
 import { STACK_OVERRIDE } from '../src/ai/shared';
 import { isSeasonOver, needsAdvance, reduceMut } from '../src/reduce';
 import { simulateRace, type Runner } from '../src/race/simulateRace';
@@ -69,6 +69,8 @@ interface Args {
   roads: boolean;
   /** §13's ablation: the crook agent with the road worked and with it switched off (D42). */
   crookAblation: boolean;
+  /** D43: which of the three constraints on a mixed stable actually binds. */
+  mixability: boolean;
   /** §6b's cargo-payback ablation: run the trader with and without buying hold. */
   holdPayback: boolean;
   /** D7's stacking row: three of one role against a mixed three, in the same seasons. */
@@ -91,6 +93,7 @@ function parseArgs(argv: string[]): Args {
     leadConversion: false,
     roads: false,
     crookAblation: false,
+    mixability: false,
     holdPayback: false,
     stacking: false,
     fix: false,
@@ -113,6 +116,7 @@ function parseArgs(argv: string[]): Args {
     else if (a === '--leadConversion' || a === '--lead') args.leadConversion = true;
     else if (a === '--roads') args.roads = true;
     else if (a === '--crookAblation') args.crookAblation = true;
+    else if (a === '--mixability') args.mixability = true;
     else if (a === '--holdPayback' || a === '--hold') args.holdPayback = true;
     else if (a === '--stacking') args.stacking = true;
     else if (a === '--fix') args.fix = true;
@@ -292,7 +296,7 @@ interface SeasonSample {
   informedAtWeek: Map<Id, boolean[]>;
 }
 
-function emptySample(): SeasonSample {
+export function emptySample(): SeasonSample {
   return {
     declFitness: new Map(),
     entries: new Map(),
@@ -614,7 +618,7 @@ function ranks(s: GameState): Map<Id, number> {
  * Play one season, sampling the locked card each week. Mirrors `drive()` — if that ever grows a
  * hook, this collapses back into it.
  */
-function playSeason(
+export function playSeason(
   seed: number,
   ai: AiAgent[],
   sample: SeasonSample,
@@ -1984,6 +1988,126 @@ export function runFixProbe(seasons = 120, seed = 1): string {
 }
 
 /**
+ * ⚠️ **Which constraint actually binds the mixed agent (GDD D43, §2.1).**
+ *
+ * D43 measured §2.1's promise — "a stable that trains a pup, pays for it by trading, and backs it
+ * at 9/1 when it is ready… should be about as rich as one that commits" — and found the mixed
+ * agent 28% behind the trainer. It then named three suspects: three roads competing for three
+ * **staff slots**, one kennel's **cash**, and one week's **attention**. Nothing distinguished
+ * between them, and a design argument with three plausible causes and no table is an argument
+ * about who is most confident.
+ *
+ * So each is relaxed on its own, over the same seasons and the same seeds, against the Phase D
+ * agent as the floor and the trainer as the bar:
+ *
+ * - **slots** — one more staff slot for everybody in the run, so the roads stop bidding for three.
+ * - **cash** — the stable starts with twice the money, so nothing is bound by the bankroll.
+ * - **attention** — every road played at the intensity the *single-road* agent plays it: the
+ *   trainer's feed and pups, the trader's hold and spread. This is the suspect §2.1 actually
+ *   describes, and the one that would make D43 a harness bug rather than a design fault.
+ *
+ * ⚠️ `balance.staffSlots` is mutated for the slot row and put back. It is a script, the run is
+ * deterministic while it is set, and the alternative — threading a slot count through `keepStaff`
+ * and the reducer's own refusal — would be a rule change to answer a measurement question.
+ */
+export function runMixability(seasons = 400, seed = 1): string {
+  const lines: string[] = [];
+  const before = { ...MIX_KNOBS };
+  const phaseD = {
+    want: ['trainer', 'trader'] as StaffRole[],
+    holdCap: 0,
+    feedCrates: 3,
+    feedSpend: 0.6,
+    goodsSpend: 0.6,
+    buyCashMultiple: 2,
+    minRatingGain: 0,
+    borrowBelowReserves: 3,
+  };
+  const run = (agent: AiAgent, slots: number, cash: number): number[] => {
+    const startCash = balance.startCash;
+    const staffSlots = balance.staffSlots;
+    balance.staffSlots = slots;
+    balance.startCash = cash;
+    const worth: number[] = [];
+    const ai: AiAgent[] = Array(6).fill(agent);
+    for (let i = 0; i < seasons; i++) {
+      const sample = emptySample();
+      const { state } = playSeason(seed + i, ai, sample);
+      for (const p of state.players) worth.push(netWorth(state, p));
+    }
+    balance.staffSlots = staffSlots;
+    balance.startCash = startCash;
+    return worth;
+  };
+  const slots = balance.staffSlots;
+  const cash = balance.startCash;
+
+  const rows: { label: string; worth: number[] }[] = [];
+  const withKnobs = (k: Partial<typeof MIX_KNOBS>, fn: () => number[]): number[] => {
+    Object.assign(MIX_KNOBS, before, k);
+    const out = fn();
+    Object.assign(MIX_KNOBS, before);
+    return out;
+  };
+
+  rows.push({
+    label: 'mixed, as Phase D built it',
+    worth: withKnobs(phaseD, () => run('mixed', slots, cash)),
+  });
+  rows.push({
+    label: '  + a fourth staff slot',
+    worth: withKnobs(phaseD, () => run('mixed', slots + 1, cash)),
+  });
+  rows.push({
+    label: '  + twice the starting cash',
+    worth: withKnobs(phaseD, () => run('mixed', slots, cash * 2)),
+  });
+  rows.push({
+    label: '  + every road at full intensity',
+    worth: withKnobs({}, () => run('mixed', slots, cash)),
+  });
+  rows.push({ label: 'trainer (the bar)', worth: run('trainer', slots, cash) });
+  // ⚠️ The control that makes the cash row mean anything. Doubling the bankroll lifts *any* agent,
+  // so "cash binds the mixed stable" is only a finding if it lifts the mixed stable by more than it
+  // lifts one that commits. Without this row the probe measures compound interest.
+  rows.push({
+    label: '  trainer + twice the cash',
+    worth: run('trainer', slots, cash * 2),
+  });
+  rows.push({ label: 'trader', worth: run('trader', slots, cash) });
+  rows.push({ label: 'crook', worth: run('crook', slots, cash) });
+  Object.assign(MIX_KNOBS, before);
+
+  lines.push(
+    `Mixability — ${seasons} seasons of six of each, the same seeds every row (GDD D43, §2.1)`,
+  );
+  lines.push('');
+  lines.push('  row                                mean      p10      p90   against the trainer');
+  const bar = mean(rows.find((r) => r.label.startsWith('trainer'))!.worth);
+  for (const r of rows) {
+    const sorted = [...r.worth].sort((a, b) => a - b);
+    const m = mean(r.worth);
+    lines.push(
+      `  ${r.label.padEnd(32)} ${fmt(m).padStart(8)} ${fmt(quantile(sorted, 0.1)).padStart(8)} ` +
+        `${fmt(quantile(sorted, 0.9)).padStart(8)}   ${((m / bar - 1) * 100).toFixed(1).padStart(6)}%`,
+    );
+  }
+  lines.push('');
+  lines.push(
+    '  ⚠️ Read the three middle rows against the first, not against each other: each relaxes ONE',
+  );
+  lines.push(
+    '  of D43’s three suspects and leaves the other two alone, which is what makes them a diagnosis',
+  );
+  lines.push('  rather than four different agents.');
+  lines.push(
+    '  ⚠️ And read the cash row against the trainer’s own cash row: more money lifts everybody, so',
+  );
+  lines.push('  what the suspect has to explain is the *difference* between the two lifts.');
+  return lines.join('\n');
+}
+
+/**
  * ⚠️ **The ablation the crook's road lives or dies by (GDD D42, E-D45).**
  *
  * The same agent, the same seeds, once with §13 and once with it switched off — because "is the
@@ -2210,6 +2334,8 @@ function main() {
   else if (args.stacking) console.log(runStacking(args.seasons, args.seed));
   else if (args.crookAblation)
     console.log(runCrookAblation(args.seasons === 50 ? 250 : args.seasons, args.seed));
+  else if (args.mixability)
+    console.log(runMixability(args.seasons === 50 ? 400 : args.seasons, args.seed));
   else if (args.fix) console.log(runFixProbe(args.seasons === 50 ? 120 : args.seasons, args.seed));
   else console.log(runHarness(args));
 }

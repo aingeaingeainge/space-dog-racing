@@ -115,13 +115,64 @@ export const PATH_KNOBS = {
  * decisions are only worth what the table that chose them says, and a knob with the table in its
  * comment is how the next session knows not to re-try it.
  */
+/**
+ * The mixed agent's dials, every one of them a constraint D43 named (BUILD_PLAN §6b, GDD §2.1).
+ *
+ * ⚠️ **These exist to be *probed*, not tuned.** D43 recorded that a stable playing all three roads
+ * ends 28% behind one that commits, and named three suspects — three roads competing for three
+ * staff slots, one kennel's cash and one week's attention. Guessing which of them binds is how a
+ * design argument gets settled by whoever argues longest, so `--mixability` relaxes them one at a
+ * time on the same seeds and prints what each is worth.
+ *
+ * The defaults below are the answer that probe gave; the table is in `V2_PHASE_E_NOTES.md`.
+ */
+export const MIX_KNOBS = {
+  /** Roles the mixed stable puts on the books. The Fixer is not among them and cannot be. */
+  want: ['trainer', 'trader'] as StaffRole[],
+  /** Cargo upgrades allowed. §20 Q6: the first returns more than it costs and the rest do not. */
+  holdCap: 1,
+  /** How deep the feed goes — the trainer agent runs 4 crates at 0.85, Phase D's mixed 3 at 0.6. */
+  feedCrates: 4,
+  feedSpend: 0.85,
+  /** How hard the spread is worked — the trader agent runs 0.9, Phase D's mixed 0.6. */
+  goodsSpend: 0.9,
+  /** The dog market: the trainer's settings buy pups, Phase D's mixed settings bought neither. */
+  buyCashMultiple: 1.5,
+  minRatingGain: -8,
+  /** How short of reserves it has to be before it takes the bank's money. */
+  borrowBelowReserves: 3,
+};
+
 export const CROOK_KNOBS = {
   /**
    * What the crook puts in the staff slots the Fixer stopped occupying (E-D45).
    *
-   * Ablated over the same seasons and seeds — see `claude/V2_PHASE_E_NOTES.md` for the table.
+   * ⚠️ **Measured head-to-head rather than in self-play, and the distinction is the whole
+   * finding.** Six crooks all hiring the same line is the wrong instrument for a staffing
+   * question: a trainer everybody has wins nobody any purse share, so it reads as a wage and
+   * nothing else, and self-play duly said the crook does best hiring *nobody* (39,825 against
+   * 34,494 with a trainer). Three against three in the same season says the opposite — the
+   * trainer is what keeps a crook with a dog worth backing — except that it does not say the
+   * opposite either. Three hundred seasons, three against three:
+   *
+   *   nothing vs trainer          36,861 / 35,757   nothing wins 52.5%
+   *   nothing vs trainer + vet    34,964 / 32,890   nothing wins 55.6%
+   *   trainer vs trainer + vet    32,005 / 32,590   trainer wins 51.9%
+   *
+   * ⚠️ **Every one of those is inside the standard error** (about 2.9 points at 300 seasons,
+   * BUILD_PLAN §7), so the finding is not that hiring nobody is *better* — it is that the freed
+   * slot is worth **nothing to this agent in either direction**, which is D30's "three slots is
+   * more than a racing stable can profitably fill" applied to a stable that does not race for its
+   * living. Empty is chosen on the tiebreak — it is cheaper, it is simpler, and it is what
+   * BUILD_PLAN §7a.5's own description of the crook now literally says, since the Fixer it named
+   * as the one hire is not a hire any more (E-D46).
    */
-  want: ['trainer'] as StaffRole[],
+  want: [] as StaffRole[],
+  /**
+   * Per-stable override of `want`, for the head-to-head above. Empty in every normal run, and the
+   * same shape as `STACK_OVERRIDE`: an ablation a table can be built from rather than a rule.
+   */
+  perPlayer: new Map<Id, StaffRole[]>(),
 };
 
 // ---------------------------------------------------------------------------------------------
@@ -419,7 +470,7 @@ export function decideCrook(s: GameState, playerId: Id): Action[] {
     // 4,554, because the freed cash went into dogs and feed in the weeks it had no fixer and was
     // gone in the weeks it did. The bank has to be *borrowed* for the week it is wanted, which is
     // what `bettingBank` does — it cannot be scraped out of the running costs.
-    keepStaff(plan, { want: CROOK_KNOBS.want, cover: 4 });
+    keepStaff(plan, { want: CROOK_KNOBS.perPlayer.get(playerId) ?? CROOK_KNOBS.want, cover: 4 });
     bettingBank(plan);
     if (s.phase === 'planetPre') {
       dogMarket(plan, { buyCashMultiple: 4, minRatingGain: 6, keepReserve: true });
@@ -458,26 +509,46 @@ export function decideMixed(s: GameState, playerId: Id): Action[] {
   const plan = startPlan(s, playerId);
 
   if (s.phase === 'planetPre' || s.phase === 'planetPost') {
-    // Three slots, three roads, one each — which is exactly the shape D30 found a *racing* stable
-    // cannot afford. Whether a stable playing all three can is the question this agent asks.
-    keepStaff(plan, { want: ['trainer', 'fixer', 'trader'], cover: 4 });
+    // ⚠️ **Two slots, three roads — and that is the whole of what Phase E changed here.**
+    //
+    // Phase D's version wanted a trainer, a fixer and a trader: three slots, one per road, which
+    // is exactly the shape D30 found a *racing* stable cannot afford. The fixer is not a hire any
+    // more (E-D45), so the crook's road costs this agent no slot at all and the other two roads
+    // get one each with room to spare. That is a third of the scarcity D43 blamed, removed for
+    // free.
+    keepStaff(plan, { want: MIX_KNOBS.want, cover: 4 });
     repayLoans(plan);
     const leg = balance.weeks - s.week;
     if (leg >= 3) {
       const room = balance.bankMax - outstanding(p, 'bank');
-      if (room >= 1000 && plan.cash < plan.reserve * 3 && currentPlanet(s).special.bank) {
-        plan.out.push({ t: 'Borrow', playerId, lender: 'bank', amount: room });
-        plan.cash += room;
+      if (room >= 1000 && plan.cash < plan.reserve * MIX_KNOBS.borrowBelowReserves) {
+        if (currentPlanet(s).special.bank) {
+          plan.out.push({ t: 'Borrow', playerId, lender: 'bank', amount: room });
+          plan.cash += room;
+        }
       }
     }
+    // The hold, on the trader's own terms (GDD §20 Q6: the first upgrade returns 1,506 against
+    // 1,400 paid and the later ones do not). Phase D's mixed agent bought none at all, which is
+    // one of the three things `--mixability` was built to price.
+    const holdPrice = Math.round(balance.shipCargoCost);
+    const boughtSoFar = (p.ship.cargoCap - balance.cargoCapStart) / balance.cargoUpgradeUnits;
+    if (boughtSoFar < MIX_KNOBS.holdCap && leg >= 5 && plan.cash > holdPrice + plan.reserve * 2) {
+      plan.out.push({ t: 'BuyUpgrade', playerId, upgrade: 'cargo' });
+      plan.cash -= holdPrice;
+    }
     if (s.phase === 'planetPre') {
-      dogMarket(plan, { buyCashMultiple: 2, minRatingGain: 0, keepReserve: true });
+      dogMarket(plan, {
+        buyCashMultiple: MIX_KNOBS.buyCashMultiple,
+        minRatingGain: MIX_KNOBS.minRatingGain,
+        keepReserve: true,
+      });
       const assignment = declareBest(plan, { reserve: stateHold(plan, MIXED_STATES) });
       setStates(plan, racingDogs(assignment), MIXED_STATES);
-      buyFeedPlan(plan, { crates: 3, spend: 0.6 });
+      buyFeedPlan(plan, { crates: MIX_KNOBS.feedCrates, spend: MIX_KNOBS.feedSpend });
       buyABox(plan);
     }
-    tradeFoodPlan(plan, { workGoods: true, goodsSpend: 0.6 });
+    tradeFoodPlan(plan, { workGoods: true, goodsSpend: MIX_KNOBS.goodsSpend });
   }
 
   if (s.phase === 'betting' && s.fields) workTheFix(plan);
