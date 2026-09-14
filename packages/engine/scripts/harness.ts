@@ -32,6 +32,7 @@ import { clamp, mulberry32 } from '../src/rng';
 import { createSeason, eligible, FREE_HORIZON, player, thisWeeksCard } from '../src/state';
 import { decide } from '../src/ai';
 import { MIX_KNOBS, PATH_KNOBS } from '../src/ai/paths';
+import { HARD_KNOBS } from '../src/ai/hard';
 import { STACK_OVERRIDE } from '../src/ai/shared';
 import { isSeasonOver, needsAdvance, reduceMut } from '../src/reduce';
 import { simulateRace, type Runner } from '../src/race/simulateRace';
@@ -71,6 +72,8 @@ interface Args {
   crookAblation: boolean;
   /** D43: which of the three constraints on a mixed stable actually binds. */
   mixability: boolean;
+  /** §14: which of Hard's own decisions is costing it its head-to-head band. */
+  hardAblation: boolean;
   /** §6b's cargo-payback ablation: run the trader with and without buying hold. */
   holdPayback: boolean;
   /** D7's stacking row: three of one role against a mixed three, in the same seasons. */
@@ -94,6 +97,7 @@ function parseArgs(argv: string[]): Args {
     roads: false,
     crookAblation: false,
     mixability: false,
+    hardAblation: false,
     holdPayback: false,
     stacking: false,
     fix: false,
@@ -117,6 +121,7 @@ function parseArgs(argv: string[]): Args {
     else if (a === '--roads') args.roads = true;
     else if (a === '--crookAblation') args.crookAblation = true;
     else if (a === '--mixability') args.mixability = true;
+    else if (a === '--hardAblation') args.hardAblation = true;
     else if (a === '--holdPayback' || a === '--hold') args.holdPayback = true;
     else if (a === '--stacking') args.stacking = true;
     else if (a === '--fix') args.fix = true;
@@ -1988,6 +1993,87 @@ export function runFixProbe(seasons = 120, seed = 1): string {
 }
 
 /**
+ * ⚠️ **Which of Hard's own decisions is costing it (GDD §14, BUILD_PLAN §6b).**
+ *
+ * "Hard beats Normal" has now missed its 63–68% band for six phases: 60.6 (v1) → 56.8 (A) → 53.9
+ * (B) → 58.6 (C) → 57.7 (D) → 58.0 (E baseline). Phase D built and rejected both of its own
+ * candidates, and the pattern across the whole record is that the only thing that has ever moved
+ * the number is **removing a bad decision** — D30's "hire less" recovered 4.7 points; both of
+ * Phase D's additions lost.
+ *
+ * So this switches off, one at a time, decisions Hard already makes and Normal does not, and asks
+ * whether Normal's simpler answer was better all along. Same seeds, same table, every row.
+ */
+export function runHardAblation(seasons = 600, seed = 1): string {
+  const lines: string[] = [];
+  const before = { ...HARD_KNOBS };
+  const ai: AiAgent[] = ['normal', 'normal', 'normal', 'hard', 'hard', 'hard'];
+  const HARDS = new Set(['p4', 'p5', 'p6']);
+  const run = (): { rate: number; hard: number; normal: number; p10: number } => {
+    let wins = 0;
+    let pairs = 0;
+    const hard: number[] = [];
+    const normal: number[] = [];
+    for (let i = 0; i < seasons; i++) {
+      const { state } = playSeason(seed + i, ai, emptySample());
+      const h: number[] = [];
+      const n: number[] = [];
+      for (const p of state.players) (HARDS.has(p.id) ? h : n).push(netWorth(state, p));
+      hard.push(...h);
+      normal.push(...n);
+      for (const a of h)
+        for (const b of n) {
+          pairs++;
+          if (a > b) wins++;
+        }
+    }
+    const sorted = [...hard].sort((a, b) => a - b);
+    return {
+      rate: wins / Math.max(1, pairs),
+      hard: mean(hard),
+      normal: mean(normal),
+      p10: quantile(sorted, 0.1),
+    };
+  };
+
+  lines.push(
+    `Hard's own decisions, ablated — ${seasons} seasons, three Hard against three Normal, the same seeds every row`,
+  );
+  lines.push('');
+  lines.push('  row                              beats Normal   Hard mean   p10     Normal mean');
+  const rows: [string, Partial<typeof HARD_KNOBS>][] = [
+    ['as built (Phase D: one ruler each)', { sameRuler: false }],
+    ['  rates its dogs like Normal', { ratesByStats: false, sameRuler: false }],
+    ['  one ruler: stats on both sides', { sameRuler: true }],
+    ['  does not hold for a Major', { sameRuler: false, holdsForMajor: false }],
+    ['  never throws the cheap race', { sameRuler: false, throwsCheapRace: false }],
+    ['  does not sell before the tick', { sameRuler: false, sellsAgeingDogs: false }],
+    ['  works §13 per job', { sameRuler: false, worksTheFix: true }],
+  ];
+  for (const [label, knobs] of rows) {
+    Object.assign(HARD_KNOBS, before, knobs);
+    const r = run();
+    lines.push(
+      `  ${label.padEnd(32)} ${pct(r.rate).padStart(8)} ${fmt(r.hard).padStart(12)} ` +
+        `${fmt(r.p10).padStart(8)} ${fmt(r.normal).padStart(12)}`,
+    );
+  }
+  Object.assign(HARD_KNOBS, before);
+  lines.push('');
+  lines.push(
+    `  Target: 63–68%. ⚠️ At ${seasons} seasons the standard error on a head-to-head is about ` +
+      `${(50 / Math.sqrt(seasons)).toFixed(1)} points`,
+  );
+  lines.push(
+    '  (BUILD_PLAN §7: the effective sample is the SEASON, not the pairing), so a row inside two of',
+  );
+  lines.push(
+    '  those of "as built" has not moved anything and must not be adopted as though it had.',
+  );
+  return lines.join('\n');
+}
+
+/**
  * ⚠️ **Which constraint actually binds the mixed agent (GDD D43, §2.1).**
  *
  * D43 measured §2.1's promise — "a stable that trains a pup, pays for it by trading, and backs it
@@ -2336,6 +2422,8 @@ function main() {
     console.log(runCrookAblation(args.seasons === 50 ? 250 : args.seasons, args.seed));
   else if (args.mixability)
     console.log(runMixability(args.seasons === 50 ? 400 : args.seasons, args.seed));
+  else if (args.hardAblation)
+    console.log(runHardAblation(args.seasons === 50 ? 600 : args.seasons, args.seed));
   else if (args.fix) console.log(runFixProbe(args.seasons === 50 ? 120 : args.seasons, args.seed));
   else console.log(runHarness(args));
 }

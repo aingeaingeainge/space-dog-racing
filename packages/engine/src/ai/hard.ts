@@ -215,6 +215,7 @@ function buyGear(plan: Plan): void {
  */
 function sellAgeingDog(plan: Plan): void {
   const { s, playerId, out } = plan;
+  if (!HARD_KNOBS.sellsAgeingDogs) return;
   if (plan.kennel.length < 3) return;
   const planet = currentPlanet(s);
   const buyerBonus = planet.special.buyerBonus ?? 0;
@@ -261,7 +262,7 @@ function declareForThisWeek(plan: Plan): Assignment {
   // A Major next weekend: sit the best dog out of anything that would leave it short of fit
   // when it matters. Under §5.7 that is a live worry rather than the formality it was in v1 —
   // a race costs 25 and a rest returns 30, so one hard weekend really does cost the next.
-  if (toMajor === 1) {
+  if (toMajor === 1 && HARD_KNOBS.holdsForMajor) {
     const best = [...plan.kennel].sort((a, b) => b.rating - a.rating)[0];
     if (best) {
       const afterAWeek = best.fitness - balance.fitnessPerRace + balance.fitnessRest;
@@ -275,7 +276,10 @@ function declareForThisWeek(plan: Plan): Assignment {
     minPurseScale: 1,
     hold,
     reserve,
-    ratingOf: effectiveRating,
+    // ⚠️ One ruler or the other, never one each (E-D47). `sameRuler` measures both dogs and the
+    // field by their stats; `false` measures both by the public rating, which is Normal's answer.
+    ratingOf: HARD_KNOBS.ratesByStats ? effectiveRating : undefined,
+    rivalRatingOf: HARD_KNOBS.ratesByStats && HARD_KNOBS.sameRuler ? effectiveRating : undefined,
   });
 
   // Now and then, leave the first race on the card to the locals: the dog keeps its fitness and
@@ -315,6 +319,7 @@ function cheapAndSecond(s: GameState): [RaceTypeId | undefined, RaceTypeId | und
 function throwingTheCheapRace(s: GameState, playerId: Id): boolean {
   // The salt stays 'throwBronze': it is a fixed string that decides *which weeks* Hard skips a
   // race, not a class name, and changing it would re-roll that for no reason.
+  if (!HARD_KNOBS.throwsCheapRace) return false;
   return hash01(s.seed, s.week, playerId, 'throwBronze') < THROW_CHEAP_RATE;
 }
 
@@ -428,6 +433,29 @@ export const HARD_KNOBS = {
    * Ablated in Phase E — see `claude/V2_PHASE_E_NOTES.md`.
    */
   worksTheFix: false,
+  /**
+   * ⚠️ **Phase E's four, and the reason they are phrased as things to take *away*.**
+   *
+   * The record says the only thing that has ever moved Hard is removing a bad decision, not adding
+   * a good one: D30's "hire less" recovered 4.7 points, and both of Phase D's additions lost. So
+   * these switch off decisions Hard already makes, one at a time, and ask whether Normal's simpler
+   * answer was better all along. Tables in `claude/V2_PHASE_E_NOTES.md`.
+   */
+  /** Rate our own dogs by their stats rather than their public rating when filling the card. */
+  ratesByStats: true,
+  /**
+   * Rate the *rivals'* declared dogs by the same ruler.
+   *
+   * Only meaningful with `ratesByStats`; off, Hard compares a generous estimate of itself against
+   * a plain one of the field, which is what it has done since M4 (E-D47).
+   */
+  sameRuler: true,
+  /** Sit the best dog out the week before a Major rather than arrive at it tired. */
+  holdsForMajor: true,
+  /** Now and then leave the cheap race to the locals and put the money over the counter. */
+  throwsCheapRace: true,
+  /** Sell an ageing dog before the week-7 tick takes a chunk out of its book value. */
+  sellsAgeingDogs: true,
 };
 
 function placeBets(plan: Plan): void {

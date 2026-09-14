@@ -37,7 +37,12 @@ export function ownDogs(s: GameState, p: Player): Dog[] {
 }
 
 /** Ratings the AI expects to face in a race: declared rivals so far, locals for the rest. */
-export function expectedField(s: GameState, race: RaceTypeId, excludePlayer: Id): number[] {
+export function expectedField(
+  s: GameState,
+  race: RaceTypeId,
+  excludePlayer: Id,
+  ratingOf: (d: Dog) => number = (d) => d.rating,
+): number[] {
   const major = calendarEntry(s).major;
   const mid =
     LOCAL_RATING_BY_TIER[raceType(race).tier] + (major ? balance.localRatingMajorBonus : 0);
@@ -45,7 +50,7 @@ export function expectedField(s: GameState, race: RaceTypeId, excludePlayer: Id)
   for (const [pid, dogId] of Object.entries(s.declarations[race])) {
     if (pid === excludePlayer) continue;
     const d = s.dogs[dogId];
-    if (d) ratings.push(d.rating);
+    if (d) ratings.push(ratingOf(d));
   }
   while (ratings.length < balance.traps - 1) ratings.push(mid);
   return ratings;
@@ -69,8 +74,9 @@ export function expectedPurse(
   race: RaceTypeId,
   playerId: Id,
   rating: number = dog.rating,
+  rivalRatingOf?: (d: Dog) => number,
 ): number {
-  const others = expectedField(s, race, playerId);
+  const others = expectedField(s, race, playerId, rivalRatingOf);
   const p = winProbabilities([rating, ...others])[0]!;
   const purse = purseFor(s, race);
   // Places: a cheap approximation of Harville that keeps the AI fast.
@@ -108,6 +114,18 @@ export interface AssignmentOptions {
    * rating, which is what the bookie and the class caps use; Hard passes `effectiveRating`.
    */
   ratingOf?: (d: Dog) => number;
+  /**
+   * How to rate **rivals'** declared dogs, when that should not be the public rating either.
+   *
+   * ⚠️ **This exists because of an asymmetry that cost Hard two and a half points of head-to-head
+   * for four phases without anybody noticing (E-D47).** Hard has rated its own dogs by their stats
+   * since M4 — a well-drilled dog is quietly better than its number — and `expectedField` went on
+   * rating everybody else's by the number. So every race Hard priced compared a generous estimate
+   * of itself against a plain one of the field, and it systematically thought it was more likely
+   * to win than it was. That is not "acting on information the bookie has not got"; it is
+   * arithmetic with two different rulers.
+   */
+  rivalRatingOf?: (d: Dog) => number;
 }
 
 /**
@@ -137,7 +155,14 @@ export function bestAssignment(
       if (eligible(d, race))
         ev.set(
           `${d.id}|${race}`,
-          expectedPurse(s, d, race, p.id, opts.ratingOf ? opts.ratingOf(d) : d.rating),
+          expectedPurse(
+            s,
+            d,
+            race,
+            p.id,
+            opts.ratingOf ? opts.ratingOf(d) : d.rating,
+            opts.rivalRatingOf,
+          ),
         );
     }
   }
