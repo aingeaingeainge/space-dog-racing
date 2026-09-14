@@ -434,20 +434,43 @@ export const HARD_KNOBS = {
    */
   worksTheFix: false,
   /**
-   * ⚠️ **Phase E's four, and the reason they are phrased as things to take *away*.**
+   * ⚠️ **Phase E's four, and the answer they gave: none of them is a bad decision.**
    *
-   * The record says the only thing that has ever moved Hard is removing a bad decision, not adding
-   * a good one: D30's "hire less" recovered 4.7 points, and both of Phase D's additions lost. So
-   * these switch off decisions Hard already makes, one at a time, and ask whether Normal's simpler
-   * answer was better all along. Tables in `claude/V2_PHASE_E_NOTES.md`.
+   * The record said the only thing that has ever moved Hard is removing a bad decision, so these
+   * switch off decisions Hard makes and Normal does not, one at a time, at the standing table
+   * (easy, normal ×3, hard ×2), 800 seasons, same seeds:
+   *
+   *   as built (one ruler each)        58.0%   mean 40,997   p10  9,783
+   *     rates its dogs like Normal     57.8%        40,509        9,511
+   *     one ruler: stats on both sides 57.8%        40,920        9,649
+   *     does not hold for a Major      55.9%        40,362        9,873
+   *     never throws the cheap race    57.9%        41,493        9,572
+   *     does not sell before the tick  56.1%        40,271        9,261
+   *     works §13 per job              53.6%        37,670       10,461
+   *
+   * Two of them are load-bearing — holding the best dog out the week before a Major is worth 2.1
+   * points and selling before the age tick 1.9 — and the rest are inside the standard error. So
+   * the phase's contribution to the most-missed number in the project is a **negative result**:
+   * there is no bad decision left in Hard to take away, and whatever is keeping it off 63–68% is
+   * not on this list (E-D49).
    */
   /** Rate our own dogs by their stats rather than their public rating when filling the card. */
   ratesByStats: true,
   /**
    * Rate the *rivals'* declared dogs by the same ruler.
    *
-   * Only meaningful with `ratesByStats`; off, Hard compares a generous estimate of itself against
-   * a plain one of the field, which is what it has done since M4 (E-D47).
+   * Off, Hard compares a generous estimate of itself against a plain one of the field — which is
+   * what it did from M4 to Phase D, because `expectedField` never took a ruler. Every race it
+   * priced therefore over-estimated its own chance, which is arithmetic with two rulers rather
+   * than an edge over the bookie.
+   *
+   * ⚠️ **On, it is worth nothing measurable, and it is kept anyway.** Three Hard against three
+   * Normal it reads +2.5 points; at the standing table it reads −0.2, which is noise, with the
+   * mean and p10 also inside the error. Those two tables disagreeing is itself the finding
+   * (E-D49): a head-to-head is a property of the table it is played at, and an ablation run at a
+   * different one answers a different question from BUILD_PLAN's acceptance row. The repair stays
+   * because comparing two different rulers is a defect whether or not fixing it moves a
+   * head-to-head — but nobody should record it as a gain.
    */
   sameRuler: true,
   /** Sit the best dog out the week before a Major rather than arrive at it tired. */

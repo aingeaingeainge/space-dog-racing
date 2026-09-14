@@ -2142,8 +2142,15 @@ export function runFixProbe(seasons = 120, seed = 1): string {
 export function runHardAblation(seasons = 600, seed = 1): string {
   const lines: string[] = [];
   const before = { ...HARD_KNOBS };
-  const ai: AiAgent[] = ['normal', 'normal', 'normal', 'hard', 'hard', 'hard'];
-  const HARDS = new Set(['p4', 'p5', 'p6']);
+  // ⚠️ **The project's own table, not a cleaner one.** This mode was first written as three Hard
+  // against three Normal, which reads Hard a point weaker than the standing measure does and —
+  // measured — does not agree with it about what helps: the one-ruler repair below is worth +2.5
+  // points three-against-three and nothing at all here. A head-to-head is a property of the table
+  // it is played at, so an ablation run at a different table is answering a different question
+  // from the one BUILD_PLAN's acceptance row asks (E-D49).
+  const ai: AiAgent[] = ['easy', 'normal', 'normal', 'hard', 'hard', 'normal'];
+  const HARDS = new Set(['p4', 'p5']);
+  const NORMALS = new Set(['p2', 'p3', 'p6']);
   const run = (): { rate: number; hard: number; normal: number; p10: number } => {
     let wins = 0;
     let pairs = 0;
@@ -2153,7 +2160,10 @@ export function runHardAblation(seasons = 600, seed = 1): string {
       const { state } = playSeason(seed + i, ai, emptySample());
       const h: number[] = [];
       const n: number[] = [];
-      for (const p of state.players) (HARDS.has(p.id) ? h : n).push(netWorth(state, p));
+      for (const p of state.players) {
+        if (HARDS.has(p.id)) h.push(netWorth(state, p));
+        else if (NORMALS.has(p.id)) n.push(netWorth(state, p));
+      }
       hard.push(...h);
       normal.push(...n);
       for (const a of h)
@@ -2172,7 +2182,8 @@ export function runHardAblation(seasons = 600, seed = 1): string {
   };
 
   lines.push(
-    `Hard's own decisions, ablated — ${seasons} seasons, three Hard against three Normal, the same seeds every row`,
+    `Hard's own decisions, ablated — ${seasons} seasons at the standing table ` +
+      `(easy, normal ×3, hard ×2), the same seeds every row`,
   );
   lines.push('');
   lines.push('  row                              beats Normal   Hard mean   p10     Normal mean');
