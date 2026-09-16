@@ -1,5 +1,17 @@
 # Space Dog Racing — Game Design Document
 
+> **Status: HISTORICAL.** v2, shipped at tag `v2e`. Superseded by `design/GDD_V3.md`.
+>
+> ⚠️ **Do not build from this document.** v3 is a deliberate change of genre and most of the rules
+> below are cut. `design/GDD_V3.md` §0 explains what was kept and why.
+>
+> It is kept, and should not be archived, because its measurements and its decision log (D1–D53)
+> are the record of *why* the game works the way it does — the fitness curve, the race constants,
+> the trap-draw findings, the reasons a wage for the Fixer failed — and GDD_V3 cites them by name.
+>
+> Canonical copy: `design/GDD.md` in the `space-dog-racing` repo. A copy in a claude.ai Project is
+> a **mirror**, last synced 16 September 2026. See `design/CANON.md`.
+
 **Working title:** Space Dog Racing
 **Version:** 0.7 — 14 September 2026 (v1 shipped at tag `m4`; v2 Phase A at `v2a`, Phase B at `v2b`, Phase C at `v2c`, Phase D at `v2d`, Phase E at `v2e`)
 **Author:** Jesse Colbert, with Claude as design partner

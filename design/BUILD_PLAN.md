@@ -1,5 +1,18 @@
 # Space Dog Racing — Build Plan
 
+> **Status: PART CURRENT, PART HISTORICAL.**
+>
+> **§§1–5 are CURRENT** — architecture, tech stack, repo layout, `CLAUDE.md` and the core data
+> model. `design/BUILD_PLAN_V3.md` deliberately does not restate them and sends builders here.
+>
+> **§6 onward is HISTORICAL** — v1's milestones and v2's five phases, complete through tag `v2e`,
+> superseded by `design/BUILD_PLAN_V3.md`. §7a's harness methodology still applies in full: the
+> 800-season rule, the correlated-pairings warning, and the rule that an ablation must be run at
+> the table its acceptance row is about.
+>
+> Canonical copy: `design/BUILD_PLAN.md` in the `space-dog-racing` repo. A copy in a claude.ai
+> Project is a **mirror**, last synced 16 September 2026. See `design/CANON.md`.
+
 Companion to `GDD.md`. This is the *how*: architecture, repo layout, milestones, acceptance criteria, and a ready-to-paste prompt for each milestone to hand to Claude Opus (or whichever model builds it).
 
 **Working assumption:** Jesse reviews and playtests between milestones; the builder model works one milestone per session with the GDD, this plan, and the spreadsheet in the repo. Nothing below assumes the builder remembers a previous session.
