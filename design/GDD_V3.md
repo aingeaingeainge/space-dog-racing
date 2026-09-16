@@ -1,0 +1,828 @@
+# Space Dog Racing — Game Design Document, v3
+
+> **Status: CURRENT.** Build from this document.
+>
+> Canonical copy: `design/GDD_V3.md` in the `space-dog-racing` repo. A copy in a claude.ai Project
+> is a **mirror**, last synced 16 September 2026 — edit the repo, never the mirror. See `design/CANON.md`.
+>
+> Supersedes `design/GDD.md` (v2, shipped at tag `v2e`), which is kept as historical reference and
+> is cited by name throughout this document.
+
+**Working title:** Space Dog Racing
+**Version:** 3.0 — 16 September 2026
+**Author:** Jesse Colbert, with Claude as design partner
+**Status:** v3 design, unbuilt. Supersedes GDD 0.7 (`design/GDD.md`, shipped through tag `v2e`).
+
+> ⚖️ marks a tunable that belongs in `space_dog_racing_economy.xlsx` → `balance.json`.
+> ❓ marks an open decision. **[estimate]** marks a number nobody has measured yet.
+> **[v2 measured]** marks a number inherited from v2's harness that v3 does not invalidate.
+
+---
+
+## 0. What v3 is, and why it exists
+
+v2 is a finished, correct, deeply instrumented management sim. Six phases of measurement got three
+roads to a rich stable within 3.8% of each other, a crook's road that pays, a bookie that cannot be
+arbitraged and a bankruptcy rate that means something. It is also **a one-player game about
+arithmetic that takes an hour**, and the thing Jesse actually wants to build is a game three to
+eight people play together in forty minutes and argue about afterwards.
+
+So v3 is not a tuning pass. It is a deliberate change of genre: **from management sim to party
+game.** The test every rule below is held to is no longer *does this make one of the three roads
+better or more interesting to choose between* — it is:
+
+> **Can a new player learn this in one weekend of play, and does it produce a story at the table?**
+
+### 0.1 What that costs, stated honestly
+
+v3 deletes four markets, the debt system, a stat, a whole staff economy and the entire crook's
+road as a *purchasable* thing. A great deal of measured, working design goes in the bin, and the
+arithmetic that made v2's three roads balance goes with it.
+
+More importantly, **v3 is a much more random game than v2**, and that is a choice rather than an
+accident. Count the dice: starting dogs are dealt, starting staff are dealt, new dogs arrive blind,
+new staff arrive by luck, every upgrade comes from an event, the event itself is a draw, the running
+style of a dog you are handed is unknown, and the race is a race. v2's pillar 4 — *luck the player
+cannot respond to is noise, not design* — is the line v3 pushes hardest against, and §2 rewrites it
+rather than pretending otherwise.
+
+The compensation is that **every remaining decision has to matter more**, and §2.1 is the list of
+the five that are left. If any of those five turns out to be shallow in playtest, v3 has a problem
+that no amount of event content will paper over.
+
+### 0.2 The one-paragraph summary
+
+Three dogs, dealt. Ten race weekends a season, one to five seasons, or play until somebody is rich
+enough. Each weekend you land on a planet, choose one of three places to poke around (which is where
+everything unpredictable comes from), work the one market that exists — six kinds of dog food that
+are simultaneously your trade goods and your training programme — decide which dogs run and which
+rest, put one dog in each of three races, have a bet, and watch. Your dogs run differently from each
+other and you do not start out knowing how. Richest stable wins.
+
+---
+
+## 1. Pillars
+
+1. **Learnable in one weekend.** Every system is explainable in a sentence and visible on one
+   screen. If a rule needs a worked example, it is the wrong rule.
+2. **Luck you can price, or luck you can watch.** Randomness is allowed to be large, but it must
+   either arrive as an *offer the player can evaluate and decline*, or as something entertaining to
+   watch happen. Randomness that silently changes a number is out.
+3. **Stories at the table.** The measure of an event, a race or a sabotage is whether anyone
+   mentions it after the game. This is what replaces v2's balance-first instinct.
+4. **The scoreboard is public, the future is not.** Cash, net worth and every dog's stats are open.
+   Next week's prices, the card two planets out, and a dog that has never raced are not.
+5. **Nobody is out before the end.** No bankruptcy, no elimination, no death spiral. A player who
+   has had a terrible season must still be able to do something interesting on week 9.
+6. **Forty minutes for four players.** Pace is a hard constraint, not an aspiration. Every rule
+   below has been checked against it and §15.3 carries the budget.
+
+### 1.1 The five decisions v3 has left
+
+Everything else was cut. If these five are not deep enough, the game is not deep enough.
+
+| | The decision | Where it lives | What makes it hard |
+|---|---|---|---|
+| 1 | **Which door do I open?** | Explore | Three places a week, one pick, and what you need (a dog, a trainer, money, revenge) changes weekly |
+| 2 | **Buy, sell, or feed it?** | Market | The same six goods are your inventory and your training programme, and the price band tells you which |
+| 3 | **Who runs, who rests?** | Kennel | Fitness is a budget spent over ten weeks with three dogs and thirty race slots |
+| 4 | **Which dog in which race?** | Race Office | Three purse tiers, public declarations in turn order, and running styles that interact |
+| 5 | **What do I know that the bookie doesn't?** | Bookie | The book prices ratings and styles; it does not price the shape of the field |
+
+**Tone is unchanged from v2 §1:** Gazillionaire's pastel absurdity crossed with Death Rally's soot
+and neon. Cartoonish grime. Dogs get hurt, stewards take money, nothing dies on screen.
+
+---
+
+## 2. The season, the game, and how it ends
+
+### 2.1 Structure
+
+- **10 race weekends per season** (was 13). Week 5 is a **Major** (purses ×2). Week 10 is the
+  **Grand Final** at Collar Prime (purses ×3) ⚖️.
+- **Game length is chosen at setup:** **1 to 5 seasons**, or **Race to a Target** — play until any
+  stable's net worth passes a figure the table picks ⚖️ (suggested: 60,000 for a short game,
+  150,000 for a long one).
+- In Target mode, net worth is checked **at the end of every race weekend**. The first crossing
+  ends the game at the end of that weekend — and the winner is the **highest net worth**, not
+  necessarily the stable that crossed. Somebody can be overtaken on the line by a bet.
+- **9 regular planets** drawn without replacement from the pool of 14, random order, plus Collar
+  Prime at week 10. Week 5's Major venue is drawn from the other three Major venues.
+- **The circuit stays dark past next week** (v2 §9.3, kept). You know this planet completely and
+  next week's planet by name only. The fog is what makes the food trade a judgement rather than a
+  lookup, and it is now the *only* thing information is for.
+
+### 2.2 Between seasons — the off-season
+
+Multi-season play needs dogs to turn over, or a 5-season game ends with everyone shepherding three
+seven-year-olds. Between seasons, in one short screen:
+
+1. **Every dog ages one year.** Growth and decline apply per §4.3.
+2. **The retirement window.** Each stable *may* retire exactly one dog. If it does, a replacement
+   is offered under §5.2's partial-information rules — you see what you are being offered before
+   you accept, but not everything. Retiring pays out the dog's book value.
+3. **Staff notice.** Each member of staff has a small chance ⚖️ of leaving for a better stable. A
+   stable below two staff is offered one candidate.
+4. **Cash, cargo and net worth carry over untouched.** The circuit reshuffles and prices reset.
+
+That is the whole off-season: at most three clicks, and it exists so a long game has an arc rather
+than a slow decay.
+
+### 2.3 The weekend
+
+One planet phase, not two. v2 ran a market phase before *and* after the races; v3 runs one, because
+halving the screen visits is worth more to pace than the flexibility is worth to play. Winnings are
+spent next week, which gives the season a rhythm.
+
+1. **Arrival & turn order.** `score = 20 − cargoUnits ÷ 5 + d10` ⚖️. Highest goes first. Shown
+   with the reason. **There is no ship speed to buy**, so turn order is bought with empty cargo
+   space and nothing else.
+2. **Explore** — simultaneous. Everyone picks one of the planet's three destinations at once;
+   events resolve in turn order where two stables want the same thing.
+3. **Market** — in turn order, because the shelf is shared and depth is finite (§6.2). This is what
+   going first is *for*.
+4. **Kennel** — simultaneous. Set each dog to Race or Rest, and set its diet.
+5. **Race Office** — **in turn order, and declarations are public as they are made.** See §7.3;
+   this is the one place where going *last* is the advantage, and it is deliberate.
+6. **Bookie** — after declarations lock, prices are posted, everyone bets at once.
+7. **Race day.** Three races run and are watched. Prizes paid, staff take their cut, bets settled.
+8. **Jump.** Fitness, food, growth and injuries resolve. Next planet.
+
+⚠️ **Turn order cuts both ways, and that is the design.** First pick of a shelf that runs out
+against last look at a field you have to commit a dog into. A stable that loads its hold to the roof
+goes last all season, which makes it rich and predictable — a trade the whole table can see it
+making.
+
+### 2.4 Winning
+
+```
+netWorth = cash
+         + Σ dogValue(rating, age, injuryStatus)
+         + Σ cargo × localSellPrice
+```
+
+No ship value (there is nothing to buy), no debt (there is none). Highest net worth wins. Tie-break:
+most Gold Cup wins, then most race wins.
+
+⚠️ **Championship points are cut.** They were a purse paid to whoever was already winning (v2 D39),
+they need a scoreboard nobody looks at, and in a multi-season game they need a second scoreboard on
+top. Net worth is the whole scoring system.
+
+---
+
+## 3. Players
+
+- **3 to 8 stables.** Any mix of humans and AI.
+- **Hotseat local multiplayer is the target the rules are written for** — humans round one screen,
+  passing a laptop or a tablet. Online is later and unchanged in difficulty (the engine stays pure
+  and action-driven, so it is the same job it always was).
+- **Simultaneous wherever the shelf is not shared.** Explore, Kennel and the Bookie all resolve at
+  once for every player; only Market and Race Office are taken in turn. With 8 players that is the
+  difference between a brisk game and an unplayable one, and it is the single biggest pacing lever
+  in the design.
+- **Hidden information between humans:** a stable's Explore choice and its bets are private. Its
+  declarations are public the moment they are made (§7.3), and its dogs' stats are always public.
+
+---
+
+## 4. Dogs
+
+### 4.1 Stats — three, not four
+
+| Stat | What it does |
+|---|---|
+| **Speed** | Top speed. |
+| **Acceleration** | How fast the dog reaches top speed, *and* how well it breaks from the boxes and holds a line through a bend. |
+| **Stamina** | How late it fades. |
+
+`rating = 0.40 speed + 0.35 accel + 0.25 stamina` ⚖️, then moved by results (§4.4).
+
+⚠️ **Trap is folded into Acceleration, not deleted.** v2 spent a phase making Trap worth 15.3%
+marginal win rate and then built the whole trap-draw mechanic on it (D37: the rail is the short way
+round and also where the traffic is, worth +3.5 points of win rate on tight bends). Deleting the
+stat would make the box worthless again, which is exactly the hole the steward's bribe fell into.
+Folding keeps the sim's bend logic intact — `bendCraft` reads Acceleration instead of Trap — and
+gets the stat count down to three. The old 0.15 trap weight is absorbed into accel's 0.20, giving
+0.35.
+
+### 4.2 Fitness, and the Race/Rest decision
+
+**Fitness 0–100**, multiplying every stat: `fitScale = 0.90 + 0.10 × fitness/100` ⚖️. Kept from v2
+D13 unchanged — this curve was hard-won and reads properly across the range a player can reach
+(100 → 26.1% win rate, 60 → 8.8%, 40 → 5.4%) **[v2 measured]**.
+
+**Each dog is set to Race or Rest each week. There is no Train state.**
+
+| State | Fitness |
+|---|---|
+| **Race** | −20 ⚖️ |
+| **Rest** | +30 ⚖️ |
+
+⚠️ **Dropping Train is a v3 simplification and it is load-bearing.** v2 had three states because
+training was how food reached a dog. In v3 **a dog eats every week and gains its food's bonus every
+week, whatever it is doing** (§6.3), so Train had nothing left to do except be a third option that
+mostly resolved itself. Three dogs × a binary is three decisions a week; three dogs × a ternary was
+the thing that pushed v2's click budget over. Race or Rest.
+
+**The arithmetic this produces.** Two races and a rest is −40 +30 = −10 per three weeks. A dog that
+races two weeks in three starts a season near 90 and finishes near 60 — fresh early, tired late,
+with the exotic foods' fitness bonuses (§6.3) mattering more as the season goes on. Across ten
+weekends a stable should fill roughly **two of the three races** most weeks, which is the number the
+card is built around **[estimate — the first thing Phase A must measure]**.
+
+A dog that is **injured or banned** is in a fourth state, **Layoff**, which is imposed rather than
+chosen and recovers like Rest. It is derived, never stored.
+
+### 4.3 Age
+
+Age matters in v3 in a way it never could in v2, because a game can run five seasons. Age ticks
+once, in the off-season.
+
+| Age | Growth | Rest recovery | Injury chance | Value × |
+|---|---|---|---|---|
+| 1 | +1 stat/week | +30 | ×1.0 | 1.15 |
+| 2 | +1 stat/week | +30 | ×1.0 | 1.10 |
+| 3–4 | — | +30 | ×1.0 | 1.00 |
+| 5 | −1 stat/week | +25 | ×1.3 | 0.65 |
+| 6 | −1 stat/week | +20 | ×1.6 | 0.45 |
+| 7 | −1 stat/week | +20 | ×2.0 | 0.30 |
+
+All ⚖️ **[estimate]**. Growth is *on top of* whatever the dog's food gives it, so a young dog fed
+well compounds and an old dog fed well merely holds station. That is the shape that makes the
+retirement window a real decision rather than a formality.
+
+### 4.4 Rating, form, injury
+
+- **Rating 0–99**, public, moved only by race results, Elo-style, exactly as v2 §5.3:
+  `expectedPlace = 1 + (n−1) / (1 + 10^((rating − fieldAvg) / 15))`, `delta = (expected − actual) × 1.6` ⚖️.
+- **Food and growth move stats. Results move rating.** Kept from v2 D1, and it is more important in
+  v3 than it was in v2: it is the whole of the betting edge now that the Fixer is gone. A dog you
+  have fed well is quietly better than its number, the bookie prices the number, and every player
+  can see the stat bars if they look.
+- **Form −10…+10**, decaying 2/week toward 0.
+- **Injury:** base 4% per race ⚖️, ×2 below 50 fitness, ×1.5 on hazardous tracks, × the age factor
+  above. Duration 1–3 weeks. An injured dog cannot be declared; its value is ×0.7 while injured.
+
+⚠️ **With three dogs and no market, an injury is much more painful than it was in v2.** Losing one
+of three for three weeks is a third of your stable for a third of a season. Two guards: a stable
+with fewer than three fit dogs is offered a **free local runner** for the Bronze Dash (it races in
+your colours, you keep the prize, it is nobody's asset), and the injury explore door can shorten a
+layoff. If playtest says injuries still feel like being sent off, the base rate is the dial.
+
+### 4.5 Traits
+
+Trimmed to a short, memorable list — the v2 set of 16 was a management-sim list. **Eight** ⚖️,
+shown as icons on the dog card:
+
+*Railer · Wide runner · Mudlark · Fragile · Iron · Glutton · Showboat · Bad blood*
+
+⚠️ *Slow starter*, *Sprinter* and *Stayer* are **gone as traits**, because §5 replaces them with
+running styles and distance preference. Two systems saying the same thing is the mistake v2 fixed
+once already with `SetTraining` (D19).
+
+---
+
+## 5. Running styles — the centre of v3's racing
+
+Every dog runs its race a particular way. This is the single biggest addition in v3 and it is
+worth more than it costs, for three reasons: it makes thirty races a game watchable instead of
+identical, it turns a race into something you read rather than something you compute, and it is
+almost free in the existing simulation.
+
+### 5.1 The three styles
+
+| Style | How it runs | Leans on |
+|---|---|---|
+| **Front-runner** | Bursts from the boxes, leads early, fades late | Acceleration |
+| **Stalker** | Even pace, sits handy, wins by being better | Speed |
+| **Closer** | Slow away, comes home hardest over the last third | Stamina |
+
+**A style is a redistribution of the same energy, not a bonus.** It is expressed as a pair of
+modifiers on the pace curve the simulation already has:
+
+```
+Front-runner:  early topSpeed ×1.08,  fadeStart −0.12     ⚖️ [estimate]
+Stalker:       baseline
+Closer:        early topSpeed ×0.94,  fadeStart +0.12, fade penalty ×0.8   ⚖️ [estimate]
+```
+
+`fadeStart = 0.45 + 0.45 × stamina/100` already exists (v2 §6.2). A style shifts it. No new model,
+no new maths, and — importantly — **nothing that needs `exp` or `log`**, so the determinism rules in
+`CLAUDE.md` are untouched.
+
+### 5.2 Day-to-day variance — where Jesse's ±30% goes
+
+Every race, each dog draws a **style expression** multiplier, `U(0.30, 1.30)` ⚖️, that scales *how
+strongly its style applies that day*. A front-runner who draws 0.35 simply runs like a stalker; one
+who draws 1.25 goes off like a rocket and pays for it.
+
+⚠️ **This is deliberately not ±30% on the dog's speed, and the difference is the whole game.** v2
+learned this the expensive way: the fitness multiplier used to span 20% and it was so violent that
+a dog at 70 fitness won 3% of the time against equals, which is why D13 halved it to 10%. A ±30%
+daily roll on top speed would swamp stats, food, age, form and every decision in §1.1. Putting the
+variance in the *shape* of the run gives you all of the "he didn't run his race today" drama and
+none of the damage — the area under the curve is constant.
+
+### 5.3 The contest rule — why three front-runners burn each other out
+
+Styles on their own are independent: three front-runners would each run their own curve, fade at
+their own points, and a closer would beat them by exactly as much as it beats one. **The
+interaction has to be written, or it does not exist.**
+
+> While a front-runner is inside the first third of the race and another dog is within **2 m** of it
+> at the head of the field, both get **+3% to current speed** and their `fadeStart` moves **0.05
+> earlier** ⚖️ — a cost larger than the boost is worth.
+
+Over-exertion costs more than it gains, so contested front-runners come back to the field. The
+closer's own curve never changes; the leaders simply come back to it.
+
+Three properties make this the right shape:
+
+- **It is emergent, not declared.** The contest depends on who actually got out that day, so a
+  front-runner who draws a low expression is not burned. It interacts with §5.2 rather than
+  fighting it, and the same three dogs give a different race each time.
+- **There is precedent in the sim.** The bend clash is already a positional interaction between two
+  runners within 1.2 m, with `bendCraft` deciding who comes off worse. This is that pattern applied
+  to the front of the race.
+- **It can be measured directly.** Win rate of a closer against a field with one front-runner
+  versus three. **If that gap is not worth several points, drop the rule rather than tuning it up**
+  — a small effect nobody can see is worse than no effect.
+
+### 5.4 Hidden, then public
+
+**A dog's style is hidden until it races. After its first race it is public to the whole table.**
+
+- One race is usually enough to read it — you watch your dog lead and fade, and the commentary says
+  so out loud. That matters because a dog only runs five or six times a season; a style that took
+  four races to identify would be learned too late to use.
+- **It is written on the dog card once known**, not left for the player to remember. Anything that
+  rewards note-taking in a forty-minute party game rewards whoever brought a pen.
+- **Public-after-racing is what makes §7.3 work.** If a rival's style stayed private, there would be
+  no field to read and the whole declaration layer would collapse.
+- It gives a dog acquired by event (§9.2) a second unknown: you take it not knowing how it runs, and
+  you find out by risking a race on it.
+
+### 5.5 The opening hand
+
+**Each stable is dealt one front-runner, one stalker and one closer.** Styles are revealed as normal
+— by racing — but the *distribution* is known, so a player who has identified two knows the third.
+
+This solves two problems with one rule: nobody gets a structurally broken opening hand they cannot
+fix in a game with no dog market, and a new player meets all three styles on the first race weekend.
+
+⚠️ **Starting stats must also be dealt fair.** Each stable's three dogs are rolled to the same
+**total stat budget** ⚖️ with different distributions, ages 2–4. In a game people play against each
+other, "you got better dogs" is the complaint that ends the evening.
+
+### 5.6 What the bookie knows
+
+The book prices **rating, fitness, form and style**. It does **not** price the interaction between
+styles in a field.
+
+That is a deliberate, bounded overlay, and it is the replacement for everything the Fixer used to
+manufacture. A closer in a field of three front-runners is genuinely better than its price, and the
+player who notices gets paid. v2 was careful never to leave a standing overlay by accident (D52
+settled `oddsScale` at 15.5 specifically to keep the largest accidental overlay at 0.5 points); this
+one is on purpose, it is discoverable by reading the card, and §11 measures its size.
+
+❓ **Open:** how big is the field-shape overlay in practice? If backing the lone closer blind beats
+the 15% margin reliably, it is free money and the book needs to see one more thing.
+
+---
+
+## 6. The market — six foods, and nothing else
+
+There is exactly one market in v3. It sells six kinds of dog food, which are simultaneously the
+game's trade goods and its training programme. **Every market decision is therefore also a training
+decision**, and that is the mechanic the whole economy hangs on.
+
+### 6.1 The goods and their bands
+
+Modelled directly on Gazillionaire's commodity table, which does something clever: **every band is
+exactly 8× from floor to ceiling**, so every good is the same *bet* and differs only in how much
+capital it takes to make it.
+
+| # | Good | Price band ⚖️ | Shelf depth per planet ⚖️ |
+|---|---|---|---|
+| 1 | **Grey Mash** | 10 – 80 | 40–60 units |
+| 2 | **Scrapmeat** | 20 – 160 | 30–45 |
+| 3 | **Glow Tripe** | 30 – 240 | 20–30 |
+| 4 | **Vat Steak** | 60 – 480 | 10–18 |
+| 5 | **Pulsar Marrow** | 75 – 600 | 6–12 |
+| 6 | **Ambrosia** | 90 – 720 | 3–8 |
+
+The across-good ladder at the floor is 1 / 2 / 3 / 6 / 7.5 / 9 — **a 9× spread across goods against
+an 8× spread inside each one.** That near-equality is what makes six goods a decision instead of
+one:
+
+- A unit of Ambrosia swings 630 Bones; a unit of Grey Mash swings 70. If your **hold** is the
+  constraint, only ever carry the dear stuff.
+- Ambrosia at its floor still costs 90 a unit. If your **cash** is the constraint, you can afford
+  nine times as much Grey Mash.
+
+**Which constraint binds changes over the game, and that is the progression curve v3 gets for
+free.** With a 50-unit hold and 6,000 starting Bones you can fill a fifth of the hold with
+Ambrosia — cash binds. By week six, with prize money in, the hold binds and you graduate up the
+ladder. An early game and a late game, out of a price table, with nothing to buy.
+
+**Shelf depth is the scarcity rule**, and it is what stops "fill the hold with Ambrosia" being the
+answer to everything. You cannot buy more than about eight units of the top good on any one planet,
+so the big trade has to be *assembled* across several weeks — under a fog that hides where you are
+going after next week. Some explore events award food, which is the other supply line.
+
+### 6.2 What the screen shows
+
+Copied from Gazillionaire more or less intact, because it is a complete trading UI in five columns:
+
+| Your Hold | On Planet | You Paid | Market Price | Price Range |
+|---|---|---|---|---|
+
+- **Price Range** is the whole reason the market is legible on the first play. "198" means nothing;
+  "198, range 60–480" means *cheap, buy it*, instantly, with no memory and no notes.
+- **You Paid** is your average purchase price, so the player never does break-even arithmetic in
+  their head.
+- Hold gauge across the top: **50 / 50**, fixed, for everyone, forever.
+
+### 6.3 Food as training
+
+**Every dog eats one unit a week, whatever it is doing, and gains that food's bonus.**
+
+| Good | Weekly effect ⚖️ **[estimate]** |
+|---|---|
+| **Grey Mash** | +1 to a random stat |
+| **Scrapmeat** | +1–2 Stamina |
+| **Glow Tripe** | +1–3 Acceleration |
+| **Vat Steak** | +2–4 Speed |
+| **Pulsar Marrow** | +2–4 to a random stat, **+5 fitness** |
+| **Ambrosia** | +3–6 to a random stat, **+8 fitness**, injury chance halved this week |
+
+⚠️ **The bonuses keep a light aim rather than being fully random, and that is a change from the
+brief.** If the only difference between six foods is magnitude, five of them are pure trade goods
+and the feeding decision collapses to "buy the best I can afford." Three cheap foods each pointed at
+one of the three stats, and three exotics that are broader and touch condition, gives six distinct
+identities without a 3 × 3 matrix to learn. The randomness sits inside each row, where it adds
+texture rather than removing choice.
+
+**The diet setting**, per dog, in the Kennel — set once, sticky, not a weekly click:
+
+- a **named food**, or
+- **best available**, or
+- **worst available**.
+
+If the chosen food runs out, the dog falls back to the cheapest thing aboard.
+
+⚠️ **If the hold is empty, the dog loses 10 fitness that week and gains nothing** ⚖️. This one rule
+is v3's entire running cost. There is no upkeep, no fuel, no wages charged in the quiet weeks and no
+debt, so **food is the only pressure keeping money scarce** — which means the penalty for not paying
+it has to be real, or the market becomes optional and the economy floats away.
+
+### 6.4 The decision this creates
+
+Feeding a dog one unit of Ambrosia costs you 720 Bones of opportunity when it is peaked and 90 when
+it has bottomed out. So a well-played stable's **diet fluctuates with the market**: exotic food in
+the cheap weeks, Grey Mash in the weeks it is worth selling. The best move in the game is catching
+your dog's dinner on sale, and the price band on screen is what makes that readable without a
+spreadsheet.
+
+⚠️ **The number to watch.** Fifty units of Ambrosia bought at 90 and sold at 720 is a 31,500-Bone
+profit — a whole season's prize money in one leg. Shelf depth (§6.1) already stops you assembling
+that in a week, but the distribution matters too: **prices must cluster mid-band with rare
+excursions to the ends**, so the 8× is something a player hunts rather than something that happens
+to them. Use `normalDeviate()` from `determinism.ts`; do not reach for `exp`.
+
+---
+
+## 7. Races
+
+### 7.1 Three purse tiers, everyone eligible
+
+Three races a weekend. **Every dog may enter any race. One dog per stable per race.**
+
+| Race | 1st / 2nd / 3rd ⚖️ | Local field rated ⚖️ |
+|---|---|---|
+| **Gold Cup** | 6,000 / 3,000 / 1,500 | 55 |
+| **Silver Plate** | 3,000 / 1,500 / 750 | 45 |
+| **Bronze Dash** | 1,500 / 750 / 375 | 35 |
+
+Weekly pool 18,375. Major ×2.0, Grand Final ×3.0. 8 traps; short fields filled with local dogs at
+the tier's rating and **fitness 75** ⚖️ (v2's figure, kept).
+
+⚠️ **v2's seven fact-gated race types are cut.** Maiden, Juvenile, Veterans, Novice, Handicap,
+Invitational and Consolation were a good answer to a question v3 no longer asks. They exist to
+reward a *broad stable you built*; v3 deals you three dogs and has no market, so eligibility would
+be luck rather than planning — the exact failure mode the system was designed to avoid. Three purse
+tiers with open entry is one sentence, and the depth comes from styles and the field instead.
+
+The decision the card asks is simple and real: your second-best dog can probably win the Silver
+Plate outright, or finish fourth in the Gold Cup for nothing.
+
+### 7.2 The simulation
+
+Unchanged from v2 in shape and constants, with three amendments:
+
+1. `bendCraft` and the trap-draw edge read **Acceleration** instead of Trap (§4.1).
+2. Style modifies the pace curve (§5.1) and the daily expression scales it (§5.2).
+3. The front-runner contest rule (§5.3) is a new positional interaction.
+
+Everything else — `raceBaseSpeed` 13.75, `raceSpeedCoef` 4.5, `raceFadePenalty` 0.50, the bend
+model, the tick log, the renderer replay contract — carries over. **These constants were fitted over
+six phases and there is no reason to disturb them.** Phase C re-baselines against them rather than
+replacing them.
+
+### 7.3 Declaring — the one place going last is better
+
+**Declarations are made in turn order and are public the instant they are made.**
+
+This is a deliberate inversion. Going first buys the best of a finite shelf; going last buys the
+right to see what you are running into before you commit. A stable that has loaded its hold to the
+roof takes the late slot all season and gets the better half of that trade — legibly, in front of
+everyone.
+
+It is also what makes §5 pay off. If declarations were simultaneous and hidden, running styles would
+only matter to the bettor, not to the manager. Public-in-turn-order means the last player to declare
+into the Gold Cup can see two front-runners already in it and put their closer in.
+
+### 7.4 Betting
+
+Win and Place, any race, any dog, including your own. `odds = (1 − margin) / p`. Margin 15% ⚖️
+(10% on Neon Snout; no betting on Holy Bark). **Max stake 50% of cash** ⚖️.
+
+No flat stake ceiling is needed — v2 added one because the crook could borrow a bankroll, and there
+is no borrowing in v3. Bets are always affordable by construction, which is part of how the game
+avoids debt.
+
+### 7.5 Watching
+
+The v2 race view carries over intact: top-down, camera on the pack, ticker, commentary bar,
+photo-finish freeze, 1× / 2× / skip. Two additions v3 requires:
+
+- **Commentary must name the style and the day.** "Went off like a rocket, nothing left at the
+  turn" and "came from last, never looked like getting there until the final bend" are how a player
+  learns §5.4 without being told it.
+- **Races a stable has no runner and no bet in resolve to a result line** rather than a full
+  animation, at the player's option. Thirty races a season × up to five seasons is a lot of
+  watching, and §1's forty minutes will not survive watching all of them.
+
+❓ **Open:** should all three races be watchable simultaneously in split view? It would cut the
+watching time by two thirds at some cost in drama.
+
+---
+
+## 8. Staff — two trainers on commission
+
+### 8.1 The shape
+
+- **Two slots. Everyone is a trainer.** No roles, no ladder, no market.
+- **Dealt at the start of a game.** The only way to change staff is a random event or the
+  off-season notice.
+- **Paid a percentage of race prize money, 1–10%** ⚖️, roughly proportional to how good their
+  bonuses are. **Not** a wage.
+- **The cut is on race prize money only** — not betting returns, not trading profit, not the sale
+  of a dog. Otherwise it becomes an accounting rule nobody can hold in their head.
+
+⚠️ **Commission is what makes staff safe to randomise.** A wage is charged in the quiet weeks and
+has to be budgeted; that arithmetic is what broke v2's Fixer (D42/D45) and what made three staff
+slots a trap for the AI (D30). A percentage is self-balancing — you only pay when you win — and it
+is the reason v3 can hand you two people at random without it being a punishment.
+
+It also has a texture nobody designed: **the same 10% trainer is cheap for a stable that makes its
+money trading and expensive for one that races hard.** Whether your staff are a bargain depends on
+how you are playing, which is free strategic depth.
+
+### 8.2 The bonus pool
+
+Each trainer carries one bonus (or two, at the top of the range). Drawn from ⚖️ **[estimate]**:
+
+| Bonus | Cut |
+|---|---|
+| +1 to one stat per week, on top of food | 3% |
+| +5 fitness recovery per week | 3% |
+| Injury chance halved | 4% |
+| Injury duration −1 week | 2% |
+| Reveals one rival dog's running style without it racing, once a week | 2% |
+| Shows next planet's price band position for all six goods | 3% |
+| +10% prize money | 5% |
+| Explore events are less likely to go badly | 3% |
+| Two of the above | 6–10% |
+
+⚠️ **The randomness risk, named.** You cannot shop for staff, so "I got the good trainer and you
+didn't" is a real complaint waiting to happen. Two mitigations: the **staff door** in Explore (§9.1)
+must come up often enough that every stable gets two or three swings a season, and the top of the
+range must be genuinely expensive — a 10% trainer on a stable earning 30,000 in prizes costs 3,000,
+which should be enough that taking one is a decision.
+
+---
+
+## 9. Explore — where everything unpredictable comes from
+
+This is the load-bearing screen of v3. Dogs, staff, food, money, sabotage, information and every
+one-off perk that used to be a purchase now arrives through it.
+
+### 9.1 The three doors
+
+Each planet offers **three destinations**, themed and named to the planet, drawn from five
+categories. The player picks **one**, privately, and it resolves into an event with two or three
+choices.
+
+| Category | What it tends to offer |
+|---|---|
+| **The Pound** | Dogs. New dogs offered, strays, a vet who will shorten a layoff, a dog's style revealed |
+| **The Bar** | People and talk. Trainers looking for work, tips on next week's prices, rumours about the circuit |
+| **The Back Alley** | Trouble. Sabotage, a steward who will sell you a trap draw, stolen food at 60%, things that can go wrong |
+| **The Strip** | Money and food. Free crates, a card game, a sponsor, a price tip, a fine |
+| **The Track** | Racing. A trial that reveals your own dog's style, a private match, a track-day that buys fitness |
+
+⚠️ **The deck is now the entire content budget of the game.** v2 had 40 cards and a dozen other
+systems supplying variety; v3 has 40 cards and nothing else. **Target ≥ 80 events at launch**,
+weighted by category, with planet-specific rows on top. If the third play-through feels samey, this
+is why, and the fix is rows rather than rules.
+
+⚠️ **Planet identity now lives here.** v3 deletes the market variation, the ship shop, the staff
+hall and the loan sharks that used to make eighteen planets feel different. What is left is the
+track, the food band, and **which three doors this planet offers** — so the doors must be named and
+flavoured per planet, not drawn generically.
+
+### 9.2 Acquiring a dog
+
+The rule Jesse asked for, with one amendment: **you see enough to price the gamble.**
+
+When a dog is offered, you see its **age**, **one revealed stat**, and **the seller's description**
+— which is sometimes a lie ⚖️. You do not see its other stats, its rating, or its running style.
+Accepting means discarding one of your own dogs (you choose which) and paying nothing.
+
+⚠️ **The amendment matters.** A fully blind swap is a coin flip with extra steps, and pillar 2 says
+randomness has to arrive as something the player can evaluate. Age plus one stat plus patter that
+might be false is a gamble a player can reason about and get wrong on purpose — which is the version
+they will tell a story about afterwards.
+
+### 9.3 Sabotage
+
+Available through the Back Alley, **freely targetable** — any rival, any race, the same cost.
+
+- **Nobble a runner:** −25 fitness for that race only ⚖️, applied after declarations lock, so the
+  bookie's prices have already been struck and do not move. The victim's *stated* fitness never
+  changes. This is v2 §13's mechanic kept whole, because it works and because it is the best story
+  generator in the game.
+- **Buy a trap draw:** choose your dog's box ⚖️ (worth ~3.5 points of win rate on tight bends, and
+  visibly nothing on a straight — the screen says so).
+- **Getting caught:** a flat fine plus a quarter of what you had on the race ⚖️, rolled on race day,
+  and **the whole table is told who did it.** In hotseat that penalty finally bites, which is
+  exactly what v2 D40 said it was waiting for.
+- Catch chance varies by planet (Lagrange Lows 20%, Holy Bark 60%) ⚖️.
+
+⚠️ **The Fixer as a hireable person is gone entirely.** Both his jobs live in the Back Alley as
+events now. v2 spent two phases discovering that a wage for a service used twice a season does not
+pay (D42) and then that a price list does (D45); v3's answer is that if it is used twice a season it
+should be an *event*, which is the same finding taken one step further.
+
+❓ **Open, and it is the sharpest open question in v3:** free targeting means eight players can all
+pile onto one person, or onto whoever is most annoying rather than whoever is winning. In a game
+with friends that is either the best part of the evening or the end of it. Playtest it before
+deciding whether the leader needs to be the cheaper target.
+
+### 9.4 Information
+
+The fog (§2.1) is kept, but there is no dossier to buy and no Tipster to hire. Information reaches
+you through **Bar events** and **staff bonuses**, and it has exactly one use: knowing whether next
+week's planet buys your Ambrosia high. That makes it easy to price for the first time in the
+project.
+
+---
+
+## 10. Screens
+
+Down from eleven to seven. The Docks and the Saloon are gone entirely.
+
+1. **Title / New game** — players, seasons or target, toggles, seed.
+2. **Galaxy map** — this planet in full, next week's name, the rest hatched.
+3. **Planet hub** — backdrop with four hotspots: Explore, Market, Kennel, Race Office. Plus the
+   Bookie, which opens after declarations lock.
+4. **Explore** — three doors, then an event card with choices.
+5. **Market** — the six-row table of §6.2 and a fixed 50-unit hold gauge.
+6. **Kennel** — three dog cards. Race/Rest, diet, fitness trajectory, style once known, staff.
+7. **Race Office** — three purse tiers, everyone's declarations as they are made, and what a run
+   costs each dog in fitness.
+8. **Bookie** → **Race view** → **Results**.
+9. **Leaderboard** (always available) and **Season / Game end**.
+
+### 10.1 The click budget
+
+v2 measured 13.3–14.3 decisions a weekend for one player and treated 14.5 as a ceiling. **v3's
+budget is 10 ⚖️**, because the number that matters now is decisions × players: eight players at 14
+is an unplayable evening, and eight at 10 with Explore, Kennel and Bookie resolving simultaneously
+is about right.
+
+The arithmetic: one Explore door + up to six market lines (realistically two) + three Race/Rest
++ three declarations + a bet. Diet is sticky and normally costs nothing.
+
+⚠️ **v2's hard-won principle carries over verbatim (D34): a hotspot flags what CHANGES, not what is
+always there.**
+
+---
+
+## 11. Balance targets
+
+v2's harness survives and most of its measures still mean something. New and changed targets:
+
+| Measure | Target | Why |
+|---|---|---|
+| Season length, 4 players, no race animation | ≤ 25 min | §1's forty minutes with watching included |
+| Decisions per weekend per player | ≤ 10 | §10.1 |
+| Races entered per weekend, per stable | 1.8–2.4 of 3 | §4.2's fitness arithmetic; the card is built for it |
+| Races per dog per season | 5–7 | §4.2, 10 weeks |
+| A closer's win rate, 1 front-runner in the field vs 3 | ≥ 4 points better | §5.3 — **if this misses, cut the contest rule** |
+| Style expression's share of race variance | below fitness's, above form's | §5.2 — the ±30% must not swamp the stats |
+| Field-shape betting overlay, backing the lone closer blind | below the 15% margin | §5.6 — an edge for a player who reads, not free money |
+| Mean end worth, all-Normal, one season | 25–40k | roughly v2's band on a 10-week season |
+| Stables ending a season on less than they started | 10–25% | there is no bankruptcy; going backwards is the only failure state |
+| Explore doors chosen, spread across five categories | none below 12% | a door nobody opens is dead content |
+| Food sold as a share of gross income | 20–35% | the trade is a real road, not a side hustle |
+| Net worth gap, 1st to last, at the end of a season | narrower than v2's | §1's "nobody is out before the end" |
+| Seed + action log reproduces a game | exactly, on any JS engine | unchanged and non-negotiable |
+
+⚠️ **Two v2 measures are retired.** `bankruptRate` has nothing to measure. The three-road printout
+(`trainer` / `trader` / `crook` agents) goes with the three roads — v3 has one road with a trading
+sideline and a betting sideline, and the honest replacement is the income split on the season-end
+screen.
+
+---
+
+## 12. Planets
+
+All 18 planets survive as data. What changes is which fields do work:
+
+- **`foodBand`** becomes a per-planet multiplier on the six global bands of §6.1 — it is the
+  trader's whole map, and it is now the main thing that distinguishes one planet from another
+  economically.
+- **`exploreDoors`** is a new field: the three named destinations this planet offers, mapped to
+  §9.1's categories. **This is where planet character lives in v3.**
+- **Track** (distance, bends, hazard) is unchanged and matters more than it did, because running
+  styles interact with it: a tight-bend track favours a front-runner who gets the rail, a long
+  straight favours a closer.
+- **`marketBias`**, ship shops, banks, sharks, staff halls and the supplement rules are **cut**.
+
+---
+
+## 13. Decision log
+
+| Date | Decision | Why |
+|---|---|---|
+| 2026-09-16 | **V1 — v3 is a party game, not a management sim; the pillar set is rewritten** | The stated goal is 3–8 players in 40 minutes. v2's pillars optimise for depth per decision and that is the wrong objective. Named explicitly so future changes are judged against the right test |
+| 2026-09-16 | **V2 — 3 dogs, dealt, one of each running style, on an equal stat budget** | No dog market means a bad opening hand cannot be fixed. One of each style also teaches §5 on the first race weekend. Equal budgets because "you got better dogs" ends the evening |
+| 2026-09-16 | **V3 — the dog, staff and ship markets are all cut; acquisition is by event only** | Four markets is three too many for a 40-minute game. The cost is that most of a stable's composition is luck, which §9.2's partial information is the guard against |
+| 2026-09-16 | **V4 — a dog offered by an event shows age, one stat and a description that can lie** | A fully blind swap is a coin flip, and pillar 2 requires randomness to arrive as a *priceable offer*. Amendment to the brief |
+| 2026-09-16 | **V5 — one market, six foods on Gazillionaire's 8× bands, which are also the training programme** | The best structural idea in the redesign: every market decision is also a training decision. The near-equal 8× within-good and 9× across-good spreads make cash-bound and hold-bound different games, which is a progression curve with nothing to buy |
+| 2026-09-16 | **V6 — food bonuses keep a light stat aim rather than being fully random** | Amendment to the brief. If the only difference is magnitude, five of the six goods are pure trade goods and feeding collapses to "buy the best I can afford" |
+| 2026-09-16 | **V7 — shelf depth falls with tier; ~8 units of Ambrosia a planet** | Jesse's fix to the fill-the-hold-with-exotics problem, adopted. It also forces the big trade to be assembled over several weeks under a fog, which makes it a plan rather than a purchase |
+| 2026-09-16 | **V8 — the Train state is cut; a dog eats and gains every week, and chooses only Race or Rest** | With food no longer gated behind a state, Train had nothing to do. Three binaries a week instead of three ternaries, which is most of the click budget cut |
+| 2026-09-16 | **V9 — Trap is folded into Acceleration, not deleted** | Deleting it would make the trap draw worthless again and waste D37 entirely. Folding gets to three stats and keeps `bendCraft`, the rail edge and the bought box all working |
+| 2026-09-16 | **V10 — no fuel, no upkeep, no wages, no debt, no bankruptcy; food is the only running cost** | Pillar 5. Nobody should be dead at week 6 of a game with friends. The consequence is that §6.3's empty-hold penalty is carrying the whole economy's pressure and must be real |
+| 2026-09-16 | **V11 — staff are two trainers paid 1–10% of race prize money** | Commission is self-balancing and is what makes randomly-dealt staff safe. A wage is what broke the Fixer (D42) and made three slots a trap (D30). Side effect worth keeping: the same trainer is cheap for a trader and dear for a racer |
+| 2026-09-16 | **V12 — running styles, hidden until a dog races, then public to the table** | The highest-value-per-unit-of-work idea in the redesign: it makes 30 races watchable, gives every stat a style that loves it, and creates a field to read. Public-after-racing is what makes §7.3 work and stops the game rewarding note-taking |
+| 2026-09-16 | **V13 — ⚠️ the ±30% daily variance is on the style's *expression*, not on the dog's speed** | Amendment to the brief, and the most important number in v3. v2 D13 already learned that a 20% multiplier range is violent enough to make everything else invisible. Varying the *shape* of the run keeps all the drama and none of the damage |
+| 2026-09-16 | **V14 — ⚠️ front-runners burning each other out is an explicit contest rule, because it does not emerge** | Caught in review: independent pace curves do not interact, so three front-runners would simply each run their own race. The rule is positional, follows the bend-clash precedent, and **is to be cut rather than tuned if the closer's gap is under 4 points** |
+| 2026-09-16 | **V15 — the seven fact-gated race types are cut for three open purse tiers** | They reward a broad stable you built; v3 deals you three dogs and has no market, so eligibility would be luck. One sentence instead of seven rows, with the depth moved into styles |
+| 2026-09-16 | **V16 — declarations are made in turn order and are public as they are made** | Makes turn order two-sided: first pick of a finite shelf against last look at the field. Without it, running styles would matter only to the bettor and §5's whole strategic layer would collapse |
+| 2026-09-16 | **V17 — the Fixer is cut as a person; the bribe and the sabotage become Back Alley events** | v2 found a wage does not pay for a twice-a-season service (D42) and a price list does (D45). v3 takes it one step further: something used twice a season is an *event*. Free targeting is Jesse's call and is flagged as the sharpest open question |
+| 2026-09-16 | **V18 — championship points and the purse are cut; net worth is the whole scoring system** | The purse paid whoever was already winning (D39) and a multi-season game would need a second scoreboard on top of the one nobody reads |
+| 2026-09-16 | **V19 — 10 weekends a season, 1–5 seasons or a net-worth target; everything carries over, with a 3-click off-season** | Jesse's call on all three. The off-season exists so a 5-season game has an arc instead of three ageing dogs and a slow decay |
+| 2026-09-16 | **V20 — hotseat local multiplayer is what the rules are written for; Explore, Kennel and Bookie resolve simultaneously** | The single biggest pacing lever in the design. Only the shared shelf and the public declaration board need a turn order at all |
+
+---
+
+## 14. Open questions ❓
+
+1. **Does free-target sabotage survive contact with eight friends?** §9.3. Either the best part of
+   the evening or the end of it, and nothing but playtest will say which.
+2. **How big is the field-shape betting overlay?** §5.6. If backing the lone closer blind beats the
+   margin, the book needs to see one more thing.
+3. **Is one race enough to read a style?** §5.4 assumes yes, on the strength of the commentary. If
+   it takes three, styles arrive too late to use in a ten-week season.
+4. **Is an injury too punishing with three dogs?** §4.4. The free local runner is the guard; the
+   base rate is the dial.
+5. **Should the three races run in split view?** §7.5. Cuts watching time by two thirds at a cost
+   in drama.
+6. **Does the Target mode produce a good ending or an anticlimax?** Somebody crossing the line on
+   week 4 of season 2 may end the game before it has a shape.
+7. **Are 80 events enough for a fifth play-through?** §9.1. The deck is the whole content budget
+   now.
+8. **Do 18 planets still feel distinct** when the only things that vary are the track, the food band
+   and the three doors? §12.
+
+---
+
+## 15. Deliberately out of v3
+
+Kept as a list so ideas have to earn their way back in.
+
+- Breeding, bloodlines, stud fees.
+- Any market other than food.
+- Buying or selling dogs, staff, ship parts, gear or information.
+- Loans, debt, bankruptcy, elimination.
+- Fuel, upkeep, wages.
+- A fourth stat, a fourth running style, a seventh food.
+- Race types gated on anything but purse.
+- Championship points, reputation, sponsors as a system.
+- Throwing your own races.
+- Weather, going and track bias as separate systems.
+- Lay betting.
