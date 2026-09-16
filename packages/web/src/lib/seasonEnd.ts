@@ -42,7 +42,7 @@ export function worthSeries(s: GameState): WorthSeries[] {
     return {
       player: row.player,
       points,
-      bustWeek: row.player.flags.bankrupt ? points.length : null,
+      bustWeek: null,
       rank: i + 1,
     };
   });
@@ -139,40 +139,6 @@ function bestBet(s: GameState): Moment | null {
 }
 
 /**
- * The stewards. Session 1 raised the supplement to +12 speed and the harness went from reporting
- * zero of these to 1,835 fed and 151 caught across 800 seasons, so there is finally something
- * here worth printing.
- */
-function stewards(s: GameState): Moment {
-  let fed = 0;
-  let caught = 0;
-  for (const p of s.players) {
-    fed += p.stats.supplementsUsed;
-    caught += p.stats.supplementsCaught;
-  }
-  if (fed === 0) {
-    return {
-      key: 'stewards',
-      label: 'The stewards',
-      headline: s.toggles.cleanSport ? 'Clean Sport — nothing to find' : 'Nobody risked one',
-      detail: s.toggles.cleanSport
-        ? 'the supplement was off the table this season'
-        : 'thirteen weekends and not a single supplement fed',
-    };
-  }
-  const weeks = s.results.filter((r) => r.dopingCaught.length).map((r) => r.week);
-  const unique = [...new Set(weeks)];
-  return {
-    key: 'stewards',
-    label: 'The stewards',
-    headline: `${caught} caught of ${fed} fed`,
-    detail: unique.length
-      ? `swabs came back positive in week${unique.length === 1 ? '' : 's'} ${unique.join(', ')}`
-      : 'every one of them got away with it',
-  };
-}
-
-/**
  * The last week the lead actually changed hands. Session 1 measured the season as settled by
  * week 7.6 of 13 after the balance pass (6.5 before it), so this is the number that says whether
  * *this* season was a contest or a procession.
@@ -223,7 +189,11 @@ function leadChange(s: GameState): Moment | null {
 
 /** Everything the season already knows about itself, in the order it is worth reading. */
 export function moments(s: GameState): Moment[] {
-  return [biggestUpset(s), bestDog(s), bestBet(s), leadChange(s), stewards(s)].filter(
+  // ⚠️ **The stewards' moment is gone with the supplement and the fixing (BUILD_PLAN_V3 §2.1).**
+  // GDD_V3 §9.3 brings the best story generator in the game back as a Back Alley event in Phase D,
+  // with the caught saboteur named publicly to the whole table — which is the version v2 D40 said it
+  // was waiting for hotseat to make bite. That is the moment to add here then.
+  return [biggestUpset(s), bestDog(s), bestBet(s), leadChange(s)].filter(
     (m): m is Moment => m !== null,
   );
 }

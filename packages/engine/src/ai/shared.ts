@@ -10,11 +10,9 @@ import {
   GOODS,
   KIBBLE_ID,
   STOCK_UNLIMITED,
-  TIER_ORDER,
   type Good,
 } from '../content/goods';
-import { cargoTotal } from '../economy/goods';
-import { buyPriceFor, cargoCap, hasStaff, trainerPoints, wageBill } from '../economy/staff';
+import { cargoTotal, HOLD_CAP } from '../economy/goods';
 import {
   RACE_TYPE_IDS,
   STAT_KEYS,
@@ -22,8 +20,6 @@ import {
   type Cargo,
   type Dog,
   type GoodId,
-  type StaffId,
-  type StaffRole,
   type GameState,
   type Id,
   type Planet,
@@ -144,9 +140,7 @@ export function bestAssignment(
 ): Assignment {
   const card = thisWeeksCard(s);
   const scale = opts.minPurseScale ?? 1;
-  const available = candidates.filter(
-    (d) => d.injuryWeeks === 0 && d.banWeeks === 0 && !opts.hold?.has(d.id),
-  );
+  const available = candidates.filter((d) => d.injuryWeeks === 0 && !opts.hold?.has(d.id));
   const dogs = available.filter((d) => !opts.reserve?.has(d.id));
   let best: Assignment = { plan: {}, value: 0 };
   const ev = new Map<string, number>();
@@ -232,15 +226,16 @@ export function weeklyFoodNeed(s: GameState, p: Player): number {
   return need * balance.foodPerDog * (p.sponsorWeeks > 0 ? 2 : 1);
 }
 
-/** Cash the AI keeps back for a fortnight of bills — the wage bill included, whatever it is. */
+/**
+ * Cash the AI keeps back for a fortnight of bills.
+ *
+ * ⚠️ **Upkeep, fuel and wages are all gone (BUILD_PLAN_V3 §2.1), so the reserve is food and nothing
+ * else** (GDD_V3 V10). That makes it much smaller than it was, which is correct and worth watching:
+ * a reserve that barely binds is a reserve that stops shaping the AI's spending, and Phase B's
+ * empty-hold penalty is what gives it teeth again.
+ */
 export function reserveCash(s: GameState, p: Player): number {
-  const dogs = ownDogs(s, p).length;
-  const weekly =
-    dogs * balance.upkeepPerDog +
-    balance.fuelBase +
-    wageBill(p) +
-    weeklyFoodNeed(s, p) * balance.foodPriceMax;
-  return weekly * 2;
+  return weeklyFoodNeed(s, p) * balance.foodPriceMax * 2;
 }
 
 /** The stat a trainer should work on: the weakest one, weighted by how much rating cares. */
@@ -321,10 +316,6 @@ export interface Plan {
   /** The hold as it will stand once the queued TradeFood actions have landed. */
   cargo: Cargo;
   reserve: number;
-  /** Slots already committed this phase, so two steps cannot both fill the last one. */
-  hired: number;
-  hiredRoles: Set<StaffRole>;
-  takenStaff: Set<StaffId>;
   /**
    * Crates already claimed off each shelf this phase.
    *
@@ -347,113 +338,10 @@ export function startPlan(s: GameState, playerId: Id): Plan {
     out: [],
     cash: p.cash,
     cargo: { ...p.cargo },
-    hired: 0,
-    hiredRoles: new Set(),
-    takenStaff: new Set(),
     shelfTaken: new Map(),
     reserve: reserveCash(s, p),
     kennel: ownDogs(s, p),
   };
-}
-
-/**
- * Harness-only: force one stable to **stack** a single role (GDD §8.3, D7).
- *
- * D7's acceptance row asks whether three of one role beats a mixed three by more than 5 points of
- * head-to-head, and a real head-to-head means both lines in the same season — so the override is per
- * stable rather than global. `keepStaff` is the only reader; nothing a player can reach sets it, and
- * the harness clears it between runs.
- *
- * Note what stacking actually buys, because it is the answer the row is probing: `bestStaff` means a
- * second trainer adds **nothing** — the best one trains — so three trainers is three wages for one
- * effect. That is the no-stacking-penalty design working as intended (the price is the gate), and
- * this probe is what turns that reasoning into a number.
- */
-export const STACK_OVERRIDE = new Map<Id, StaffRole>();
-
-export interface HireOptions {
-  /** Roles this agent will take on, most wanted first. */
-  want?: StaffRole[];
-  /**
-   * Weeks of the wage the stable must be able to cover before it signs. The gate GDD §8.3 asks
-   * for: a Prime trainer is 1,400 a week, so at `cover: 4` a stable needs 5,600 spare to reach
-   * one and will take a Proper instead until it does.
-   */
-  cover?: number;
-  /** Ignore the cover test and take the dearest thing on offer. The careless agent's line. */
-  reckless?: boolean;
-}
-
-/*
- * ⚠️ `minTier` and `cheapest` used to live on the options above and are gone with Phase E.
- *
- * Both existed for the Fixer and for nothing else, and both were symptoms of trying to make a
- * per-job man behave on a per-week ladder: `minTier` stopped an agent filling its slot with a
- * Rough fixer who could not sabotage (a shape D41 then deleted), and `cheapest` made it take the
- * lowest wage in the one role whose value does not scale with the weeks you hold it. The Fixer is
- * hired by the job now and is not on this list at all, so a rule about how to *rank wages* for him
- * has nothing to rank. Kept as a note rather than as two unused fields, because an option nothing
- * sets is a trap for whoever adds the seventh role (E-D45).
- */
-
-/**
- * What Normal will take on (GDD §14): the two roles that pay for themselves on a racing stable.
- *
- * Measured, not assumed. With `['trainer', 'vet', 'trader']` Normal filled all three slots, paid
- * 4,200 a week more and lost 12% of its end worth, because the Trader's hold is worth nothing to a
- * stable that does not work the spread. The roles that serve the *other* two roads belong to the
- * agents that play them — Hard, and BUILD_PLAN §7a.5's trader — which is decision quality rather
- * than a handicap.
- */
-const DEFAULT_WANT: readonly StaffRole[] = ['trainer', 'vet'];
-
-/**
- * Fill the staff slots (GDD §8.3, §14).
- *
- * One step for all six roles rather than a `keepTrainer` and a `keepVet`, because D7 made the
- * question "what is worth a slot" instead of "have I got one of each". Within a role it takes the
- * **best tier it can cover**, which is what makes the wage the gate rather than the tier list.
- *
- * Deterministic: offers are walked in the order the planet rolled them, and ties in tier are
- * broken by that order, so no randomness enters an agent's decision.
- */
-export function keepStaff(plan: Plan, opts: HireOptions = {}): void {
-  const { s, p, playerId, out } = plan;
-  const forced = STACK_OVERRIDE.get(playerId);
-  // A forced stacker wants the same role in every slot, so the walk below can fill all three.
-  const want = forced
-    ? (Array(balance.staffSlots).fill(forced) as StaffRole[])
-    : (opts.want ?? DEFAULT_WANT);
-  const cover = opts.cover ?? 4;
-  const weeksLeft = balance.weeks - s.week + 1;
-  let slots = balance.staffSlots - p.staff.length - plan.hired;
-  if (slots <= 0) return;
-  for (const role of want) {
-    if (slots <= 0) return;
-    // A forced stack takes the same role again; everything else takes one of each.
-    if (!forced && (hasStaff(p, role) || plan.hiredRoles.has(role))) continue;
-    if (forced && plan.hiredRoles.has(role)) continue;
-    const offers = s.planet.staff.filter((o) => o.role === role && !plan.takenStaff.has(o.id));
-    if (!offers.length) continue;
-    // Best tier first, then whatever the stable can actually cover: the wage is the gate.
-    const ranked = [...offers].sort(
-      (a, b) => TIER_ORDER.indexOf(b.tier) - TIER_ORDER.indexOf(a.tier),
-    );
-    const weeks = Math.min(cover, weeksLeft);
-    const pick = opts.reckless
-      ? ranked[0]
-      : ranked.find((o) => plan.cash > plan.reserve + o.wage * weeks);
-    if (!pick) continue;
-    if (opts.reckless && plan.cash <= pick.wage) continue;
-    // The action is queued; `p.staff` is the live object and is left alone — see the note in
-    // `decideCrook`, where the same mistake threw.
-    out.push({ t: 'HireStaff', playerId, staffId: pick.id });
-    plan.cash -= pick.wage;
-    plan.hired++;
-    if (!forced) plan.hiredRoles.add(role);
-    plan.takenStaff.add(pick.id);
-    slots--;
-  }
 }
 
 /**
@@ -465,7 +353,6 @@ export function keepStaff(plan: Plan, opts: HireOptions = {}): void {
  * week — so an agent that does not price the feed will rest dogs it should be training.
  */
 export function ratingPerTrainWeek(p: Player): number {
-  const trainer = trainerPoints(p);
   const meanWeight =
     (balance.ratingWeightSpeed +
       balance.ratingWeightAccel +
@@ -483,7 +370,7 @@ export function ratingPerTrainWeek(p: Player): number {
     const gain = ((g.gainMin + g.gainMax) / 2) * RATING_WEIGHT[stat];
     if (gain > feed) feed = gain;
   }
-  return trainer * meanWeight + Math.max(kibble, feed);
+  return Math.max(kibble, feed);
 }
 
 const RATING_WEIGHT: Record<StatKey, number> = {
@@ -513,18 +400,18 @@ export interface FeedBuyOptions {
  * `reckless` is D26's fix, and it is the only line here that is deliberately bad: an Easy stable
  * buys the dearest crate on the shelf whether or not it has a dog to eat it, which is the first
  * weakness in the game that **costs it money while it is still racing**. Every other handicap §14
- * gives Easy — never hires, never bets, never buys — is a saving.
+ * gives Easy — never trains, never bets — is a saving.
  */
 export function buyFeedPlan(plan: Plan, opts: FeedBuyOptions = {}): void {
-  const { s, p, playerId, out } = plan;
+  const { s, playerId, out } = plan;
   if (!s.toggles.trading) return;
   const want = opts.crates ?? 2;
   const spendFraction = opts.spend ?? 0.5;
   let budget = Math.max(0, (plan.cash - plan.reserve) * spendFraction);
-  const room = () => cargoCap(p) - cargoTotal(plan.cargo);
+  const room = () => HOLD_CAP - cargoTotal(plan.cargo);
 
   const buy = (g: Good, crates: number): void => {
-    const price = buyPriceFor(p, s.planet.goods[g.id].buy);
+    const price = s.planet.goods[g.id].buy;
     const available = Math.min(
       availableHere(plan, g.id),
       room(),
@@ -560,8 +447,8 @@ export function buyFeedPlan(plan: Plan, opts: FeedBuyOptions = {}): void {
     // Best tier the budget reaches, which is how a good week buys Prime and a bad one buys Rough.
     const options = feedsFor(stat)
       .filter((g) => availableHere(plan, g.id) > 0)
-      .sort((a, b) => TIER_ORDER.indexOf(b.tier!) - TIER_ORDER.indexOf(a.tier!));
-    const pick = options.find((g) => buyPriceFor(p, s.planet.goods[g.id].buy) <= budget);
+      .sort((a, b) => b.priceMult - a.priceMult);
+    const pick = options.find((g) => s.planet.goods[g.id].buy <= budget);
     if (pick) buy(pick, need);
   }
 }
@@ -594,7 +481,7 @@ export function stateHold(plan: Plan, opts: StateOptions = {}): Set<Id> {
   const weeksLeft = balance.weeks - s.week;
   const gain = ratingPerTrainWeek(p);
   for (const d of plan.kennel) {
-    if (d.injuryWeeks > 0 || d.banWeeks > 0) continue; // Layoff decides for itself
+    if (d.injuryWeeks > 0) continue; // Layoff decides for itself
     if (d.fitness < raceAbove) {
       hold.add(d.id);
       continue;
@@ -644,7 +531,7 @@ export function setStates(plan: Plan, racing: ReadonlySet<Id>, opts: StateOption
   const mayTrain = opts.train ?? true;
   for (const d of plan.kennel) {
     if (racing.has(d.id)) continue;
-    if (d.injuryWeeks > 0 || d.banWeeks > 0) continue; // Layoff: nothing to choose
+    if (d.injuryWeeks > 0) continue; // Layoff: nothing to choose
     const train = mayTrain && d.fitness >= restBelow;
     const state = train ? 'train' : 'rest';
     const stat = weakestWeightedStat(d);
@@ -658,30 +545,6 @@ export function setStates(plan: Plan, racing: ReadonlySet<Id>, opts: StateOption
     });
     d.weekState = state;
     if (train) d.trainStat = stat;
-  }
-}
-
-// Measured and rejected, again (v2 Phase A). GDD §5.2 and §6.4 reason that a dog takes about
-// seven races in thirteen weeks and a three-race card has thirty-nine traps, so a stable wants
-// five dogs — and the kennel module is how you get a fifth. The harness disagrees: buying it
-// costs Normal five thousand Bones of end worth and nine points of head-to-head against Easy.
-// The module is 2,000, the extra dog's upkeep another 1,950 over a season, and the five extra
-// races it buys are the *cheapest* five, because the good races were already covered. This is
-// M4's ship-upgrade finding surviving the rules that were supposed to overturn it, and it is
-// why `dogs owned at week 13` comes in under its target: owning 4.5 dogs is not yet worth it.
-// The lever is ship economics, which GDD §9.2 and §20 Q6 hand to Phase C.
-
-/** Repay Fat Tony first, then the bank, out of anything above the reserve. */
-export function repayLoans(plan: Plan): void {
-  const { p, playerId, out } = plan;
-  const loans = [...p.loans].sort((a) => (a.lender === 'shark' ? -1 : 1));
-  for (const loan of loans) {
-    const spare = plan.cash - plan.reserve;
-    const amount = Math.min(loan.principal, Math.floor(spare));
-    if (amount >= 100) {
-      out.push({ t: 'Repay', playerId, lender: loan.lender, amount });
-      plan.cash -= amount;
-    }
   }
 }
 
@@ -700,72 +563,6 @@ export function coverageGaps(kennel: readonly Dog[]): Set<RaceTypeId> {
     if (!covered) gaps.add(race);
   }
   return gaps;
-}
-
-export interface MarketOptions {
-  /** Multiple of the asking price the stable insists on holding before it buys. */
-  buyCashMultiple?: number;
-  /** How much better than the worst dog a purchase has to be. */
-  minRatingGain?: number;
-  /** How much better it has to be to be worth selling the worst dog to make room. */
-  minRatingGainForSwap?: number;
-  /** Also buy a dog priced under this multiple of its book value — net worth counts dogs. */
-  bargainFactor?: number;
-  /** Never spend the reserve. */
-  keepReserve?: boolean;
-  /** Buy into an empty kennel slot without the rating comparison. Defaults to true. */
-  fillEmptySlots?: boolean;
-  /**
-   * Rating points to credit a market dog with for each race type it covers that the kennel
-   * cannot (GDD §6.3). This is what the fact-gated card gives a good stable to be clever about: a
-   * 40-rated maiden is worth more to a kennel of finished dogs than its number says, because it
-   * is the only runner they have for a third of the pool. Hard prices it; Normal buys on rating.
-   */
-  coverageGain?: number;
-}
-
-/** Buy a better dog when the stable can plainly afford one (GDD §14 Normal). */
-export function dogMarket(plan: Plan, opts: MarketOptions = {}): void {
-  const { s, p, playerId, out } = plan;
-  const cashMultiple = opts.buyCashMultiple ?? balance.aiBuyCashMultiple;
-  const gain = opts.minRatingGain ?? 3;
-  const swapGain = opts.minRatingGainForSwap ?? 8;
-  const dogs = plan.kennel;
-  const worst = [...dogs].sort((a, b) => a.rating - b.rating)[0];
-  // What the kennel cannot field, and what a dog on the market is worth for closing it.
-  const gaps = opts.coverageGain ? coverageGaps(dogs) : new Set<RaceTypeId>();
-  const worthOf = (d: Dog) =>
-    d.rating +
-    [...gaps].filter((race) => raceType(race).eligible(d)).length * (opts.coverageGain ?? 0);
-  // The shared shelf plus whatever this stable's own Scout turned up, which nobody else can buy
-  // (GDD §8.3). An agent that could not see its own finds would be paying a wage for nothing.
-  const forSale = [...s.planet.marketDogIds, ...(s.planet.finds[playerId]?.dogIds ?? [])]
-    .map((id) => s.dogs[id])
-    .filter((d): d is Dog => !!d && !d.fellOffAShip)
-    .sort((a, b) => worthOf(b) - worthOf(a));
-  const slotsFree = p.dogIds.length < p.kennelSlots;
-  // An empty kennel is its own reason to buy. GDD §5.2 and §6.4: a dog can take about seven races
-  // in thirteen weeks, so a three-race card wants five dogs, and a stable of three leaves a third
-  // of the card to the locals however good those three are. Under v1's fitness numbers a fourth
-  // dog was only ever an upgrade; under §5.7 it is a runner.
-  const needBodies = opts.fillEmptySlots !== false && slotsFree;
-  for (const d of forSale) {
-    const price = d.askingPrice ?? dogValue(d);
-    const bargain = opts.bargainFactor !== undefined && price <= dogValue(d) * opts.bargainFactor;
-    if (plan.cash < price * cashMultiple) continue;
-    if (opts.keepReserve && plan.cash - price < plan.reserve) continue;
-    if (worst && worthOf(d) <= worst.rating + gain && !bargain && !needBodies) continue;
-    if (!slotsFree) {
-      if (!worst || dogs.length <= 1 || worthOf(d) < worst.rating + swapGain) continue;
-      out.push({ t: 'SellDog', playerId, dogId: worst.id });
-      plan.cash += Math.round(dogValue(worst) * balance.marketSellFactor);
-      plan.kennel.splice(plan.kennel.indexOf(worst), 1);
-    }
-    out.push({ t: 'BuyDog', playerId, dogId: d.id });
-    plan.cash -= price;
-    plan.kennel.push(d);
-    break;
-  }
 }
 
 export interface FoodOptions {
@@ -804,11 +601,10 @@ export interface FoodOptions {
  */
 /** Crates of one good this stable can still buy here, after whatever it has already queued. */
 export function availableHere(plan: Plan, id: GoodId): number {
-  const { s, playerId } = plan;
+  const { s } = plan;
   const market = s.planet.goods[id];
   if (market.stock === STOCK_UNLIMITED) return STOCK_UNLIMITED;
-  const consigned = s.planet.finds[playerId]?.goods[id] ?? 0;
-  return Math.max(0, market.stock + consigned - (plan.shelfTaken.get(id) ?? 0));
+  return Math.max(0, market.stock - (plan.shelfTaken.get(id) ?? 0));
 }
 
 function claim(plan: Plan, id: GoodId, crates: number): void {
@@ -820,7 +616,7 @@ function bestLeg(
   nextBand: readonly [number, number] | null,
 ): { good: Good; margin: number } | null {
   if (!nextBand) return null;
-  const { s, p } = plan;
+  const { s } = plan;
   const mid = (nextBand[0] + nextBand[1]) / 2;
   let best: { good: Good; margin: number } | null = null;
   for (const g of GOODS) {
@@ -828,7 +624,7 @@ function bestLeg(
     const market = s.planet.goods[g.id];
     if (availableHere(plan, g.id) <= 0 || market.buy <= 0) continue;
     const expectedSell = mid * g.priceMult * (1 - balance.foodSpread);
-    const margin = expectedSell - buyPriceFor(p, market.buy);
+    const margin = expectedSell - market.buy;
     // A relative floor as well as the absolute one: 40 Bones is a real margin on a 60-Bone crate
     // of kibble and noise on a 900-Bone crate of Prime speed feed.
     const floor = Math.max(balance.aiFoodSpreadMin, market.buy * balance.aiGoodsMarginMin);
@@ -878,9 +674,9 @@ export function tradeFoodPlan(plan: Plan, opts: FoodOptions = {}): void {
     const leg = bestLeg(plan, nextBand);
     if (leg) {
       const spend = Math.max(0, plan.cash - plan.reserve) * (opts.goodsSpend ?? 0.6);
-      const price = buyPriceFor(p, s.planet.goods[leg.good.id].buy);
+      const price = s.planet.goods[leg.good.id].buy;
       const buyable = Math.min(
-        cargoCap(p) - cargoTotal(plan.cargo) - need,
+        HOLD_CAP - cargoTotal(plan.cargo) - need,
         availableHere(plan, leg.good.id),
         Math.floor(spend / Math.max(1, price)),
       );
@@ -895,7 +691,7 @@ export function tradeFoodPlan(plan: Plan, opts: FoodOptions = {}): void {
 
   // ---- The staple: dinner, and the one-week spread every stable can see ----
   const aboard = plan.cargo[KIBBLE_ID];
-  const room = cargoCap(p) - cargoTotal(plan.cargo);
+  const room = HOLD_CAP - cargoTotal(plan.cargo);
   let units = 0;
   if (opts.fillHold) {
     const spend = Math.max(0, plan.cash - plan.reserve);

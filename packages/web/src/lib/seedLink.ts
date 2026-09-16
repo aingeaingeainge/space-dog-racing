@@ -37,7 +37,6 @@ const AI_TOKENS: Record<string, Difficulty> = {
 const HUMAN_TOKENS = ['h', 'human'];
 
 const TOGGLE_TOKENS: Record<string, keyof Toggles> = {
-  clean: 'cleanSport',
   nobet: 'betting',
   notrade: 'trading',
   casual: 'casualEvents',
@@ -59,7 +58,6 @@ export function playersParam(players: readonly PlayerSetup[]): string {
 export function togglesParam(toggles: Partial<Toggles> | undefined): string {
   if (!toggles) return '';
   const on: string[] = [];
-  if (toggles.cleanSport) on.push('clean');
   if (toggles.betting === false) on.push('nobet');
   if (toggles.trading === false) on.push('notrade');
   if (toggles.casualEvents) on.push('casual');

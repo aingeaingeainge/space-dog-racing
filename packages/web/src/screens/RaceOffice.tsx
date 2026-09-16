@@ -1,12 +1,9 @@
-import { useState } from 'react';
 import {
-  vetRestBonus,
   balance,
   formatBones,
   planetOf,
   purseFor,
   thisWeeksCard,
-  TIER_LABEL,
   type Dog,
   type GameState,
   type Player,
@@ -16,7 +13,6 @@ import { DogThumb } from '../components/DogCard';
 import { Panel } from '../components/Panel';
 import { TicketCard } from '../components/TicketCard';
 import { Badge, Notes, StableName, Traits } from '../components/ui';
-import { NeonButton } from '../components/NeonButton';
 import { trackText } from '../lib/planetText';
 import {
   cannotRunReason,
@@ -30,81 +26,7 @@ import {
   raceTone,
   TRAPS,
 } from '../lib/selectors';
-import { priceABox } from '../lib/priceTag';
 import { useGame } from '../store/gameStore';
-
-/**
- * A word with a steward (GDD §13). The bribe belongs on the declaration screen because it is a
- * decision about the *draw*, and the draw is made when declarations lock — so this is the last
- * moment it can be placed, standing next to the entry it depends on.
- *
- * ⚠️ **Priced in Bones, at this race's purse, on this track.** "Choose your dog's trap draw, 800"
- * is §8.4's supplement again: a rule with its price in the wrong units, and worse, a rule that was
- * worth nothing at all until D37 gave the draw an effect. `priceABox` reads the engine's own
- * `drawAdvantage`, which is zero on a track with no bends — so on the Void Derby's straight this
- * panel says plainly that the box is a starting position and to keep your money.
- */
-function StewardsBox({
-  s,
-  me,
-  race,
-  dogId,
-}: {
-  s: GameState;
-  me: Player;
-  race: RaceTypeId;
-  dogId: string;
-}) {
-  const dispatch = useGame((g) => g.dispatch);
-  const [trap, setTrap] = useState(1);
-  // Hired at the moment there is a job, from whoever is on this planet this week (E-D45).
-  const fixer = s.planet.fixer;
-  if (s.toggles.cleanSport || !fixer || !dogId) return null;
-  const bought = s.fixes.find(
-    (f) => f.playerId === me.id && f.week === s.week && f.kind === 'bribe',
-  );
-  const entry = s.fields?.find((f) => f.race === race)?.entries.find((e) => e.dogId === dogId);
-  const price = priceABox(s, race, entry?.odds ?? null, 0);
-  const why = me.flags.fixerBarred
-    ? 'The stewards have your name — nobody will take your money this season'
-    : bought
-      ? bought.race === race
-        ? `Already bought trap ${bought.trap}`
-        : `${fixer.name} has done his one job for you this weekend`
-      : me.cash < price.fee
-        ? `You cannot cover the ${formatBones(price.fee)}`
-        : null;
-
-  return (
-    <div className="stack tight-p">
-      <span className="muted">
-        {fixer.name}, {TIER_LABEL[fixer.tier].toLowerCase()}, is drinking here this week.{' '}
-        {price.line}
-      </span>
-      <div className="row">
-        <label>
-          <span className="muted">Box</span>{' '}
-          <select value={trap} onChange={(e) => setTrap(Number(e.target.value))}>
-            {Array.from({ length: TRAPS }, (_, i) => (
-              <option key={i + 1} value={i + 1}>
-                {i + 1}
-                {i === 0 ? ' — the rail' : i === TRAPS - 1 ? ' — widest' : ''}
-              </option>
-            ))}
-          </select>
-        </label>
-        <NeonButton
-          disabled={!!why || price.advantage <= 0}
-          title={why ?? `${fixer.name} has a word with a steward`}
-          onClick={() => dispatch({ t: 'BribeSteward', playerId: me.id, race, dogId, trap })}
-        >
-          Have a word · {formatBones(price.fee)}
-        </NeonButton>
-        {why ? <span className="why">{why}</span> : null}
-      </div>
-    </div>
-  );
-}
 
 /**
  * What the week costs, dog by dog (GDD §5.7, §6.5).
@@ -135,7 +57,7 @@ function WeekLedger({ s, me, dogs }: { s: GameState; me: Player; dogs: Dog[] }) 
       </thead>
       <tbody>
         {dogs.map((d) => {
-          const f = fitnessOutlook(d, me);
+          const f = fitnessOutlook(d);
           const barred = cannotRunReason(s, d);
           const race = declaredRace(s, me.id, d.id);
           return (
@@ -187,8 +109,7 @@ export function RaceOffice({ s, me }: { s: GameState; me: Player }) {
         sub="one runner per race; a dog may race up a class, never down"
         actions={
           <span className="muted">
-            {dogs.filter((d) => d.injuryWeeks === 0 && d.banWeeks === 0).length} of {dogs.length}{' '}
-            dogs fit to run
+            {dogs.filter((d) => d.injuryWeeks === 0).length} of {dogs.length} dogs fit to run
           </span>
         }
       >
@@ -222,7 +143,7 @@ export function RaceOffice({ s, me }: { s: GameState; me: Player }) {
             sp.purseMult ? `${planet.name} adds ×${sp.purseMult} to every purse.` : null,
             sp.winningsTax ? `${pct(sp.winningsTax)} of any prize money is taxed here.` : null,
             sp.localsNervy ? 'The locals are Nervy: they lose 5% in traps 1 and 8.' : null,
-            `A run costs ${balance.fitnessPerRace} fitness and a rest returns ${balance.fitnessRest}${vetRestBonus(me) ? ` (${balance.fitnessRest + vetRestBonus(me)} with your vet)` : ''}; below ${balance.fitnessScaleBelow} every stat is scaled down. What you enter this weekend is what you cannot enter next.`,
+            `A run costs ${balance.fitnessPerRace} fitness and a rest returns ${balance.fitnessRest}; below ${balance.fitnessScaleBelow} every stat is scaled down. What you enter this weekend is what you cannot enter next.`,
           ]}
         />
         <WeekLedger s={s} me={me} dogs={dogs} />
@@ -233,7 +154,7 @@ export function RaceOffice({ s, me }: { s: GameState; me: Player }) {
           const purse = purseFor(s, race);
           const mine = s.declarations[race][me.id] ?? '';
           const rivals = s.players
-            .filter((p) => p.id !== me.id && !p.flags.bankrupt)
+            .filter((p) => p.id !== me.id)
             .map((p) => ({ p, dogId: s.declarations[race][p.id] }));
           const declaredHere = rivals.filter((r) => r.dogId).length + (mine ? 1 : 0);
 
@@ -258,7 +179,7 @@ export function RaceOffice({ s, me }: { s: GameState; me: Player }) {
                   {dogs.map((d) => {
                     const bad = ineligibleReason(d, race);
                     const other = declaredRace(s, me.id, d.id);
-                    const f = fitnessOutlook(d, me);
+                    const f = fitnessOutlook(d);
                     return (
                       <option key={d.id} value={d.id} disabled={!!bad}>
                         {d.name} · {d.rating} · fit {f.now} → {f.racing} if it runs
@@ -284,8 +205,6 @@ export function RaceOffice({ s, me }: { s: GameState; me: Player }) {
                 {declaredHere} declared · {Math.max(0, TRAPS - declaredHere)} local dogs will fill
                 the rest, rating about {localRatingFor(race, major)}
               </p>
-
-              <StewardsBox s={s} me={me} race={race} dogId={mine} />
 
               <table className="rivals">
                 <tbody>

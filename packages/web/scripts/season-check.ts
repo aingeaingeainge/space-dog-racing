@@ -9,29 +9,17 @@
  * Not part of `npm test` (which is the engine's own suite); this is the UI's end-to-end check.
  */
 import {
-  balance,
-  buyPriceFor,
-  cargoCap,
   cargoTotal,
-  GOODS,
+  HOLD_CAP,
   KIBBLE_ID,
-  TIER_ORDER,
   bettingMargin,
   createSeason,
   drive,
-  dogSalePrice,
-  dogValue,
-  fuelCost,
-  jobCost,
-  loanCap,
   maxStakeFor,
-  outstanding,
   planetOf,
   replay,
-  upgradePrice,
   raceType,
   thisWeeksCard,
-  RACE_TYPE_IDS,
   type Action,
   type Dog,
   type GameState,
@@ -61,7 +49,7 @@ function ownDogs(s: GameState, p: Player): Dog[] {
 }
 
 function eligibleFor(d: Dog, race: RaceTypeId): boolean {
-  return d.injuryWeeks === 0 && d.banWeeks === 0 && raceType(race).eligible(d);
+  return d.injuryWeeks === 0 && raceType(race).eligible(d);
 }
 
 /**
@@ -87,187 +75,37 @@ function declarations(s: GameState, kennel: Dog[], p: Player): Action[] {
 /** Everything a human can do at the planet's venues, with the screens' own guards. */
 function planetTurn(s: GameState, p: Player, tally: Tally): Action[] {
   const out: Action[] = [];
-  const planet = planetOf(s.planet.planetId);
-  const sp = planet.special;
   const pre = s.phase === 'planetPre';
   let cash = p.cash;
   let cargo = cargoTotal(p.cargo);
   let kibble = p.cargo[KIBBLE_ID];
   const dogs = ownDogs(s, p);
-  const kennel = [...dogs]; // what we will own once this turn's buys and sells have landed
-  let slots = p.kennelSlots - dogs.length;
-  let hires = 0;
+  const kennel = [...dogs];
 
-  // --- Saloon: staff and credit. Three slots, any mix (GDD §8.3, D7), so the walk-through fills
-  // them with whatever is drinking here and then lets them all go in week 9 — which is what walks
-  // both the slot limit and the FireStaff refusal that guards a Trader's hold.
-  if (pre) {
-    // ⚠️ §13 is not hired here any more (E-D45). The Fixer used to be taken first and deliberately,
-    // into the last slot if that is what it took, because his was the only path in the game with an
-    // action in two phases, a roll on race day and a refusal that outlives the season — and none of
-    // it was reachable without a hire. It is reachable without one now: the jobs are bought where
-    // they are placed, so the walk-through's Race Office and Bookie steps below carry the whole of
-    // the road and this loop is back to being about slots and wages.
-    for (const offer of s.planet.staff) {
-      if (p.staff.length + hires >= balance.staffSlots - 1) continue;
-      if (cash <= offer.wage * 4) continue;
-      out.push({ t: 'HireStaff', playerId: p.id, staffId: offer.id });
-      cash -= offer.wage;
-      hires++;
-      bump(tally, 'HireStaff');
-    }
-  }
-  // Week 9: the wage bill bites and everybody goes. A Trader's hold goes with him, so this is also
-  // the check that a stable carrying more than its ship can hold is refused rather than spilled.
-  if (pre && s.week === 9) {
-    for (const o of p.staff) {
-      out.push({ t: 'FireStaff', playerId: p.id, staffId: o.id });
-      bump(tally, 'FireStaff');
-    }
-  }
   // GDD §5.7: the walk-through player plans every dog's week the way the Kennels' own "Plan the
   // week" button does — race anything fresh, train the middle, rest the tired. The declarations
   // below then flip whatever they enter back to 'race', which is the friendly implication in
   // action and the reason this runs first.
   if (pre) {
     for (const d of kennel) {
-      if (d.injuryWeeks > 0 || d.banWeeks > 0) continue;
+      if (d.injuryWeeks > 0) continue;
       const state: WeekState = d.fitness >= 65 ? 'race' : d.fitness >= 45 ? 'train' : 'rest';
       if (d.weekState === state) continue;
       out.push({ t: 'SetDogState', playerId: p.id, dogId: d.id, state });
       bump(tally, 'SetDogState');
     }
   }
-  for (const lender of ['bank', 'shark'] as const) {
-    const here = lender === 'bank' ? sp.bank : sp.shark;
-    if (!here) continue;
-    const owed = outstanding(p, lender);
-    const room = loanCap(lender) - owed;
-    if (pre && room >= 1000 && (cash < 2500 || (owed === 0 && s.week <= 6))) {
-      out.push({ t: 'Borrow', playerId: p.id, lender, amount: 1000 });
-      cash += 1000;
-      bump(tally, 'Borrow');
-    } else if (owed > 0 && cash > owed + 3000) {
-      const amount = Math.min(owed, Math.floor(cash));
-      out.push({ t: 'Repay', playerId: p.id, lender, amount });
-      cash -= amount;
-      bump(tally, 'Repay');
-    }
-  }
 
-  // --- Market: sell the worst, buy the best that beats it ---
-  const declared = RACE_TYPE_IDS.map((r) => s.declarations[r][p.id]).filter(Boolean);
-  const worst = [...dogs].sort((a, b) => a.rating - b.rating)[0];
-  if (
-    worst &&
-    dogs.length > 1 &&
-    !(pre && declared.includes(worst.id)) &&
-    (worst.age >= 6 || (slots <= 0 && s.week >= 5))
-  ) {
-    out.push({ t: 'SellDog', playerId: p.id, dogId: worst.id });
-    cash += dogSalePrice(worst, sp.buyerBonus ?? 0, sp.dogValueMod ?? 1);
-    kennel.splice(kennel.indexOf(worst), 1);
-    slots++;
-    bump(tally, 'SellDog');
-  }
-  if (pre) {
-    const forSale = s.planet.marketDogIds
-      .map((id) => s.dogs[id])
-      .filter((d): d is Dog => !!d)
-      .sort((a, b) => b.rating - a.rating);
-    for (const d of forSale) {
-      const price = d.askingPrice ?? dogValue(d);
-      if (slots <= 0 || price > cash - 1500) continue;
-      if (worst && d.rating <= worst.rating) continue;
-      out.push({ t: 'BuyDog', playerId: p.id, dogId: d.id });
-      cash -= price;
-      kennel.push(d);
-      slots--;
-      bump(tally, 'BuyDog');
-      break;
-    }
-  }
-
-  // --- Market gear, applied to a named dog in the Kennels ---
-  const target = [...kennel].sort((a, b) => b.rating - a.rating)[0];
-  if (target) {
-    if (s.planet.trackDayPasses) {
-      const price = upgradePrice('trackDay', planet, p);
-      if (price <= cash - 2000) {
-        out.push({ t: 'BuyUpgrade', playerId: p.id, upgrade: 'trackDay', dogId: target.id });
-        cash -= price;
-        bump(tally, 'BuyUpgrade');
-      }
-    }
-    if (s.planet.muzzlesInStock) {
-      const price = upgradePrice('muzzle', planet, p);
-      if (price <= cash - 2000) {
-        out.push({ t: 'BuyUpgrade', playerId: p.id, upgrade: 'muzzle', dogId: target.id });
-        cash -= price;
-        bump(tally, 'BuyUpgrade');
-      }
-    }
-    if (pre && !s.toggles.cleanSport && !target.supplemented) {
-      const price = upgradePrice('supplement', planet, p);
-      const rate = sp.dopingCatch ?? balance.supplementCatchBase;
-      if (rate <= 0.15 && price <= cash - 3000) {
-        out.push({ t: 'BuyUpgrade', playerId: p.id, upgrade: 'supplement', dogId: target.id });
-        cash -= price;
-        bump(tally, 'BuyUpgrade');
-      }
-    }
-  }
-
-  // --- Galaxy map: buy your way out of the fog (GDD §9.3). Every other week, so the action
-  // and its refusals both get walked, and the trader has a leg it can actually price.
-  const scoutWeek = s.week + balance.dossierReach;
-  if (pre && s.week % 2 === 1 && scoutWeek <= s.calendar.length) {
-    const price = upgradePrice('dossier', planet, p);
-    if (price <= cash - 4000) {
-      out.push({ t: 'BuyUpgrade', playerId: p.id, upgrade: 'dossier', week: scoutWeek });
-      cash -= price;
-      bump(tally, 'BuyUpgrade');
-    }
-  }
-
-  // --- Docks: ship, then kibble ---
-  for (const upgrade of ['engine', 'cargo', 'kennel', 'coldStore'] as const) {
-    if (upgrade === 'engine' && p.ship.speed >= balance.shipMaxSpeed) continue;
-    if (upgrade === 'kennel' && p.kennelSlots >= balance.kennelSlotsMax) continue;
-    if (upgrade === 'coldStore' && p.ship.coldStore) continue;
-    const price = upgradePrice(upgrade, planet, p);
-    if (price > cash - 9000) continue;
-    out.push({ t: 'BuyUpgrade', playerId: p.id, upgrade });
-    cash -= price;
-    bump(tally, 'BuyUpgrade');
-    break;
-  }
-  /**
-   * The feed counter (GDD §8.2). The walkthrough buys a crate for every dog it has set to Train,
-   * taking the best tier it can pay for — which is what walks the shelf limit, the consignment path,
-   * a Trader's discount and the "one crate per dog per Train week" consumption rule. A run that only
-   * bought kibble would be *surviving* the goods market rather than exercising it.
-   */
-  if (s.toggles.trading && pre) {
-    const wanted = new Set(
-      kennel.filter((d) => d.weekState === 'train' && d.injuryWeeks === 0).map((d) => d.trainStat),
-    );
-    for (const stat of wanted) {
-      const options = GOODS.filter(
-        (g) =>
-          g.stat === stat &&
-          (s.planet.goods[g.id].stock > 0 || (s.planet.finds[p.id]?.goods[g.id] ?? 0) > 0),
-      ).sort((a, b) => TIER_ORDER.indexOf(b.tier!) - TIER_ORDER.indexOf(a.tier!));
-      const pick = options.find(
-        (g) => buyPriceFor(p, s.planet.goods[g.id].buy) <= cash - 1500 && cargoCap(p) - cargo > 0,
-      );
-      if (!pick) continue;
-      out.push({ t: 'TradeFood', playerId: p.id, good: pick.id, units: 1 });
-      cash -= buyPriceFor(p, s.planet.goods[pick.id].buy);
-      cargo += 1;
-      bump(tally, 'TradeFood');
-    }
-  }
+  // --- Market: the food trade, which is the only market left (GDD_V3 §6) ---
+  //
+  // ⚠️ **Six venues' worth of walk-through went with the systems behind them (BUILD_PLAN_V3 §2.1)**:
+  // the Saloon's hires and the week-9 clear-out, the bank and Fat Tony, the dog market's sell-the-
+  // worst-buy-the-best, the gear, the dossier, and the ship. What is left is the three decisions
+  // GDD_V3 §1.1 says v3 has at this point in the weekend, and the check is thinner for it.
+  //
+  // **This is the row to watch when Phase B lands**: §6.2's six goods with shelf depth and a sticky
+  // per-dog diet are exactly the kind of thing a walk-through can *survive* without exercising, and
+  // a check that passes because it stopped checking is worse than a red one.
   if (s.toggles.trading) {
     const need = kennel.length;
     const next = s.calendar[s.week];
@@ -278,10 +116,10 @@ function planetTurn(s: GameState, p: Player, tally: Tally): Action[] {
     if (m.sell > nextMid + 20 && kibble > need) units = -(kibble - need);
     else if (nextMid - m.buy > 20) {
       const spend = Math.max(0, cash - 2500);
-      units = Math.min(cargoCap(p) - cargo, Math.floor(spend / m.buy));
+      units = Math.min(HOLD_CAP - cargo, Math.floor(spend / m.buy));
     } else if (kibble < need) {
       units = Math.min(
-        cargoCap(p) - cargo,
+        HOLD_CAP - cargo,
         need - kibble,
         Math.floor(Math.max(0, cash - 500) / m.buy),
       );
@@ -299,31 +137,6 @@ function planetTurn(s: GameState, p: Player, tally: Tally): Action[] {
     const declares = declarations(s, kennel, p);
     out.push(...declares);
     bump(tally, 'Declare', declares.length);
-    // GDD §13, the Race Office half: buy a box for the runner in the richest race we filled. The
-    // draw is made at the lock, so this is the last moment it can be placed — and the swap is
-    // applied after every other rule that moves dogs between boxes, which is the thing worth
-    // walking rather than merely surviving.
-    // The man is this weekend's man and his price is his own (E-D45), so the walk-through prices
-    // the job the same way the Race Office does rather than against a constant.
-    const fixer = s.planet.fixer;
-    const fee = fixer ? jobCost('bribe', fixer.tier) : 0;
-    const canFix =
-      !s.toggles.cleanSport &&
-      !!fixer &&
-      !p.flags.fixerBarred &&
-      !s.fixes.some((f) => f.playerId === p.id && f.week === s.week && f.kind === 'bribe');
-    const richest = declares[0];
-    if (canFix && richest?.t === 'Declare' && richest.dogId && cash > fee * 3) {
-      out.push({
-        t: 'BribeSteward',
-        playerId: p.id,
-        race: richest.race,
-        dogId: richest.dogId,
-        trap: 1,
-      });
-      cash -= fee;
-      bump(tally, 'BribeSteward');
-    }
   }
   out.push({ t: 'EndPhase', playerId: p.id });
   return out;
@@ -334,29 +147,11 @@ function bettingTurn(s: GameState, p: Player, tally: Tally): Action[] {
   const out: Action[] = [];
   if (!s.fields) return [{ t: 'EndPhase', playerId: p.id }];
   let cash = p.cash;
-  // GDD §13, the Bookie half: nobble the favourite in the first race on the card, then back the
-  // second favourite into the price that has not moved. One job a weekend, so this fires at most
-  // once — and over three seeds and thirteen weeks it walks the stewards' enquiry, the fine sized
-  // against the stake, and the ban that stops the next hire.
-  const fixer = s.planet.fixer;
-  const fee = fixer ? jobCost('sabotage', fixer.tier) : 0;
-  const canNobble =
-    !s.toggles.cleanSport &&
-    !!fixer &&
-    !p.flags.fixerBarred &&
-    !s.fixes.some((f) => f.playerId === p.id && f.week === s.week && f.kind === 'sabotage') &&
-    cash > fee * 3;
-  if (canNobble) {
-    const first = s.fields[0];
-    const runners = first
-      ? [...first.entries].sort((a, b) => b.winProb - a.winProb).filter((e) => e.ownerId !== p.id)
-      : [];
-    if (first && runners[0]) {
-      out.push({ t: 'Sabotage', playerId: p.id, race: first.race, dogId: runners[0].dogId });
-      cash -= fee;
-      bump(tally, 'Sabotage');
-    }
-  }
+  // ⚠️ **The nobbling half of this walk-through is gone (BUILD_PLAN_V3 §2.1).** It used to walk the
+  // stewards' enquiry, the fine sized against the stake, and the ban that stopped the next hire —
+  // the best-covered path in the check. GDD_V3 §9.3 rebuilds all of it as a Back Alley event in
+  // Phase D, and §9.3's acceptance row (`season-check` fails on zero sabotages) is where it comes
+  // back. Until then this screen only bets.
   for (const { race, entries } of s.fields) {
     const already = s.bets
       .filter((b) => b.playerId === p.id && b.week === s.week && b.race === race)
@@ -409,20 +204,14 @@ function playSeason(seed: number, toggles?: SeasonSetup['toggles']) {
       { name: '', kind: 'ai', difficulty: 'hard' },
     ],
   };
+  // One key per action the engine still has, so "never used" means an action exists that the
+  // screens cannot issue — which is the thing this check is for. Nine keys went with the nine
+  // action types BUILD_PLAN_V3 §2.1 deletes.
   const tally: Tally = {
-    BuyDog: 0,
-    SellDog: 0,
     Declare: 0,
     PlaceBet: 0,
     TradeFood: 0,
-    HireStaff: 0,
-    FireStaff: 0,
-    BribeSteward: 0,
-    Sabotage: 0,
     SetDogState: 0,
-    BuyUpgrade: 0,
-    Borrow: 0,
-    Repay: 0,
     ResolveEvent: 0,
   };
   const screens: Record<string, number> = {};
@@ -501,19 +290,16 @@ const seeds = process.argv
   .filter((n) => !Number.isNaN(n));
 const toRun = seeds.length ? seeds : [42, 7, 1234, 90210];
 let failures = 0;
-/** §13's coverage across the whole run — see the acceptance note at the end. */
-let fixes = 0;
-let enquiries = 0;
-let barred = 0;
+/** Phase A's replacement for the §13 coverage row — see the note at the end of the run. */
+const walked = { declare: 0, states: 0, trades: 0, bets: 0 };
 for (const seed of toRun) {
   const variants: [string, SeasonSetup['toggles'] | undefined][] =
     seed === toRun[0]
       ? [
           ['default toggles', undefined],
           [
-            'clean sport, no betting, no trading, casual events',
+            'no betting, no trading, casual events',
             {
-              cleanSport: true,
               betting: false,
               trading: false,
               casualEvents: true,
@@ -543,30 +329,35 @@ for (const seed of toRun) {
           .map(([k, n]) => `${k} ${n}`)
           .join(', ')}${missing.length ? `\n  never used: ${missing.join(', ')}` : ''}`,
       );
-      // Fuel and value helpers are display-only in the UI; check they still line up.
-      if (fuelCost(0) !== balance.fuelBase) throw new Error('fuelCost drifted from balance.json');
       if (bettingMargin(state) <= 0) throw new Error('betting margin went to zero');
-      // §13, walked rather than merely survived. The stewards' enquiry is the one branch that
-      // cannot be reached by a season that simply runs: it needs a man on the planet, a job bought
-      // from him, a roll lost on race day, and a stable that then meets the refusal for the rest of
-      // the year. The hire is gone (E-D45); the other four are what this counts.
-      fixes += (tally.BribeSteward ?? 0) + (tally.Sabotage ?? 0);
-      if (state.eventLog.some((l) => l.text.includes('enquiry'))) enquiries++;
-      if (human.flags.fixerBarred) barred++;
+      // ⚠️ **The acceptance row this check used to carry is gone with §13 (BUILD_PLAN_V3 §2.1)** —
+      // it counted jobs placed, stewards' enquiries and bans served, and refused to pass on a zero.
+      // What replaces it is the same idea pointed at what v3 actually has: a season is not *walked*
+      // unless the three decisions of GDD_V3 §1.1 that exist in Phase A were all exercised. Phase B
+      // adds the diet and the empty hold to this list; Phase D puts the sabotage row back (§9.3).
+      walked.declare += tally.Declare ?? 0;
+      walked.states += tally.SetDogState ?? 0;
+      walked.trades += tally.TradeFood ?? 0;
+      walked.bets += tally.PlaceBet ?? 0;
+      if (human.dogIds.length === 0) throw new Error('the human stable lost every dog');
     } catch (e) {
       failures++;
       console.error(`seed ${seed} (${label}) FAILED: ${(e as Error).message}`);
     }
   }
 }
-// ⚠️ An acceptance row rather than a statistic: BUILD_PLAN §6b Phase D asks that this check
-// *exercise* the bribe, the sabotage and a caught crook, the way Phase C made it buy feed rather
-// than only kibble. A run in which §13's paths are never walked has not checked them.
+// ⚠️ An acceptance row rather than a statistic (BUILD_PLAN_V3 Phase A): a check that passes because
+// it stopped checking is worse than a red one, and this phase deleted most of what this file used to
+// walk. So the run fails unless every decision v3 has at this point was actually made.
 console.log(
-  `\n§13 walked: ${fixes} jobs placed, ${enquiries} stewards' enquiries, ${barred} season-long bans served.`,
+  `\nThe week walked: ${walked.declare} declarations, ${walked.states} Race/Rest changes, ` +
+    `${walked.trades} trades, ${walked.bets} bets.`,
 );
-if (!failures && (fixes === 0 || enquiries === 0 || barred === 0)) {
-  console.error('§13 was not exercised — the bribe, the nobbling and a catch all have to happen.');
+if (!failures && Object.values(walked).some((n) => n === 0)) {
+  const dead = Object.entries(walked)
+    .filter(([, n]) => n === 0)
+    .map(([k]) => k);
+  console.error(`Never exercised: ${dead.join(', ')} — the check did not walk the week.`);
   failures++;
 }
 console.log(failures ? `${failures} season(s) failed` : 'All seasons played out clean.');

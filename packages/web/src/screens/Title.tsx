@@ -24,7 +24,6 @@ function randomSeed(): number {
 }
 
 const DEFAULT_TOGGLES: Toggles = {
-  cleanSport: false,
   betting: true,
   trading: true,
   casualEvents: false,
@@ -204,12 +203,6 @@ export function Title() {
         sub="GDD §13 — Gazillionaire-style, set before the season starts"
       >
         <div className="grid2">
-          <Toggle
-            on={toggles.cleanSport}
-            set={(v) => setToggles((t) => ({ ...t, cleanSport: v }))}
-            label="Clean Sport"
-            blurb="No supplements, no steward bribes, no nobbling. The far table stays shut."
-          />
           <Toggle
             on={!toggles.betting}
             set={(v) => setToggles((t) => ({ ...t, betting: !v }))}

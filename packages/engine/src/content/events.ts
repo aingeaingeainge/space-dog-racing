@@ -1,13 +1,9 @@
 import { balance } from './balance';
 import { planetOf } from './planets';
 import { OPEN_TYPE_ID, RACE_TYPES, raceType } from './raceTypes';
-import { TRAIT_IDS } from './traits';
 import { KIBBLE_ID } from './goods';
-import { createDog, type IdGen } from '../economy/market';
-import { dogValue } from '../economy/dogValue';
-import { cargoTotal, emptyHold, spoilCargo } from '../economy/goods';
-import { bestStaff, hasStaff } from '../economy/staff';
-import { outstanding } from '../economy/loans';
+import { type IdGen } from '../economy/dogs';
+import { cargoTotal, emptyHold, spoilCargo, HOLD_CAP } from '../economy/goods';
 import { winProbAgainst } from '../race/odds';
 import { clamp, type Rng } from '../rng';
 import type { Dog, GameState, GoodId, Id, Planet, Player, StatKey } from '../types';
@@ -49,8 +45,6 @@ export interface EventCard {
 
 const ownDogs = (s: GameState, p: Player): Dog[] =>
   p.dogIds.map((id) => s.dogs[id]!).filter(Boolean);
-const bestDog = (s: GameState, p: Player): Dog | undefined =>
-  ownDogs(s, p).sort((a, b) => dogValue(b) - dogValue(a))[0];
 const randomDog = (ctx: { s: GameState; p: Player; rng: Rng }): Dog | undefined => {
   const dogs = ownDogs(ctx.s, ctx.p);
   return dogs.length ? ctx.rng.pick(dogs) : undefined;
@@ -74,41 +68,6 @@ const fit = (d: Dog, delta: number) => {
 };
 
 export const EVENTS: readonly EventCard[] = [
-  {
-    id: 'stowawayPup',
-    name: 'Stowaway pup',
-    text: 'A scrawny pup has hidden in your hold, chewing a crate of kibble.',
-    weight: 6,
-    kind: 'choice',
-    choices: [
-      {
-        label: 'Keep it (needs a kennel slot)',
-        apply: (ctx) => {
-          if (ctx.p.dogIds.length >= ctx.p.kennelSlots) {
-            ctx.p.cash += 300;
-            ctx.log('No room in the kennels — the pound takes the stowaway (+300).');
-            return;
-          }
-          const pup = createDog(
-            { quality: 25, age: 1, owner: ctx.p.id, traits: [ctx.rng.pick(TRAIT_IDS)] },
-            ctx.rng,
-            ctx.nextId,
-          );
-          ctx.s.dogs[pup.id] = pup;
-          ctx.p.dogIds.push(pup.id);
-          ctx.log(`${pup.name} joins the kennel.`);
-        },
-      },
-      {
-        label: 'Hand it to the pound (+300)',
-        apply: (ctx) => {
-          ctx.p.cash += 300;
-          ctx.log('The pound pays 300 for the stowaway.');
-        },
-      },
-    ],
-    aiChoice: (ctx) => (ctx.p.dogIds.length < ctx.p.kennelSlots && ctx.p.cash > 4000 ? 0 : 1),
-  },
   {
     id: 'customsShakedown',
     name: 'Customs shakedown',
@@ -170,43 +129,14 @@ export const EVENTS: readonly EventCard[] = [
         apply: (ctx) => {
           const d = ctx.s.dogs[String(ctx.params['dogId'])];
           if (!d) return;
-          const vet = hasStaff(ctx.p, 'vet');
-          const delta = vet ? -5 : -20;
-          fit(d, delta);
-          ctx.log(`${d.name} has kennel cough (${delta} fitness${vet ? ', the vet helped' : ''}).`);
+          // No vet to soften it any more (BUILD_PLAN_V3 §2.1). Phase D's staff bonuses (GDD_V3
+          // §8.2) include "injury chance halved" and "+5 fitness recovery", which is where a hire
+          // gets to matter here again.
+          fit(d, -20);
+          ctx.log(`${d.name} has kennel cough (−20 fitness).`);
         },
       },
     ],
-  },
-  {
-    id: 'talentScout',
-    name: 'Talent scout',
-    text: 'A rival stable’s scout offers 120% of value for your best dog.',
-    weight: 4,
-    kind: 'swing',
-    roll: (ctx) => {
-      const d = bestDog(ctx.s, ctx.p);
-      return d && ctx.p.dogIds.length > 1
-        ? { dogId: d.id, offer: Math.round(dogValue(d) * 1.2) }
-        : null;
-    },
-    choices: [
-      {
-        label: 'Sell',
-        apply: (ctx) => {
-          const d = ctx.s.dogs[String(ctx.params['dogId'])];
-          if (!d) return;
-          const offer = Number(ctx.params['offer']);
-          ctx.p.cash += offer;
-          ctx.p.stats.dogsSold++;
-          ctx.p.dogIds = ctx.p.dogIds.filter((id) => id !== d.id);
-          delete ctx.s.dogs[d.id];
-          ctx.log(`Sold ${d.name} to the scout for ${offer}.`);
-        },
-      },
-      { label: 'Not for sale', apply: (ctx) => ctx.log('You send the scout packing.') },
-    ],
-    aiChoice: () => 1,
   },
   {
     id: 'solarFlare',
@@ -226,27 +156,6 @@ export const EVENTS: readonly EventCard[] = [
     ],
   },
   {
-    id: 'dodgySteward',
-    name: 'Dodgy steward',
-    text: 'A steward with a gambling problem offers, for 800, to draw your Gold rival’s best dog in trap 8.',
-    weight: 3,
-    kind: 'choice',
-    roll: (ctx) => (ctx.s.toggles.cleanSport || ctx.p.cash < 800 ? null : {}),
-    choices: [
-      {
-        label: 'Pay 800',
-        apply: (ctx) => {
-          ctx.p.cash -= 800;
-          ctx.p.stats.costs += 800;
-          ctx.p.flags.rivalTrap8 = true;
-          ctx.log('The steward pockets 800 and winks.');
-        },
-      },
-      { label: 'No thanks', apply: (ctx) => ctx.log('You keep your hands clean.') },
-    ],
-    aiChoice: () => 1,
-  },
-  {
     id: 'tipOff',
     name: 'Tip-off',
     text: 'A whisper in the saloon: one of the local dogs is "not trying" this week.',
@@ -261,40 +170,6 @@ export const EVENTS: readonly EventCard[] = [
         },
       },
     ],
-  },
-  {
-    id: 'fatTonyFavour',
-    name: 'Fat Tony calls in a favour',
-    text: 'Fat Tony Nebula wants double interest now — or he takes your best dog.',
-    weight: 4,
-    kind: 'swing',
-    roll: (ctx) => {
-      const owed = outstanding(ctx.p, 'shark');
-      const d = bestDog(ctx.s, ctx.p);
-      return owed > 0 && d ? { due: Math.round(owed * balance.sharkRate * 2), dogId: d.id } : null;
-    },
-    choices: [
-      {
-        label: 'Pay double interest',
-        apply: (ctx) => {
-          const due = Number(ctx.params['due']);
-          ctx.p.cash -= due;
-          ctx.p.stats.costs += due;
-          ctx.log(`Paid Fat Tony ${due}.`);
-        },
-      },
-      {
-        label: 'Refuse',
-        apply: (ctx) => {
-          const d = ctx.s.dogs[String(ctx.params['dogId'])];
-          if (!d) return;
-          ctx.p.dogIds = ctx.p.dogIds.filter((id) => id !== d.id);
-          delete ctx.s.dogs[d.id];
-          ctx.log(`Fat Tony’s boys walk off with ${d.name}.`);
-        },
-      },
-    ],
-    aiChoice: (ctx) => (ctx.p.cash >= Number(ctx.params['due']) ? 0 : 1),
   },
   {
     id: 'kibbleGlut',
@@ -374,8 +249,7 @@ export const EVENTS: readonly EventCard[] = [
             ctx.log('You fight off the pirates and keep the lot.');
           } else {
             const lost = emptyHold(ctx.p.cargo);
-            ctx.p.ship.speed = Math.max(1, ctx.p.ship.speed - 1);
-            ctx.log(`The pirates win: ${lost} crates gone and an engine tier shot out.`);
+            ctx.log(`The pirates win: ${lost} crates gone.`);
           }
         },
       },
@@ -399,39 +273,9 @@ export const EVENTS: readonly EventCard[] = [
     ],
   },
   {
-    id: 'retirementOffer',
-    name: 'Retirement offer',
-    text: 'A stud farm offers 150% of value for one of your older dogs.',
-    weight: 3,
-    kind: 'choice',
-    roll: (ctx) => {
-      const d = ownDogs(ctx.s, ctx.p)
-        .filter((x) => x.age >= 5)
-        .sort((a, b) => dogValue(b) - dogValue(a))[0];
-      return d ? { dogId: d.id, offer: Math.round(dogValue(d) * 1.5) } : null;
-    },
-    choices: [
-      {
-        label: 'Accept',
-        apply: (ctx) => {
-          const d = ctx.s.dogs[String(ctx.params['dogId'])];
-          if (!d) return;
-          const offer = Number(ctx.params['offer']);
-          ctx.p.cash += offer;
-          ctx.p.stats.dogsSold++;
-          ctx.p.dogIds = ctx.p.dogIds.filter((id) => id !== d.id);
-          delete ctx.s.dogs[d.id];
-          ctx.log(`${d.name} retires to the stud farm for ${offer}.`);
-        },
-      },
-      { label: 'Decline', apply: (ctx) => ctx.log('Not yet.') },
-    ],
-    aiChoice: (ctx) => (ctx.p.dogIds.length > 3 ? 0 : 1),
-  },
-  {
     id: 'localDerby',
     name: 'Local derby',
-    text: 'The locals run an exhibition race with a 400 purse. Your best reserve can have a go — no rating change.',
+    text: 'The locals run an exhibition race with a 400 purse. Your least-raced dog can have a go — no rating change.',
     weight: 3,
     kind: 'flavour',
     roll: (ctx) => {
@@ -456,34 +300,6 @@ export const EVENTS: readonly EventCard[] = [
         },
       },
     ],
-  },
-  {
-    id: 'trainerPoached',
-    name: "Rival's trainer poached",
-    text: 'A rival stable is trying to hire your trainer away. Match the offer (+100 this week) or lose them.',
-    weight: 4,
-    kind: 'choice',
-    roll: (ctx) => (hasStaff(ctx.p, 'trainer') ? {} : null),
-    choices: [
-      {
-        label: 'Match it (−100)',
-        apply: (ctx) => {
-          ctx.p.cash -= 100;
-          ctx.p.stats.costs += 100;
-          ctx.log('You match the offer; the trainer stays.');
-        },
-      },
-      {
-        label: 'Let them go',
-        apply: (ctx) => {
-          // The best of them, if the stable has stacked the role — a rival poaches the good one.
-          const going = bestStaff(ctx.p, 'trainer');
-          if (going) ctx.p.staff = ctx.p.staff.filter((o) => o.id !== going.id);
-          ctx.log(`${going?.name ?? 'Your trainer'} leaves for a rival stable.`);
-        },
-      },
-    ],
-    aiChoice: () => 0,
   },
   {
     id: 'spaceFleas',
@@ -523,13 +339,13 @@ export const EVENTS: readonly EventCard[] = [
     text: 'The hold got warm. A quarter of your kibble has gone green.',
     weight: 4,
     kind: 'flavour',
-    roll: (ctx) => (crates(ctx) > 0 && !ctx.p.ship.coldStore ? {} : null),
+    roll: (ctx) => (crates(ctx) > 0 ? {} : null),
     choices: [
       {
         label: 'Ugh',
         apply: (ctx) => {
           const lost = spoilCargo(ctx.p.cargo, 0.25);
-          ctx.log(`${lost} crates spoiled. A cold store would have saved them.`);
+          ctx.log(`${lost} crates spoiled.`);
         },
       },
     ],
@@ -540,7 +356,7 @@ export const EVENTS: readonly EventCard[] = [
     text: 'Five crates of kibble drift past your airlock. Nobody is looking.',
     weight: 4,
     kind: 'flavour',
-    roll: (ctx) => (crates(ctx) + 5 <= ctx.p.ship.cargoCap ? {} : null),
+    roll: (ctx) => (crates(ctx) + 5 <= HOLD_CAP ? {} : null),
     choices: [
       {
         label: 'Haul them in',
@@ -612,32 +428,6 @@ export const EVENTS: readonly EventCard[] = [
         },
       },
     ],
-  },
-  {
-    id: 'engineTrouble',
-    name: 'Engine trouble',
-    text: 'The port nacelle is making a noise like a bag of spanners. Repair for 500, or limp on.',
-    weight: 4,
-    kind: 'choice',
-    roll: (ctx) => (ctx.p.ship.speed > 1 ? {} : null),
-    choices: [
-      {
-        label: 'Repair (−500)',
-        apply: (ctx) => {
-          ctx.p.cash -= 500;
-          ctx.p.stats.costs += 500;
-          ctx.log('Engine repaired for 500.');
-        },
-      },
-      {
-        label: 'Limp on (engine tier −1)',
-        apply: (ctx) => {
-          ctx.p.ship.speed = Math.max(1, ctx.p.ship.speed - 1);
-          ctx.log('The nacelle gives out: engine tier −1.');
-        },
-      },
-    ],
-    aiChoice: (ctx) => (ctx.p.cash > 1500 ? 0 : 1),
   },
   {
     id: 'monksBlessing',
@@ -876,8 +666,9 @@ export const EVENTS: readonly EventCard[] = [
       { label: 'He has not', apply: (ctx) => ctx.log('You tell him he has not.') },
     ],
     // Worth it to a stable deciding what to rest and what to raise — a card you can see is a card
-    // you can point a dog at. A Tipster already sells this standing, so a stable with one passes.
-    aiChoice: (ctx) => (ctx.p.cash > 3000 && !hasStaff(ctx.p, 'tipster') ? 0 : 1),
+    // you can point a dog at. There is no Tipster to sell it standing any more (BUILD_PLAN_V3 §2.1),
+    // so the only question left is whether the stable can spare the money.
+    aiChoice: (ctx) => (ctx.p.cash > 3000 ? 0 : 1),
   },
 ];
 

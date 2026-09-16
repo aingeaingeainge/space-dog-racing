@@ -5,8 +5,6 @@ import { Nav } from './components/Nav';
 import { PassTo } from './components/PassTo';
 import { TopBar } from './components/TopBar';
 import { Bookie } from './screens/Bookie';
-import { Bust } from './screens/Bust';
-import { Docks } from './screens/Docks';
 import { GalaxyMap } from './screens/GalaxyMap';
 import { LockedField } from './screens/LockedField';
 import { Market } from './screens/Market';
@@ -14,7 +12,6 @@ import { PlanetHub } from './screens/PlanetHub';
 import { RaceView } from './screens/RaceView';
 import { RaceOffice } from './screens/RaceOffice';
 import { Results } from './screens/Results';
-import { Saloon } from './screens/Saloon';
 import { SeasonEnd } from './screens/SeasonEnd';
 import { Stable } from './screens/Stable';
 import { Title } from './screens/Title';
@@ -61,7 +58,6 @@ export function App() {
 
   const wrap = (node: ReactNode) => <PlanetTheme planetId={planetId}>{node}</PlanetTheme>;
 
-  if (screen.kind === 'bust' && screen.me) return wrap(<Bust s={state} me={screen.me} />);
   if (screen.kind === 'seasonEnd') return wrap(<SeasonEnd s={state} />);
   if (screen.kind === 'noHuman' || !screen.me) {
     return wrap(
@@ -95,8 +91,6 @@ export function App() {
     if (view === 'map') return <GalaxyMap s={s} me={me} />;
     if (view === 'office' && s.phase === 'planetPre') return <RaceOffice s={s} me={me} />;
     if (inTurn && view === 'market') return <Market s={s} me={me} />;
-    if (inTurn && view === 'docks') return <Docks s={s} me={me} />;
-    if (inTurn && view === 'saloon') return <Saloon s={s} me={me} />;
     return <PlanetHub s={s} me={me} />;
   }
 

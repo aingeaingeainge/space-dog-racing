@@ -49,55 +49,21 @@ export type StatKey = 'speed' | 'accel' | 'stamina' | 'trap';
 export const STAT_KEYS: readonly StatKey[] = ['speed', 'accel', 'stamina', 'trap'] as const;
 
 /**
- * The one three-tier ladder, shared by goods, staff and the ship's engine (GDD §8.1, D11).
- *
- * One vocabulary learned once, and the reason the ship's five engine tiers fold to three: two
- * competing ladders would have been worse than none.
- */
-export type GoodTier = 'rough' | 'proper' | 'prime';
-
-/**
  * A thing a hold can carry (GDD §8.2, D4). One id per row in `content/goods.ts`.
  *
- * Kibble is the staple and sits below the ladder: dogs eat it, an empty *kibble* shelf costs the
- * arrival penalty, and it is the base trade commodity — so v1's eating and trading machinery
- * survives untouched and everything else layers on top.
+ * ⚠️ **v3 Phase A cut this to one row.** The four stat feeds × three tiers and the Rough/Proper/
+ * Prime ladder they hung off are gone (BUILD_PLAN_V3 §2.1), and `kibble` is left standing as the
+ * **placeholder single good** Phase A item 8 asks for, so the trade loop and the eating machinery
+ * still run and the harness still has something to measure. **Phase B replaces this whole type
+ * with GDD_V3 §6.1's six foods on 8× bands** — Grey Mash, Scrapmeat, Glow Tripe, Vat Steak, Pulsar
+ * Marrow, Ambrosia — with shelf depth per planet. Do not add them here.
  */
-export type FeedGoodId =
-  | 'speedRough'
-  | 'accelRough'
-  | 'staminaRough'
-  | 'trapRough'
-  | 'speedProper'
-  | 'accelProper'
-  | 'staminaProper'
-  | 'trapProper'
-  | 'speedPrime'
-  | 'accelPrime'
-  | 'staminaPrime'
-  | 'trapPrime';
-
-export type GoodId = 'kibble' | FeedGoodId;
+export type GoodId = 'kibble';
 
 /**
- * Every good, in the order a hold serialises and a market table prints: the staple, then the
- * ladder tier by tier. Thirteen and no more — GDD §21 keeps a fifth stat food out by name.
+ * Every good, in the order a hold serialises and a market table prints.
  */
-export const GOOD_IDS: readonly GoodId[] = [
-  'kibble',
-  'speedRough',
-  'accelRough',
-  'staminaRough',
-  'trapRough',
-  'speedProper',
-  'accelProper',
-  'staminaProper',
-  'trapProper',
-  'speedPrime',
-  'accelPrime',
-  'staminaPrime',
-  'trapPrime',
-] as const;
+export const GOOD_IDS: readonly GoodId[] = ['kibble'] as const;
 
 /**
  * What is in a stable's hold: crates per good.
@@ -126,27 +92,27 @@ export type Difficulty = 'easy' | 'normal' | 'hard';
 export const DIFFICULTIES: readonly Difficulty[] = ['easy', 'normal', 'hard'] as const;
 
 /**
- * Measurement agents (BUILD_PLAN §7a.5). These play *strategies* rather than difficulties and
- * exist so the harness can price something no competent agent ever reaches.
+ * ⚠️ **The measurement agents are gone (BUILD_PLAN_V3 §2.1).**
  *
- * `careless` is the only way to measure the bankruptcy rate D6 asks for, because a stable that
- * plays well never goes bust. `trainer`, `trader` and `crook` are GDD §20 Q2's three roads — are
- * they worth the same? — and `mixed` plays all three at once, which is §2.1's "they are meant to
- * be mixable" turned into a number for the first time.
+ * `careless` existed to measure `bankruptRate`, and there is no bankruptcy in v3 to measure
+ * (GDD_V3 V10: no fuel, no upkeep, no wages, no debt — pillar 5 says nobody is out before the end).
+ * `trainer` / `trader` / `crook` / `mixed` were v2 §20 Q2's three roads, and v3 has one road with a
+ * trading sideline and a betting sideline; GDD_V3 §11 names the income split on the season-end
+ * screen as the honest replacement.
  *
- * They are deliberately **not offered to players**: Title.tsx and lib/seedLink.ts both enumerate
- * the three difficulties by hand, so nothing here can leak into a season setup.
+ * `AiAgent` is kept as a distinct name from `Difficulty` because every harness flag, save file and
+ * seed link in the project reads it, and because Phase D or E may well want a measurement agent
+ * again — for pace rather than for wealth.
  */
-export type MeasurementAgent = 'careless' | 'trainer' | 'trader' | 'crook' | 'mixed';
-export type AiAgent = Difficulty | MeasurementAgent;
+export type AiAgent = Difficulty;
 
 export type Phase =
   | 'arrival' // system: roll turn order, planet stock and food prices
   | 'events' // each player draws one event; choice events pause for that player
-  | 'planetPre' // in turn order: market, kennels, docks, saloon, race office (declarations)
+  | 'planetPre' // in turn order: market, kennels, race office (declarations)
   | 'betting' // declarations are locked and public; in turn order players may bet
   | 'race' // system: simulate the card in order; pay purses; settle bets
-  | 'planetPost' // in turn order: sell dogs, buy food, borrow …
+  | 'planetPost' // in turn order: buy food
   | 'endTurn' // system: weekly costs, training, recovery, jump to the next planet
   | 'seasonEnd';
 
@@ -165,69 +131,16 @@ export interface Track {
   mud?: boolean; // Mudlark bonus applies
 }
 
-/**
- * The six roles (GDD §8.3). Three slots, any mix, no stacking penalty — see `content/staff.ts`.
- *
- * The Scout and the Tipster are Phase B's information debt: §9.3 lists the Tipster as one of four
- * carriers and Phase B shipped two, and both of these feed the trader's road.
- */
-export type StaffRole = 'trainer' | 'vet' | 'fixer' | 'scout' | 'trader' | 'tipster';
-
-export const STAFF_ROLES_ALL: readonly StaffRole[] = [
-  'trainer',
-  'vet',
-  'scout',
-  'trader',
-  'tipster',
-  'fixer',
-] as const;
-
 export interface PlanetSpecial {
-  bank?: boolean;
-  shark?: boolean;
-  fixer?: boolean;
-  vet?: boolean;
-  trainer?: boolean;
   noBetting?: boolean;
   bettingMargin?: number; // overrides balance.bettingMargin
   maxStakeFraction?: number; // overrides balance.maxStakeFraction
-  /**
-   * Multiplies the flat stake ceiling here (GDD §10, §20 Q7). Collar Prime is the only row that
-   * carries one: the crook's road "pays in bursts, at the biggest races", and the Grand Final is
-   * the one week it is allowed to.
-   */
-  maxStakeFlatMult?: number;
-  dopingCatch?: number; // overrides balance.supplementCatchBase
-  /**
-   * How often the stewards catch a bribe or a sabotage here (GDD §13), overriding
-   * `balance.fixCatchBase`. A separate number from `dopingCatch` rather than a scaling of it,
-   * because a planet's attitude to a syringe and its attitude to a bought steward are two
-   * different facts about the place — Vatgrown makes supplements *legal* and would still put you
-   * in front of a panel for nobbling a dog.
-   */
-  fixCatch?: number;
-  buyerBonus?: number; // buyers pay +x of value when you sell a dog here
-  dogValueMod?: number; // multiplier on market asking prices (and sale prices) here
-  shipDiscount?: number; // fraction off ship upgrades
-  engineDiscount?: number; // fraction off engine tier only
-  kennelDiscount?: number; // fraction off the kennel module
   everythingMarkup?: number; // Neon Snout: all market prices +x
   purseMult?: number; // Old Wembley: purse +20%
   winningsTax?: number; // Port Slobber: tax on prize money
   fitnessOnArrival?: number; // Sunbleach −5, Holy Bark +5
-  noUpkeep?: boolean; // Holy Bark
   turnOrderReversed?: boolean; // Blackreach
-  foodSpoils?: number; // Glassfall: fraction of cargo lost without a cold store
   localsNervy?: boolean; // Lagrange Lows
-  marketAgeBias?: 'old' | 'pups'; // Rustgut / Vatgrown
-  /**
-   * Multiplies the Proper and Prime stock chances for the goods (GDD §8.1's `marketBias` made
-   * real): Rustgut rarely has anything above Rough, Vatgrown is where the good stuff is.
-   */
-  feedBias?: number;
-  marketQualityBonus?: number; // Majors sell Gold-class dogs
-  fellOffAShip?: boolean; // Hushmarket
-  muzzles?: boolean; // Tinkertown
   piratesLikely?: boolean; // The Drift
 }
 
@@ -239,7 +152,6 @@ export interface Planet {
   major: boolean;
   track: Track;
   foodBand: [number, number]; // buy price band
-  marketBias: string;
   special: PlanetSpecial;
   accents: [string, string];
 }
@@ -271,7 +183,7 @@ export interface Trait {
 export interface Dog {
   id: Id;
   name: string;
-  ownerId: Id | 'market' | 'local';
+  ownerId: Id | 'local';
   speed: number; // 1..99
   accel: number;
   stamina: number;
@@ -282,7 +194,6 @@ export interface Dog {
   age: number; // 1..7 seasons
   traits: TraitId[];
   injuryWeeks: number; // 0 = fit to race
-  banWeeks: number; // stewards' ban after a doping catch
   wins: number;
   runs: number;
   /** Wins in the headline race of the weekend — the season's first tie-break (GDD §4.3). */
@@ -293,44 +204,12 @@ export interface Dog {
    * every week after, so "ran and finished out of the money in the last two weekends" is a fact
    * on the dog rather than a lookup into `results` — which is what lets a local generated for the
    * race carry it and satisfy the same predicate every declared dog is held to.
-   *
-   * A counter rather than a boolean because the reach is a tunable (Q12): at one weekend the only
-   * dog that qualified was the one that had just raced and was 25 fitness down, so the catch-up
-   * race was enterable on 29% of the weekends it ran.
    */
   outOfMoneyFor: number;
-  supplemented: boolean; // supplement fed this weekend (cleared after the race)
-  raceBonus: number; // temporary speed-stat bonus for this weekend's race (supplement, lucky bone)
-  /**
-   * Fitness somebody has taken off this dog for this weekend's race only (GDD §13).
-   *
-   * Deliberately **not** a change to `fitness`. The whole of the crook's road is the gap between
-   * what the bookie knows and what you know (§2.1): the prices go up when declarations lock, the
-   * sabotage lands after that, and the book never re-prices. So the dog's *stated* fitness — the
-   * number on the field table, the number the victim sees — stays exactly where it was, and only
-   * the runner handed to `simulateRace` is lighter. Cleared with `raceBonus` after the card, the
-   * same way a supplement is, because both are facts about one weekend rather than about a dog.
-   */
-  nobbled: number;
+  raceBonus: number; // temporary speed-stat bonus for this weekend's race (lucky bone)
   weekState: WeekState; // GDD §5.7 — what this dog is doing with the week
   trainStat: StatKey; // which stat a Train week works on; ignored in the other two states
-  askingPrice?: number; // while ownerId === 'market'
-  fellOffAShip?: number; // week the real owner may turn up (Hushmarket)
   look: { body: number; palette: number; accessory: number };
-}
-
-export type StaffId = string;
-
-export interface Ship {
-  speed: number; // engine tier 1..5
-  cargoCap: number;
-  coldStore: boolean;
-  upgradesPaid: number; // total Bones spent on upgrades (resale = ×shipResaleFactor)
-}
-
-export interface Loan {
-  lender: 'bank' | 'shark';
-  principal: number;
 }
 
 export interface Player {
@@ -342,41 +221,11 @@ export interface Player {
   personality?: string;
   cash: number;
   dogIds: Id[];
-  kennelSlots: number;
-  ship: Ship;
-  /** Crates aboard, per good (GDD §8.2). `cargoTotal()` for what fuel is charged against. */
+  /** Crates aboard, per good (GDD §8.2). */
   cargo: Cargo;
-  /**
-   * Who is on the books — **a list, up to `staffSlots`, in any mix** (GDD §8.3, D7).
-   *
-   * A list rather than v1's one-per-role record, because three trainers is a legal stable and a
-   * record keyed by role cannot hold one. Every read goes through `staffOf` / `bestStaff` in
-   * `economy/staff.ts` rather than indexing, so "have I got a vet" and "what is my best vet" stay
-   * one question each.
-   */
-  staff: StaffOffer[];
-  loans: Loan[];
   flags: {
-    caughtDoping: boolean;
-    bankrupt: boolean;
     arriveFirstNextWeek: boolean;
-    rivalTrap8: boolean; // dodgy steward: rival's best Gold dog drawn trap 8 this week
     tipOff: boolean; // a local runner is not trying this week
-    /**
-     * Struck off: nobody will take a job from this stable for the rest of the season (GDD §13).
-     *
-     * Half of §13's penalty and the half that grows with how often you use the road, because the
-     * thing it takes away is the road itself. The other half — telling the wronged stable who did
-     * it — is logged publicly and does nothing until M6; see the note on `catchFixers`.
-     *
-     * ⚠️ **It got simpler when the Fixer stopped being a hire (E-D45).** It used to mean "your
-     * fixer is gone and you may not take another on", which needed the flag *and* a staff list to
-     * remove him from. A per-job road has no books to strike a man off, so the flag is the whole
-     * ban: every job placed anywhere for the rest of the season is refused, wherever the crook
-     * travels and whoever is drinking there. The name is kept because every screen, refusal and
-     * walk-through already reads it.
-     */
-    fixerBarred: boolean;
   };
   sponsorWeeks: number; // Glorbo's Meat Paste: dogs eat double
   fanClubDogId?: Id;
@@ -388,22 +237,8 @@ export interface PlayerSeasonStats {
   prizeIncome: number;
   tradeIncome: number; // food sold − food bought
   betIncome: number; // returns − stakes
-  costs: number; // upkeep, wages, fuel, food bought for eating
-  dogsBought: number;
-  dogsSold: number;
-  supplementsUsed: number;
-  supplementsCaught: number;
+  costs: number; // food bought for eating
   worthByWeek: number[];
-}
-
-export interface StaffOffer {
-  id: StaffId;
-  role: StaffRole;
-  /** Where on the one ladder (GDD §8.1). The wage follows from it, and so does what they do. */
-  tier: GoodTier;
-  name: string;
-  wage: number;
-  quirk?: string;
 }
 
 /**
@@ -411,8 +246,7 @@ export interface StaffOffer {
  *
  * Price and stock are separate questions. Every planet posts a buy and a sell price for every
  * good — you can always sell into a market — but what is *on the shelf* is rolled per planet and
- * per week, which is what makes a Prime feed something you come across rather than something you
- * shop for. `stock` is crates available to buy here and is decremented as they are bought, so the
+ * per week. `stock` is crates available to buy here and is decremented as they are bought, so the
  * shelf is shared with the whole table and turn order is first look.
  */
 export interface GoodMarket {
@@ -421,68 +255,10 @@ export interface GoodMarket {
   stock: number; // crates on the shelf this week
 }
 
-/** A stable's private corner of this planet's market (GDD §8.3: the Scout and the Trader). */
-export interface StableFinds {
-  /** Dogs only this stable may buy. Rolled on arrival by its Scout. */
-  dogIds: Id[];
-  /** Crates consigned to this stable by its Trader, per good, at the shared shelf price. */
-  goods: Cargo;
-}
-
 export interface PlanetState {
   planetId: Id;
-  /**
-   * This week's market, per good. Replaces v1's single `foodBuy`/`foodSell` pair.
-   *
-   * `foodMod` is gone with them: it was set by the glut and shortage event cards and **never read
-   * anywhere**, because both cards also move the prices directly. A field that nothing consumes
-   * is a trap for the next person to add a good, so it went with the refactor rather than being
-   * carried forward into thirteen copies of itself.
-   */
+  /** This week's market, per good. */
   goods: Record<GoodId, GoodMarket>;
-  marketDogIds: Id[];
-  /**
-   * What a stable's own staff turned up for it here, that nobody else at the table can have
-   * (GDD §8.3). Keyed by player id, a key for every stable so the record is dense and the save
-   * serialises canonically, exactly as `Cargo` is.
-   *
-   * The shared shelf is what turn order competes over; **this** is what a Scout and a Trader buy.
-   * It is the answer to "how do you make the market busier without making it longer" (§8.5, D10):
-   * the extra depth is yours, so it appears on your own screen, under one heading, rather than
-   * lengthening a table six stables are all reading.
-   */
-  finds: Record<Id, StableFinds>;
-  staff: StaffOffer[];
-  /**
-   * Who is at the far table this week, and what grade of man he is (GDD §13, E-D45).
-   *
-   * ⚠️ **This is where the Fixer lives now, and it is why he is not in `staff`.** He was a hire
-   * with a weekly wage through Phase D and the road measured as a net loss of 3,498 Bones because
-   * of it: a percentage edge on the three thousand a stable can stake cannot carry 250–1,400 a
-   * week for a man used twice a season (D42). So he is hired **per job**, and a job is bought at
-   * the moment there is one — which makes him a property of the *planet-week* rather than of the
-   * stable, exactly like the dogs on the shelf and the crates in the market.
-   *
-   * The grade is the whole of his ladder: it sets what the job costs and how well he covers his
-   * tracks, so you still cannot buy the good one everywhere (D41's rule, kept). `null` on the
-   * 55% of planet-weeks where nobody is about, which is what makes the road something you find
-   * rather than something you hold.
-   */
-  fixer: FixerOffer | null;
-  muzzlesInStock: boolean;
-  trackDayPasses: boolean;
-}
-
-/**
- * A man at the far table, for one weekend (GDD §13).
- *
- * No id, because nothing addresses him: there is no hire to refer back to and no books to take
- * him off. A name so the log line and the stewards' enquiry can say who it was, and a tier, which
- * is the price list and the risk in one number.
- */
-export interface FixerOffer {
-  name: string;
-  tier: GoodTier;
 }
 
 export interface CalendarEntry {
@@ -493,47 +269,9 @@ export interface CalendarEntry {
   /**
    * This weekend's three races, in the order they are run, headline race last (GDD §6.3): two
    * types drawn without replacement from the pool, then The Open. Drawn when the calendar is
-   * built, so the fog can hide it and a dossier can sell it.
+   * built, so the fog can hide it.
    */
   card: RaceTypeId[];
-}
-
-/**
- * A job the Fixer has done this weekend (GDD §13). Cleared at endTurn with everything else that is
- * about one card.
- *
- * A list on `GameState` rather than fields on the Player, because a fix is *addressed* to a race
- * and a dog the way a declaration and a bet are, and because both screens and the stewards want to
- * iterate them. `caught` is written on race day rather than when the job is placed: the fine is
- * sized against what the crook had on that race, so the roll has to happen after the bets are
- * struck, or the deterrent could not be sized against the bet at all.
- */
-export interface Fix {
-  playerId: Id;
-  /** `bribe` chooses your own dog's box before the draw; `sabotage` takes fitness off a rival's. */
-  kind: 'bribe' | 'sabotage';
-  week: number;
-  race: RaceTypeId;
-  /** Your dog, for a bribe. Somebody else's — a rival's or a local — for a sabotage. */
-  dogId: Id;
-  /** The box bought, 1..`traps`. Bribes only. */
-  trap?: number;
-  fee: number;
-  /**
-   * The man who took the job, and how good he was (GDD §13, E-D45).
-   *
-   * ⚠️ **The job carries the tier, and that is what keeps D11's ladder intact after the Fixer
-   * stopped being a wage.** Every other role withholds a *number* behind a weekly price; the
-   * Fixer withholds the same number behind a per-job one. So the catch chance is read off the
-   * fix rather than off the stable, which is also the only shape that stays honest when a crook
-   * buys a box from a Rough man on Monday and a nobbling from a Prime one three planets later.
-   */
-  fixer: string;
-  tier: GoodTier;
-  /** Rolled on race day. The fine and the ban follow from it. */
-  caught: boolean;
-  /** What the stewards took, once they have. Undefined until then, and zero never happens. */
-  fine?: number;
 }
 
 export interface Bet {
@@ -588,7 +326,6 @@ export interface RaceResult {
   ratingDeltas: Record<Id, number>;
   injuries: Record<Id, number>; // dogId → weeks out
   payouts: { playerId: Id; dogId: Id; place: number; amount: number }[];
-  dopingCaught: Id[]; // dog ids
 }
 
 export interface PendingEvent {
@@ -607,7 +344,6 @@ export interface LogLine {
 }
 
 export interface Toggles {
-  cleanSport: boolean;
   betting: boolean;
   trading: boolean;
   casualEvents: boolean;
@@ -647,21 +383,6 @@ export interface GameState {
   pendingEvent: PendingEvent | null;
   eventQueue: Id[]; // players still to draw an event this week
   bets: Bet[];
-  /** This weekend's bought boxes and nobbled dogs (GDD §13). Cleared with the card at endTurn. */
-  fixes: Fix[];
-  /**
-   * Every fix of the season, swept in from `fixes` at endTurn — the same shape as `results`
-   * archiving the week's races once their tick logs have been pruned.
-   *
-   * ⚠️ **Added for a screen, and that is allowed to be the reason.** D5 and D36 say a derived
-   * figure does not get a field; but a season's fixing cannot be derived from anything, because
-   * `fixes` is deliberately cleared with the card it was about. Without this the Season End
-   * screen can tell a stable what its betting returned and not what the road cost it, which is
-   * exactly the half of the arithmetic that decides whether §13 was worth walking. Fees and
-   * fines come straight off it, so `stats.costs` no longer carries them and the five columns of
-   * `roadSplit` add up.
-   */
-  fixArchive: Fix[];
   results: RaceResult[]; // all past races (tick logs pruned)
   eventLog: LogLine[];
   toggles: Toggles;
@@ -682,26 +403,7 @@ export interface SeasonSetup {
   toggles?: Partial<Toggles>;
 }
 
-export type UpgradeId =
-  | 'engine'
-  | 'cargo'
-  | 'kennel'
-  | 'coldStore'
-  | 'trackDay'
-  | 'muzzle'
-  | 'supplement'
-  /**
-   * A dossier on a planet the fog is hiding (GDD §9.3). Bought for one named week, and what it
-   * buys is a **log line**, not a field on the Player: the circuit is already in `calendar`, so
-   * the only question is who is allowed to look, and that is answered by whether the purchase is
-   * in the action log. Keeping it out of GameState is what lets the fog land without moving the
-   * golden snapshot a third time.
-   */
-  | 'dossier';
-
 export type Action =
-  | { t: 'BuyDog'; playerId: Id; dogId: Id }
-  | { t: 'SellDog'; playerId: Id; dogId: Id }
   | { t: 'Declare'; playerId: Id; race: RaceTypeId; dogId: Id | null }
   | {
       t: 'PlaceBet';
@@ -713,30 +415,7 @@ export type Action =
     }
   /** +buy / −sell, of one good. The `good` is what makes the hold a set of decisions. */
   | { t: 'TradeFood'; playerId: Id; good: GoodId; units: number }
-  | { t: 'HireStaff'; playerId: Id; staffId: StaffId }
-  /** By id, not by role: three trainers are legal, so a role no longer identifies a hire. */
-  | { t: 'FireStaff'; playerId: Id; staffId: StaffId }
   | { t: 'SetDogState'; playerId: Id; dogId: Id; state: WeekState; stat?: StatKey }
-  /**
-   * GDD §13. Buy your own dog's box, before the draw is made — so `planetPre`, alongside the
-   * declaration it depends on.
-   */
-  | { t: 'BribeSteward'; playerId: Id; race: RaceTypeId; dogId: Id; trap: number }
-  /**
-   * GDD §13. Take fitness off a runner that is not yours, **after the prices have gone up** — so
-   * `betting`, which is the phase that exists between the draw and the race.
-   *
-   * The phase is the mechanic. §13's edge is not the purse (+288 against a 1,200 fee is a losing
-   * move); it is that "the bookie still prices him at 68". A sabotage placed before the lock would
-   * be priced into the odds and be worth nothing but its purse EV, and one placed in `planetPre`
-   * could only target the stables that had already declared — an advantage handed to whoever
-   * happened to go last. After the lock, every runner is known and every price is already on the
-   * board.
-   */
-  | { t: 'Sabotage'; playerId: Id; race: RaceTypeId; dogId: Id }
-  | { t: 'BuyUpgrade'; playerId: Id; upgrade: UpgradeId; dogId?: Id; week?: number }
-  | { t: 'Borrow'; playerId: Id; lender: 'bank' | 'shark'; amount: number }
-  | { t: 'Repay'; playerId: Id; lender: 'bank' | 'shark'; amount: number }
   | { t: 'ResolveEvent'; playerId: Id; choice: number }
   | { t: 'EndPhase'; playerId: Id }
   | { t: 'AdvancePhase' }; // system

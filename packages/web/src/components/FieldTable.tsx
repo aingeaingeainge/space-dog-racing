@@ -52,14 +52,6 @@ export function FieldTable({
                 <td>
                   {d ? <DogThumb dog={d} /> : null}
                   <b>{e.name}</b>
-                  {d && d.ownerId === meId && d.supplemented ? (
-                    <Badge
-                      tone="hot"
-                      title="you fed this one a supplement — the bookie does not know"
-                    >
-                      💉
-                    </Badge>
-                  ) : null}
                 </td>
                 <td>
                   {owner ? (

@@ -1,12 +1,20 @@
 import { currentPlanet, player } from '../state';
 import type { GameState, Id, Phase } from '../types';
 
+/**
+ * The next player still to act this phase.
+ *
+ * ⚠️ **Nobody is skipped any more.** This used to pass over a bankrupt stable; there is no
+ * bankruptcy in v3 (BUILD_PLAN_V3 §2.1, GDD_V3 V10 and pillar 5 — *nobody is out before the end*),
+ * so every stable in `turnOrder` acts every phase until it sends EndPhase. `player()` is still
+ * called so an id that is not in the game throws here rather than three frames later.
+ */
 function nextLivePlayer(s: GameState, after: Id | null): Id | null {
   const start = after ? s.turnOrder.indexOf(after) + 1 : 0;
   for (let i = start; i < s.turnOrder.length; i++) {
     const id = s.turnOrder[i]!;
-    const p = player(s, id);
-    if (!p.flags.bankrupt && !s.done.includes(id)) return id;
+    player(s, id);
+    if (!s.done.includes(id)) return id;
   }
   return null;
 }

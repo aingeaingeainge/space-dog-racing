@@ -21,12 +21,18 @@ export interface Spot {
   y: number;
 }
 
-/** The six venues of GDD §4.2 phase 3, in the order they are drawn. */
+/**
+ * The venues of GDD_V3 §10, in the order they are drawn.
+ *
+ * ⚠️ **Four became two plus two when the Docks and the Saloon went (BUILD_PLAN_V3 §2.1).** The
+ * positions below are unchanged for the venues that remain rather than being re-spaced: the
+ * backdrops in `design/ASSET_LIST.md` were generated with these exact regions left uncluttered, so
+ * moving a hotspot means regenerating eighteen images. §10 puts **Explore** on the hub in Phase D,
+ * and it should take one of the two positions this commit vacates rather than a new one.
+ */
 export const HOTSPOT_VENUES = [
   'market',
   'stable',
-  'docks',
-  'saloon',
   'bookie',
   'office',
 ] as const satisfies readonly VenueId[];
@@ -45,8 +51,6 @@ export const ARRANGEMENTS: Record<string, Arrangement> = {
   arc: {
     market: { x: 16, y: 52 },
     stable: { x: 32, y: 73 },
-    docks: { x: 50, y: 44 },
-    saloon: { x: 68, y: 71 },
     bookie: { x: 84, y: 49 },
     office: { x: 50, y: 87 },
   },
@@ -54,8 +58,6 @@ export const ARRANGEMENTS: Record<string, Arrangement> = {
   terraces: {
     market: { x: 18, y: 40 },
     stable: { x: 41, y: 35 },
-    docks: { x: 64, y: 40 },
-    saloon: { x: 22, y: 73 },
     bookie: { x: 47, y: 75 },
     office: { x: 75, y: 71 },
   },
@@ -63,8 +65,6 @@ export const ARRANGEMENTS: Record<string, Arrangement> = {
   strip: {
     market: { x: 13, y: 62 },
     stable: { x: 31, y: 48 },
-    docks: { x: 49, y: 65 },
-    saloon: { x: 67, y: 48 },
     bookie: { x: 85, y: 62 },
     office: { x: 49, y: 88 },
   },
@@ -72,8 +72,6 @@ export const ARRANGEMENTS: Record<string, Arrangement> = {
   ring: {
     market: { x: 14, y: 39 },
     stable: { x: 14, y: 75 },
-    docks: { x: 50, y: 82 },
-    saloon: { x: 86, y: 75 },
     bookie: { x: 86, y: 39 },
     office: { x: 50, y: 31 },
   },
@@ -81,8 +79,6 @@ export const ARRANGEMENTS: Record<string, Arrangement> = {
   canyon: {
     market: { x: 20, y: 34 },
     stable: { x: 16, y: 65 },
-    docks: { x: 44, y: 53 },
-    saloon: { x: 65, y: 34 },
     bookie: { x: 73, y: 67 },
     office: { x: 45, y: 85 },
   },
@@ -90,8 +86,6 @@ export const ARRANGEMENTS: Record<string, Arrangement> = {
   gantry: {
     market: { x: 24, y: 31 },
     stable: { x: 51, y: 27 },
-    docks: { x: 77, y: 33 },
-    saloon: { x: 20, y: 67 },
     bookie: { x: 50, y: 73 },
     office: { x: 79, y: 67 },
   },
@@ -133,8 +127,6 @@ export function hotspotsFor(planetId: Id): Arrangement {
 export const VENUE_ICON: Record<HotspotVenue, string> = {
   market: '🛒',
   stable: '🐕',
-  docks: '🚀',
-  saloon: '🥃',
   bookie: '🎲',
   office: '🏁',
 };
@@ -143,8 +135,6 @@ export const VENUE_ICON: Record<HotspotVenue, string> = {
 export const VENUE_BLURB: Record<HotspotVenue, string> = {
   market: 'Dogs on the block, kennel gear, and what your own are worth',
   stable: 'Your dogs: stats, fitness, form, and gear onto a named dog',
-  docks: 'Ship upgrades and the kibble trade',
-  saloon: 'Staff for hire, the training focus, and whoever lends money here',
   bookie: 'Win and place on any dog in any race, including your own',
   office: 'Declare one runner per race',
 };

@@ -1,13 +1,7 @@
 import { balance } from '../content/balance';
-import {
-  emptyPlanetState,
-  rollFinds,
-  rollFixer,
-  rollMarketDogs,
-  rollStaff,
-} from '../economy/market';
+import { emptyPlanetState } from '../economy/dogs';
 import { rollGoodPrices } from '../economy/food';
-import { cargoTotal, spoilCargo } from '../economy/goods';
+import { cargoTotal } from '../economy/goods';
 import { currentPlanet, emptyDeclarations, log, type Ctx } from '../state';
 import { clamp } from '../rng';
 import { drawEvents } from './events';
@@ -20,27 +14,12 @@ export function runArrival(ctx: Ctx): void {
   if (planet.id !== entry.planetId) throw new Error('planet/calendar mismatch');
 
   // Planet state for the week.
+  // ⚠️ The planet-week is now one thing: a shelf. The dogs on the block, the staff hall, the man
+  // at the far table, the muzzles and the track-day passes are all deleted (BUILD_PLAN_V3 §2.1),
+  // and with them every rng draw they made — which is why this commit's golden season diverges
+  // from v2e's at week 1 rather than at the first purchase.
   const ps = emptyPlanetState(planet.id);
   ps.goods = rollGoodPrices(planet, rng);
-  for (const d of rollMarketDogs(planet, s.week, rng, ctx.nextId)) {
-    s.dogs[d.id] = d;
-    ps.marketDogIds.push(d.id);
-  }
-  ps.staff = rollStaff(planet, rng, ctx.nextId);
-  // Who is at the far table this weekend (GDD §13). Rolled with the rest of the planet because
-  // that is what he is now — a thing this planet-week has, like the crates on the shelf and the
-  // dogs on the block, rather than somebody on your books (E-D45).
-  ps.fixer = rollFixer(planet, rng);
-  ps.muzzlesInStock = !!planet.special.muzzles || rng.chance(0.3);
-  ps.trackDayPasses = rng.chance(0.5);
-  // What each stable's own staff turned up for it (GDD §8.3). In `s.players` order rather than
-  // turn order, because turn order has not been rolled yet and the draw order must not depend on
-  // it — a Scout's dogs are the same dogs whoever lands first.
-  for (const p of s.players) {
-    const { finds, dogs } = rollFinds(p, planet, s.week, ps.goods, rng, ctx.nextId);
-    ps.finds[p.id] = finds;
-    for (const d of dogs) s.dogs[d.id] = d;
-  }
   s.planet = ps;
   s.declarations = emptyDeclarations();
   s.locked = false;
@@ -48,35 +27,34 @@ export function runArrival(ctx: Ctx): void {
   s.races = null;
   s.done = [];
 
-  // Turn order: shipSpeed × 10 − cargo ÷ 5 + d10, highest first (reversed at Blackreach).
+  // Turn order: −cargo ÷ 5 + d10, highest first (reversed at Blackreach).
+  //
+  // ⚠️ **There is no ship speed to buy any more (BUILD_PLAN_V3 §2.1), so turn order is bought with
+  // an empty hold and nothing else** — which is exactly what GDD_V3 §2.3 asks for. §2.3 writes the
+  // score as `20 − cargoUnits ÷ 5 + d10`; the constant 20 does not change any ordering, so it is
+  // left out here rather than written in as a number that does nothing. Phase B puts it back when
+  // the 50-unit hold makes the whole expression something the screen has to explain.
   const scored = s.players.map((p) => {
     const die = rng.int(1, balance.arrivalDie);
-    // The whole hold slows the ship, whatever is in it: a crate of Prime speed feed weighs the
-    // same as a crate of kibble.
     const crates = cargoTotal(p.cargo);
-    let score = p.ship.speed * balance.arrivalSpeedMult - crates / balance.arrivalCargoDiv + die;
+    let score = -crates / balance.arrivalCargoDiv + die;
     let reason =
       crates > balance.fuelCargoFree
         ? 'heavy cargo'
-        : p.ship.speed >= 4
-          ? 'fast ship'
-          : die >= 8
-            ? 'lucky approach'
-            : 'steady approach';
+        : die >= 8
+          ? 'lucky approach'
+          : 'steady approach';
     if (p.flags.arriveFirstNextWeek) {
       score += 1000;
       reason = 'wormhole shortcut';
       p.flags.arriveFirstNextWeek = false;
     }
-    if (p.flags.bankrupt) score -= 10000;
     return { id: p.id, score, reason };
   });
   scored.sort((a, b) => b.score - a.score);
   if (planet.special.turnOrderReversed) {
-    const bankrupt = scored.filter((x) => x.score < -5000);
-    const live = scored.filter((x) => x.score >= -5000).reverse();
-    scored.splice(0, scored.length, ...live, ...bankrupt);
-    for (const x of live) x.reason = 'black hole drags heavy ships in first';
+    scored.reverse();
+    for (const x of scored) x.reason = 'black hole drags heavy ships in first';
   }
   s.turnOrder = scored.map((x) => x.id);
   s.turnOrderReason = Object.fromEntries(scored.map((x) => [x.id, x.reason]));
@@ -84,7 +62,6 @@ export function runArrival(ctx: Ctx): void {
 
   // Planet arrival effects.
   for (const p of s.players) {
-    if (p.flags.bankrupt) continue;
     const delta = planet.special.fitnessOnArrival ?? 0;
     if (delta) {
       for (const id of p.dogIds) {
@@ -92,31 +69,10 @@ export function runArrival(ctx: Ctx): void {
         if (d) d.fitness = clamp(d.fitness + delta, 0, 100);
       }
     }
-    // Glassfall's freeze takes a fraction of the *whole* hold, off the biggest stacks first —
-    // see spoilCargo for why that reading rather than a fraction of each good (which would cost a
-    // diversified trader a crate of everything) or of the total rounded down per good (which a
-    // hold of thin stacks would dodge entirely).
-    if (planet.special.foodSpoils && !p.ship.coldStore) {
-      const lost = spoilCargo(p.cargo, planet.special.foodSpoils);
-      if (lost > 0) log(s, `${lost} crates froze solid on approach to ${planet.name}.`, p.id);
-    }
-    // Hushmarket: the real owner turns up for a fell-off-a-ship dog.
-    for (const id of [...p.dogIds]) {
-      const d = s.dogs[id];
-      if (d?.fellOffAShip === s.week) {
-        if (rng.chance(0.2)) {
-          p.dogIds = p.dogIds.filter((x) => x !== id);
-          delete s.dogs[id];
-          log(s, `${d.name}'s real owner turned up with paperwork and a large friend.`, p.id);
-        } else {
-          delete d.fellOffAShip;
-        }
-      }
-    }
   }
 
   s.phase = 'events';
-  s.eventQueue = s.turnOrder.filter((id) => !s.players.find((p) => p.id === id)?.flags.bankrupt);
+  s.eventQueue = [...s.turnOrder];
   s.activePlayer = null;
   drawEvents(ctx);
 }

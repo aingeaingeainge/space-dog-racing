@@ -20,20 +20,17 @@
  * declarations lock, which costs nothing and leaves the engine alone.
  */
 import { balance } from '../src/content/balance';
-import { good, GOODS, TIER_LABEL, TIER_ORDER } from '../src/content/goods';
-import { createDog, fitRating } from '../src/economy/market';
+import { GOODS } from '../src/content/goods';
+import { createDog, fitRating } from '../src/economy/dogs';
 import { baseRating, dogValue } from '../src/economy/dogValue';
 import { netWorth } from '../src/economy/netWorth';
 import { cargoTotal } from '../src/economy/goods';
-import { bestStaff, cargoCap, infoReach } from '../src/economy/staff';
 import { roadSplit } from '../src/economy/roadSplit';
-import { FIXER_CATCH_MULT, jobCost } from '../src/content/staff';
 import { clamp, mulberry32 } from '../src/rng';
-import { createSeason, eligible, FREE_HORIZON, player, thisWeeksCard } from '../src/state';
+import { createSeason, eligible, player, thisWeeksCard } from '../src/state';
 import { decide } from '../src/ai';
-import { MIX_KNOBS, PATH_KNOBS } from '../src/ai/paths';
 import { HARD_KNOBS } from '../src/ai/hard';
-import { hash01, STACK_OVERRIDE } from '../src/ai/shared';
+import { hash01 } from '../src/ai/shared';
 import { isSeasonOver, needsAdvance, reduceMut } from '../src/reduce';
 import { simulateRace, type Runner } from '../src/race/simulateRace';
 import { winProbabilities } from '../src/race/odds';
@@ -48,7 +45,6 @@ import {
   type Id,
   type GoodId,
   type Player,
-  type StaffRole,
   type RaceTypeId,
   type StatKey,
   type Track,
@@ -67,19 +63,13 @@ interface Args {
   /** §7a.4's Prime-amplification test (GDD §20 Q3). */
   leadConversion: boolean;
   /** §7a.5's three-way printout: the trainer and the trader in the same seasons. */
-  roads: boolean;
   /** §13's ablation: the crook agent with the road worked and with it switched off (D42). */
-  crookAblation: boolean;
   /** D43: which of the three constraints on a mixed stable actually binds. */
-  mixability: boolean;
   /** §14: which of Hard's own decisions is costing it its head-to-head band. */
   hardAblation: boolean;
   /** §6b's cargo-payback ablation: run the trader with and without buying hold. */
-  holdPayback: boolean;
   /** D7's stacking row: three of one role against a mixed three, in the same seasons. */
-  stacking: boolean;
   /** §13's road, priced against the fields the game actually produces (GDD §20 Q7). */
-  fix: boolean;
   quiet: boolean;
 }
 
@@ -94,13 +84,7 @@ function parseArgs(argv: string[]): Args {
     card: false,
     autoplan: false,
     leadConversion: false,
-    roads: false,
-    crookAblation: false,
-    mixability: false,
     hardAblation: false,
-    holdPayback: false,
-    stacking: false,
-    fix: false,
     quiet: false,
   };
   for (let i = 0; i < argv.length; i++) {
@@ -118,13 +102,7 @@ function parseArgs(argv: string[]): Args {
     else if (a === '--card') args.card = true;
     else if (a === '--autoplan') args.autoplan = true;
     else if (a === '--leadConversion' || a === '--lead') args.leadConversion = true;
-    else if (a === '--roads') args.roads = true;
-    else if (a === '--crookAblation') args.crookAblation = true;
-    else if (a === '--mixability') args.mixability = true;
     else if (a === '--hardAblation') args.hardAblation = true;
-    else if (a === '--holdPayback' || a === '--hold') args.holdPayback = true;
-    else if (a === '--stacking') args.stacking = true;
-    else if (a === '--fix') args.fix = true;
     else if (a === '--quiet') args.quiet = true;
   }
   return args;
@@ -147,8 +125,6 @@ interface AgentStats {
   trade: number[];
   bet: number[];
   costs: number[];
-  bankrupt: number;
-  dogsBought: number[];
   /** §7a.4: fitness of every dog at the moment it was declared. */
   declFitness: number[];
   declBelowThreshold: number;
@@ -163,51 +139,10 @@ interface AgentStats {
   /** §7.1: gross income by road, so "prize is 87% of it" is a number rather than a claim. */
   grossPrize: number[];
   grossFood: number[];
-  grossDogs: number[];
   grossBets: number[];
-  /** Mean crates aboard at the end of each week — what the trader's road is actually carrying. */
+  /** Mean crates aboard at the end of each week — what the trade is actually carrying. */
   crates: number[];
-  /** Hold capacity at week 13, ship plus staff. */
-  hold: number[];
-  /**
-   * §13's rows (BUILD_PLAN §6b Phase D). `caught` is seasons in which the stewards got this stable
-   * at least once — read off `flags.fixerBarred`, which is set on a catch and never cleared, so it
-   * is exactly "caught at least once" and needs nothing added to the engine to say so.
-   */
-  fixes: number[];
-  caught: number;
-  worthCaught: number[];
-  /**
-   * ⚠️ **Among stables that actually fixed something.** BUILD_PLAN §6b asks for "a caught crook's
-   * mean end worth, below the trainer agent's", and read naively that row is confounded: the
-   * crooks that never get caught are mostly the ones whose road never opened — no fixer, or never
-   * the cash to use one — so "clean" quietly means "poor and honest by accident". Measured that
-   * way a caught crook looks *richer* than a clean one, which is selection rather than crime
-   * paying. Splitting on "fixed at least once" is the comparison the row was reaching for.
-   */
-  worthClean: number[];
-  worthCleanFixer: number[];
-  /**
-   * What §13 cost this stable: fees plus fines, off `fixArchive` (E item 1).
-   *
-   * ⚠️ **It used to be inside `costs` and being inside `costs` is why nobody could see it.** The
-   * road's *earnings* have always been legible — they are in `bet` and in `prize` — and what it
-   * cost was folded in with the wages and the fuel, so the one comparison that decides whether the
-   * road is worth walking could only be made by ablation. It is a column now, here and on the
-   * Season End screen, from the same `roadSplit`.
-   */
-  fixSpend: number[];
   betsStruck: number[];
-  /**
-   * §7a.4's `infoSpend` / `infoROI`. Bones spent looking past the fog — dossiers, a Tipster's
-   * wages, and information bought from an event card — against what the legs that information
-   * covered actually returned, measured next to the same stable's uncovered legs.
-   */
-  infoSpend: number[];
-  legCovered: number[];
-  legUncovered: number[];
-  legCoveredUnits: number[];
-  legUncoveredUnits: number[];
 }
 
 /** Every stable is in the same season, so a pairing is a like-for-like comparison. */
@@ -216,7 +151,7 @@ interface HeadToHead {
   total: number;
 }
 
-const AGENT_ORDER: AiAgent[] = ['careless', 'easy', 'normal', 'hard'];
+const AGENT_ORDER: AiAgent[] = ['easy', 'normal', 'hard'];
 
 /** Per-race-type counters, kept as one object so a new type never needs a new field. */
 type ByType<T> = Map<RaceTypeId, T>;
@@ -244,7 +179,6 @@ interface SeasonSample {
   maidenRuns: number[];
   /** Gross income by road, tallied from the cash each action moves (see grossFrom). */
   grossFood: Map<Id, number>;
-  grossDogs: Map<Id, number>;
   /**
    * §7a.2 asks for **a row per good and tier** in the income split, and this is it: crates and
    * Bones moved, per good, in each direction. Kept gross for the same reason the road split is —
@@ -253,28 +187,14 @@ interface SeasonSample {
   goodsBought: Map<GoodId, { crates: number; bones: number }>;
   goodsSold: Map<GoodId, { crates: number; bones: number }>;
   /**
-   * §7a.4 `leadConversion` (GDD §20 Q3) — the Prime-amplification test.
+   * §7a.4 `leadConversion` (GDD §20 Q3), one row per stable-season: its net-worth **rank at week 6**
+   * and at the end.
    *
-   * One row per stable-season: its net-worth **rank at week 6** and **at week 13**, and whether it
-   * took a Prime thing (feed or staff) at any point. If a Prime offer creates a bigger gap for the
-   * stable that was already ahead than for the one behind, D11's consumable/wage guards are not
-   * strong enough and §11's ugly rubber band is the next lever.
+   * ⚠️ **The Prime half of this measure is gone with the tier ladder (BUILD_PLAN_V3 §2.1)**, so what
+   * is left is the rank pair. Kept because "does the leader pull away" is a v3 question too —
+   * GDD_V3 §11 asks for the 1st-to-last net-worth gap to be *narrower* than v2's — and the ranks are
+   * what answers it.
    *
-   * ⚠️ **Read off the action stream, not off `PlayerSeasonStats`.** §7a.4 specifies a two-field
-   * addition to the engine's stats, and it is not needed: the harness applies every action itself,
-   * so "this stable bought a Prime thing" is already in front of it. Doing it here keeps GameState
-   * unchanged and the golden snapshot at its two moves — the same argument that kept the dossier out
-   * of state in Phase B.
-   */
-  primeTaken: Set<Id>;
-  /**
-   * Prime things a stable could have bought this season — the acceptance row is 2–5 **offers seen**,
-   * not offers taken, because §8.1's guard is about the tier being *rare* rather than about anybody
-   * managing to afford it. Counted once per stable-week: a Prime shelf on this planet, or a Prime
-   * body drinking in the Saloon.
-   */
-  primeOffers: Map<Id, number>;
-  /**
    * Crates aboard at the end of every week, per stable.
    *
    * ⚠️ Measured across the season rather than at week 13, and the difference matters: a trader sells
@@ -283,67 +203,13 @@ interface SeasonSample {
    * the hold was the binding constraint.
    */
   cratesByWeek: Map<Id, number[]>;
-  /** §13: bribes and nobblings placed, per stable. */
-  fixes: Map<Id, number>;
-  /** Bones staked, per stable — the denominator the crook's road is a percentage of. */
+  /** Net-worth rank at week 6 and at the end, per stable — `leadConversion`'s two columns. */
+  rankAtSix: Map<Id, number>;
+  /** Bones staked, per stable. */
   staked: Map<Id, number>;
-  /**
-   * §7a.4's information economy, per stable.
-   *
-   * `infoSpend` is dossiers plus a Tipster's wage for the weeks it was employed. The legs are the
-   * crude but honest per-jump P&L: what a stable **sold** in week w against what it **bought** in
-   * week w−1, split by whether it could see past the free horizon when it made that buy. Crude
-   * because a hold does not turn over neatly every week; honest because it is the same measure on
-   * both sides of the split, so what it reports is the *difference* information makes rather than
-   * the level of anything.
-   */
-  infoSpend: Map<Id, number>;
-  boughtByWeek: Map<Id, number[]>;
-  soldByWeek: Map<Id, number[]>;
-  informedAtWeek: Map<Id, boolean[]>;
-  /**
-   * ⚠️ **The crate, tagged — which is what `infoROI` needed and never had (D44).**
-   *
-   * Phase D's legs were week w's sales against week w−1's purchases, and read −65 a leg: covered
-   * legs *worse* than uncovered ones. The diagnosis then was that the measure was the suspect
-   * rather than the economy, because a hold does not turn over neatly every week — an informed
-   * stable buys deeper and holds longer, so its purchases and its sales fall in different buckets
-   * more often than an uninformed one's, and the split quietly compared two different things.
-   *
-   * So each purchase is a **lot** — the week, the unit cost, and whether the stable could see past
-   * the free horizon when it made it — and a sale is matched against the oldest lots first. Profit
-   * then belongs to the information that was or was not behind the crate that earned it, which is
-   * the question §7a.4 asked in the first place.
-   *
-   * ⚠️ **And it lives in the harness rather than on the hold.** The obvious fix is a field on
-   * `Cargo`, and it would be the second copy of a fact D36 exists to keep out: the harness applies
-   * every action itself, so it already knows the week, the price and the units of every crate
-   * bought. A state change would move the golden snapshot to build an instrument, which is exactly
-   * the trade the harness's own header note refuses.
-   */
-  lots: Map<Id, Map<GoodId, Lot[]>>;
-  legCovered: Map<Id, number>;
-  legUncovered: Map<Id, number>;
-  /**
-   * ⚠️ Crates sold out of each bucket — and the reason the numbers above are never reported on
-   * their own. A season total is dominated by **volume**: a stable is informed for part of the
-   * season and blind for the rest, so the blind bucket holds far more crates and earns more in
-   * total whatever the information was worth. That is the D42/D25 mistake in a third costume —
-   * a measure that answers a different question from the one asked. What §9.2 asks is what a crate
-   * bought knowing something returns against one bought blind, so the reported figure is **per
-   * crate**.
-   */
-  legCoveredUnits: Map<Id, number>;
-  legUncoveredUnits: Map<Id, number>;
 }
 
 /** One purchase, waiting to be sold (D44). FIFO: the oldest crates leave the hold first. */
-interface Lot {
-  week: number;
-  units: number;
-  unitCost: number;
-  informed: boolean;
-}
 
 export function emptySample(): SeasonSample {
   return {
@@ -361,23 +227,11 @@ export function emptySample(): SeasonSample {
     maidenEntries: Array.from({ length: balance.weeks }, () => 0),
     maidenRuns: Array.from({ length: balance.weeks }, () => 0),
     grossFood: new Map(),
-    grossDogs: new Map(),
     goodsBought: new Map(),
     goodsSold: new Map(),
-    primeTaken: new Set(),
-    primeOffers: new Map(),
     cratesByWeek: new Map(),
-    fixes: new Map(),
     staked: new Map(),
-    infoSpend: new Map(),
-    boughtByWeek: new Map(),
-    soldByWeek: new Map(),
-    informedAtWeek: new Map(),
-    lots: new Map(),
-    legCovered: new Map(),
-    legUncovered: new Map(),
-    legCoveredUnits: new Map(),
-    legUncoveredUnits: new Map(),
+    rankAtSix: new Map(),
   };
 }
 
@@ -516,10 +370,12 @@ const notPlan = (a: Action) => a.t !== 'Declare' && a.t !== 'SetDogState';
  * own shopping has already sold on — and the reducer would rightly refuse it. Both the comparison
  * and the rollout use the same filter, so they price the same plan.
  */
-function soldThisPhase(actions: readonly Action[], playerId: Id): Set<Id> {
-  const out = new Set<Id>();
-  for (const a of actions) if (a.t === 'SellDog' && a.playerId === playerId) out.add(a.dogId);
-  return out;
+function soldThisPhase(): Set<Id> {
+  // ⚠️ **Always empty now, and kept as a seam rather than deleted.** With the dog market gone
+  // (BUILD_PLAN_V3 §2.1) an agent cannot sell a dog mid-phase, so there is nothing for the autoplan
+  // comparison to filter out. GDD_V3 §9.2 brings dog *swaps* back in Phase D — accepting an offer
+  // discards one of your own — at which point this is where that filter goes again.
+  return new Set<Id>();
 }
 
 /**
@@ -566,7 +422,7 @@ function playOut(
     if (force && who === force.playerId && s.week === force.week && s.phase === 'planetPre') {
       actions = [
         ...actions.filter(notPlan).filter((a) => a.t !== 'EndPhase'),
-        ...autoplanFor(s, p, soldThisPhase(actions, who)),
+        ...autoplanFor(s, p, soldThisPhase()),
         { t: 'EndPhase', playerId: who },
       ];
     }
@@ -615,7 +471,7 @@ export function runAutoplan(seasons = 200, seed = 1, sampleEvery = 4): string {
       const actions = decide(s, who, p.difficulty);
 
       if (s.phase === 'planetPre' && !s.pendingEvent) {
-        const auto = planFrom(s, p, autoplanFor(s, p, soldThisPhase(actions, who)));
+        const auto = planFrom(s, p, autoplanFor(s, p, soldThisPhase()));
         const own = planFrom(s, p, actions);
         weeks++;
         if (auto.entries === own.entries) entriesAgree++;
@@ -720,8 +576,6 @@ export function playSeason(
   let sampledWeek = 0;
   let paidWeek = 0;
   let guard = 0;
-  /** `week|playerId` for stables that have bought a dossier this week — see the note in the lots. */
-  const dossierThisWeek = new Set<string>();
   // §7a.4's split point. Week 6 is the "decided by" week Phase B measured, which is exactly the
   // week at which "ahead" and "behind" start to mean something.
   const LEAD_WEEK = 6;
@@ -745,18 +599,7 @@ export function playSeason(
       // §7a.4 cardCoverage and the fill rate, per stable: could you have filled this race, and
       // did you? Read off the stable's own kennel rather than off the field, because a race a
       // stable left to the locals is exactly what these two measures are for.
-      // Prime offers in front of this stable this week: the shared shelf, its own consignment, and
-      // the Saloon. Counted at the one instant the week is fully rolled and nothing has been bought.
-      const primeOnShelf = GOODS.filter(
-        (g) => g.tier === 'prime' && s.planet.goods[g.id].stock > 0,
-      ).length;
-      const primeStaff = s.planet.staff.filter((o) => o.tier === 'prime').length;
       for (const p of s.players) {
-        if (p.flags.bankrupt) continue;
-        const mine = GOODS.filter(
-          (g) => g.tier === 'prime' && (s.planet.finds[p.id]?.goods[g.id] ?? 0) > 0,
-        ).length;
-        bumpMap(sample.primeOffers, p.id, primeOnShelf + primeStaff + mine);
         const kennel = p.dogIds.map((id) => s.dogs[id]).filter((d): d is Dog => !!d);
         let filled = 0;
         for (const race of card) {
@@ -800,16 +643,6 @@ export function playSeason(
         list.push(cargoTotal(p.cargo));
         sample.cratesByWeek.set(p.id, list);
       }
-      // §7a.4: a Tipster's wage is information spending, and the weeks it covers are the weeks a
-      // stable bought stock knowing more than the free horizon gives it. Sampled at endTurn, once
-      // a week, after the planet phases in which both the hire and the buying happen.
-      for (const p of s.players) {
-        const tip = bestStaff(p, 'tipster');
-        if (tip) bumpMap(sample.infoSpend, p.id, tip.wage);
-        const seen = sample.informedAtWeek.get(p.id) ?? Array(balance.weeks).fill(false);
-        seen[s.week - 1] = infoReach(p).band > FREE_HORIZON;
-        sample.informedAtWeek.set(p.id, seen);
-      }
     }
     if (needsAdvance(s)) {
       reduceMut(s, { t: 'AdvancePhase' });
@@ -825,79 +658,24 @@ export function playSeason(
       // bought, which cannot answer "what share of a stable's income is prize money"; the cash
       // an action moves can, and reading it here keeps the instrument out of the engine.
       const before = p.cash;
-      // What is on offer has to be read *before* the action lands, or a hire has already left the
-      // planet's list by the time we look at it.
-      const offer =
-        a.t === 'HireStaff' ? s.planet.staff.find((o) => o.id === a.staffId) : undefined;
       reduceMut(s, a);
       const gained = p.cash - before;
-      if (gained > 0) {
-        if (a.t === 'TradeFood') bumpMap(sample.grossFood, who, gained);
-        else if (a.t === 'SellDog') bumpMap(sample.grossDogs, who, gained);
-      }
-      // §13 and §7a.4, read off the action stream for the same reason `leadConversion` is (D36):
-      // the harness applies every action itself, so nothing has to be added to GameState to say
-      // what a stable did.
-      if (a.t === 'Sabotage' || a.t === 'BribeSteward') bumpMap(sample.fixes, who, 1);
+      if (gained > 0 && a.t === 'TradeFood') bumpMap(sample.grossFood, who, gained);
       if (a.t === 'PlaceBet') bumpMap(sample.staked, who, a.stake);
-      if (a.t === 'BuyUpgrade' && a.upgrade === 'dossier') {
-        bumpMap(sample.infoSpend, who, -gained);
-        // A dossier is information for the week it was bought in, and the crates bought after it
-        // are covered by it. `informedAtWeek` only ever read the Tipster, which is half the
-        // information economy §9.3 describes (D44).
-        dossierThisWeek.add(`${s.week}|${who}`);
-      }
-      if (a.t === 'TradeFood') {
-        const w = s.week - 1;
-        const buys = sample.boughtByWeek.get(who) ?? Array(balance.weeks).fill(0);
-        const sells = sample.soldByWeek.get(who) ?? Array(balance.weeks).fill(0);
-        if (a.units > 0) buys[w] = (buys[w] ?? 0) + Math.abs(gained);
-        else sells[w] = (sells[w] ?? 0) + Math.abs(gained);
-        sample.boughtByWeek.set(who, buys);
-        sample.soldByWeek.set(who, sells);
-        // D44: the same trade again, as tagged lots matched FIFO. See `SeasonSample.lots`.
-        const byGood = sample.lots.get(who) ?? new Map<GoodId, Lot[]>();
-        const queue = byGood.get(a.good) ?? [];
-        const units = Math.abs(Math.trunc(a.units));
-        const perUnit = units > 0 ? Math.abs(gained) / units : 0;
-        if (a.units > 0) {
-          // ⚠️ Asked *now*, of the stable, rather than read off `informedAtWeek` — which is
-          // written at endTurn, after the planet phase this buy happens in, so at this moment it
-          // still holds last week's answer. The old leg measure read `seen[w − 1]` and was
-          // correct by accident of being a week behind; a tagged crate has to be tagged with what
-          // was true when it was bought.
-          const informed =
-            infoReach(p).band > FREE_HORIZON || dossierThisWeek.has(`${s.week}|${who}`);
-          queue.push({ week: s.week, units, unitCost: perUnit, informed });
-        } else {
-          let left = units;
-          while (left > 0 && queue.length) {
-            const lot = queue[0]!;
-            const take = Math.min(left, lot.units);
-            const profit = (perUnit - lot.unitCost) * take;
-            bumpMap(lot.informed ? sample.legCovered : sample.legUncovered, who, profit);
-            bumpMap(lot.informed ? sample.legCoveredUnits : sample.legUncoveredUnits, who, take);
-            lot.units -= take;
-            left -= take;
-            if (lot.units <= 0) queue.shift();
-          }
-          // Crates that were aboard before the first tracked buy (there are none in practice, but
-          // a spoiled or event-granted crate could be) are sold at no attributed profit rather
-          // than at an invented cost.
-        }
-        byGood.set(a.good, queue);
-        sample.lots.set(who, byGood);
-      }
       // §7a.2's row per good, both ways, gross.
+      //
+      // ⚠️ **The information economy that used to be sampled here is gone (BUILD_PLAN_V3 §2.1).**
+      // `infoSpend` / `infoROI` and the FIFO-tagged crates of D44 measured what a Tipster's wage and
+      // a dossier bought, and v3 has neither: GDD_V3 §9.4 keeps the fog but moves information into
+      // Bar events and staff bonuses, and says it now has exactly one use — knowing whether next
+      // week's planet buys your Ambrosia high. That is a Phase B/D measure against a Phase B market,
+      // so it is deleted here rather than carried forward measuring nothing.
       if (a.t === 'TradeFood') {
         const crates = Math.abs(Math.trunc(a.units));
         const bones = Math.abs(gained);
         if (a.units > 0) bumpGood(sample.goodsBought, a.good, crates, bones);
         else bumpGood(sample.goodsSold, a.good, crates, bones);
-        // §7a.4: a Prime crate taken is a Prime offer converted (GDD §20 Q3).
-        if (a.units > 0 && good(a.good).tier === 'prime') sample.primeTaken.add(who);
       }
-      if (offer?.tier === 'prime') sample.primeTaken.add(who);
       actions++;
     }
   }
@@ -918,8 +696,6 @@ export function runHarness(args: Args): string {
         trade: [],
         bet: [],
         costs: [],
-        bankrupt: 0,
-        dogsBought: [],
         declFitness: [],
         declBelowThreshold: 0,
         entries: [],
@@ -929,22 +705,9 @@ export function runHarness(args: Args): string {
         concentration: [],
         grossPrize: [],
         grossFood: [],
-        grossDogs: [],
         grossBets: [],
         crates: [],
-        hold: [],
-        fixes: [],
-        caught: 0,
-        worthCaught: [],
-        worthClean: [],
-        worthCleanFixer: [],
-        fixSpend: [],
         betsStruck: [],
-        infoSpend: [],
-        legCovered: [],
-        legUncovered: [],
-        legCoveredUnits: [],
-        legUncoveredUnits: [],
       };
       byAgent.set(d, st);
     }
@@ -963,8 +726,6 @@ export function runHarness(args: Args): string {
     }
     return p;
   };
-  let supplementsUsed = 0;
-  let supplementsCaught = 0;
   let actions = 0;
   let championWonAMajor = 0;
   const coverOffered = byType(() => 0);
@@ -980,15 +741,6 @@ export function runHarness(args: Args): string {
   // §7a.2's row per good, across every season.
   const goodsBought = new Map<GoodId, { crates: number; bones: number }>();
   const goodsSold = new Map<GoodId, { crates: number; bones: number }>();
-  /** §7a.4 leadConversion: rank change week 6 → 13, split by ahead/behind and by Prime taken. */
-  /** §6b's "Prime offers seen per season", per stable. */
-  const primeOffersSeen: number[] = [];
-  const lead = {
-    aheadPrime: [] as number[],
-    aheadNone: [] as number[],
-    behindPrime: [] as number[],
-    behindNone: [] as number[],
-  };
   /**
    * The same test, split on **whether the stable bet** (GDD §10, §20 Q7).
    *
@@ -1031,17 +783,13 @@ export function runHarness(args: Args): string {
       const after = at13.get(p.id);
       if (before === undefined || after === undefined) continue;
       const delta = before - after; // places gained
-      const prime = sample.primeTaken.has(p.id);
       const ahead = before <= half;
-      if (ahead) (prime ? lead.aheadPrime : lead.aheadNone).push(delta);
-      else (prime ? lead.behindPrime : lead.behindNone).push(delta);
       const bet = (sample.staked.get(p.id) ?? 0) > 0;
       if (ahead) (bet ? leadBet.aheadBet : leadBet.aheadNone).push(delta);
       else (bet ? leadBet.behindBet : leadBet.behindNone).push(delta);
     }
     for (const [id, v] of sample.goodsBought) bumpGood(goodsBought, id, v.crates, v.bones);
     for (const [id, v] of sample.goodsSold) bumpGood(goodsSold, id, v.crates, v.bones);
-    for (const p of s.players) primeOffersSeen.push(sample.primeOffers.get(p.id) ?? 0);
   }
 
   function collect(s: GameState, sample: SeasonSample) {
@@ -1061,12 +809,7 @@ export function runHarness(args: Args): string {
       st.prize.push(split.prize);
       st.trade.push(split.trade);
       st.bet.push(split.betting);
-      st.fixSpend.push(split.fixes);
       st.costs.push(split.costs);
-      st.dogsBought.push(p.stats.dogsBought);
-      if (p.flags.bankrupt) st.bankrupt++;
-      supplementsUsed += p.stats.supplementsUsed;
-      supplementsCaught += p.stats.supplementsCaught;
       const fits = sample.declFitness.get(p.id) ?? [];
       for (const f of fits) {
         st.declFitness.push(f);
@@ -1085,30 +828,9 @@ export function runHarness(args: Args): string {
         .reduce((sum, b) => sum + (b.settled?.payout ?? 0), 0);
       st.grossPrize.push(p.stats.prizeIncome);
       st.grossFood.push(sample.grossFood.get(p.id) ?? 0);
-      st.grossDogs.push(sample.grossDogs.get(p.id) ?? 0);
       st.grossBets.push(betReturns);
       st.crates.push(mean(sample.cratesByWeek.get(p.id) ?? [0]));
-      st.hold.push(cargoCap(p));
-      // §13: how much fixing this stable did, and whether the stewards ever got it.
-      st.fixes.push(sample.fixes.get(p.id) ?? 0);
       st.betsStruck.push(sample.staked.get(p.id) ?? 0);
-      const worth = netWorth(s, p);
-      const fixed = (sample.fixes.get(p.id) ?? 0) > 0;
-      if (p.flags.fixerBarred) {
-        st.caught++;
-        st.worthCaught.push(worth);
-      } else {
-        st.worthClean.push(worth);
-        if (fixed) st.worthCleanFixer.push(worth);
-      }
-      // §7a.4 infoROI: this stable's trade P&L, attributed to the information behind the crate
-      // that earned it (D44). FIFO lots rather than week w's sales against week w−1's purchases —
-      // see the note on `SeasonSample.lots` for why the old shape could not answer the question.
-      st.infoSpend.push(sample.infoSpend.get(p.id) ?? 0);
-      st.legCovered.push(sample.legCovered.get(p.id) ?? 0);
-      st.legUncovered.push(sample.legUncovered.get(p.id) ?? 0);
-      st.legCoveredUnits.push(sample.legCoveredUnits.get(p.id) ?? 0);
-      st.legUncoveredUnits.push(sample.legUncoveredUnits.get(p.id) ?? 0);
     }
     for (const race of RACE_TYPE_IDS) {
       bumpMap(coverOffered, race, sample.coverOffered.get(race) ?? 0);
@@ -1166,14 +888,16 @@ export function runHarness(args: Args): string {
   );
   lines.push('');
   lines.push('End net worth (Bones) and win rate by agent');
-  lines.push('  agent      n     mean      p10      p50      p90   winRate   bankruptRate');
+  lines.push('  agent      n     mean      p10      p50      p90   winRate');
   for (const [d, st] of byAgent) {
     const sorted = [...st.worth].sort((a, b) => a - b);
     lines.push(
-      `  ${d.padEnd(8)} ${String(st.seasons).padStart(4)} ${fmt(mean(st.worth)).padStart(8)} ${fmt(quantile(sorted, 0.1)).padStart(8)} ${fmt(quantile(sorted, 0.5)).padStart(8)} ${fmt(quantile(sorted, 0.9)).padStart(8)}   ${pct(st.wins / Math.max(1, st.seasons)).padStart(6)}   ${pct(st.bankrupt / Math.max(1, st.seasons)).padStart(7)} (${st.bankrupt})`,
+      `  ${d.padEnd(8)} ${String(st.seasons).padStart(4)} ${fmt(mean(st.worth)).padStart(8)} ${fmt(quantile(sorted, 0.1)).padStart(8)} ${fmt(quantile(sorted, 0.5)).padStart(8)} ${fmt(quantile(sorted, 0.9)).padStart(8)}   ${pct(st.wins / Math.max(1, st.seasons)).padStart(6)}`,
     );
   }
-  lines.push('  bankruptRate targets (GDD §7.5 / D6): careless 5–10%, every difficulty ≤ 2%');
+  // ⚠️ `bankruptRate` is gone, and it is not a row waiting to be re-derived: there is no bankruptcy
+  // in v3 (BUILD_PLAN_V3 §2.1, GDD_V3 V10, pillar 5). GDD_V3 §11's replacement failure state is
+  // "stables ending a season on less than they started", 10–25%, which is the row below.
   if (h2h.size) {
     lines.push('');
     lines.push(
@@ -1187,14 +911,15 @@ export function runHarness(args: Args): string {
     }
   }
   lines.push('');
-  lines.push(
-    'Income split per stable-season (mean): prize / trade / betting / costs / dogs bought',
-  );
+  lines.push('Income split per stable-season (mean): prize / trade / betting / costs');
   for (const [d, st] of byAgent) {
     lines.push(
-      `  ${d.padEnd(8)} ${fmt(mean(st.prize)).padStart(8)} ${fmt(mean(st.trade)).padStart(8)} ${fmt(mean(st.bet)).padStart(8)} ${fmt(mean(st.costs)).padStart(8)}   ${mean(st.dogsBought).toFixed(1)}`,
+      `  ${d.padEnd(8)} ${fmt(mean(st.prize)).padStart(8)} ${fmt(mean(st.trade)).padStart(8)} ${fmt(mean(st.bet)).padStart(8)} ${fmt(mean(st.costs)).padStart(8)}`,
     );
   }
+  lines.push(
+    '  ⚠️ costs is food and event bills only — no upkeep, wages, fuel or interest (GDD_V3 V10)',
+  );
 
   // §7a.4: the kennel measures. Race/Train/Rest is judged on these three and nothing else.
   lines.push('');
@@ -1265,57 +990,45 @@ export function runHarness(args: Args): string {
 
   lines.push('');
   lines.push('Gross income by road per stable-season, and prize as a share of it (GDD §7.1)');
-  lines.push('  agent       prize     food sold   dogs sold   bets returned   prize share');
+  lines.push('  agent       prize     food sold   bets returned   prize share');
   for (const [d, st] of byAgent) {
     const prize = mean(st.grossPrize);
-    const total = prize + mean(st.grossFood) + mean(st.grossDogs) + mean(st.grossBets);
+    const total = prize + mean(st.grossFood) + mean(st.grossBets);
     lines.push(
       `  ${d.padEnd(8)} ${fmt(prize).padStart(9)} ${fmt(mean(st.grossFood)).padStart(11)} ` +
-        `${fmt(mean(st.grossDogs)).padStart(11)} ${fmt(mean(st.grossBets)).padStart(15)} ` +
-        `${pct(prize / Math.max(1, total)).padStart(13)}`,
+        `${fmt(mean(st.grossBets)).padStart(15)} ${pct(prize / Math.max(1, total)).padStart(13)}`,
     );
   }
   lines.push('  Target (BUILD_PLAN §6b): prize share falls toward 65%. Gross, not net — the');
   lines.push('  question is where the money came in, not whether the road turned a profit.');
 
-  // §7a.2's row per good and tier. The whole point of Phase C is that "food sold: 700" becomes
-  // something else, and one line cannot say which of thirteen things it became.
+  // §7a.2's row per good. ⚠️ The tier column is gone with the ladder (BUILD_PLAN_V3 §2.1), and with
+  // one placeholder good this table is a single row until Phase B gives it six.
   const seasonsRun = Math.max(1, args.seasons * args.ai.length);
   const traded = GOODS.filter(
     (g) => (goodsBought.get(g.id)?.crates ?? 0) + (goodsSold.get(g.id)?.crates ?? 0) > 0,
   );
   if (traded.length) {
     lines.push('');
-    lines.push(
-      'The goods, per stable-season (GDD §8.2 / BUILD_PLAN §7a.2 — a row per good and tier)',
-    );
-    lines.push('  good                 tier      crates in    Bones out   crates out    Bones in');
+    lines.push('The goods, per stable-season (GDD §8.2 / BUILD_PLAN §7a.2 — a row per good)');
+    lines.push('  good                 crates in    Bones out   crates out    Bones in');
     for (const g of traded) {
       const b = goodsBought.get(g.id) ?? { crates: 0, bones: 0 };
       const sold = goodsSold.get(g.id) ?? { crates: 0, bones: 0 };
       lines.push(
-        `  ${g.label.padEnd(20)} ${(g.tier ? TIER_LABEL[g.tier] : 'staple').padEnd(8)} ` +
-          `${(b.crates / seasonsRun).toFixed(1).padStart(10)} ${fmt(b.bones / seasonsRun).padStart(12)} ` +
-          `${(sold.crates / seasonsRun).toFixed(1).padStart(12)} ${fmt(sold.bones / seasonsRun).padStart(11)}`,
+        `  ${g.label.padEnd(20)} ${(b.crates / seasonsRun).toFixed(1).padStart(10)} ` +
+          `${fmt(b.bones / seasonsRun).padStart(12)} ${(sold.crates / seasonsRun).toFixed(1).padStart(12)} ` +
+          `${fmt(sold.bones / seasonsRun).padStart(11)}`,
       );
     }
-    const primeCrates = traded
-      .filter((g) => g.tier === 'prime')
-      .reduce((sum, g) => sum + (goodsBought.get(g.id)?.crates ?? 0), 0);
-    lines.push(`  Prime crates bought per stable-season: ${(primeCrates / seasonsRun).toFixed(2)}`);
   }
 
-  lines.push('');
-  lines.push(
-    `Prime offers seen per stable-season: ${mean(primeOffersSeen).toFixed(2)} ` +
-      `(target 2–5 — a rare tier is the point, GDD §8.1)`,
-  );
-
-  // §7a.4 leadConversion (GDD §20 Q3): does the Prime tier amplify whoever is already ahead?
-  lines.push('');
-  lines.push('leadConversion — does a Prime offer widen the lead? (§7a.4, GDD §20 Q3)');
-  lines.push('  Places gained between week 6 and week 13. Positive = climbed.');
-  lines.push('  group          took Prime          took none        the gap Prime makes');
+  // ⚠️ **The Prime half of leadConversion is gone with the tier ladder (BUILD_PLAN_V3 §2.1).**
+  // "Does a Prime offer widen the lead?" cannot be asked of a game with no tiers. What survives is
+  // the betting split below, which is the same shape on a channel v3 still has — and GDD_V3 §11's
+  // "net worth gap, 1st to last, narrower than v2's" is the row that replaces it. Phase B should
+  // re-point this machinery at the six-good market, where "does a good leg widen the lead" is the
+  // live version of the question.
   const row = (label: string, withP: number[], without: number[]): void => {
     const a = mean(withP);
     const b = mean(without);
@@ -1325,21 +1038,6 @@ export function runHarness(args: Args): string {
         `${(a - b >= 0 ? '+' : '') + (a - b).toFixed(2)}`,
     );
   };
-  row('ahead at wk 6', lead.aheadPrime, lead.aheadNone);
-  row('behind at wk 6', lead.behindPrime, lead.behindNone);
-  const leaderGain = mean(lead.aheadPrime) - mean(lead.aheadNone);
-  const trailerGain = mean(lead.behindPrime) - mean(lead.behindNone);
-  lines.push(
-    `  Target: the leader's gain from Prime is no larger than the trailer's. ` +
-      `Leader ${leaderGain >= 0 ? '+' : ''}${leaderGain.toFixed(2)}, trailer ${trailerGain >= 0 ? '+' : ''}${trailerGain.toFixed(2)} — ` +
-      `${leaderGain <= trailerGain ? 'MET' : 'MISSED'}.`,
-  );
-  lines.push(
-    '  ⚠️ A leader is already at the top of the table, so it has fewer places to gain than a',
-  );
-  lines.push(
-    '  trailer has: read the two columns against each other within a row, not across rows.',
-  );
 
   // §20 Q7: the same shape again, on the channel the flat stake ceiling exists to close.
   lines.push('');
@@ -1379,143 +1077,9 @@ export function runHarness(args: Args): string {
       `it should fall, because winning one is what bars you from the next`,
   );
   lines.push(
-    `Supplements: ${supplementsUsed} used, ${supplementsCaught} caught (${supplementsUsed ? pct(supplementsCaught / supplementsUsed) : 'n/a'})`,
-  );
-  lines.push(
     `Seasons where the champion won at least one Major Open: ${pct(championWonAMajor / Math.max(1, args.seasons))}`,
   );
 
-  // §7a.4's information economy (GDD §9.2). What a stable spent looking past the fog, and what the
-  // legs that information covered returned against the ones it did not.
-  const infoRows = [...byAgent.entries()].filter(([, st]) => mean(st.infoSpend) > 0);
-  if (infoRows.length) {
-    lines.push('');
-    lines.push('The information economy (§7a.4) — infoSpend and infoROI');
-    lines.push(
-      '  agent     spent   informed: crates  per crate    plain: crates  per crate   gap   infoROI',
-    );
-    for (const [d, st] of infoRows) {
-      const covUnits = mean(st.legCoveredUnits);
-      const uncUnits = mean(st.legUncoveredUnits);
-      const cov = covUnits > 0 ? mean(st.legCovered) / covUnits : 0;
-      const unc = uncUnits > 0 ? mean(st.legUncovered) / uncUnits : 0;
-      const spend = mean(st.infoSpend);
-      // What the information was worth: the per-crate gap, on the crates it actually covered,
-      // against what was paid for it.
-      const worth = (cov - unc) * covUnits;
-      lines.push(
-        `  ${d.padEnd(8)} ${fmt(spend).padStart(7)} ${covUnits.toFixed(1).padStart(16)} ` +
-          `${cov.toFixed(1).padStart(10)} ${uncUnits.toFixed(1).padStart(16)} ${unc.toFixed(1).padStart(10)} ` +
-          `${((cov - unc >= 0 ? '+' : '') + (cov - unc).toFixed(1)).padStart(7)}   ` +
-          `${spend > 0 ? (worth / spend).toFixed(2) : '—'}`,
-      );
-    }
-    lines.push(
-      '  A crate carries the week it was bought and whether the stable could see past the free',
-    );
-    lines.push(
-      '  horizon when it bought it; a sale is matched against the oldest crates first, so the',
-    );
-    lines.push('  profit belongs to the information that was or was not behind it (D44).');
-    lines.push(
-      '  ⚠️ Per CRATE, not per season: a stable is informed for part of the year and blind for the',
-    );
-    lines.push(
-      '  rest, so the blind bucket holds far more crates and wins any comparison of totals whatever',
-    );
-    lines.push(
-      '  the information was worth. infoROI is the per-crate gap across the crates information',
-    );
-    lines.push('  actually covered, against what was paid for it.');
-  }
-
-  // §7a.5's printout, now four roads wide plus the mixed agent. The deliverable is this table,
-  // not the agents — and the caveat below it is part of the deliverable.
-  const roadAgents = (['trainer', 'trader', 'crook', 'mixed'] as AiAgent[]).filter((a) =>
-    byAgent.has(a),
-  );
-  if (roadAgents.length) {
-    lines.push('');
-    lines.push('The roads, side by side (BUILD_PLAN §7a.5, GDD §20 Q2)');
-    lines.push(
-      '  agent       mean      p10      p90   p90/p10     prize    trade   bet   fixed  jobs  caught  winRate',
-    );
-    for (const a of roadAgents) {
-      const st = byAgent.get(a)!;
-      const sorted = [...st.worth].sort((x, y) => x - y);
-      const p10 = quantile(sorted, 0.1);
-      const p90 = quantile(sorted, 0.9);
-      lines.push(
-        `  ${a.padEnd(8)} ${fmt(mean(st.worth)).padStart(8)} ${fmt(p10).padStart(8)} ` +
-          `${fmt(p90).padStart(8)} ${(p10 > 0 ? (p90 / p10).toFixed(1) : '—').padStart(9)} ` +
-          `${fmt(mean(st.prize)).padStart(9)} ${fmt(mean(st.trade)).padStart(8)} ` +
-          `${fmt(mean(st.bet)).padStart(6)} ${fmt(-mean(st.fixSpend)).padStart(6)} ` +
-          `${mean(st.fixes).toFixed(1).padStart(5)} ` +
-          `${pct(st.caught / Math.max(1, st.seasons)).padStart(7)} ` +
-          `${pct(st.wins / Math.max(1, st.seasons)).padStart(8)}`,
-      );
-    }
-    const singles = roadAgents.filter((a) => a !== 'mixed');
-    const means = singles.map((a) => mean(byAgent.get(a)!.worth));
-    const spread = (Math.max(...means) - Math.min(...means)) / Math.max(1, Math.min(...means));
-    lines.push(
-      `  Target (§7a.5): within 15% of each other on the mean, and visibly different in spread — ` +
-        `the crook widest, the trainer narrowest.`,
-    );
-    lines.push(
-      `  Measured ${pct(spread)} apart across ${singles.join(' / ')} — ${spread <= 0.15 ? 'MET' : 'MISSED'}.`,
-    );
-    const crook = byAgent.get('crook');
-    if (crook) {
-      const trainerMean = byAgent.has('trainer') ? mean(byAgent.get('trainer')!.worth) : 0;
-      const caughtMean = mean(crook.worthCaught);
-      const rate = crook.caught / Math.max(1, crook.seasons);
-      lines.push('');
-      lines.push('  The crook’s own rows (BUILD_PLAN §6b Phase D)');
-      lines.push(
-        `    caught at least once   ${pct(rate)} — target 40–70% — ${rate >= 0.4 && rate <= 0.7 ? 'MET' : 'MISSED'}`,
-      );
-      lines.push(
-        `    a caught crook’s worth ${fmt(caughtMean)} against the trainer’s ${fmt(trainerMean)} — ` +
-          `${caughtMean < trainerMean ? 'MET' : 'MISSED'}`,
-      );
-      lines.push(
-        `      …against a crook that fixed and got away with it: ${fmt(mean(crook.worthCleanFixer))} ` +
-          `(n ${crook.worthCleanFixer.length}); every clean crook, road or no road: ${fmt(mean(crook.worthClean))}`,
-      );
-      lines.push(
-        '      ⚠️ The middle number is the honest comparison. A crook that never gets caught is',
-      );
-      lines.push(
-        '      mostly one whose road never opened — no fixer, or never the cash to use one — so',
-      );
-      lines.push('      "clean" read naively means "poor and honest by accident".');
-      lines.push(
-        `    fixes placed a season  ${mean(crook.fixes).toFixed(1)}, staking ${fmt(mean(crook.betsStruck))} in total`,
-      );
-    }
-    const mixedAgent = byAgent.get('mixed');
-    if (mixedAgent && singles.length) {
-      const bestSingle = Math.max(...means);
-      const bestName = singles[means.indexOf(bestSingle)]!;
-      const m = mean(mixedAgent.worth);
-      lines.push(
-        `    a mixed agent          ${fmt(m)} against the best single road (${bestName}) ${fmt(bestSingle)} — ` +
-          `${m >= bestSingle * 0.95 ? 'MET' : 'MISSED'}`,
-      );
-      lines.push(
-        '    ⚠️ §2.1 says the roads "are meant to be mixable" and nothing had ever measured it.',
-      );
-    }
-    lines.push('');
-    lines.push(
-      '  ⚠️ Hand-written agents measure whether the roads *can* pay, not whether they are',
-    );
-    lines.push(
-      '  balanced against a good player. Jesse beat three Hard and three Normal stables with a line',
-    );
-    lines.push('  no agent plays. This is a floor test, not a proof.');
-  }
   return lines.join('\n');
 }
 
@@ -1986,159 +1550,6 @@ export function runPupCurve(pups = 200, racesPerCell = 900, seed = 4242): string
  * speaks only *rating*. Kept beside `runFixProbe` and mirrored by `SABOTAGE_RATING_EQUIV` in
  * `ai/paths.ts`, which is the one place it is acted on.
  */
-const SABOTAGE_RATING_POINTS = 10;
-
-export function runFixProbe(seasons = 120, seed = 1): string {
-  const lines: string[] = [
-    'The crook’s road, priced (GDD §13 / §20 Q7) — every locked field of every card',
-    `${seasons} seasons of six Normal stables; the nobbling is ${balance.sabotageFitness} fitness off`,
-    'whoever the book has shortest, and the book is left quoting its unmoved prices.',
-    '',
-  ];
-  // What `sabotageFitness` is worth in rating points, by the same route the AI uses: fitness
-  // multiplies every stat, so the cut in top speed is (fitScale(f−n) / fitScale(f)) − 1, and §5.1's
-  // leverage table prices top speed against rating. Measured here rather than asserted, so the
-  // number moves if D13's curve ever does.
-  const fitAt = (f: number) => balance.fitScaleBase + (balance.fitScaleCoef * f) / 100;
-  const speedCut = 1 - fitAt(75 - balance.sabotageFitness) / fitAt(75);
-  lines.push(
-    `  ${balance.sabotageFitness} fitness off a dog at 75 is a ${(speedCut * 100).toFixed(2)}% cut in top speed.`,
-  );
-
-  const ownEdges: number[] = [];
-  const bestEdges: number[] = [];
-  const bestEdgesMajor: number[] = [];
-  let races = 0;
-  let racesWithOwn = 0;
-  for (let i = 0; i < seasons; i++) {
-    const sample = emptySample();
-    const s = createSeason({
-      seed: seed + i,
-      players: Array(6)
-        .fill('normal')
-        .map((d) => ({ name: '', kind: 'ai' as const, difficulty: d as AiAgent })),
-    });
-    let guard = 0;
-    let seenWeek = 0;
-    while (!isSeasonOver(s) && guard++ < 200_000) {
-      if (s.fields && !s.races && seenWeek !== s.week) {
-        seenWeek = s.week;
-        const major = s.calendar[s.week - 1]?.major ?? false;
-        for (const { entries } of s.fields) {
-          races++;
-          let favIdx = -1;
-          entries.forEach((e, k) => {
-            if (favIdx < 0 || e.winProb > entries[favIdx]!.winProb) favIdx = k;
-          });
-          if (favIdx < 0) continue;
-          // The favourite's rating, cut by what the fitness loss is worth. Solved from the odds
-          // model rather than assumed: find the rating at which the sim's win rate matches.
-          const after = entries.map((e, k) =>
-            k === favIdx ? Math.max(5, e.rating - SABOTAGE_RATING_POINTS) : e.rating,
-          );
-          const trueP = winProbabilities(after);
-          let best = 0;
-          let own = 0;
-          entries.forEach((e, k) => {
-            if (k === favIdx || trueP[k]! < 0.04) return;
-            const edge = trueP[k]! * e.odds - 1;
-            if (edge > best) best = edge;
-            if (!e.local && edge > own) own = edge;
-          });
-          if (own > 0) racesWithOwn++;
-          ownEdges.push(own);
-          bestEdges.push(best);
-          if (major) bestEdgesMajor.push(best);
-        }
-      }
-      if (needsAdvance(s)) {
-        reduceMut(s, { t: 'AdvancePhase' });
-        continue;
-      }
-      const who = s.pendingEvent?.playerId ?? s.activePlayer!;
-      for (const a of decide(s, who, player(s, who).difficulty)) reduceMut(s, a);
-      void sample;
-    }
-  }
-  const sortedBest = [...bestEdges].sort((a, b) => a - b);
-  const sortedOwn = [...ownEdges].sort((a, b) => a - b);
-  lines.push('');
-  lines.push(`  ${races} races sampled. Edge is expected return per Bone staked, minus the Bone.`);
-  lines.push('  what you back                mean edge    p50     p90   share worth backing');
-  const row = (label: string, xs: number[], sorted: number[]) =>
-    lines.push(
-      `  ${label.padEnd(28)} ${pct(mean(xs)).padStart(8)} ${pct(quantile(sorted, 0.5)).padStart(7)} ` +
-        `${pct(quantile(sorted, 0.9)).padStart(7)}   ${pct(xs.filter((x) => x > 0).length / Math.max(1, xs.length)).padStart(6)}`,
-    );
-  row('a stable-owned runner (§13)', ownEdges, sortedOwn);
-  row('the best price left (§10)', bestEdges, sortedBest);
-  if (bestEdgesMajor.length)
-    row(
-      '  …of those, at a Major',
-      bestEdgesMajor,
-      [...bestEdgesMajor].sort((a, b) => a - b),
-    );
-  lines.push(
-    `  A stable-owned runner is in the race at all in ${pct(racesWithOwn / Math.max(1, races))} of them.`,
-  );
-
-  // What it costs, and therefore what it takes to be worth doing. ⚠️ Three rows now rather than
-  // one: the Fixer is hired by the job, so the fee *and* the catch chance both depend on the grade
-  // of man drinking on the planet you happen to be on (E-D45), and the break-even stake is the
-  // number that shows what the three grades are actually offering each other.
-  lines.push('');
-  lines.push('What one nobbling costs, by the grade of man taking it, and the stake it clears at');
-  lines.push('  grade     fee   caught   fixed cost   % of the stake   break-even at a 27% edge');
-  for (const tier of TIER_ORDER) {
-    const fee = jobCost('sabotage', tier);
-    const qt = balance.fixCatchBase * FIXER_CATCH_MULT[tier];
-    const fixedT = fee + qt * balance.fixFineBase;
-    const perBoneT = qt * balance.fixFineStakeMult;
-    const netT = 0.27 - perBoneT;
-    lines.push(
-      `  ${TIER_LABEL[tier].padEnd(8)} ${fmt(fee).padStart(5)} ${pct(qt).padStart(7)} ` +
-        `${fmt(fixedT).padStart(12)} ${(perBoneT * 100).toFixed(1).padStart(14)}%   ` +
-        `${(netT > 0 ? fmt(Math.ceil(fixedT / netT)) : 'never').padStart(12)}`,
-    );
-  }
-  lines.push('');
-  const q = balance.fixCatchBase;
-  const fixed = jobCost('sabotage', 'proper') + q * balance.fixFineBase;
-  const perBone = q * balance.fixFineStakeMult;
-  lines.push('  The sweep below is the Proper man, who is the middle of that ladder.');
-  lines.push(
-    '  edge   net of the fine   break-even stake   at the flat ceiling of ' +
-      fmt(balance.maxStakeFlat),
-  );
-  for (const edge of [0.2, 0.3, 0.4, 0.5, 0.7]) {
-    const net = edge - perBone;
-    const breakEven = net > 0 ? fixed / net : Infinity;
-    const atCeiling = net * balance.maxStakeFlat - fixed;
-    lines.push(
-      `  ${pct(edge).padStart(5)}  ${pct(net).padStart(14)}   ${(net > 0 ? fmt(breakEven) : 'never').padStart(16)}   ${(atCeiling >= 0 ? '+' : '') + fmt(atCeiling)}`,
-    );
-  }
-  lines.push('');
-  lines.push('  ⚠️ The fine’s stake multiple must stay below (edge ÷ catch chance) or no stake is');
-  lines.push('  ever worth fixing — that is the whole constraint on the deterrent, and it is why');
-  lines.push(
-    '  §8.4’s purse forfeit is the wrong shape: it scales with the race, not with the bet.',
-  );
-  return lines.join('\n');
-}
-
-/**
- * ⚠️ **Which of Hard's own decisions is costing it (GDD §14, BUILD_PLAN §6b).**
- *
- * "Hard beats Normal" has now missed its 63–68% band for six phases: 60.6 (v1) → 56.8 (A) → 53.9
- * (B) → 58.6 (C) → 57.7 (D) → 58.0 (E baseline). Phase D built and rejected both of its own
- * candidates, and the pattern across the whole record is that the only thing that has ever moved
- * the number is **removing a bad decision** — D30's "hire less" recovered 4.7 points; both of
- * Phase D's additions lost.
- *
- * So this switches off, one at a time, decisions Hard already makes and Normal does not, and asks
- * whether Normal's simpler answer was better all along. Same seeds, same table, every row.
- */
 export function runHardAblation(seasons = 600, seed = 1): string {
   const lines: string[] = [];
   const before = { ...HARD_KNOBS };
@@ -2193,8 +1604,6 @@ export function runHardAblation(seasons = 600, seed = 1): string {
     ['  one ruler: stats on both sides', { sameRuler: true }],
     ['  does not hold for a Major', { sameRuler: false, holdsForMajor: false }],
     ['  never throws the cheap race', { sameRuler: false, throwsCheapRace: false }],
-    ['  does not sell before the tick', { sameRuler: false, sellsAgeingDogs: false }],
-    ['  works §13 per job', { sameRuler: false, worksTheFix: true }],
   ];
   for (const [label, knobs] of rows) {
     Object.assign(HARD_KNOBS, before, knobs);
@@ -2219,342 +1628,6 @@ export function runHardAblation(seasons = 600, seed = 1): string {
   return lines.join('\n');
 }
 
-/**
- * ⚠️ **Which constraint actually binds the mixed agent (GDD D43, §2.1).**
- *
- * D43 measured §2.1's promise — "a stable that trains a pup, pays for it by trading, and backs it
- * at 9/1 when it is ready… should be about as rich as one that commits" — and found the mixed
- * agent 28% behind the trainer. It then named three suspects: three roads competing for three
- * **staff slots**, one kennel's **cash**, and one week's **attention**. Nothing distinguished
- * between them, and a design argument with three plausible causes and no table is an argument
- * about who is most confident.
- *
- * So each is relaxed on its own, over the same seasons and the same seeds, against the Phase D
- * agent as the floor and the trainer as the bar:
- *
- * - **slots** — one more staff slot for everybody in the run, so the roads stop bidding for three.
- * - **cash** — the stable starts with twice the money, so nothing is bound by the bankroll.
- * - **attention** — every road played at the intensity the *single-road* agent plays it: the
- *   trainer's feed and pups, the trader's hold and spread. This is the suspect §2.1 actually
- *   describes, and the one that would make D43 a harness bug rather than a design fault.
- *
- * ⚠️ `balance.staffSlots` is mutated for the slot row and put back. It is a script, the run is
- * deterministic while it is set, and the alternative — threading a slot count through `keepStaff`
- * and the reducer's own refusal — would be a rule change to answer a measurement question.
- */
-export function runMixability(seasons = 400, seed = 1): string {
-  const lines: string[] = [];
-  const before = { ...MIX_KNOBS };
-  const phaseD = {
-    want: ['trainer', 'trader'] as StaffRole[],
-    holdCap: 0,
-    feedCrates: 3,
-    feedSpend: 0.6,
-    goodsSpend: 0.6,
-    buyCashMultiple: 2,
-    minRatingGain: 0,
-    borrowBelowReserves: 3,
-  };
-  const run = (agent: AiAgent, slots: number, cash: number): number[] => {
-    const startCash = balance.startCash;
-    const staffSlots = balance.staffSlots;
-    balance.staffSlots = slots;
-    balance.startCash = cash;
-    const worth: number[] = [];
-    const ai: AiAgent[] = Array(6).fill(agent);
-    for (let i = 0; i < seasons; i++) {
-      const sample = emptySample();
-      const { state } = playSeason(seed + i, ai, sample);
-      for (const p of state.players) worth.push(netWorth(state, p));
-    }
-    balance.staffSlots = staffSlots;
-    balance.startCash = startCash;
-    return worth;
-  };
-  const slots = balance.staffSlots;
-  const cash = balance.startCash;
-
-  const rows: { label: string; worth: number[] }[] = [];
-  const withKnobs = (k: Partial<typeof MIX_KNOBS>, fn: () => number[]): number[] => {
-    Object.assign(MIX_KNOBS, before, k);
-    const out = fn();
-    Object.assign(MIX_KNOBS, before);
-    return out;
-  };
-
-  rows.push({
-    label: 'mixed, as Phase D built it',
-    worth: withKnobs(phaseD, () => run('mixed', slots, cash)),
-  });
-  rows.push({
-    label: '  + a fourth staff slot',
-    worth: withKnobs(phaseD, () => run('mixed', slots + 1, cash)),
-  });
-  rows.push({
-    label: '  + twice the starting cash',
-    worth: withKnobs(phaseD, () => run('mixed', slots, cash * 2)),
-  });
-  rows.push({
-    label: '  + every road at full intensity',
-    worth: withKnobs({}, () => run('mixed', slots, cash)),
-  });
-  rows.push({ label: 'trainer (the bar)', worth: run('trainer', slots, cash) });
-  // ⚠️ The control that makes the cash row mean anything. Doubling the bankroll lifts *any* agent,
-  // so "cash binds the mixed stable" is only a finding if it lifts the mixed stable by more than it
-  // lifts one that commits. Without this row the probe measures compound interest.
-  rows.push({
-    label: '  trainer + twice the cash',
-    worth: run('trainer', slots, cash * 2),
-  });
-  rows.push({ label: 'trader', worth: run('trader', slots, cash) });
-  rows.push({ label: 'crook', worth: run('crook', slots, cash) });
-  Object.assign(MIX_KNOBS, before);
-
-  lines.push(
-    `Mixability — ${seasons} seasons of six of each, the same seeds every row (GDD D43, §2.1)`,
-  );
-  lines.push('');
-  lines.push('  row                                mean      p10      p90   against the trainer');
-  const bar = mean(rows.find((r) => r.label.startsWith('trainer'))!.worth);
-  for (const r of rows) {
-    const sorted = [...r.worth].sort((a, b) => a - b);
-    const m = mean(r.worth);
-    lines.push(
-      `  ${r.label.padEnd(32)} ${fmt(m).padStart(8)} ${fmt(quantile(sorted, 0.1)).padStart(8)} ` +
-        `${fmt(quantile(sorted, 0.9)).padStart(8)}   ${((m / bar - 1) * 100).toFixed(1).padStart(6)}%`,
-    );
-  }
-  lines.push('');
-  lines.push(
-    '  ⚠️ Read the three middle rows against the first, not against each other: each relaxes ONE',
-  );
-  lines.push(
-    '  of D43’s three suspects and leaves the other two alone, which is what makes them a diagnosis',
-  );
-  lines.push('  rather than four different agents.');
-  lines.push(
-    '  ⚠️ And read the cash row against the trainer’s own cash row: more money lifts everybody, so',
-  );
-  lines.push('  what the suspect has to explain is the *difference* between the two lifts.');
-  return lines.join('\n');
-}
-
-/**
- * ⚠️ **The ablation the crook's road lives or dies by (GDD D42, E-D45).**
- *
- * The same agent, the same seeds, once with §13 and once with it switched off — because "is the
- * road worth walking" is a *difference*, not a comparison against a different agent playing a
- * different game. Phase D ran this by hand and it produced the phase's headline finding; it is a
- * harness mode now so the next session can re-run it in one command instead of rebuilding the
- * scaffolding and hoping it matches.
- *
- * With `crookMayFix` off the crook is exactly a cheap racing stable, which is the right control:
- * before Phase E that switched off a wage *and* the jobs together, and now there is no wage, so
- * it switches off only the jobs — which is a cleaner ablation than the one that produced D42.
- */
-export function runCrookAblation(seasons = 250, seed = 1): string {
-  const lines: string[] = [];
-  const ai: AiAgent[] = Array(6).fill('crook');
-  const run = (
-    mayFix: boolean,
-  ): { worth: number[]; bet: number; fixSpend: number; jobs: number; caught: number } => {
-    PATH_KNOBS.crookMayFix = mayFix;
-    const worth: number[] = [];
-    let bet = 0;
-    let fixSpend = 0;
-    let jobs = 0;
-    let caught = 0;
-    let n = 0;
-    for (let i = 0; i < seasons; i++) {
-      const sample = emptySample();
-      const { state } = playSeason(seed + i, ai, sample);
-      for (const p of state.players) {
-        const split = roadSplit(state, p);
-        worth.push(netWorth(state, p));
-        bet += split.betting;
-        fixSpend += split.fixes;
-        jobs += sample.fixes.get(p.id) ?? 0;
-        if (p.flags.fixerBarred) caught++;
-        n++;
-      }
-    }
-    return {
-      worth,
-      bet: bet / Math.max(1, n),
-      fixSpend: fixSpend / Math.max(1, n),
-      jobs: jobs / Math.max(1, n),
-      caught: caught / Math.max(1, n),
-    };
-  };
-
-  lines.push(
-    `The crook’s road, ablated — ${seasons} seasons of six crooks, the same seeds both rows`,
-  );
-  lines.push('');
-  lines.push('  §13          mean      p10      p90    betting   fixing   jobs   caught');
-  const rows: { label: string; r: ReturnType<typeof run> }[] = [
-    { label: 'worked', r: run(true) },
-    { label: 'ablated', r: run(false) },
-  ];
-  PATH_KNOBS.crookMayFix = true;
-  for (const { label, r } of rows) {
-    const sorted = [...r.worth].sort((a, b) => a - b);
-    lines.push(
-      `  ${label.padEnd(10)} ${fmt(mean(r.worth)).padStart(8)} ${fmt(quantile(sorted, 0.1)).padStart(8)} ` +
-        `${fmt(quantile(sorted, 0.9)).padStart(8)} ${fmt(r.bet).padStart(10)} ` +
-        `${fmt(-r.fixSpend).padStart(8)} ${r.jobs.toFixed(1).padStart(6)} ${pct(r.caught).padStart(8)}`,
-    );
-  }
-  const worked = mean(rows[0]!.r.worth);
-  const ablated = mean(rows[1]!.r.worth);
-  const diff = worked - ablated;
-  lines.push('');
-  lines.push(
-    `  Walking the road is worth ${diff >= 0 ? '+' : ''}${fmt(diff)} of end worth — ` +
-      `${diff > 0 ? 'MET' : 'MISSED'} against BUILD_PLAN §6b’s row (better with §13 than without).`,
-  );
-  lines.push(
-    '  ⚠️ This is the only comparison that holds everything else equal, and it is what BUILD_PLAN’s',
-  );
-  lines.push(
-    '  "a caught crook’s worth, below the trainer’s" row was reaching for and could not express:',
-  );
-  lines.push(
-    '  a crook that never gets caught is mostly one whose road never opened, so splitting on the',
-  );
-  lines.push('  catch measures selection rather than crime (D42).');
-  return lines.join('\n');
-}
-
-export function runHoldPayback(seasons = 400, seed = 1): string {
-  const lines: string[] = [];
-  const ai: AiAgent[] = Array(6).fill('trader');
-  const run = (cap: number): { worth: number; hold: number; trade: number; bought: number } => {
-    PATH_KNOBS.traderHoldCap = cap;
-    const worth: number[] = [];
-    const holds: number[] = [];
-    const trade: number[] = [];
-    const bought: number[] = [];
-    for (let i = 0; i < seasons; i++) {
-      const sample = emptySample();
-      const { state } = playSeason(seed + i, ai, sample);
-      for (const p of state.players) {
-        worth.push(netWorth(state, p));
-        holds.push(cargoCap(p));
-        trade.push(p.stats.tradeIncome);
-        bought.push((p.ship.cargoCap - balance.cargoCapStart) / balance.cargoUpgradeUnits);
-      }
-    }
-    return { worth: mean(worth), hold: mean(holds), trade: mean(trade), bought: mean(bought) };
-  };
-
-  lines.push(
-    `Cargo-hold payback — ${seasons} seasons of six traders per row, the same seeds every row`,
-  );
-  lines.push('');
-  lines.push(
-    `  A +${balance.cargoUpgradeUnits}-crate hold costs ${fmt(balance.shipCargoCost)} and drags ` +
-      `${balance.cargoUpgradeUnits * balance.fuelPerCargoUnitOver} more fuel a jump.`,
-  );
-  lines.push('');
-  lines.push('  upgrades allowed   bought   hold   mean end worth   trade income   marginal gain');
-  const caps = [0, 1, 2, 3, Infinity];
-  let previous: { worth: number; bought: number } | null = null;
-  const marginals: number[] = [];
-  for (const cap of caps) {
-    const r = run(cap);
-    let marginal = '';
-    if (previous) {
-      const extra = r.bought - previous.bought;
-      const gain = extra > 0 ? (r.worth - previous.worth) / extra : 0;
-      marginal = `${fmt(gain)} per upgrade`;
-      if (Number.isFinite(cap)) marginals.push(gain);
-    }
-    lines.push(
-      `  ${(Number.isFinite(cap) ? String(cap) : 'no cap').padEnd(18)} ${r.bought.toFixed(2).padStart(6)} ` +
-        `${r.hold.toFixed(0).padStart(6)} ${fmt(r.worth).padStart(16)} ${fmt(r.trade).padStart(14)}   ${marginal}`,
-    );
-    previous = { worth: r.worth, bought: r.bought };
-  }
-  PATH_KNOBS.traderHoldCap = Infinity;
-  lines.push('');
-  const first = marginals[0] ?? 0;
-  lines.push(
-    `  The row that answers §6b is the FIRST upgrade: ${fmt(first)} against ${fmt(balance.shipCargoCost)} paid — ` +
-      `${first >= balance.shipCargoCost ? 'MET' : 'MISSED'}.`,
-  );
-  lines.push(
-    '  ⚠️ Net worth already counts the ship at 70% of what was paid for it (shipResaleFactor), so an',
-  );
-  lines.push(
-    `  upgrade that earned nothing would read about −${fmt(balance.shipCargoCost * (1 - balance.shipResaleFactor))}, not 0. That is the floor.`,
-  );
-  lines.push(
-    '  ⚠️ And the marginal column is the real finding: capacity has sharply diminishing returns',
-  );
-  lines.push(
-    '  because this road is bound by the cash to buy stock, not by the room to put it in.',
-  );
-  return lines.join('\n');
-}
-
-/**
- * GDD §8.3 / D7: **does stacking three of one role beat a mixed three?**
- *
- * A real head-to-head — three stables forced to stack one role against three playing Normal's mixed
- * line, in the same seasons, on the same card. The target is that stacking wins no more than 5
- * points of head-to-head, and if it wins more than that the roles are not differently shaped enough
- * and §8.3 says to re-shape them rather than to add a penalty.
- */
-export function runStacking(seasons = 300, seed = 1): string {
-  const lines: string[] = [];
-  lines.push(`Staff stacking — ${seasons} seasons, three stackers against three mixed (D7)`);
-  lines.push('');
-  lines.push('  stacked role    stacker mean   mixed mean   stacker beats mixed');
-  const roles: StaffRole[] = ['trainer', 'vet', 'trader', 'scout', 'tipster'];
-  for (const role of roles) {
-    let stackWorth = 0;
-    let mixedWorth = 0;
-    let wins = 0;
-    let pairs = 0;
-    for (let i = 0; i < seasons; i++) {
-      STACK_OVERRIDE.clear();
-      // p1..p3 stack, p4..p6 play Normal's line. Same season, same card, same market.
-      for (const id of ['p1', 'p2', 'p3']) STACK_OVERRIDE.set(id, role);
-      const sample = emptySample();
-      const { state } = playSeason(seed + i, Array(6).fill('normal') as AiAgent[], sample);
-      const worth = new Map(state.players.map((p) => [p.id, netWorth(state, p)]));
-      const stacked = ['p1', 'p2', 'p3'].map((id) => worth.get(id) ?? 0);
-      const mixed = ['p4', 'p5', 'p6'].map((id) => worth.get(id) ?? 0);
-      stackWorth += mean(stacked);
-      mixedWorth += mean(mixed);
-      for (const a of stacked)
-        for (const b of mixed) {
-          pairs++;
-          if (a > b) wins++;
-        }
-    }
-    STACK_OVERRIDE.clear();
-    const rate = wins / Math.max(1, pairs);
-    lines.push(
-      `  ${role.padEnd(15)} ${fmt(stackWorth / seasons).padStart(12)} ${fmt(mixedWorth / seasons).padStart(12)}   ` +
-        `${pct(rate)}`,
-    );
-  }
-  lines.push('');
-  lines.push(
-    '  Target (D7): no more than 5 points of head-to-head over a mixed three, i.e. 45–55%.',
-  );
-  lines.push(
-    '  A stacker pays three wages for one effect, because `bestStaff` means the best hire in',
-  );
-  lines.push(
-    '  a role is the one that acts. That is the price being the gate rather than a penalty,',
-  );
-  lines.push('  and it is why GDD §21 keeps a stacking penalty out unless this table demands one.');
-  return lines.join('\n');
-}
-
 function main() {
   const args = parseArgs(process.argv.slice(2));
   if (args.calibrate) console.log(runCalibration());
@@ -2562,15 +1635,8 @@ function main() {
   else if (args.pups) console.log(runPupCurve());
   else if (args.card) console.log(runCardProbe());
   else if (args.autoplan) console.log(runAutoplan(args.seasons));
-  else if (args.holdPayback) console.log(runHoldPayback(args.seasons, args.seed));
-  else if (args.stacking) console.log(runStacking(args.seasons, args.seed));
-  else if (args.crookAblation)
-    console.log(runCrookAblation(args.seasons === 50 ? 250 : args.seasons, args.seed));
-  else if (args.mixability)
-    console.log(runMixability(args.seasons === 50 ? 400 : args.seasons, args.seed));
   else if (args.hardAblation)
     console.log(runHardAblation(args.seasons === 50 ? 600 : args.seasons, args.seed));
-  else if (args.fix) console.log(runFixProbe(args.seasons === 50 ? 120 : args.seasons, args.seed));
   else console.log(runHarness(args));
 }
 

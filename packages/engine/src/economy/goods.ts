@@ -1,3 +1,4 @@
+import { balance } from '../content/balance';
 import { GOODS, KIBBLE_ID } from '../content/goods';
 import { GOOD_IDS, type Cargo, type GoodId, type GameState, type Player } from '../types';
 
@@ -9,14 +10,14 @@ import { GOOD_IDS, type Cargo, type GoodId, type GameState, type Player } from '
  * there are a lot of sites; worse, `GameState` *is* the save file and the golden digest hashes
  * `JSON.stringify(state)`, so a sparse record would make the hash depend on the order a stable
  * happened to buy things in. Dense, built once by `emptyCargo()` in `GOOD_IDS` order, is
- * canonical: the same hold always serialises the same way. Thirteen zeroes per stable is a price
- * worth paying for that.
+ * canonical: the same hold always serialises the same way. A zero per good per stable is a price
+ * worth paying for that, and it is why Phase B's six rows need no change here.
  */
 export function emptyCargo(): Cargo {
   return Object.fromEntries(GOOD_IDS.map((id) => [id, 0])) as Cargo;
 }
 
-/** Crates aboard, all goods together — what fuel and the arrival roll are charged against. */
+/** Crates aboard, all goods together — what the arrival roll is charged against (GDD_V3 §2.3). */
 export function cargoTotal(cargo: Cargo): number {
   let total = 0;
   for (const id of GOOD_IDS) total += cargo[id];
@@ -28,9 +29,20 @@ export function kibbleAboard(cargo: Cargo): number {
   return cargo[KIBBLE_ID];
 }
 
+/**
+ * The hold, for everybody, forever.
+ *
+ * ⚠️ **There is no ship to upgrade (BUILD_PLAN_V3 §2.1), so capacity is a constant rather than a
+ * field.** Phase A deliberately keeps v2's *starting* capacity rather than adopting GDD_V3 §6.1's
+ * 50, because 50 belongs to Phase B's six goods and bringing it forward would quietly change the
+ * economy in the phase that is supposed to be measuring what deleting things did. Phase B raises
+ * this to 50 when it has six goods and shelf depth to spend it on.
+ */
+export const HOLD_CAP = balance.cargoCapStart;
+
 /** Room left in the hold. */
 export function holdRoom(p: Player): number {
-  return p.ship.cargoCap - cargoTotal(p.cargo);
+  return HOLD_CAP - cargoTotal(p.cargo);
 }
 
 /**
@@ -53,7 +65,7 @@ export function cargoValue(s: GameState, p: Player): number {
  *
  * **Decided here, and it is a decision: the fraction is of the *total*, and the crates come off
  * the largest stacks first.** Rounding up per good instead would mean a hold split thinly across
- * thirteen goods lost a crate of each — 13 of 13 at a 25% spoil rate — so the obvious per-good
+ * many goods lost a crate of each — 13 of 13 at a 25% spoil rate, when there were 13 — so the per-good
  * reading punishes a diversified trader absurdly, and the obvious fix (rounding down per good)
  * lets a hold of twelve three-crate stacks spoil nothing at all. Taking the loss off the biggest
  * stacks is proportional to what "a fraction of the hold" means, cannot be dodged by splitting a

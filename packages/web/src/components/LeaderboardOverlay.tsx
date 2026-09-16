@@ -25,20 +25,14 @@ export function LeaderboardOverlay({ s, meId }: { s: GameState; meId: Id | null 
               <th>Stable</th>
               <th className="num">Cash</th>
               <th className="num">Dogs</th>
-              <th className="num">Ship</th>
               <th className="num">Cargo</th>
-              <th className="num">Debt</th>
               <th className="num">Net worth</th>
               <th className="num">Open wins</th>
-              <th />
             </tr>
           </thead>
           <tbody>
             {rows.map((r, i) => (
-              <tr
-                key={r.player.id}
-                className={r.player.id === meId ? 'me' : r.player.flags.bankrupt ? 'dim' : ''}
-              >
+              <tr key={r.player.id} className={r.player.id === meId ? 'me' : ''}>
                 <td>{i + 1}</td>
                 <td>
                   <span className="owner-cell">
@@ -51,17 +45,11 @@ export function LeaderboardOverlay({ s, meId }: { s: GameState; meId: Id | null 
                 </td>
                 <td className="num">{formatBones(r.cash)}</td>
                 <td className="num">{formatBones(r.dogs)}</td>
-                <td className="num">{formatBones(r.ship)}</td>
                 <td className="num">{formatBones(r.cargo)}</td>
-                <td className="num">{r.debt ? formatBones(-r.debt) : '—'}</td>
                 <td className="num">
                   <b>{formatBones(r.netWorth)}</b>
                 </td>
                 <td className="num">{r.openWins}</td>
-                <td>
-                  {r.player.flags.caughtDoping ? <span title="caught doping">💉</span> : null}
-                  {r.player.flags.bankrupt ? <span title="bankrupt"> 💀</span> : null}
-                </td>
               </tr>
             ))}
           </tbody>

@@ -20,8 +20,6 @@ const KEY_FOR: Partial<Record<VenueId, string>> = {
   hub: 'h',
   market: 'm',
   stable: 'k',
-  docks: 'd',
-  saloon: 's',
   office: 'o',
   map: 'g',
 };
@@ -32,9 +30,8 @@ export function Nav({ s, me }: { s: GameState; me: Player }) {
   const dispatch = useGame((g) => g.dispatch);
   const leaderboard = useGame((g) => g.leaderboard);
   const setLeaderboard = useGame((g) => g.setLeaderboard);
-  const log = useGame((g) => g.log);
   const pre = s.phase === 'planetPre';
-  const status = venueStatus(s, me, log);
+  const status = venueStatus(s, me);
   const list = venues(s);
   const endPhase = () => dispatch({ t: 'EndPhase', playerId: me.id });
 

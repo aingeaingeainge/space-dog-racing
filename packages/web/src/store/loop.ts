@@ -61,15 +61,11 @@ export interface Screen {
 export function screenFor(s: GameState, ui: ScreenUi): Screen {
   const table = s.players.filter((p) => p.kind === 'human');
 
-  /**
-   * Going bust is told to your face, and it is checked before the season is over because that is
-   * usually the same instant. `nextLivePlayer` skips a bankrupt stable, so the moment the last
-   * human goes under, `drive` plays every remaining week against the AI and hands back a finished
-   * season — which is how a bankrupt human used to go from week five to the podium with nothing in
-   * between ever saying why.
-   */
-  const bust = table.find((p) => p.flags.bankrupt && !ui.bustAck.includes(p.id));
-  if (bust) return { kind: 'bust', me: bust };
+  // ⚠️ **There is no going bust to tell anybody about (BUILD_PLAN_V3 §2.1).** The Bust screen and
+  // the whole forced-sale cascade behind it are deleted; GDD_V3 pillar 5 is that nobody is out
+  // before the end, and §11's replacement failure state is simply ending a season poorer than you
+  // started. `ui.bustAck` is left in the store for now because nothing reads it and removing it is
+  // a store change rather than a rule change.
 
   if (isSeasonOver(s)) return { kind: 'seasonEnd', me: null };
   const waiting = waitingOn(s);

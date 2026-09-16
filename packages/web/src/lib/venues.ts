@@ -14,7 +14,12 @@ export interface Venue {
 }
 
 /**
- * The six venues of GDD §4.2 phase 3 plus the map, with the reason each one is shut when it is.
+ * The venues of GDD_V3 §10 plus the map, with the reason each one is shut when it is.
+ *
+ * ⚠️ **The Docks and the Saloon are gone entirely (BUILD_PLAN_V3 §2.1, GDD_V3 §10).** There is no
+ * ship to upgrade, nobody to hire and nobody to borrow from, so both screens sold nothing. §10's
+ * hub is four hotspots — Explore, Market, Kennel, Race Office — plus the Bookie; **Explore is
+ * Phase D**, so this list is three and the Bookie until then.
  * A planet that has no bookie says so rather than silently dropping the button, so the planet's
  * special rules are legible from the hub.
  */
@@ -40,8 +45,6 @@ export function venues(s: GameState): Venue[] {
     { id: 'hub', label: 'Planet hub', open: true },
     { id: 'market', label: 'Market', open: inTurn, reason: shut },
     { id: 'stable', label: 'Kennels', open: true },
-    { id: 'docks', label: 'Docks', open: inTurn, reason: shut },
-    { id: 'saloon', label: 'Saloon', open: inTurn, reason: shut },
     bookie,
     {
       id: 'office',
