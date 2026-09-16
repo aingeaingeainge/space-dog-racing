@@ -59,7 +59,7 @@ function checkInvariants(s: GameState): void {
       assert(d!.rating >= 0, 'd!.rating >= 0');
       assert(d!.rating <= 99, 'd!.rating <= 99');
       assert(Number.isInteger(d!.rating), 'integer');
-      for (const stat of ['speed', 'accel', 'stamina', 'trap'] as const) {
+      for (const stat of STAT_KEYS) {
         assert(d![stat] >= 1, 'd![stat] >= 1');
         assert(d![stat] <= 99, 'd![stat] <= 99');
         assert(Number.isInteger(d![stat]), 'integer');

@@ -39,7 +39,6 @@ export const STAT_LABEL: Record<StatKey, string> = {
   speed: 'Speed',
   accel: 'Accel',
   stamina: 'Stamina',
-  trap: 'Trap',
 };
 
 /**

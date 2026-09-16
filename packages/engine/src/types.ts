@@ -45,8 +45,19 @@ export const RACE_TYPE_IDS: readonly RaceTypeId[] = [
  */
 export type RacePurseTier = 'open' | 'drawn';
 
-export type StatKey = 'speed' | 'accel' | 'stamina' | 'trap';
-export const STAT_KEYS: readonly StatKey[] = ['speed', 'accel', 'stamina', 'trap'] as const;
+/**
+ * Three stats, not four (GDD_V3 §4.1).
+ *
+ * ⚠️ **Trap is folded into Acceleration, not deleted, and the difference matters.** v2 spent a phase
+ * making Trap worth 15.3% of marginal win rate and then built the whole trap-draw mechanic on it
+ * (D37: the rail is the short way round and also where the traffic is, worth +3.5 points on tight
+ * bends). Deleting the stat would have made the box worthless again — exactly the hole the steward's
+ * bribe fell into. Folding keeps the simulation's bend logic intact: `bendCraft` and the break from
+ * the boxes read **Acceleration** instead, and the old 0.15 trap weight is absorbed into accel's
+ * 0.20 to give 0.35 (GDD_V3 V9).
+ */
+export type StatKey = 'speed' | 'accel' | 'stamina';
+export const STAT_KEYS: readonly StatKey[] = ['speed', 'accel', 'stamina'] as const;
 
 /**
  * A thing a hold can carry (GDD §8.2, D4). One id per row in `content/goods.ts`.
@@ -185,9 +196,9 @@ export interface Dog {
   name: string;
   ownerId: Id | 'local';
   speed: number; // 1..99
+  /** Also how well it breaks from the boxes and holds a line through a bend (GDD_V3 §4.1). */
   accel: number;
   stamina: number;
-  trap: number;
   rating: number; // 0..99, Elo-style
   fitness: number; // 0..100
   form: number; // −10..10

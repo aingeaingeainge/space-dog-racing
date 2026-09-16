@@ -51,7 +51,6 @@ export function createDog(spec: DogSpec, rng: Rng, nextId: IdGen): Dog {
     speed: stat(),
     accel: stat(),
     stamina: stat(),
-    trap: stat(),
     rating: 0,
     fitness: 90,
     form: 0,
@@ -93,7 +92,6 @@ export function fitRating(dog: Dog, lo: number, hi: number): Dog {
     dog.speed = clamp(dog.speed + dir, 20, 99);
     dog.accel = clamp(dog.accel + dir, 20, 99);
     dog.stamina = clamp(dog.stamina + dir, 20, 99);
-    dog.trap = clamp(dog.trap + dir, 20, 99);
     dog.rating = baseRating(dog);
   }
   return dog;

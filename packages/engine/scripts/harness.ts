@@ -1117,7 +1117,6 @@ export function runCalibration(seed = 7, n = 2000): string {
         speed: d.speed,
         accel: d.accel,
         stamina: d.stamina,
-        trapStat: d.trap,
         fitness: d.fitness,
         form: d.form,
         traits: d.traits,
@@ -1181,13 +1180,16 @@ export function runStatLeverage(n = 3000, seed = 20260911): string {
       track: { distance: 480, length: 'standard', bends: 'tight', hazard: 1 },
     },
   ];
-  const stats: (StatKey | null)[] = [null, 'speed', 'accel', 'stamina', 'trap'];
+  const stats: (StatKey | null)[] = [null, 'speed', 'accel', 'stamina'];
   const base = 50;
   const bump = 10;
   const lines: string[] = [
     `Stat leverage: +${bump} to one stat from a balanced rating-${base} dog vs seven ${base}s, ${n} races/cell`,
-    `Targets (BUILD_PLAN §6b, standard 480): speed 21–25, stamina 18–22, accel 14–18, trap 12–16`,
-    '  track        |    none    | +10 speed   +10 accel   +10 stam    +10 trap   (win% / place%)',
+    // ⚠️ **The band is Phase A's, not v2's** (BUILD_PLAN_V3 Phase A): speed > accel > stamina, all
+    // 14–26%. Accel carries Trap's old weight now (GDD_V3 V9), so it should read *higher* than
+    // either v2's accel row (14–18) or its trap row (12–16) did.
+    `Target (BUILD_PLAN_V3 Phase A, standard 480): speed > accel > stamina, all 14–26%`,
+    '  track        |    none    | +10 speed   +10 accel   +10 stam   (win% / place%)',
   ];
   for (const { label, track } of tracks) {
     const cells: string[] = [];
@@ -1216,7 +1218,6 @@ export function runStatLeverage(n = 3000, seed = 20260911): string {
           speed: d.speed,
           accel: d.accel,
           stamina: d.stamina,
-          trapStat: d.trap,
           fitness: 100,
           form: 0,
           traits: [],
@@ -1231,7 +1232,7 @@ export function runStatLeverage(n = 3000, seed = 20260911): string {
     lines.push(`  ${label} | ${cells[0]} | ${cells.slice(1).join('  ')}`);
   }
   lines.push(
-    '  Accel should peak on the sprint and trap on the tight bends. Stamina reads the same at',
+    '  Accel should peak on the sprint AND on the tight bends — it is the break and the line now',
   );
   lines.push(
     '  every length by construction: fadeStart is a fraction of the distance, so the fade window',
@@ -1377,8 +1378,8 @@ export function runPupCurve(pups = 200, racesPerCell = 900, seed = 4242): string
     const rng = mulberry32(seed);
     let counter = 0;
     const nextId = (p: string) => `${p}${counter++}`;
-    const at = new Map<number, { speed: number; accel: number; stamina: number; trap: number }>();
-    for (const w of checkpoints) at.set(w, { speed: 0, accel: 0, stamina: 0, trap: 0 });
+    const at = new Map<number, { speed: number; accel: number; stamina: number }>();
+    for (const w of checkpoints) at.set(w, { speed: 0, accel: 0, stamina: 0 });
     let gain = 0;
     for (let n = 0; n < pups; n++) {
       const pup = fitRating(
@@ -1386,7 +1387,7 @@ export function runPupCurve(pups = 200, racesPerCell = 900, seed = 4242): string
         37,
         37,
       );
-      const start = pup.speed + pup.accel + pup.stamina + pup.trap;
+      const start = pup.speed + pup.accel + pup.stamina;
       for (let week = 1; week <= balance.weeks; week++) {
         if (week <= trainWeeks) {
           if (trainerPoints > 0)
@@ -1406,24 +1407,19 @@ export function runPupCurve(pups = 200, racesPerCell = 900, seed = 4242): string
           slot.speed += pup.speed;
           slot.accel += pup.accel;
           slot.stamina += pup.stamina;
-          slot.trap += pup.trap;
         }
       }
-      gain += pup.speed + pup.accel + pup.stamina + pup.trap - start;
+      gain += pup.speed + pup.accel + pup.stamina - start;
     }
     for (const slot of at.values()) {
       slot.speed /= pups;
       slot.accel /= pups;
       slot.stamina /= pups;
-      slot.trap /= pups;
     }
     return { at, gain: gain / pups };
   };
 
-  const winRate = (
-    line: { speed: number; accel: number; stamina: number; trap: number },
-    s2: number,
-  ) => {
+  const winRate = (line: { speed: number; accel: number; stamina: number }, s2: number) => {
     const rng = mulberry32(s2);
     let counter = 0;
     const nextId = (p: string) => `${p}${counter++}`;
@@ -1436,7 +1432,6 @@ export function runPupCurve(pups = 200, racesPerCell = 900, seed = 4242): string
           speed: Math.round(line.speed),
           accel: Math.round(line.accel),
           stamina: Math.round(line.stamina),
-          trapStat: Math.round(line.trap),
           fitness: 90,
           form: 0,
           traits: [],
@@ -1454,7 +1449,6 @@ export function runPupCurve(pups = 200, racesPerCell = 900, seed = 4242): string
           speed: r.speed,
           accel: r.accel,
           stamina: r.stamina,
-          trapStat: r.trap,
           fitness: balance.localFitness,
           form: 0,
           traits: [],
@@ -1487,7 +1481,6 @@ export function runPupCurve(pups = 200, racesPerCell = 900, seed = 4242): string
           speed: Math.round(line.speed),
           accel: Math.round(line.accel),
           stamina: Math.round(line.stamina),
-          trap: Math.round(line.trap),
         });
         // One rival seed for every checkpoint, so the curve reads as a curve: a fresh field per
         // week adds ±3 points of noise and makes week 9 look worse than week 8.
