@@ -146,7 +146,6 @@ export function DogCard({ dog, badges, sub, actions, children, declared }: DogCa
           <StatBar label="Spd" value={dog.speed} />
           <StatBar label="Acc" value={dog.accel} />
           <StatBar label="Sta" value={dog.stamina} />
-          <StatBar label="Trp" value={dog.trap} />
           <StatBar label="Fit" value={dog.fitness} tone="auto" />
           <span className="form">
             form <Delta n={dog.form} />

@@ -28,7 +28,6 @@ function field(rng: ReturnType<typeof mulberry32>, qualities: number[]): Runner[
         speed: d.speed,
         accel: d.accel,
         stamina: d.stamina,
-        trapStat: d.trap,
         fitness: 90,
         form: 0,
         traits: [],
@@ -69,7 +68,18 @@ describe('simulateRace', () => {
     const r = simulateRace(runners, { track, major: false }, mulberry32(1));
     const last = r.ticks[r.ticks.length - 1]!;
     for (const pos of last) expect(pos).toBeGreaterThanOrEqual(track.distance);
-    expect(r.ticks[0]!.every((p) => p < 5)).toBe(true);
+    // ⚠️ **This assertion changed, and CLAUDE.md says an edited assertion means stopping to work
+    // out whether the code broke. It did not — the assertion was wrong.** It read `< 5`, and the
+    // break from the boxes is `(stat / 100) × raceBreakMetres × U(raceBreakMin, raceBreakMax)`,
+    // whose ceiling is 0.99 × 7 × 1.4 ≈ 9.7 m. `< 5` was never an invariant: it happened to hold
+    // for the trap stats this seed rolled, and it stopped holding when the break began reading
+    // Acceleration (GDD_V3 §4.1, V9), which is higher in this field. Measured over 400 seeds the
+    // largest first-tick position is 7.6 m, comfortably under the ceiling and comfortably over 5.
+    //
+    // So what is asserted now is the bound the engine actually promises: the first tick is the
+    // break and nothing else — no dog has travelled yet — so nobody can be past the break ceiling.
+    const breakCeiling = balance.raceBreakMetres * balance.raceBreakMax;
+    expect(r.ticks[0]!.every((p) => p <= breakCeiling)).toBe(true);
     for (const id of r.order) expect(r.finishTicks[id]).toBeGreaterThan(0);
   });
 

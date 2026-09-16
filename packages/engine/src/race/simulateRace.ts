@@ -7,9 +7,9 @@ export interface Runner {
   id: Id;
   trap: number; // 1..8
   speed: number;
+  /** Also the break from the boxes and the line through a bend (GDD_V3 §4.1, V9). */
   accel: number;
   stamina: number;
-  trapStat: number;
   fitness: number;
   form: number;
   traits: readonly TraitId[];
@@ -82,8 +82,17 @@ function insideness(trap: number): number {
  * Now the rule is deliberate, its size is a number in the spreadsheet, and it is paid for by the
  * shorter trip on the rail — so which end of the draw a dog wants depends on the dog.
  */
+/**
+ * How well this runner holds its line, given the box it is in.
+ *
+ * ⚠️ **Reads Acceleration since v3 (GDD_V3 §4.1, V9).** It read the Trap stat, and Trap is folded
+ * into Accel rather than deleted precisely so that this function, the break from the boxes and the
+ * rail's `trapDrawEdge` all keep working — deleting the stat would have made the draw worthless
+ * again. `trapTraffic` is unchanged: the rail is still the short way round and still where the
+ * traffic is, and which end of the boxes a dog wants still depends on how much craft it has.
+ */
 function bendCraft(r: Runner): number {
-  return r.trapStat - balance.trapTraffic * insideness(r.trap);
+  return r.accel - balance.trapTraffic * insideness(r.trap);
 }
 
 /**
@@ -123,10 +132,11 @@ export function simulateRace(runners: readonly Runner[], ctx: RaceContext, rng: 
   for (let i = 0; i < n; i++) luck[i] = rng.gauss(0, balance.raceLuckSd);
   for (let i = 0; i < n; i++) {
     const r = runners[i]!;
-    let trapStat = r.trapStat;
-    if (r.traits.includes('slowStarter')) trapStat -= 15;
+    // The break from the boxes, on Acceleration (GDD_V3 §4.1).
+    let breakStat = r.accel;
+    if (r.traits.includes('slowStarter')) breakStat -= 15;
     pos[i] =
-      (Math.max(1, trapStat) / 100) *
+      (Math.max(1, breakStat) / 100) *
       balance.raceBreakMetres *
       rng.uniform(balance.raceBreakMin, balance.raceBreakMax);
   }
@@ -193,7 +203,7 @@ export function simulateRace(runners: readonly Runner[], ctx: RaceContext, rng: 
           const rj = runners[j]!;
           let p = bumpPerTick * bendMult;
           // Trap craft and wide running keep dogs out of trouble.
-          p *= 1 - (Math.min(ri.trapStat, rj.trapStat) / 100) * 0.5;
+          p *= 1 - (Math.min(ri.accel, rj.accel) / 100) * 0.5;
           if (ri.traits.includes('wideRunner') || rj.traits.includes('wideRunner')) p *= 0.25;
           if (rng.chance(p)) {
             // The dog with less craft for the line it is on comes off worse — see bendCraft.

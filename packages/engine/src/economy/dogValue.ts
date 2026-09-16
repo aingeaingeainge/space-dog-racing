@@ -32,13 +32,19 @@ export function dogSalePrice(dog: Dog, buyerBonus = 0, valueMod = 1): number {
   return Math.round(dogValue(dog) * balance.marketSellFactor * (1 + buyerBonus) * valueMod);
 }
 
-/** Rating from raw stats (GDD §5.3 weights), integer. */
-export function baseRating(d: Pick<Dog, 'speed' | 'accel' | 'stamina' | 'trap'>): number {
+/**
+ * Rating from raw stats (GDD_V3 §4.1), integer: `0.40 speed + 0.35 accel + 0.25 stamina`.
+ *
+ * The weights sum to 1, so a dog with every stat at 50 rates 50 — which is what makes the number
+ * readable next to the stat bars. Accel carries 0.35 because Trap's 0.15 was folded into its 0.20
+ * rather than dropped (GDD_V3 V9); a rating computed with the old four-weight sum would land about
+ * fifteen points low on the same dog.
+ */
+export function baseRating(d: Pick<Dog, 'speed' | 'accel' | 'stamina'>): number {
   return Math.round(
     balance.ratingWeightSpeed * d.speed +
       balance.ratingWeightAccel * d.accel +
-      balance.ratingWeightStamina * d.stamina +
-      balance.ratingWeightTrap * d.trap,
+      balance.ratingWeightStamina * d.stamina,
   );
 }
 
@@ -50,12 +56,11 @@ export function baseRating(d: Pick<Dog, 'speed' | 'accel' | 'stamina' | 'trap'>)
  * before the player pays for it, and a screen that guesses the engine's answer is the Phase A
  * failure this phase exists to stop repeating. One definition, read by both.
  */
-export function weakestStat(d: Pick<Dog, 'speed' | 'accel' | 'stamina' | 'trap'>): StatKey {
+export function weakestStat(d: Pick<Dog, 'speed' | 'accel' | 'stamina'>): StatKey {
   const weighted: [number, StatKey][] = [
     [d.speed / balance.ratingWeightSpeed, 'speed'],
     [d.accel / balance.ratingWeightAccel, 'accel'],
     [d.stamina / balance.ratingWeightStamina, 'stamina'],
-    [d.trap / balance.ratingWeightTrap, 'trap'],
   ];
   weighted.sort((a, b) => a[0] - b[0]);
   return weighted[0]![1];

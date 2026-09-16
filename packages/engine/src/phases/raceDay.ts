@@ -101,7 +101,6 @@ function runnerFrom(d: Dog, trap: number): Runner {
     speed: d.speed,
     accel: d.accel,
     stamina: d.stamina,
-    trapStat: d.trap,
     fitness: Math.max(0, d.fitness),
     form: d.form,
     traits: d.traits,

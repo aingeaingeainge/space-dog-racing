@@ -244,7 +244,6 @@ export function weakestWeightedStat(d: Dog): StatKey {
     [d.speed / balance.ratingWeightSpeed, 'speed'],
     [d.accel / balance.ratingWeightAccel, 'accel'],
     [d.stamina / balance.ratingWeightStamina, 'stamina'],
-    [d.trap / balance.ratingWeightTrap, 'trap'],
   ];
   weighted.sort((a, b) => a[0] - b[0]);
   return weighted[0]![1];
@@ -353,12 +352,10 @@ export function startPlan(s: GameState, playerId: Id): Plan {
  * week — so an agent that does not price the feed will rest dogs it should be training.
  */
 export function ratingPerTrainWeek(p: Player): number {
+  // Three stats now, not four (GDD_V3 §4.1). The weights sum to 1, so the mean is a third — but
+  // it is written out rather than hard-coded so that a weight moved in the sheet moves this too.
   const meanWeight =
-    (balance.ratingWeightSpeed +
-      balance.ratingWeightAccel +
-      balance.ratingWeightStamina +
-      balance.ratingWeightTrap) /
-    4;
+    (balance.ratingWeightSpeed + balance.ratingWeightAccel + balance.ratingWeightStamina) / 3;
   // The floor: plain kibble, on a random stat, so it is worth the mean weight.
   const kibble = ((balance.trainKibbleMin + balance.trainKibbleMax) / 2) * meanWeight;
   // Whatever feed is aboard lands on the stat the dog is on. Priced on the best crate in the hold,
@@ -377,7 +374,6 @@ const RATING_WEIGHT: Record<StatKey, number> = {
   speed: balance.ratingWeightSpeed,
   accel: balance.ratingWeightAccel,
   stamina: balance.ratingWeightStamina,
-  trap: balance.ratingWeightTrap,
 };
 
 export interface FeedBuyOptions {

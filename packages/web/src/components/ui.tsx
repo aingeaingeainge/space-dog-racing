@@ -140,9 +140,6 @@ export function StatHeads() {
       <th className="num" title="Stamina">
         Sta
       </th>
-      <th className="num" title="Trap">
-        Trp
-      </th>
     </>
   );
 }
@@ -153,7 +150,6 @@ export function StatCells({ d }: { d: Dog }) {
       <td className="num">{d.speed}</td>
       <td className="num">{d.accel}</td>
       <td className="num">{d.stamina}</td>
-      <td className="num">{d.trap}</td>
     </>
   );
 }
