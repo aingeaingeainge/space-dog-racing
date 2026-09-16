@@ -1,6 +1,18 @@
 # Space Dog Racing — builder notes
 
-Read design/GDD.md and design/BUILD_PLAN.md before any change. The GDD is the source of truth for rules; the spreadsheet is the source of truth for numbers (packages/engine/src/content/balance.json is generated from it — never hand-edit).
+**Read `design/CANON.md` first.** It says which design documents are current and which are
+historical, and it is short.
+
+As of v3 that means: read **`design/GDD_V3.md`** and **`design/BUILD_PLAN_V3.md`** before any
+change, plus **§§1–5 of `design/BUILD_PLAN.md`** for architecture, tech stack, repo layout and the
+data model, which V3 does not restate. **`design/GDD.md` is v2 and is historical — do not build
+from it**, though V3 cites its findings by name and you will want it open.
+
+The current GDD is the source of truth for rules; the spreadsheet is the source of truth for numbers
+(packages/engine/src/content/balance.json is generated from it — never hand-edit).
+
+**This repo is canonical.** Copies of the design documents in the claude.ai Project are mirrors. If
+they disagree, the repo is right.
 
 ## Non-negotiables
 - packages/engine has no DOM, React, Date, or Math.random. All randomness via rng.ts. If you need a random number, thread the rng through.
