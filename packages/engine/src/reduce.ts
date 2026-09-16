@@ -1,21 +1,7 @@
 import { runArrival } from './phases/arrival';
 import { runEndTurn } from './phases/endTurn';
 import { resolveEvent } from './phases/events';
-import {
-  borrow,
-  bribeSteward,
-  buyDog,
-  buyUpgrade,
-  declare,
-  fireStaff,
-  hireStaff,
-  placeBet,
-  repay,
-  sabotage,
-  sellDog,
-  setDogState,
-  tradeFood,
-} from './phases/planet';
+import { declare, placeBet, setDogState, tradeFood } from './phases/planet';
 import { lockDeclarations, runRaces } from './phases/raceDay';
 import { endPhaseFor } from './phases/turn';
 import { commitCtx, makeCtx, player } from './state';
@@ -66,12 +52,6 @@ export function reduceMut(s: GameState, action: Action): GameState {
     case 'ResolveEvent':
       resolveEvent(ctx, action.playerId, action.choice);
       break;
-    case 'BuyDog':
-      buyDog(ctx, action);
-      break;
-    case 'SellDog':
-      sellDog(ctx, action);
-      break;
     case 'Declare':
       declare(ctx, action);
       break;
@@ -81,35 +61,15 @@ export function reduceMut(s: GameState, action: Action): GameState {
     case 'TradeFood':
       tradeFood(ctx, action);
       break;
-    case 'HireStaff':
-      hireStaff(ctx, action);
-      break;
-    case 'FireStaff':
-      fireStaff(ctx, action);
-      break;
     case 'SetDogState':
       setDogState(ctx, action);
       break;
-    case 'BribeSteward':
-      bribeSteward(ctx, action);
-      break;
-    case 'Sabotage':
-      sabotage(ctx, action);
-      break;
-    case 'BuyUpgrade':
-      buyUpgrade(ctx, action);
-      break;
-    case 'Borrow':
-      borrow(ctx, action);
-      break;
-    case 'Repay':
-      repay(ctx, action);
-      break;
     default:
       // An action this engine does not know. The switch is exhaustive over the union, so the only
-      // way here is a log written by an older engine — a v1 save with a `SetTraining` in it, say.
-      // Silently doing nothing was worse than failing: a stale log would replay as a *different*
-      // season rather than as an error, which is exactly what STATE_VERSION exists to prevent.
+      // way here is a log written by an older engine — a v2 save with a `HireStaff` or a `Borrow`
+      // in it, say. Silently doing nothing was worse than failing: a stale log would replay as a
+      // *different* season rather than as an error, which is exactly what STATE_VERSION prevents,
+      // and v3 deletes nine action types at once so this path matters more than it ever has.
       throw new ActionError(
         `Unknown action ${(action as { t: string }).t} — this log was written by a different version`,
         action,

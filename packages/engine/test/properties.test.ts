@@ -8,14 +8,11 @@ import {
   needsAdvance,
   netWorthBreakdown,
   cargoTotal,
-  cargoCap,
+  HOLD_CAP,
   championshipPoints,
-  jobCost,
   player,
   raceType,
   reduceMut,
-  shipValue,
-  debt,
   thisWeeksCard,
   weekStatusOf,
   KIBBLE_ID,
@@ -33,26 +30,15 @@ function assert(cond: unknown, msg: string): void {
   if (!cond) throw new Error('Invariant violated: ' + msg);
 }
 
-function checkInvariants(s: GameState, lastAction: Action): void {
+function checkInvariants(s: GameState): void {
   const owners = new Map<string, string>();
-  // Solvency is promised at the week boundary, not inside the week. An event card charges what
-  // it charges the moment it is drawn — "Lost luggage: −300" does not stop to ask whether you
-  // have 300 — and the machinery that answers for it all lives in endTurn: Fat Tony covers the
-  // shortfall, then repossesses, then the cheapest dogs are sold, and only then are you bust.
-  // So a stable may be overdrawn between the event phase and endTurn, and must not be once
-  // endTurn has run (phase 'arrival', or 'seasonEnd' in week 13). Asserting it after every
-  // action instead was asserting something the engine has never promised: the same trip happens
-  // on v1's constants at seeds outside this test's range, and clamping the charge would be a new
-  // rule — one that quietly protects a careless stable from the bankruptcy GDD §7.5 wants.
-  const settled = s.phase === 'arrival' || s.phase === 'seasonEnd';
+  // ⚠️ **Solvency is no longer an invariant, and that is the design rather than a gap.** v2 promised
+  // cash was non-negative at a week boundary unless Fat Tony was carrying you or you were bust;
+  // BUILD_PLAN_V3 §2.1 deletes the loans, the forced-sale cascade and bankruptcy itself, and
+  // GDD_V3 V10 and pillar 5 are explicit that nobody is out before the end. So a stable that spends
+  // past its cash simply owes nothing to anybody and goes on racing, and there is nothing true left
+  // to assert here. `lastAction` is still threaded through for the messages below.
   for (const p of s.players) {
-    // Cash is never negative at a week boundary except through Fat Tony's tab or bankruptcy.
-    if (p.cash < 0 && settled) {
-      assert(
-        p.flags.bankrupt || p.loans.length > 0,
-        `negative cash without a loan at a week boundary after ${lastAction.t}`,
-      );
-    }
     // The hold, per good and in total (GDD §8.2). v1 asserted the same two things about a single
     // number; the quantity changed shape, so the expression does. Strictly stronger than before:
     // every shelf is non-negative *and* the total still fits the ship, where one number could
@@ -62,17 +48,8 @@ function checkInvariants(s: GameState, lastAction: Action): void {
       assert(Number.isInteger(p.cargo[id]), `p.cargo[${id}] is an integer`);
     }
     assert(cargoTotal(p.cargo) >= 0, 'cargoTotal(p.cargo) >= 0');
-    // The bound is the hold the stable actually has, which is the ship plus whatever a Trader adds
-    // (GDD §8.3). Changed from `p.ship.cargoCap` because the quantity it bounds changed, not
-    // because the rule loosened: `fireStaff` refuses to leave a hold over capacity, so this is
-    // still the tightest true statement about the hold at every instant.
-    assert(cargoTotal(p.cargo) <= cargoCap(p), 'cargoTotal(p.cargo) <= cargoCap(p)');
-    // GDD §8.3 / D7: three slots, any mix. The mix is free; the count is not.
-    assert(
-      p.staff.length <= balance.staffSlots,
-      `${p.staff.length} staff in ${balance.staffSlots} slots`,
-    );
-    assert(p.dogIds.length <= p.kennelSlots, 'p.dogIds.length <= p.kennelSlots');
+    // One hold, the same for everybody, forever — there is no ship to enlarge it (GDD_V3 §6.1).
+    assert(cargoTotal(p.cargo) <= HOLD_CAP, 'cargoTotal(p.cargo) <= HOLD_CAP');
     for (const id of p.dogIds) {
       const d = s.dogs[id];
       assert(d !== undefined, `dog ${id} owned by ${p.id} is missing`);
@@ -93,8 +70,7 @@ function checkInvariants(s: GameState, lastAction: Action): void {
       // injured dog keeps the state its owner chose and `weekStatusOf` overrides it.
       assert(WEEK_STATES.includes(d!.weekState), `weekState ${d!.weekState} is not one of three`);
       assert(STAT_KEYS.includes(d!.trainStat), `trainStat ${d!.trainStat} is not a stat`);
-      if (d!.injuryWeeks > 0 || d!.banWeeks > 0)
-        assert(weekStatusOf(d!) === 'layoff', 'an injured or banned dog is on layoff');
+      if (d!.injuryWeeks > 0) assert(weekStatusOf(d!) === 'layoff', 'an injured dog is on layoff');
       // A declared dog is racing. Declare sets it, and setDogState refuses to unset it.
       if (!s.locked && RACE_TYPE_IDS.some((r) => s.declarations[r][p.id] === id))
         assert(d!.weekState === 'race', `declared dog ${id} is set to ${d!.weekState}`);
@@ -108,82 +84,13 @@ function checkInvariants(s: GameState, lastAction: Action): void {
     // engine's own helper would only say cargoValue equals cargoValue, and this is the assertion
     // BUILD_PLAN warned Phase C most threatens.
     const hold = GOOD_IDS.reduce((sum, id) => sum + p.cargo[id] * s.planet.goods[id].sell, 0);
+    // Three terms, not five: no ship to value and no debt to subtract (GDD_V3 §2.4).
     assert(
-      w.total === Math.round(p.cash) + dogs + shipValue(p) + Math.round(hold) - debt(p),
-      'w.total === Math.round(p.cash) + dogs + shipValue(p) + the hold at local sell prices - debt(p)',
+      w.total === Math.round(p.cash) + dogs + Math.round(hold),
+      'w.total === Math.round(p.cash) + dogs + the hold at local sell prices',
     );
   }
   const card = thisWeeksCard(s);
-  // GDD §13: the Fixer's week. All of them things a screen or a sweep leans on.
-  //
-  // ⚠️ Phase E's version of "struck off means struck off" is the opposite shape to Phase D's. It
-  // used to check that a barred stable had nobody on the *books*; the Fixer is not on the books
-  // any more, so what the ban has to mean is that no *job* was bought after the enquiry that
-  // barred them. Which is the stronger statement, and the one the ban is actually for (E-D45).
-  assert(
-    !s.players.some((p) => p.staff.some((o) => o.role === 'fixer')),
-    'a fixer is on somebody’s books — he is hired by the job now',
-  );
-  {
-    const barredAt = new Map<string, number>();
-    for (const f of [...s.fixArchive, ...s.fixes]) {
-      if (!f.caught) continue;
-      const at = barredAt.get(f.playerId);
-      if (at === undefined || f.week < at) barredAt.set(f.playerId, f.week);
-    }
-    for (const f of [...s.fixArchive, ...s.fixes]) {
-      const at = barredAt.get(f.playerId);
-      if (at !== undefined)
-        assert(f.week <= at, `${f.playerId} bought a job in week ${f.week}, barred since ${at}`);
-    }
-    for (const [pid] of barredAt)
-      assert(player(s, pid).flags.fixerBarred, `${pid} was caught and is not barred`);
-  }
-  for (const kind of ['bribe', 'sabotage'] as const) {
-    const perPlayer = new Map<string, number>();
-    for (const f of s.fixes) {
-      if (f.kind !== kind || f.week !== s.week) continue;
-      perPlayer.set(f.playerId, (perPlayer.get(f.playerId) ?? 0) + 1);
-    }
-    for (const [pid, n] of perPlayer)
-      assert(n <= 1, `${pid} has ${n} ${kind}s down this weekend — the fixer has one job in him`);
-  }
-  for (const f of s.fixes) {
-    assert(card.includes(f.race), `a ${f.kind} on the ${f.race}, which is not on the card`);
-    if (f.kind === 'bribe') {
-      assert(f.trap !== undefined, 'a bribe with no box bought');
-      assert(f.trap! >= 1 && f.trap! <= balance.traps, `box ${f.trap} does not exist`);
-      // If the field is out, the box that was paid for is the box the dog is in — the bribe is
-      // applied last in lockDeclarations precisely so that nothing can quietly undo it.
-      const field = s.fields?.find((x) => x.race === f.race);
-      const entry = field?.entries.find((e) => e.dogId === f.dogId);
-      if (entry) assert(entry.trap === f.trap, `bought trap ${f.trap}, drew ${entry.trap}`);
-    }
-    const d = s.dogs[f.dogId];
-    if (d && f.kind === 'sabotage') assert(d.ownerId !== f.playerId, 'nobbled its own dog');
-  }
-  // Every job is somebody's job, at somebody's price (E-D45). The fee on the record has to be the
-  // price list's answer for the grade that took it, or the Season End column is adding up numbers
-  // the player was never charged.
-  for (const f of [...s.fixArchive, ...s.fixes]) {
-    assert(f.fixer.length > 0, 'a job with nobody’s name on it');
-    assert(
-      f.fee === jobCost(f.kind, f.tier),
-      `a ${f.kind} by a ${f.tier} man cost ${f.fee}, price list says ${jobCost(f.kind, f.tier)}`,
-    );
-    assert(f.caught || f.fine === undefined, 'a fine on a job the stewards never noticed');
-  }
-  // The archive is the season, and this week is not in it yet: a fix is swept in at endTurn, so
-  // the two lists never hold the same job twice and the split cannot double-count.
-  for (const f of s.fixArchive)
-    assert(f.week < s.week, `week ${f.week} archived during week ${f.week}`);
-  for (const d of Object.values(s.dogs)) {
-    assert(d.nobbled >= 0 && Number.isInteger(d.nobbled), `nobbled ${d.nobbled}`);
-    // A nobbling is a fact about one card. Outside the window between the lock and the end of the
-    // races there is no such thing, which is what makes clearing it with the other race-day buffs
-    // the whole of its lifetime.
-    if (!s.locked || s.races) assert(d.nobbled === 0, `${d.id} still carries ${d.nobbled} nobbled`);
-  }
   // GDD §4.3: the championship is derived from the archive, so it can never disagree with it.
   const points = championshipPoints(s);
   for (const p of s.players) assert((points[p.id] ?? 0) >= 0, 'negative championship points');
@@ -267,7 +174,7 @@ function playChecked(seed: number, players: number): GameState {
         );
     for (const a of actions) {
       reduceMut(s, a);
-      checkInvariants(s, a);
+      checkInvariants(s);
     }
   }
   expect(isSeasonOver(s)).toBe(true);
@@ -288,7 +195,11 @@ describe('engine invariants', () => {
       ],
     });
     expect(() => reduceMut(s, { t: 'EndPhase', playerId: 'p1' })).toThrow();
-    expect(() => reduceMut(s, { t: 'BuyDog', playerId: 'p1', dogId: 'nope' })).toThrow();
+    // A v2 action this engine no longer knows: `reduce`'s default arm must throw rather than
+    // silently drop it, or a stale log would replay as a different season (the v2 Phase A finding).
+    expect(() =>
+      reduceMut(s, { t: 'HireStaff', playerId: 'p1', staffId: 'nope' } as unknown as Action),
+    ).toThrow(/different version/);
     reduceMut(s, { t: 'AdvancePhase' }); // arrival + events; p1 is human so the season waits
     expect(['events', 'planetPre']).toContain(s.phase);
   });
@@ -301,18 +212,31 @@ describe('engine invariants', () => {
     expect(() =>
       reduceMut(s, { t: 'TradeFood', playerId: 'p1', good: KIBBLE_ID, units: 1000 }),
     ).toThrow();
+    // Buy the staple a crate at a time until the money runs out. The only purchase left in v3
+    // Phase A is the market, so that is what the refusal has to be tested against.
     let bought = 0;
     for (;;) {
       try {
-        reduceMut(s, { t: 'BuyUpgrade', playerId: 'p1', upgrade: 'cargo' });
+        reduceMut(s, { t: 'TradeFood', playerId: 'p1', good: KIBBLE_ID, units: 1 });
         bought++;
       } catch (e) {
-        expect(String(e)).toMatch(/Bones/);
+        expect(String(e)).toMatch(/Bones|hold space/);
         break;
       }
     }
     expect(bought).toBeGreaterThanOrEqual(1);
     expect(p.cash).toBeGreaterThanOrEqual(0);
-    expect(p.cash).toBeLessThan(balance.shipCargoCost * 1.2);
+    // ⚠️ **The old assertion here was `cash < shipCargoCost × 1.2` — "the money is nearly gone" —
+    // and it no longer holds, for a reason worth keeping rather than a bug.** It spent down through
+    // 1,400-Bone hold upgrades, so cash was always what ran out. With no upgrades to buy, the only
+    // purchase left is food at about a hundred a crate against a 20-crate hold, so **the hold binds
+    // long before the cash does**: this run stops with most of the 6,000 still in hand.
+    //
+    // That is GDD_V3 §6.1's cash-bound-to-hold-bound progression arriving at the wrong end of the
+    // season — with one cheap good and a small hold there is no cash-bound early game at all. It is
+    // the clearest single argument for Phase B's 50-unit hold and its 8× bands, and Phase B's
+    // "the week a stable stops being cash-bound and starts being hold-bound, weeks 4–7" row is where
+    // it gets measured. What is asserted now is the invariant this test is actually for.
+    expect(cargoTotal(p.cargo)).toBeLessThanOrEqual(HOLD_CAP);
   });
 });

@@ -1,10 +1,7 @@
-import { balance } from '../content/balance';
-import { dogValue } from '../economy/dogValue';
 import { eligible, player, thisWeeksCard } from '../state';
-import { RACE_TYPE_IDS, type Action, type GameState, type Id } from '../types';
+import type { Action, GameState, Id } from '../types';
 import { KIBBLE_ID } from '../content/goods';
-import { cargoTotal } from '../economy/goods';
-import { cargoCap } from '../economy/staff';
+import { cargoTotal, HOLD_CAP } from '../economy/goods';
 import { buyFeedPlan, hash01, setStates, startPlan, weeklyFoodNeed } from './shared';
 
 /**
@@ -25,8 +22,10 @@ const EASY_REST_BELOW = 40;
 
 /**
  * Easy AI (GDD §14): near-random declarations respecting the caps, rests anything under 40 and
- * never trains, never bets, buys food only when the hold will not cover the week, never hires
- * staff, sells a dog only when broke.
+ * never trains, never bets, and buys food only when the hold will not cover the week.
+ *
+ * ⚠️ Its one remaining self-harm is the reckless feed buy below. The forced sale when broke is gone
+ * with the dog market (BUILD_PLAN_V3 §2.1) — and so is going broke (GDD_V3 V10).
  *
  * "Near-random" is `hash01` of the season seed, the week and the ids — never `Math.random` and
  * never the state's rng, which the reducer owns. So Easy is unpredictable to a player and still
@@ -41,17 +40,6 @@ export function decideEasy(s: GameState, playerId: Id): Action[] {
   const { out } = plan;
 
   if (s.phase === 'planetPre' || s.phase === 'planetPost') {
-    // Broke, and only then: let the cheapest dog go.
-    if (plan.cash < 0 && plan.kennel.length > 1) {
-      const cheapest = [...plan.kennel].sort((a, b) => dogValue(a) - dogValue(b))[0]!;
-      const isDeclared = RACE_TYPE_IDS.some((r) => s.declarations[r][playerId] === cheapest.id);
-      if (!(isDeclared && s.phase === 'planetPre')) {
-        out.push({ t: 'SellDog', playerId, dogId: cheapest.id });
-        plan.cash += Math.round(dogValue(cheapest) * balance.marketSellFactor);
-        plan.kennel = plan.kennel.filter((d) => d.id !== cheapest.id);
-      }
-    }
-
     // D26's fix, and the only line in Easy that costs it money while it is still racing: it buys
     // the dearest crate on the shelf whether or not it has a dog on that stat. Every other handicap
     // §14 gives Easy — never hires, never bets, never buys a dog — is a *saving*, which is why
@@ -66,7 +54,7 @@ export function decideEasy(s: GameState, playerId: Id): Action[] {
       const kibble = s.planet.goods[KIBBLE_ID];
       if (plan.cargo[KIBBLE_ID] === 0 && kibble.buy > 0) {
         const units = Math.min(
-          cargoCap(p) - cargoTotal(plan.cargo),
+          HOLD_CAP - cargoTotal(plan.cargo),
           need,
           Math.floor(Math.max(0, plan.cash) / kibble.buy),
         );
@@ -82,9 +70,7 @@ export function decideEasy(s: GameState, playerId: Id): Action[] {
       // Shuffle the fit dogs by a per-week hash, then walk the three races taking whoever is
       // next in that order and eligible. No expected purse anywhere: that is Normal's job.
       // plan.kennel, not ownDogs: a dog sold a moment ago is no longer ours to declare.
-      const fit = plan.kennel.filter(
-        (d) => d.injuryWeeks === 0 && d.banWeeks === 0 && d.fitness >= EASY_REST_BELOW,
-      );
+      const fit = plan.kennel.filter((d) => d.injuryWeeks === 0 && d.fitness >= EASY_REST_BELOW);
       const shuffled = [...fit].sort(
         (a, b) => hash01(s.seed, s.week, playerId, a.id) - hash01(s.seed, s.week, playerId, b.id),
       );

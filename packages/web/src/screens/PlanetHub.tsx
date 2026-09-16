@@ -1,6 +1,7 @@
 import {
   balance,
   cargoTotal,
+  HOLD_CAP,
   formatBones,
   KIBBLE_ID,
   planetOf,
@@ -54,14 +55,13 @@ function finishedIcon(id: string) {
  */
 export function PlanetHub({ s, me }: { s: GameState; me: Player }) {
   const setView = useGame((g) => g.setView);
-  const log = useGame((g) => g.log);
   const entry = s.calendar[s.week - 1]!;
   const planet = planetOf(entry.planetId);
   const sp = planet.special;
   const rules = specialText(planet);
   const bill = weeklyBill(s, me);
   const spots = hotspotsFor(planet.id);
-  const status = venueStatus(s, me, log);
+  const status = venueStatus(s, me);
   const byId = new Map(venues(s).map((v) => [v.id, v]));
   const weekLog = s.eventLog.filter(
     (l) => l.week === s.week && (!l.playerId || l.playerId === me.id),
@@ -110,19 +110,13 @@ export function PlanetHub({ s, me }: { s: GameState; me: Player }) {
       <Signpost rules={rules}>
         <Notes
           lines={[
-            `${trackText(planet.track)} · kibble ${s.planet.goods[KIBBLE_ID].buy} in, ${s.planet.goods[KIBBLE_ID].sell} out · ${planet.marketBias.toLowerCase()}`,
+            `${trackText(planet.track)} · food ${s.planet.goods[KIBBLE_ID].buy} in, ${s.planet.goods[KIBBLE_ID].sell} out`,
             purseMult !== 1 ? `Purses are ×${purseMult} this weekend.` : null,
             sp.winningsTax
               ? `${pct(sp.winningsTax)} of every purse goes to the port authority.`
               : null,
-            sp.noUpkeep ? 'The monks feed and house your dogs: no upkeep this week.' : null,
             sp.fitnessOnArrival
               ? `Your dogs arrived ${sp.fitnessOnArrival > 0 ? 'refreshed' : 'flat'}: fitness ${sp.fitnessOnArrival > 0 ? '+' : ''}${sp.fitnessOnArrival}.`
-              : null,
-            sp.dopingCatch !== undefined
-              ? sp.dopingCatch === 0
-                ? 'Supplements are legal here — the stewards catch nobody.'
-                : `The stewards here catch ${pct(sp.dopingCatch)} of doped dogs, against ${pct(balance.supplementCatchBase)} elsewhere.`
               : null,
             sp.localsNervy
               ? 'The local runners are all Nervy — traps 1 and 8 do them no favours.'
@@ -175,17 +169,11 @@ export function PlanetHub({ s, me }: { s: GameState; me: Player }) {
         </div>
         <Notes
           lines={[
-            `This week costs ${formatBones(bill.total)} — ${
-              [
-                bill.upkeep ? `upkeep ${formatBones(bill.upkeep)}` : null,
-                bill.wages ? `wages ${formatBones(bill.wages)}` : null,
-                bill.fuel ? `fuel ${formatBones(bill.fuel)}` : null,
-                bill.food ? `kibble at the gate ${formatBones(bill.food)}` : null,
-                bill.interest ? `interest ${formatBones(bill.interest)}` : null,
-              ]
-                .filter(Boolean)
-                .join(', ') || 'nothing at all this week'
-            }.`,
+            // ⚠️ Food is the only running cost left (GDD_V3 V10). A week with a full hold now costs
+            // nothing at all, which is the pressure Phase B's empty-hold penalty has to supply.
+            bill.total
+              ? `This week costs ${formatBones(bill.total)} — food bought at the gate, because the hold will not cover the dogs.`
+              : 'This week costs nothing: the hold feeds every dog.',
           ]}
         />
       </Panel>
@@ -264,7 +252,7 @@ export function PlanetHub({ s, me }: { s: GameState; me: Player }) {
             items={[
               ['Phase', PHASE_LABEL[s.phase]],
               ['Cash', formatBones(me.cash)],
-              ['Hold', `${cargoTotal(me.cargo)} / ${me.ship.cargoCap} crates`],
+              ['Hold', `${cargoTotal(me.cargo)} / ${HOLD_CAP} crates`],
             ]}
           />
         </Panel>

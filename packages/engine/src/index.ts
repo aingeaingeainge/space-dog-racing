@@ -28,29 +28,8 @@ export {
   good,
   KIBBLE_ID,
   STOCK_UNLIMITED,
-  TIER_GLYPH,
-  TIER_LABEL,
-  TIER_ORDER,
-  TIER_STOCK,
-  TIER_WAGE,
   type Good,
 } from './content/goods';
-export {
-  FIXER_CATCH_MULT,
-  FIXER_JOB_MULT,
-  HIREABLE_ROLES,
-  jobCost,
-  SCOUT_DOGS,
-  STAFF_ROLES,
-  STAFF_ROLE_BY_ID,
-  staffRole,
-  staffTitle,
-  TIPSTER_REACH,
-  TRADER_HOLD,
-  TRAINER_POINTS,
-  VET_REST_BONUS,
-  type StaffRoleRow,
-} from './content/staff';
 export { TRAITS, TRAIT_BY_ID } from './content/traits';
 export { EVENTS, EVENT_BY_ID } from './content/events';
 export * from './content/names';

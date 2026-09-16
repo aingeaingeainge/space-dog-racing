@@ -1,14 +1,10 @@
 import {
-  hasStaff,
-  vetRestBonus,
   balance,
   dogValue,
-  dopingCatchRate,
   formatBones,
   netWorthBreakdown,
   cargoTotal,
-  planetOf,
-  upgradePrice,
+  HOLD_CAP,
   weekStatusOf,
   weeklyFitnessDelta,
   STAT_KEYS,
@@ -17,7 +13,6 @@ import {
   type GameState,
   type Player,
   type StatKey,
-  type UpgradeId,
   type WeekState,
 } from '@sdr/engine';
 import { DogCard } from '../components/DogCard';
@@ -36,7 +31,6 @@ import { useGame } from '../store/gameStore';
 
 function status(d: Dog): { text: string; tone?: 'bad' | 'hot' } {
   if (d.injuryWeeks > 0) return { text: `injured ${d.injuryWeeks}w`, tone: 'bad' };
-  if (d.banWeeks > 0) return { text: `banned ${d.banWeeks}w`, tone: 'bad' };
   if (d.fitness < balance.fitnessScaleBelow) return { text: 'jaded', tone: 'hot' };
   return { text: 'fit' };
 }
@@ -63,16 +57,16 @@ const STAT_LABEL: Record<StatKey, string> = {
  */
 function fitnessLine(d: Dog, me: Player, declared: boolean): string {
   const status = weekStatusOf(d);
-  const f = fitnessOutlook(d, me);
+  const f = fitnessOutlook(d);
   if (status === 'layoff')
-    return `on layoff, +${weeklyFitnessDelta(d, vetRestBonus(me), false)} fitness (${f.now} → ${f.resting})`;
+    return `on layoff, +${weeklyFitnessDelta(d, 0, false)} fitness (${f.now} → ${f.resting})`;
   if (status === 'race')
     return declared
       ? `racing: −${balance.fitnessPerRace} fitness (${f.now} → ${f.racing}; ${f.resting} if you rest it instead)`
       : `set to race but not entered — it will take the week off (${f.now} → ${f.resting})`;
   if (status === 'train')
-    return `training ${STAT_LABEL[d.trainStat]}: +${balance.fitnessTrain} fitness (${f.now} → ${f.training}), one crate of kibble`;
-  return `resting: +${weeklyFitnessDelta(d, vetRestBonus(me), false)} fitness (${f.now} → ${f.resting})`;
+    return `training ${STAT_LABEL[d.trainStat]}: +${balance.fitnessTrain} fitness (${f.now} → ${f.training}), one crate of food`;
+  return `resting: +${weeklyFitnessDelta(d, 0, false)} fitness (${f.now} → ${f.resting})`;
 }
 
 /**
@@ -97,44 +91,25 @@ export function Stable({ s, me }: { s: GameState; me: Player }) {
           <KV
             items={[
               ['Cash', formatBones(me.cash)],
-              ['Kennels', `${dogs.length} / ${me.kennelSlots} dogs`],
-              ['Hold', `${cargoTotal(me.cargo)} / ${me.ship.cargoCap} crates`],
+              ['Kennels', `${dogs.length} dog${dogs.length === 1 ? '' : 's'}`],
+              ['Hold', `${cargoTotal(me.cargo)} / ${HOLD_CAP} crates`],
             ]}
           />
           <KV
             items={[
-              ['Ship', `engine ${me.ship.speed}${me.ship.coldStore ? ', cold store' : ''}`],
-              [
-                'Staff',
-                Object.values(me.staff).length
-                  ? Object.values(me.staff)
-                      .map((o) => `${o.name} (${o.role})`)
-                      .join(', ')
-                  : 'none',
-              ],
               [
                 'This week',
                 `${count('race')} racing · ${count('train')} training · ${count('rest')} resting${count('layoff') ? ` · ${count('layoff')} on layoff` : ''}`,
               ],
-            ]}
-          />
-          <KV
-            items={[
-              [
-                'Debt',
-                me.loans.length
-                  ? me.loans.map((l) => `${l.lender} ${formatBones(l.principal)}`).join(', ')
-                  : 'none',
-              ],
               ['Dogs value', formatBones(worth.dogs)],
-              ['Net worth', <b key="nw">{formatBones(worth.total)}</b>],
             ]}
           />
+          <KV items={[['Net worth', <b key="nw">{formatBones(worth.total)}</b>]]} />
         </div>
         <Notes
           lines={[
-            `This week's bill: ${formatBones(bill.total)} — upkeep ${formatBones(bill.upkeep)}, wages ${formatBones(bill.wages)}, fuel ${formatBones(bill.fuel)}, kibble ${bill.foodNeeded} crate${bill.foodNeeded === 1 ? '' : 's'} (${bill.foodFromHold} from the hold${bill.food ? `, ${formatBones(bill.food)} bought at the gate` : ''})${bill.interest ? `, interest ${formatBones(bill.interest)}` : ''}.`,
-            `Every dog does exactly one of three things with the week. Race costs ${balance.fitnessPerRace} fitness, Train returns ${balance.fitnessTrain} and eats a second crate of kibble, Rest returns ${balance.fitnessRest} (${balance.fitnessRest + vetRestBonus(me)} with your vet). Fitness multiplies every stat at every level — a dog at 60 is slower than a dog at 90, but it is still a runner.`,
+            `This week's bill: ${formatBones(bill.total)} — ${bill.foodNeeded} crate${bill.foodNeeded === 1 ? '' : 's'} of food (${bill.foodFromHold} from the hold${bill.food ? `, ${formatBones(bill.food)} bought at the gate` : ''}). Food is the only running cost: no upkeep, no wages, no fuel and no debt.`,
+            `Every dog does exactly one of three things with the week. Race costs ${balance.fitnessPerRace} fitness, Train returns ${balance.fitnessTrain} and eats a second crate, Rest returns ${balance.fitnessRest}. Fitness multiplies every stat at every level — a dog at 60 is slower than a dog at 90, but it is still a runner.`,
           ]}
         />
       </Panel>
@@ -167,14 +142,8 @@ export function Stable({ s, me }: { s: GameState; me: Player }) {
                       <Badge title="resting this week">resting</Badge>
                     ) : null}
                     {st.tone ? <Badge tone={st.tone}>{st.text}</Badge> : null}
-                    {d.supplemented ? (
-                      <Badge tone="hot" title="doped for this weekend">
-                        💉 on
-                      </Badge>
-                    ) : null}
                   </>
                 }
-                actions={<Gear s={s} me={me} d={d} inTurn={inTurn} />}
               >
                 <WeekPlan s={s} me={me} d={d} inTurn={inTurn} declared={!!race} />
               </DogCard>
@@ -270,16 +239,16 @@ function WeekPlan({
         ) : null}
       </div>
       <span className="muted small">
-        {laidOff ? `Out for ${Math.max(d.injuryWeeks, d.banWeeks)} more week(s). ` : ''}
+        {laidOff ? `Out for ${d.injuryWeeks} more week(s). ` : ''}
         {fitnessLine(d, me, declared)}
       </span>
       {barred && !laidOff ? (
         <span className="muted small">Cannot run this weekend — {barred}.</span>
       ) : null}
-      {!hasStaff(me, 'trainer') && d.weekState === 'train' ? (
+      {d.weekState === 'train' ? (
         <span className="muted small">
-          No trainer, so a Train week is plain kibble alone: +{balance.trainKibbleMin}–
-          {balance.trainKibbleMax} to a stat of its own choosing.
+          A Train week is plain food: +{balance.trainKibbleMin}–{balance.trainKibbleMax} to a stat
+          of its own choosing. Phase B makes the food itself the training programme.
         </span>
       ) : null}
     </div>
@@ -331,64 +300,5 @@ function PlanTheWeek({
         Sets every undeclared dog by fitness. It is a starting point, not advice.
       </span>
     </div>
-  );
-}
-
-/** The three kennel items (GDD §8), bought straight onto one dog. */
-function Gear({ s, me, d, inTurn }: { s: GameState; me: Player; d: Dog; inTurn: boolean }) {
-  const dispatch = useGame((g) => g.dispatch);
-  const planet = planetOf(s.planet.planetId);
-  const pre = s.phase === 'planetPre';
-  const catchRate = dopingCatchRate(s);
-
-  const items: { upgrade: UpgradeId; label: string; what: string; shut: string | null }[] = [
-    {
-      upgrade: 'trackDay',
-      label: 'Track day',
-      what: `Track-day pass: +${balance.itemTrackDayBonus} to the weakest stat`,
-      shut: s.planet.trackDayPasses ? null : 'No passes on this planet this week',
-    },
-    {
-      upgrade: 'muzzle',
-      label: 'Muzzle',
-      what: `Racing muzzle: +${balance.itemMuzzleBonus} Trap`,
-      shut: s.planet.muzzlesInStock ? null : 'No muzzles in stock here this week',
-    },
-    {
-      upgrade: 'supplement',
-      label: '💉',
-      what: `"Supplement": +${balance.itemSupplementBonus} speed for this weekend, ${Math.round(catchRate * 100)}% caught on ${planet.name}`,
-      shut: s.toggles.cleanSport
-        ? 'Clean Sport is on this season'
-        : !pre
-          ? 'Too late — supplements go in before the races'
-          : d.supplemented
-            ? `${d.name} has had enough`
-            : null,
-    },
-  ];
-
-  return (
-    <>
-      {items.map((it) => {
-        const price = upgradePrice(it.upgrade, planet, me);
-        const why = !inTurn
-          ? 'Not while the races are on'
-          : (it.shut ?? (price > me.cash ? `Short by ${formatBones(price - me.cash)}` : null));
-        return (
-          <NeonButton
-            key={it.upgrade}
-            small
-            disabled={!!why}
-            title={why ? `${it.what} — ${why}` : `${it.what} — ${formatBones(price)}`}
-            onClick={() =>
-              dispatch({ t: 'BuyUpgrade', playerId: me.id, upgrade: it.upgrade, dogId: d.id })
-            }
-          >
-            {it.label}
-          </NeonButton>
-        );
-      })}
-    </>
   );
 }

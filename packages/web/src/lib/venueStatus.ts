@@ -1,37 +1,20 @@
 import {
   balance,
-  bestFeedAboard,
-  cargoCap,
   cargoTotal,
-  GOODS,
+  HOLD_CAP,
   KIBBLE_ID,
-  TIER_LABEL,
-  TIER_ORDER,
-  dogValue,
   formatBones,
-  loanCap,
-  outstanding,
   planetOf,
-  upgradePrice,
   weekStatusOf,
   thisWeeksCard,
+  dogValue,
   OPEN_TYPE_ID,
   RACE_TYPE_IDS,
-  type Action,
   type GameState,
   type Player,
   type RaceTypeId,
-  type StaffRole,
 } from '@sdr/engine';
-import {
-  declaredCount,
-  dossierWeek,
-  dossierWeeks,
-  ineligibleReason,
-  ownedDogs,
-  raceLabel,
-  TRAPS,
-} from './selectors';
+import { declaredCount, ineligibleReason, ownedDogs, raceLabel, TRAPS } from './selectors';
 import type { VenueId } from './venues';
 
 export interface VenueStatus {
@@ -59,75 +42,61 @@ const nothing = (line: string, short = 'nothing today'): VenueStatus => ({
  * What each venue has for this player right now. One source of truth for the hub hotspots,
  * the venue tab strip and scripts/hub-clicks.ts, which counts what a weekend costs.
  */
-export function venueStatus(
-  s: GameState,
-  me: Player,
-  /**
-   * The season's action log. Only the fog needs it: what a stable has paid to see lives in the
-   * log rather than in GameState (GDD §9.3), so the map's hint cannot be read off the state
-   * alone. Optional because the headless click budget does not buy dossiers.
-   */
-  log: readonly Action[] = [],
-): Record<VenueId, VenueStatus> {
+/**
+ * ⚠️ **The action-log parameter is gone with the dossier (BUILD_PLAN_V3 §2.1).** It was here because
+ * what a stable had paid to see lived in the log rather than in GameState; nothing is bought through
+ * the fog any more, so every venue's status is a function of the state alone. Phase D's Bar events
+ * (GDD_V3 §9.4) put information back, and if it is again bought rather than granted this is where
+ * the log comes back.
+ */
+export function venueStatus(s: GameState, me: Player): Record<VenueId, VenueStatus> {
   const planet = planetOf(s.planet.planetId);
   const pre = s.phase === 'planetPre';
   const inTurn = pre || s.phase === 'planetPost';
   const mine = ownedDogs(s, me);
-  // What this stable's own Scout and Trader turned up here, which nobody else can see (GDD §8.3).
-  const mineFinds = s.planet.finds[me.id];
-  const slotsFree = me.kennelSlots - mine.length;
 
-  // --- Market: dogs you could actually take home, and gear you could actually pay for.
-  const forSale = s.planet.marketDogIds.map((id) => s.dogs[id]).filter((d) => !!d);
-  const canBuy = forSale.filter((d) => slotsFree > 0 && (d?.askingPrice ?? 0) <= me.cash);
-  const gearInStock: string[] = [];
-  if (s.planet.trackDayPasses && upgradePrice('trackDay', planet, me) <= me.cash)
-    gearInStock.push('pass');
-  if (s.planet.muzzlesInStock && upgradePrice('muzzle', planet, me) <= me.cash)
-    gearInStock.push('muzzle');
-  if (pre && !s.toggles.cleanSport && upgradePrice('supplement', planet, me) <= me.cash)
-    gearInStock.push('supplement');
-  const cheapest = canBuy.length
-    ? Math.min(...canBuy.map((d) => d!.askingPrice ?? 0))
-    : forSale.length
-      ? Math.min(...forSale.map((d) => d!.askingPrice ?? 0))
-      : 0;
+  // --- Market: the food shelf, and whether there is a margin in carrying any of it.
+  //
+  // ⚠️ **This is the Docks' old arithmetic, moved (BUILD_PLAN_V3 §2.1).** The dog market, the gear
+  // and the ship upgrades are deleted, so what is left of "the Market" is the food trade that used
+  // to live at the Docks — which is what GDD_V3 §6 makes the only market in the game. The fuel term
+  // is gone with the fuel, so a crate is worth carrying whenever the next planet's floor beats this
+  // planet's price, full stop.
+  //
+  // Phase B replaces this with the six goods of §6.1 and the Price Range column of §6.2, at which
+  // point the summary should name **which** good is cheap rather than just that something is.
+  const next = s.calendar[s.week];
+  const nextBand = next ? planetOf(next.planetId).foodBand : null;
+  const kibble = s.planet.goods[KIBBLE_ID];
+  const crates = cargoTotal(me.cargo);
+  const roomToBuy = HOLD_CAP - crates > 0 && me.cash >= kibble.buy;
+  const worthSelling = crates > 0 && nextBand !== null && kibble.sell > nextBand[1];
+  const worthBuying =
+    roomToBuy &&
+    nextBand !== null &&
+    s.toggles.trading &&
+    nextBand[0] * (1 - balance.foodSpread) > kibble.buy;
   const market: VenueStatus = !inTurn
     ? nothing('Shut while the races are on')
-    : canBuy.length || gearInStock.length
+    : worthBuying || worthSelling
       ? {
-          line: [
-            canBuy.length
-              ? `${canBuy.length} dog${canBuy.length === 1 ? '' : 's'} you can afford, from ${formatBones(cheapest)}`
-              : null,
-            gearInStock.length ? gearInStock.join(', ') : null,
-          ]
-            .filter(Boolean)
-            .join(' · '),
-          short: [
-            canBuy.length ? `${canBuy.length} dog${canBuy.length === 1 ? '' : 's'}` : null,
-            gearInStock.length ? 'gear' : null,
-          ]
-            .filter(Boolean)
-            .join(' + '),
+          line: worthBuying
+            ? `Food at ${formatBones(kibble.buy)} a crate — cheap against next week`
+            : `Food sells at ${formatBones(kibble.sell)} — dearer than next week`,
+          short: worthBuying ? 'cheap food' : 'sell high',
           worth: true,
         }
       : nothing(
-          forSale.length
-            ? slotsFree > 0
-              ? `${forSale.length} on the block, cheapest ${formatBones(cheapest)} — out of reach`
-              : 'Kennels full; nothing you can take'
-            : 'Nothing left on the block',
+          `Food ${formatBones(kibble.buy)} / ${formatBones(kibble.sell)} · ${crates} crates aboard`,
+          `${crates} crates`,
         );
 
-  // --- Kennels: gear you can put on a dog, and anything wrong with one.
-  const wrong = mine.filter(
-    (d) => d.injuryWeeks > 0 || d.banWeeks > 0 || d.fitness < balance.fitnessScaleBelow,
-  );
-  // GDD §5.7 made the Kennels the centre of the game, so its hotspot now answers the question
-  // the screen exists for: is every dog's week decided? A stable whose plan is already set can
-  // walk past, which is the whole point of §15.3's click budget — the decision is per dog, the
-  // *visit* is not.
+  // --- Kennels: is every dog's week decided, and is anything wrong with one?
+  const wrong = mine.filter((d) => d.injuryWeeks > 0 || d.fitness < balance.fitnessScaleBelow);
+  // GDD §5.7 made the Kennels the centre of the game, so its hotspot answers the question the
+  // screen exists for: is every dog's week decided? A stable whose plan is already set can walk
+  // past, which is the whole point of the click budget — the decision is per dog, the *visit* is
+  // not. GDD_V3 §10.1 cuts that budget from 14.5 to 10, so this matters more than it did.
   const plans = mine.map((d) => weekStatusOf(d));
   const racing = plans.filter((x) => x === 'race').length;
   const training = plans.filter((x) => x === 'train').length;
@@ -151,16 +120,10 @@ export function venueStatus(
     .filter(Boolean)
     .join(', ');
   const kennels: VenueStatus =
-    inTurn && (unplanned || gearInStock.length)
+    inTurn && unplanned
       ? {
-          line: [
-            plan,
-            unplanned ? `${unplanned} with no race and no plan` : null,
-            gearInStock.length ? `${gearInStock.join(', ')} to fit` : null,
-          ]
-            .filter(Boolean)
-            .join(' · '),
-          short: unplanned ? `${unplanned} undecided` : 'gear to fit',
+          line: [plan, `${unplanned} with no race and no plan`].filter(Boolean).join(' · '),
+          short: `${unplanned} undecided`,
           worth: true,
         }
       : nothing(
@@ -168,244 +131,6 @@ export function venueStatus(
           wrong.length ? `${wrong.length} off colour` : plan || `${mine.length} dogs`,
         );
 
-  // --- Docks: an upgrade you can pay for, or a kibble trade with somewhere to go.
-  const next = s.calendar[s.week];
-  const nextBand = next ? planetOf(next.planetId).foodBand : null;
-  const kibble = s.planet.goods[KIBBLE_ID];
-  const crates = cargoTotal(me.cargo);
-  const roomToBuy = cargoCap(me) - crates > 0 && me.cash >= kibble.buy;
-  const worthSelling = crates > 0 && nextBand !== null && kibble.sell > nextBand[1];
-  /**
-   * Worth carrying, **after the fuel** (GDD §9.1).
-   *
-   * v1 asked only whether kibble was cheaper here than the next planet's band, which is true about
-   * half the time and ignores the tax that makes blind carrying lose 9.5 a crate. The Docks itself
-   * now prints a break-even price a crate; the hotspot uses the same arithmetic, so the two agree
-   * and a walk is only suggested when there is actually a margin in it.
-   */
-  const perCrateFuel = crates >= balance.fuelCargoFree ? balance.fuelPerCargoUnitOver : 0;
-  const worthBuying =
-    roomToBuy &&
-    nextBand !== null &&
-    s.toggles.trading &&
-    nextBand[0] * (1 - balance.foodSpread) > kibble.buy + perCrateFuel;
-  /**
-   * The feed shelf, summarised (GDD §8.5, D10).
-   *
-   * This is where the busier market gets paid for. Thirteen goods is a table nobody wants to open
-   * on the chance that something good is on it, so the hotspot names **the best tier on the shelf**
-   * and whether anything there is worth carrying — and a player who is not shopping for feed this
-   * week never has to walk in to find that out. The click budget is 14.5 and the answer to "the
-   * market got busier" is a better summary, not another visit.
-   */
-  const feedShelf = GOODS.filter(
-    (g) => g.tier && (s.planet.goods[g.id].stock > 0 || (mineFinds?.goods[g.id] ?? 0) > 0),
-  );
-  const bestShelfTier = TIER_ORDER.filter((t) => feedShelf.some((g) => g.tier === t)).pop() ?? null;
-  const primeOnShelf = feedShelf.filter((g) => g.tier === 'prime');
-  // A feed a dog of yours is actually on, which is the only kind worth a walk for a trainer.
-  const trainingStats = new Set(
-    mine.filter((d) => d.weekState === 'train').map((d) => d.trainStat),
-  );
-  /**
-   * Feed a dog of yours is on and would actually be better for.
-   *
-   * ⚠️ The third tightening, and the one that matters: "Rough trap feed is on the shelf and a dog is
-   * on trap" is true most weeks, which made the Docks worth a walk 87% of them. A Rough crate is the
-   * *floor* — GDD §8.1 calls it "what you start with" — so it is only news when the alternative is
-   * the dog eating kibble and taking its points on a random stat. Anything above Rough is news
-   * whatever else is aboard.
-   */
-  const wantedFeed = feedShelf.filter((g) => {
-    if (!g.stat || !trainingStats.has(g.stat) || s.planet.goods[g.id].buy > me.cash) return false;
-    const have = bestFeedAboard(me.cargo, g.stat);
-    if (g.tier !== 'rough')
-      return !have || TIER_ORDER.indexOf(have.tier!) < TIER_ORDER.indexOf(g.tier!);
-    return !have;
-  });
-  // Only the consignments that are both affordable and wanted: a crate put aside for you that you
-  // cannot pay for, or have nothing to feed it to, is not a reason to walk down to the docks.
-  const consigned = GOODS.filter(
-    (g) =>
-      (mineFinds?.goods[g.id] ?? 0) > 0 &&
-      s.planet.goods[g.id].buy <= me.cash &&
-      (g.tier === 'prime' || (g.stat !== null && trainingStats.has(g.stat))),
-  );
-
-  /**
-   * An upgrade worth walking in for — which is not the same as one you can afford.
-   *
-   * ⚠️ **Tightened, with a number.** Cutting the hold's price to 1,400 (GDD §20 Q6) made "you could
-   * afford a bigger hold" true almost every week, and `hub-clicks` went 14.0 → 15.3 against a 14.5
-   * budget. The fix BUILD_PLAN §11 asks for is a better summary, and the better summary is the thing
-   * the payback ablation actually found: **capacity you cannot fill is worth nothing**, so a bigger
-   * hold is only news when the one you have is nearly full. The kennel module likewise waits until
-   * the kennel is full, and the cold store until there is something in the hold to spoil.
-   */
-  const upgrades: string[] = [];
-  if (me.ship.speed < balance.shipMaxSpeed && upgradePrice('engine', planet, me) <= me.cash)
-    upgrades.push('engine');
-  if (
-    cargoTotal(me.cargo) >= cargoCap(me) * 0.75 &&
-    (worthBuying || wantedFeed.length > 0) &&
-    upgradePrice('cargo', planet, me) <= me.cash
-  )
-    upgrades.push('hold');
-  if (
-    me.kennelSlots < balance.kennelSlotsMax &&
-    ownedDogs(s, me).length >= me.kennelSlots &&
-    upgradePrice('kennel', planet, me) <= me.cash
-  )
-    upgrades.push('kennel');
-  if (
-    !me.ship.coldStore &&
-    cargoTotal(me.cargo) > 0 &&
-    upgradePrice('coldStore', planet, me) <= me.cash
-  )
-    upgrades.push('cold store');
-
-  /**
-   * ⚠️ **The principle that brought `hub-clicks` back inside its budget, and the useful part of this
-   * whole pass: a hotspot flags what CHANGES, not what is always there.**
-   *
-   * The measured culprit was not the new market at all — it was `upgrades.length`, firing 533 times
-   * in 650 planet phases, because "you could afford an engine tier" is true every week for the rest
-   * of the season once it is true once. A permanent fit does not expire: it will be on the shelf next
-   * week and the week after, so it is a standing option rather than news, and a player who wants one
-   * can walk in whenever they like. Stock and prices *do* expire, so those are news.
-   *
-   * So the ship's permanent upgrades no longer make the Docks "worth a walk" — they are named in the
-   * quiet line instead, where they stay visible and cost nothing. That is §8.5's "spend the
-   * difference on better summaries" done properly.
-   */
-  const docks: VenueStatus = !inTurn
-    ? nothing('Shut while the races are on')
-    : primeOnShelf.length || wantedFeed.length || consigned.length || worthBuying || worthSelling
-      ? {
-          line: [
-            primeOnShelf.length ? `PRIME ${primeOnShelf.map((g) => g.short).join('/')} feed` : null,
-            wantedFeed.length
-              ? `${wantedFeed[0]!.label} for ${formatBones(s.planet.goods[wantedFeed[0]!.id].buy)}`
-              : null,
-            consigned.length ? `${consigned[0]!.label} put aside for you` : null,
-            worthBuying ? `kibble ${kibble.buy} here, dearer next stop` : null,
-            worthSelling ? `sell at ${kibble.sell}, dearer than next stop` : null,
-            upgrades.length ? `${upgrades.join(', ')} affordable too` : null,
-          ]
-            .filter(Boolean)
-            .join(' · '),
-          short: [
-            primeOnShelf.length ? 'PRIME feed' : wantedFeed.length ? 'feed you want' : null,
-            consigned.length ? 'consignment' : null,
-            worthBuying ? 'kibble cheap' : null,
-            worthSelling ? 'kibble dear' : null,
-          ]
-            .filter(Boolean)
-            .join(' + '),
-          worth: true,
-        }
-      : nothing(
-          [
-            s.toggles.trading
-              ? `Kibble ${kibble.buy}/${kibble.sell} · hold ${crates}/${cargoCap(me)}`
-              : 'No trading this season',
-            bestShelfTier ? `nothing above ${TIER_LABEL[bestShelfTier]} feed on the shelf` : null,
-            // Standing options, named but never urgent: they will still be here next week.
-            upgrades.length ? `${upgrades.join(', ')} affordable whenever you want` : null,
-          ]
-            .filter(Boolean)
-            .join(' · '),
-          s.toggles.trading ? `hold ${crates}/${cargoCap(me)}` : 'no trading',
-        );
-
-  // --- Saloon: someone to hire, someone to lend, or a training focus going spare.
-  /**
-   * Somebody worth walking in for (GDD §8.3, §8.5).
-   *
-   * ⚠️ **Tightened, with a number.** Six roles × three tiers made the Saloon "worth a walk" almost
-   * every week, and `hub-clicks` went 14.0 → 15.3 against a 14.5 budget. BUILD_PLAN §11's answer to
-   * that is a better summary rather than fewer decisions, and the better summary is this: an offer
-   * is only worth a walk if taking it would **change something** — a role you have not got, or a
-   * better tier than the one you have in it. A third Rough tipster is not an offer, it is furniture.
-   * That took it back to 14.2.
-   */
-  const staffSlotsFree = balance.staffSlots - me.staff.length;
-  const bestInRole = (role: StaffRole): number =>
-    Math.max(-1, ...me.staff.filter((o) => o.role === role).map((o) => TIER_ORDER.indexOf(o.tier)));
-  const hireable = s.planet.staff.filter((o) => {
-    if (o.wage > me.cash) return false;
-    const mineTier = bestInRole(o.role);
-    // A free slot takes anything new; a full yard only takes a clear upgrade on what is in it.
-    if (mineTier < 0) return staffSlotsFree > 0;
-    return TIER_ORDER.indexOf(o.tier) > mineTier;
-  });
-  /**
-   * And of those, the ones worth *interrupting* for.
-   *
-   * A Rough hire is the floor of the ladder — "what you start with" (GDD §8.1) — and another will be
-   * along next week, so an empty slot and a Rough body in it is not an event. Proper and Prime are:
-   * they are rare, they are gone when you jump, and a Prime trainer in week 3 makes a different
-   * season out of the same seed (§8.3's "rarity is the point"). Rough offers stay in the quiet line.
-   */
-  const worthHiring = hireable.filter((o) => o.tier !== 'rough' || bestInRole(o.role) >= 0);
-  const primeHire = hireable.filter((o) => o.tier === 'prime');
-  const lender =
-    (planet.special.bank && outstanding(me, 'bank') < loanCap('bank')) ||
-    (planet.special.shark && outstanding(me, 'shark') < loanCap('shark'));
-  /**
-   * The far table (GDD §13, E-D45) — in the quiet line, and deliberately never worth a walk.
-   *
-   * A man is about on roughly half of planet-weeks, so flagging the Saloon for him would light the
-   * hotspot every other week and §15.3's click budget would pay for it. It would also be pointing
-   * at the wrong screen: the Saloon sells nothing now: his jobs are bought at the Race Office
-   * before the draw and at the Bookie after the prices are up, against that race's purse and that
-   * slip's stake. So what the hub owes a player here is one clause of *knowledge* — the road is
-   * open this week, at this grade — which is pillar 4's "price what you have been offered the
-   * instant it appears", at no click.
-   */
-  const farTable =
-    s.planet.fixer && !s.toggles.cleanSport && !me.flags.fixerBarred
-      ? `${TIER_LABEL[s.planet.fixer.tier]} fixer at the far table`
-      : null;
-
-  const saloon: VenueStatus = !inTurn
-    ? nothing('Shut while the races are on')
-    : worthHiring.length
-      ? {
-          // The training focus used to live here; §5.7 moved it to the Kennels, so the Saloon is
-          // back to being about people. Tier first, because on the one ladder the tier is the
-          // headline and the role is the detail: "Prime trainer" is a week-defining offer and
-          // "Rough tipster" is furniture.
-          //
-          // A **lender** does not make it worth a walk, for the same reason a ship upgrade does not:
-          // the bank is on that planet whether you go in or not, and borrowing is something you do
-          // when you need cash rather than because the bank is open. It stays in the quiet line.
-          line: [
-            hireable
-              .map((o) => `${TIER_LABEL[o.tier]} ${o.role} ${formatBones(o.wage)}/wk`)
-              .join(', '),
-            lender ? (planet.special.shark ? 'and Fat Tony is in' : 'and the bank is open') : null,
-            farTable,
-          ]
-            .filter(Boolean)
-            .join(' · '),
-          short: primeHire.length ? `PRIME ${primeHire[0]!.role}` : `${worthHiring.length} to hire`,
-          worth: true,
-        }
-      : nothing(
-          [
-            hireable.length
-              ? `${hireable.map((o) => `${TIER_LABEL[o.tier]} ${o.role}`).join(', ')} about, if you want one`
-              : 'Nobody worth hiring',
-            lender ? (planet.special.shark ? 'Fat Tony is in' : 'the bank is open') : null,
-            farTable,
-          ]
-            .filter(Boolean)
-            .join(' · '),
-          lender ? (planet.special.shark ? 'Fat Tony is in' : 'bank open') : 'nobody about',
-        );
-
-  // --- Bookie: only during the betting phase, and only where the planet has one.
   const bookie: VenueStatus = !s.toggles.betting
     ? nothing('No betting this season')
     : planet.special.noBetting
@@ -434,28 +159,24 @@ export function venueStatus(
           `${declaredMine} declared`,
         );
 
-  const buyable = dossierWeek(s);
-  const haveIt = buyable !== null && dossierWeeks(log, me.id).has(buyable);
-  const map: VenueStatus =
-    buyable === null
-      ? nothing('The last stop is the Collar. Nothing left to scout', 'circuit done')
-      : haveIt
-        ? nothing(`You have the file on week ${buyable}`, `wk ${buyable} known`)
-        : {
-            line: `Week ${buyable} is dark — a dossier names the planet, its kibble and its card`,
-            short: `wk ${buyable} for sale`,
-            worth: pre && me.cash >= upgradePrice('dossier', planet, me),
-          };
+  /**
+   * The map is a fog, and there is nothing to buy through it any more.
+   *
+   * ⚠️ **The dossier is deleted (BUILD_PLAN_V3 §2.1)**, so the map is never "worth a walk": it shows
+   * this planet, next week's name, and the rest hatched. GDD_V3 §9.4 keeps the fog and says
+   * information now arrives through Bar events and staff bonuses instead — Phase D — and that it has
+   * exactly one use, which is knowing whether next week's planet buys your food high.
+   */
+  const map: VenueStatus = nothing(
+    next ? `Next week: ${planetOf(next.planetId).name}. The rest is dark` : 'The last stop',
+    next ? planetOf(next.planetId).name : 'last stop',
+  );
 
   return {
     hub: { line: '', short: '', worth: false },
-    // GDD §9.3: the map is a fog now, and it is the one venue where a purchase buys information
-    // rather than a thing. It is worth the walk while there is a week you have not paid to see.
     map,
     market,
     stable: kennels,
-    docks,
-    saloon,
     bookie,
     office,
   };
@@ -468,5 +189,5 @@ function isDeclaredElsewhere(s: GameState, me: Player, dogId: string, except: Ra
 /** Highest value of a dog this player owns — used by the hub's one-line stable summary. */
 export function bestDogValue(s: GameState, me: Player): number {
   const dogs = ownedDogs(s, me);
-  return dogs.length ? Math.max(...dogs.map(dogValue)) : 0;
+  return dogs.length ? Math.max(...dogs.map((d) => dogValue(d))) : 0;
 }

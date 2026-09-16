@@ -13,7 +13,7 @@ import { clearSave, readSave, writeSave, SAVE_VERSION, type SaveUi } from './per
 import { applyActions } from './loop';
 
 /** Where the human is looking during their own phase. Never part of game state. */
-export type View = 'hub' | 'stable' | 'market' | 'docks' | 'saloon' | 'office' | 'map';
+export type View = 'hub' | 'stable' | 'market' | 'office' | 'map';
 
 /** How fast the race view replays a tick log. Remembered for the rest of the session. */
 export type RaceSpeed = 1 | 2;

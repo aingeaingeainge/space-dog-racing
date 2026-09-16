@@ -13,8 +13,7 @@ import {
   RACE_TYPES,
   raceType,
 } from './content/raceTypes';
-import { createStartingDog, emptyPlanetState, type IdGen } from './economy/market';
-import { FIXER_CATCH_MULT } from './content/staff';
+import { createStartingDog, emptyPlanetState, type IdGen } from './economy/dogs';
 import { emptyCargo } from './economy/goods';
 import { KIBBLE_ID } from './content/goods';
 import { mulberry32, type Rng } from './rng';
@@ -22,7 +21,6 @@ import type {
   CalendarEntry,
   Dog,
   GameState,
-  GoodTier,
   Id,
   Phase,
   Planet,
@@ -143,22 +141,25 @@ export function purseFor(s: GameState, race: RaceTypeId): [number, number, numbe
 
 /**
  * May this dog take a trap in this race? Two halves that are deliberately separate: the race's
- * own entry criterion, which is the row's business (GDD §6.3), and the two conditions that bar a
- * dog from every race there is. Locals answer the first half and skip the second — they are
- * generated sound.
+ * own entry criterion, which is the row's business (GDD §6.3), and the condition that bars a dog
+ * from every race there is. Locals answer the first half and skip the second — they are generated
+ * sound.
+ *
+ * ⚠️ The stewards' ban is gone with the doping and fixing it punished (BUILD_PLAN_V3 §2.1), so
+ * injury is the only thing that can stop a dog being declared.
  */
 export function eligible(d: Dog, race: RaceTypeId): boolean {
-  return d.injuryWeeks === 0 && d.banWeeks === 0 && raceType(race).eligible(d);
+  return d.injuryWeeks === 0 && raceType(race).eligible(d);
 }
 
 /**
  * What a dog is actually doing this week (GDD §5.7). The stored `weekState` is the player's
- * answer; an injury or a stewards' ban overrides it with **Layoff**, which recovers like Rest.
+ * answer; an injury overrides it with **Layoff**, which recovers like Rest.
  * Derived rather than stored, so that clearing an injury hands the dog back whatever the player
  * had already chosen instead of silently leaving it resting.
  */
 export function weekStatusOf(d: Dog): WeekStatus {
-  return d.injuryWeeks > 0 || d.banWeeks > 0 ? 'layoff' : d.weekState;
+  return d.injuryWeeks > 0 ? 'layoff' : d.weekState;
 }
 
 /** Did this dog actually get a run this weekend? Set to race is not the same as having raced. */
@@ -212,49 +213,17 @@ export function maxStakeFraction(s: GameState): number {
 }
 
 /**
- * The **flat** stake ceiling here (GDD §10, §20 Q7), before the fractional one is considered.
+ * What a stable may have on one race: a fraction of its cash (GDD_V3 §7.4).
  *
- * ⚠️ This is a guard rather than a tuning knob, and §10 says why in one sentence: *"Max stake is a
- * rich-get-richer channel."* §13's edge is a percentage, so its cash value is whatever you can
- * stake — which means the stable already in front earns most from the identical fixer's fee, and a
- * ceiling expressed as a fraction of cash cannot stop that, because it *is* the fraction of a
- * bigger number. A flat ceiling is the only shape that binds a rich stable and leaves a poor one
- * alone.
- *
- * Collar Prime lifts it, and only Collar Prime: §2.1 gives the crook's road "bursts, at the biggest
- * races", and the Grand Final is the one week of the season where letting it have one costs the
- * rest of the design nothing.
+ * ⚠️ **The flat ceiling is gone (BUILD_PLAN_V3 §2.1).** v2 added it because §10 called max stake a
+ * rich-get-richer channel and the crook's percentage edge turned that into a real problem — a
+ * fractional ceiling cannot bind a rich stable, because it *is* a fraction of a bigger number. v3
+ * deletes both halves of that: there is no fixing to earn the percentage and no borrowing to build
+ * a bankroll, so §7.4 is explicit that bets are affordable by construction and the fraction is the
+ * whole of the rule.
  */
-export function maxStakeFlat(s: GameState): number {
-  return balance.maxStakeFlat * (currentPlanet(s).special.maxStakeFlatMult ?? 1);
-}
-
-/** What a stable may have on one race: the fractional ceiling and the flat one, lower wins. */
 export function maxStakeFor(s: GameState, p: Player): number {
-  return Math.floor(Math.min(p.cash * maxStakeFraction(s), maxStakeFlat(s)));
-}
-
-export function dopingCatchRate(s: GameState): number {
-  return currentPlanet(s).special.dopingCatch ?? balance.supplementCatchBase;
-}
-
-/**
- * How often the stewards notice a bought box or a nobbled dog (GDD §13).
- *
- * Two factors and nothing else: **where you are** — the planet's own row, from Lagrange Lows'
- * 20% to Holy Bark's 60% — and **who did the job**, which is the whole of the Fixer's ladder
- * (D41). Multiplied rather than added, so a careful man is worth more at Cosmodrome than at
- * Lagrange Lows, which is the right way round.
- *
- * ⚠️ **The tier is the job's, not the stable's (E-D45).** It used to be read off `Player.staff`,
- * which was the only shape available while the Fixer was a hire and which quietly assumed a
- * stable's fixing was all done by one man. Per job, it is not: a crook can buy a box from a Rough
- * man on Monday and a nobbling from a careful one three planets later, and each job is priced and
- * risked on its own. So the caller passes the tier off the `Fix`.
- */
-export function fixCatchRate(s: GameState, tier: GoodTier): number {
-  const base = currentPlanet(s).special.fixCatch ?? balance.fixCatchBase;
-  return Math.max(0, Math.min(1, base * FIXER_CATCH_MULT[tier]));
+  return Math.floor(p.cash * maxStakeFraction(s));
 }
 
 /**
@@ -363,12 +332,9 @@ export function createSeason(setup: SeasonSetup): GameState {
     pendingEvent: null,
     eventQueue: [],
     bets: [],
-    fixes: [],
-    fixArchive: [],
     results: [],
     eventLog: [],
     toggles: {
-      cleanSport: false,
       betting: true,
       trading: true,
       casualEvents: false,
@@ -393,23 +359,10 @@ export function createSeason(setup: SeasonSetup): GameState {
       kind: ps.kind,
       cash: balance.startCash,
       dogIds: [],
-      kennelSlots: balance.kennelSlotsStart,
-      ship: {
-        speed: balance.shipStartSpeed,
-        cargoCap: balance.cargoCapStart,
-        coldStore: false,
-        upgradesPaid: 0,
-      },
       cargo: { ...emptyCargo(), [KIBBLE_ID]: balance.startCargo },
-      staff: [],
-      loans: [],
       flags: {
-        caughtDoping: false,
-        bankrupt: false,
         arriveFirstNextWeek: false,
-        rivalTrap8: false,
         tipOff: false,
-        fixerBarred: false,
       },
       sponsorWeeks: 0,
       stats: {
@@ -417,10 +370,6 @@ export function createSeason(setup: SeasonSetup): GameState {
         tradeIncome: 0,
         betIncome: 0,
         costs: 0,
-        dogsBought: 0,
-        dogsSold: 0,
-        supplementsUsed: 0,
-        supplementsCaught: 0,
         worthByWeek: [],
       },
     };

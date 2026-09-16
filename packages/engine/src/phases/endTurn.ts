@@ -1,14 +1,9 @@
 import { balance } from '../content/balance';
-import { dogSalePrice, dogValue } from '../economy/dogValue';
-import { fuelCost } from '../economy/food';
-import { cargoTotal, kibbleAboard } from '../economy/goods';
-import { trainerPoints, staffOf, vetRestBonus, wageBill } from '../economy/staff';
+import { kibbleAboard } from '../economy/goods';
 import { bestFeedAboard, KIBBLE_ID } from '../content/goods';
-import { outstanding, weeklyInterest } from '../economy/loans';
 import { netWorth } from '../economy/netWorth';
 import { OPEN_TYPE_ID } from '../content/raceTypes';
 import {
-  currentPlanet,
   emptyDeclarations,
   log,
   player,
@@ -20,16 +15,9 @@ import {
 } from '../state';
 import { clamp } from '../rng';
 import { STAT_KEYS, type Dog, type GameState, type GoodId, type Player } from '../types';
-import { mostValuableDog } from './raceDay';
 
 function ownDogs(s: GameState, p: Player): Dog[] {
   return p.dogIds.map((id) => s.dogs[id]).filter((d): d is Dog => !!d);
-}
-
-function removeDog(s: GameState, p: Player, d: Dog): void {
-  p.dogIds = p.dogIds.filter((id) => id !== d.id);
-  if (p.fanClubDogId === d.id) delete p.fanClubDogId;
-  delete s.dogs[d.id];
 }
 
 /**
@@ -48,15 +36,11 @@ function removeDog(s: GameState, p: Player, d: Dog): void {
  * which stat the dog is on — two decisions that already have screens — and the consequence is that
  * Prime feed disappears fast, which is §8.1's consumable guard working rather than failing.
  *
- * The trainer's points land on the chosen stat on top, by tier: +1 / +2 / +4 (GDD §8.3).
+ * ⚠️ **The trainer's points are gone with the staff ladder (BUILD_PLAN_V3 §2.1).** Phase D brings
+ * staff back as two trainers on commission (GDD_V3 §8), whose bonuses land here again.
  */
 function trainOneWeek(ctx: Ctx, p: Player, d: Dog): void {
   const { rng, s } = ctx;
-  const points = trainerPoints(p);
-  if (points > 0) {
-    const gristle = staffOf(p, 'trainer').some((o) => o.name === 'Gristle McGraw');
-    d[d.trainStat] = clamp(d[d.trainStat] + points + (gristle ? 1 : 0), 1, 99);
-  }
   const feed = bestFeedAboard(p.cargo, d.trainStat);
   if (feed) {
     p.cargo[feed.id]--;
@@ -94,22 +78,17 @@ function eaten(s: GameState, p: Player, id: GoodId, crates: number): void {
 /** GDD §4.2 step 7: weekly costs, then each dog's chosen state resolves, then the jump. */
 export function runEndTurn(ctx: Ctx): void {
   const { s, rng } = ctx;
-  const planet = currentPlanet(s);
 
   for (const p of s.players) {
-    if (p.flags.bankrupt) continue;
     const dogs = ownDogs(s, p);
 
     // ---- Costs ----
+    //
+    // ⚠️ **Food is the only running cost left (GDD_V3 V10).** Upkeep, wages, fuel and loan interest
+    // are all deleted (BUILD_PLAN_V3 §2.1), which is pillar 5 — nobody is out before the end — and
+    // it is why GDD_V3 §6.3's empty-hold penalty has to be real when Phase B builds it: with
+    // nothing else charged in the quiet weeks, food is the whole of what keeps money scarce.
     let costs = 0;
-    if (!planet.special.noUpkeep) {
-      for (const d of dogs)
-        costs += d.traits.includes('cheapDate') ? balance.upkeepPerDog / 2 : balance.upkeepPerDog;
-    }
-    // Wages, by what each hire is rather than by which role (GDD §7.2, §8.3). Three Prime staff
-    // is 4,200 a week and 54,600 a season, which is §7.5's route to going bust.
-    costs += wageBill(p);
-    if (s.week < balance.weeks) costs += fuelCost(cargoTotal(p.cargo));
 
     let foodNeeded = 0;
     for (const d of dogs) {
@@ -121,9 +100,9 @@ export function runEndTurn(ctx: Ctx): void {
         foodNeeded += balance.foodPerDog;
     }
     if (p.sponsorWeeks > 0) foodNeeded *= 2;
-    // Dogs eat **kibble**, not "cargo" (GDD §8.2). A stable that filled its hold with Prime speed
-    // feed and forgot the staple pays the same penalty as one that sailed empty, and should: the
-    // hold is a set of decisions now, and that is one of them.
+    // Dogs eat **the staple** (GDD §8.2). A stable that sailed without it buys at the local price
+    // with the penalty on top — which is the ancestor of §6.3's empty-hold rule, and the reason
+    // Phase B has somewhere to put it.
     const fromHold = Math.min(kibbleAboard(p.cargo), foodNeeded);
     p.cargo[KIBBLE_ID] -= fromHold;
     eaten(s, p, KIBBLE_ID, fromHold);
@@ -131,8 +110,6 @@ export function runEndTurn(ctx: Ctx): void {
     if (shortfall > 0)
       costs += Math.round(shortfall * s.planet.goods[KIBBLE_ID].buy * balance.foodNoCargoPenalty);
 
-    const interest = weeklyInterest(p);
-    costs += interest;
     p.cash -= costs;
     p.stats.costs += costs;
 
@@ -144,50 +121,11 @@ export function runEndTurn(ctx: Ctx): void {
       else delete p.fanClubDogId;
     }
 
-    // Fat Tony covers any shortfall — on his terms. Only when even he says no do dogs get sold.
-    if (p.cash < 0) {
-      const room = balance.sharkMax - outstanding(p, 'shark');
-      const take = Math.min(room, Math.ceil(-p.cash / 100) * 100);
-      if (take > 0) {
-        const existing = p.loans.find((l) => l.lender === 'shark');
-        if (existing) existing.principal += take;
-        else p.loans.push({ lender: 'shark', principal: take });
-        p.cash += take;
-        log(s, `Fat Tony Nebula covers your ${take} shortfall. He will want it back.`, p.id);
-      }
-    }
-    // Fat Tony repossesses if you still cannot cover his interest.
-    if (p.cash < 0 && p.loans.some((l) => l.lender === 'shark')) {
-      const d = mostValuableDog(s, p.id);
-      if (d) {
-        removeDog(s, p, d);
-        p.loans = p.loans.filter((l) => l.lender !== 'shark');
-        log(s, `Fat Tony's boys repossess ${d.name} against your debt.`, p.id);
-      }
-    }
-
-    // A stable that cannot pay its way sells its cheapest dogs; with no dogs left it is bust.
-    while (p.cash < 0 && p.dogIds.length > 0) {
-      const cheapest = ownDogs(s, p).sort((a, b) => dogValue(a) - dogValue(b))[0]!;
-      const price = dogSalePrice(cheapest);
-      removeDog(s, p, cheapest);
-      p.cash += price;
-      log(s, `Forced sale: ${cheapest.name} goes for ${price} to cover the bills.`, p.id);
-    }
-    if (p.cash < 0 && p.dogIds.length === 0) {
-      p.flags.bankrupt = true;
-      log(s, `${p.name} is bankrupt.`, p.id);
-    }
-
     // ---- Each dog's week resolves (GDD §5.7) ----
     // Race has already happened at race day; Train works and eats; Rest and Layoff recover.
     const remaining = ownDogs(s, p);
-    const trainedThisWeek: Dog[] = [];
     for (const d of remaining) {
-      if (weekStatusOf(d) === 'train') {
-        trainOneWeek(ctx, p, d);
-        trainedThisWeek.push(d);
-      }
+      if (weekStatusOf(d) === 'train') trainOneWeek(ctx, p, d);
       // GDD §6.3: the Consolation's entry criterion, stored on the dog rather than looked up, so
       // a local generated for the race can carry the same fact. A run out of the money refills the
       // counter; every other week counts it down, so it expires on its own after `consolationReach`
@@ -195,15 +133,10 @@ export function runEndTurn(ctx: Ctx): void {
       const place = placeThisWeek(s, d.id);
       d.outOfMoneyFor =
         place !== null && place > 3 ? balance.consolationReach : Math.max(0, d.outOfMoneyFor - 1);
-      d.fitness = clamp(
-        d.fitness + weeklyFitnessDelta(d, vetRestBonus(p), ranThisWeek(s, d.id)),
-        0,
-        100,
-      );
+      d.fitness = clamp(d.fitness + weeklyFitnessDelta(d, 0, ranThisWeek(s, d.id)), 0, 100);
       if (d.form > 0) d.form = Math.max(0, d.form - balance.formDecay);
       else if (d.form < 0) d.form = Math.min(0, d.form + balance.formDecay);
       if (d.injuryWeeks > 0) d.injuryWeeks--;
-      if (d.banWeeks > 0) d.banWeeks--;
       // Bad blood: a diva sulks about every lesser kennel-mate.
       if (d.traits.includes('badBlood')) {
         const lesser = remaining.filter((o) => o.id !== d.id && o.rating < d.rating).length;
@@ -228,26 +161,13 @@ export function runEndTurn(ctx: Ctx): void {
       if (s.week === balance.ageTickWeek && !d.traits.includes('oldSoul'))
         d.age = Math.min(7, d.age + 1);
     }
-    // Gristle McGraw's methods, once a week rather than once a dog: the quirk is about the yard,
-    // and rolling it per trainee would make hiring him worse the more dogs you put in his hands.
-    if (
-      staffOf(p, 'trainer').some((o) => o.name === 'Gristle McGraw') &&
-      trainedThisWeek.length &&
-      rng.chance(0.05)
-    ) {
-      const victim = rng.pick(remaining);
-      if (!victim.traits.includes('nervy')) {
-        victim.traits.push('nervy');
-        log(s, `Gristle McGraw's methods have made ${victim.name} Nervy.`, p.id);
-      }
-    }
     if (p.sponsorWeeks > 0) p.sponsorWeeks--;
     p.stats.worthByWeek.push(netWorth(s, p));
   }
 
-  // Sweep locals and unsold market dogs; prune this week's tick logs into the archive.
+  // Sweep the locals; prune this week's tick logs into the archive.
   for (const d of Object.values(s.dogs)) {
-    if (d.ownerId === 'local' || d.ownerId === 'market') delete s.dogs[d.id];
+    if (d.ownerId === 'local') delete s.dogs[d.id];
   }
   if (s.races) {
     for (const r of s.races) s.results.push({ ...r, ticks: [] });
@@ -255,14 +175,7 @@ export function runEndTurn(ctx: Ctx): void {
   s.races = null;
   s.fields = null;
   s.declarations = emptyDeclarations();
-  // This weekend's bought boxes and nobbled dogs go with the card they were about (GDD §13) —
-  // into the archive first, the same way the week's races go into `results` once their tick logs
-  // have been pruned. A season's fixing cannot be derived from anything once `fixes` is cleared,
-  // and it is half of what the Season End screen needs to say what the crook's road cost.
-  for (const f of s.fixes) s.fixArchive.push(f);
-  s.fixes = [];
   s.locked = false;
-  s.planet.marketDogIds = [];
 
   // ---- Jump ----
   if (s.week >= balance.weeks) {

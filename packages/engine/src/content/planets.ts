@@ -1,4 +1,3 @@
-import { balance } from './balance';
 import type { Planet, Id } from '../types';
 
 const sprint = (bends: Planet['track']['bends'], extra: Partial<Planet['track']> = {}) =>
@@ -19,17 +18,7 @@ export const PLANETS: readonly Planet[] = [
     major: true,
     track: standard('wide'),
     foodBand: [80, 110],
-    marketBias: 'Expensive Gold-class dogs',
-    special: {
-      bank: true,
-      dopingCatch: 0.3,
-      // The imperial capital's stewards are the ones who care (GDD §13): the strictest panel on
-      // the circuit, and the worst place on it to buy a box.
-      fixCatch: 0.5,
-      buyerBonus: 0.15,
-      marketQualityBonus: 20,
-      trainer: true,
-    },
+    special: {},
     accents: ['#C9A227', '#7A1F2B'],
   },
   {
@@ -40,8 +29,7 @@ export const PLANETS: readonly Planet[] = [
     major: true,
     track: staying('tight', { hazard: 1.5 }),
     foodBand: [80, 110],
-    marketBias: 'Collectors pay over the odds',
-    special: { shark: true, dogValueMod: 1.1, buyerBonus: 0.1, marketQualityBonus: 20 },
+    special: {},
     accents: ['#E8E4D0', '#4B2E83'],
   },
   {
@@ -52,8 +40,7 @@ export const PLANETS: readonly Planet[] = [
     major: true,
     track: sprint('none'),
     foodBand: [90, 130],
-    marketBias: 'Sprinters and oddities',
-    special: { turnOrderReversed: true, marketQualityBonus: 20 },
+    special: { turnOrderReversed: true },
     accents: ['#3FD6E0', '#0B0B1A'],
   },
   {
@@ -64,17 +51,9 @@ export const PLANETS: readonly Planet[] = [
     major: true,
     track: standard('medium'),
     foodBand: [90, 130],
-    marketBias: 'The best dogs money can buy',
-    special: {
-      bettingMargin: 0.1,
-      maxStakeFraction: 1,
-      // §2.1 gives the crook's road "bursts, at the biggest races"; this is the burst. The
-      // fraction has let you stake everything you own here since v1 and the flat ceiling (§20 Q7)
-      // would otherwise make that sentence a dead letter. One week, at the end.
-      maxStakeFlatMult: balance.maxStakeFlatFinalMult,
-      marketQualityBonus: 25,
-      trainer: true,
-    },
+    // The fraction has let you stake everything you own here since v1, and with the flat ceiling
+    // gone (BUILD_PLAN_V3 §2.1 — there is no borrowed bankroll to cap) it is the whole of the rule.
+    special: { bettingMargin: 0.1, maxStakeFraction: 1 },
     accents: ['#F04E98', '#3FD6E0'],
   },
   // ---- Regular pool ----
@@ -85,7 +64,6 @@ export const PLANETS: readonly Planet[] = [
     major: false,
     track: standard('wide'),
     foodBand: [40, 60],
-    marketBias: 'Dull market',
     special: {},
     accents: ['#F4C542', '#7BB661'],
   },
@@ -96,9 +74,7 @@ export const PLANETS: readonly Planet[] = [
     major: false,
     track: standard('tight'),
     foodBand: [110, 140],
-    marketBias: 'Cheap knackered dogs (age 5+), and nothing above Rough on the shelves',
-    // GDD §8.1 names Rustgut as the feed-poor planet: cheap kibble band, nothing good in it.
-    special: { marketAgeBias: 'old', feedBias: balance.feedBiasPoor },
+    special: {},
     accents: ['#D9531E', '#6B3A22'],
   },
   {
@@ -108,7 +84,6 @@ export const PLANETS: readonly Planet[] = [
     major: false,
     track: standard('medium'),
     foodBand: [100, 140],
-    marketBias: 'Everything +20%',
     special: { bettingMargin: 0.1, everythingMarkup: 0.2 },
     accents: ['#F04E98', '#9BE84B'],
   },
@@ -119,8 +94,7 @@ export const PLANETS: readonly Planet[] = [
     major: false,
     track: sprint('medium'),
     foodBand: [70, 100],
-    marketBias: 'Ship parts',
-    special: { shipDiscount: 0.3, piratesLikely: true },
+    special: { piratesLikely: true },
     accents: ['#8C8C8C', '#F4C542'],
   },
   {
@@ -130,8 +104,7 @@ export const PLANETS: readonly Planet[] = [
     major: false,
     track: staying('medium', { hazard: 1.5, mud: true }),
     foodBand: [70, 100],
-    marketBias: 'Stayers',
-    special: { vet: true },
+    special: {},
     accents: ['#5B7A2E', '#9BE84B'],
   },
   {
@@ -141,8 +114,7 @@ export const PLANETS: readonly Planet[] = [
     major: false,
     track: sprint('wide', { slippery: true }),
     foodBand: [85, 120],
-    marketBias: 'Fast starters',
-    special: { foodSpoils: 0.2 },
+    special: {},
     accents: ['#A8E6FF', '#7B4BD6'],
   },
   {
@@ -152,8 +124,7 @@ export const PLANETS: readonly Planet[] = [
     major: false,
     track: standard('medium'),
     foodBand: [70, 100],
-    marketBias: 'Staff of every kind',
-    special: { bank: true, trainer: true, vet: true, fixer: true, winningsTax: 0.1 },
+    special: { winningsTax: 0.1 },
     accents: ['#F4C542', '#3A2A5C'],
   },
   {
@@ -163,9 +134,8 @@ export const PLANETS: readonly Planet[] = [
     major: false,
     track: standard('medium'),
     foodBand: [45, 70],
-    marketBias: 'Age-1 pups with growth, and the best feed on the circuit',
     // GDD §8.1 names Vatgrown as where the Prime feed is. A bio-lab would be.
-    special: { dopingCatch: 0, marketAgeBias: 'pups', feedBias: balance.feedBiasRich },
+    special: {},
     accents: ['#9BE84B', '#3FD6E0'],
   },
   {
@@ -175,9 +145,8 @@ export const PLANETS: readonly Planet[] = [
     major: false,
     track: standard('medium'),
     foodBand: [70, 100],
-    marketBias: 'Traditionalists',
     // Nostalgists with a rule book. They test for everything and they watch the boxes too.
-    special: { dopingCatch: 0.4, fixCatch: 0.55, purseMult: 1.2 },
+    special: { purseMult: 1.2 },
     accents: ['#2E8B57', '#F4F4F4'],
   },
   {
@@ -187,9 +156,8 @@ export const PLANETS: readonly Planet[] = [
     major: false,
     track: standard('tight'),
     foodBand: [100, 140],
-    marketBias: '"Fell-off-a-ship" dogs at 60% value',
     // A black-market bazaar does not run a stewards' room worth the name.
-    special: { shark: true, fellOffAShip: true, fixCatch: 0.25 },
+    special: {},
     accents: ['#7A1F2B', '#F4C542'],
   },
   {
@@ -199,8 +167,7 @@ export const PLANETS: readonly Planet[] = [
     major: false,
     track: standard('medium', { hazard: 1.2 }),
     foodBand: [100, 130],
-    marketBias: 'Cheap kennel modules',
-    special: { fitnessOnArrival: -5, kennelDiscount: 0.5 },
+    special: { fitnessOnArrival: -5 },
     accents: ['#F7B267', '#F4C542'],
   },
   {
@@ -210,8 +177,7 @@ export const PLANETS: readonly Planet[] = [
     major: false,
     track: sprint('medium'),
     foodBand: [70, 100],
-    marketBias: 'Engines and muzzles',
-    special: { engineDiscount: 0.4, muzzles: true },
+    special: {},
     accents: ['#3FD6E0', '#B87333'],
   },
   {
@@ -221,10 +187,9 @@ export const PLANETS: readonly Planet[] = [
     major: false,
     track: staying('wide'),
     foodBand: [45, 70],
-    marketBias: 'Serene',
     // ⚠️ No bookie means no sabotage here at all: §13's nobbling is a `betting`-phase action and
     // Holy Bark skips that phase entirely. A bought box is still possible, and the monks notice.
-    special: { noBetting: true, noUpkeep: true, fitnessOnArrival: 5, fixCatch: 0.6 },
+    special: { noBetting: true, fitnessOnArrival: 5 },
     accents: ['#F4F4F4', '#C9A227'],
   },
   {
@@ -234,10 +199,9 @@ export const PLANETS: readonly Planet[] = [
     major: false,
     track: standard('tight'),
     foodBand: [100, 140],
-    marketBias: 'Fixers and nervy locals',
     // Everybody on this station is on the take, including the stewards. The Fixer's home ground
     // and the one place on the circuit where the road is cheap to walk.
-    special: { fixer: true, shark: true, localsNervy: true, fixCatch: 0.2 },
+    special: { localsNervy: true },
     accents: ['#9BE84B', '#1B1A22'],
   },
 ];

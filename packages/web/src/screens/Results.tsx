@@ -33,7 +33,6 @@ function RaceTable({ s, r, meId }: { s: GameState; r: RaceResult; meId: string }
             const owner = playerById(s, e.local ? null : e.ownerId);
             const pay = r.payouts.find((p) => p.dogId === dogId);
             const injury = r.injuries[dogId];
-            const doped = r.dopingCaught.includes(dogId);
             return (
               <tr key={dogId} className={e.ownerId === meId ? 'me' : i > 2 ? 'dim' : ''}>
                 <td>{i + 1}</td>
@@ -58,10 +57,7 @@ function RaceTable({ s, r, meId }: { s: GameState; r: RaceResult; meId: string }
                 </td>
                 <td className="num">{e.odds.toFixed(2)}</td>
                 <td className="num">{pay ? formatBones(pay.amount) : '—'}</td>
-                <td>
-                  {injury ? <Badge tone="bad">injured {injury}w</Badge> : null}
-                  {doped ? <Badge tone="bad">stewards 💉</Badge> : null}
-                </td>
+                <td>{injury ? <Badge tone="bad">injured {injury}w</Badge> : null}</td>
               </tr>
             );
           })}

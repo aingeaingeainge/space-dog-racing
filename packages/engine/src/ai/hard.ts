@@ -1,41 +1,25 @@
 import { balance } from '../content/balance';
-import { raceType } from '../content/raceTypes';
-import { dogSalePrice, dogValue } from '../economy/dogValue';
-import { upgradePrice } from '../economy/market';
 import { decimalOdds, placeProbabilities, winProbabilities } from '../race/odds';
-import {
-  bettingMargin,
-  currentPlanet,
-  dopingCatchRate,
-  maxStakeFor,
-  player,
-  thisWeeksCard,
-} from '../state';
-import type { Action, Dog, GameState, Id, RaceTypeId } from '../types';
+import { bettingMargin, maxStakeFor, player, thisWeeksCard } from '../state';
+import type { Action, GameState, Id, RaceTypeId } from '../types';
 import {
   bestAssignment,
-  dogMarket,
   effectiveRating,
   emitDeclarations,
   expectedField,
-  expectedPurse,
   hash01,
   buyFeedPlan,
-  keepStaff,
   planetAhead,
   racingDogs,
-  repayLoans,
   setStates,
   startPlan,
   stateHold,
   tradeFoodPlan,
   weeksToMajor,
   type Assignment,
-  type MarketOptions,
   type Plan,
   type StateOptions,
 } from './shared';
-import { workTheFix } from './paths';
 
 /**
  * How often Hard leaves the *first* race on the card to the locals and backs its runner in the
@@ -44,13 +28,6 @@ import { workTheFix } from './paths';
  * races and put the money over the counter", which is what it always meant.
  */
 const THROW_CHEAP_RATE = 0.15;
-/**
- * Rating points Hard credits a market dog with for each race type its kennel cannot fill
- * (GDD §6.3). The one thing the fact-gated card gives a good stable to be clever about, and the
- * behaviour §14 has been waiting for something to hang on: under Bronze / Silver / Gold every dog
- * could enter the top class, so there was no such thing as a coverage gap.
- */
-const COVERAGE_GAIN = 8;
 /** Fitness a dog should still have the week after a run, if a Major is next weekend. */
 const MAJOR_FITNESS_FLOOR = balance.fitnessScaleBelow + 20;
 
@@ -90,13 +67,11 @@ export function decideHard(s: GameState, playerId: Id): Action[] {
   const plan = startPlan(s, playerId);
 
   if (s.phase === 'planetPre' || s.phase === 'planetPost') {
-    keepStaffHard(plan);
-    repayLoans(plan);
-    if (s.phase === 'planetPost') sellAgeingDog(plan);
-    if (s.phase === 'planetPre') {
-      dogMarket(plan, marketOptions(s));
-      buyGear(plan);
-    }
+    // ⚠️ **Hard lost five of its decisions here (BUILD_PLAN_V3 §2.1)**: hiring, loan repayment,
+    // selling an ageing dog, the dog market and the gear. What is left is the market, the feed, the
+    // declarations and the book — which is most of why Phase A's `Hard beats Normal` row must be
+    // treated as unmeasured rather than inherited.
+    //
     // Blackreach reverses the turn order, so arrive heavy and get first look at the market.
     const fillHold = s.phase === 'planetPost' && !!planetAhead(s, 1)?.special.turnOrderReversed;
     // Feed before kibble: a crate of Prime speed feed is worth more than a crate of dinner, and
@@ -107,147 +82,19 @@ export function decideHard(s: GameState, playerId: Id): Action[] {
     // buying, because it is how a good racer uses the new market and the ablation is recorded.
     if (s.phase === 'planetPre') buyFeedPlan(plan, { crates: 3, spend: 0.7 });
     tradeFoodPlan(plan, { fillHold });
-    if (s.phase === 'planetPre') feedSupplements(plan, declareForThisWeek(plan));
+    // ⚠️ **Declarations last, after the feed and the trade, and that is v2's order rather than an
+    // accident.** It used to be `feedSupplements(plan, declareForThisWeek(plan))` — the supplement
+    // decision needed to know who was running, so the declaration was made as its argument. The
+    // supplement is deleted (BUILD_PLAN_V3 §2.1) and the declaration is not, so the call stands on
+    // its own here. Moving it earlier would change what Hard buys, which is a tuning change dressed
+    // as a tidy-up.
+    if (s.phase === 'planetPre') declareForThisWeek(plan);
   }
 
-  // §13, behind the ablation knob. See HARD_KNOBS.
-  if (s.phase === 'betting' && s.fields) {
-    if (HARD_KNOBS.worksTheFix) workTheFix(plan);
-    else placeBets(plan);
-  }
+  if (s.phase === 'betting' && s.fields) placeBets(plan);
 
   plan.out.push({ t: 'EndPhase', playerId });
   return plan.out;
-}
-
-/**
- * Net worth counts a dog at book value and cash at face value, so a dog bought under the odds
- * is worth buying for the column alone — and a better dog wins more on the way. From midseason
- * Hard lowers its bar, and by week 10 it will spend down to its reserve (GDD §14).
- */
-function marketOptions(s: GameState): MarketOptions {
-  if (s.week >= 10)
-    return {
-      buyCashMultiple: 1,
-      minRatingGain: 1,
-      minRatingGainForSwap: 4,
-      bargainFactor: 1,
-      keepReserve: true,
-      coverageGain: COVERAGE_GAIN,
-    };
-  if (s.week >= 6)
-    return {
-      buyCashMultiple: 1.4,
-      minRatingGain: 2,
-      minRatingGainForSwap: 5,
-      bargainFactor: 0.95,
-      keepReserve: true,
-      coverageGain: COVERAGE_GAIN,
-    };
-  return { coverageGain: COVERAGE_GAIN };
-}
-
-/**
- * Hard hires like a racing stable, and **leaves a slot empty on purpose** (GDD §8.3, §14).
- *
- * ⚠️ **This was measured the other way first and it cost 11 points of head-to-head.** Hard began the
- * phase wanting all five hireable roles, filling its three slots every season — and *beat Normal
- * 48.0%*, down from Phase B's 53.9%, with a mean worth above Normal's and a p10 well below it.
- * Ablating the want list, 300 seasons a cell:
- *
- *   trainer, vet, trader, tipster, scout   48.0%   mean 32,327   p10 5,625
- *   trainer, vet, scout                    55.8%   mean 37,603   p10 7,088
- *   trainer, vet, tipster                  55.8%   mean 37,484   p10 8,258
- *   **trainer, vet**                       **58.7%**   mean 41,346   p10 9,825
- *
- * The reason is the whole point of D7 and it is worth stating plainly: **the trader-road staff are
- * only worth their wage to a stable that plays the trader's road.** A Trader's hold and a Tipster's
- * week are worth nothing to an agent whose income is purses, and a wage is charged whether or not
- * the capability is used. So three slots is *more than a racing stable can profitably fill*, and
- * knowing that is decision quality — which is exactly what §14 says difficulty is made of.
- *
- * The other difference from Normal is that it **covers the whole remaining season** rather than four
- * weeks, so it will not sign a Prime wage in week 11 with three weekends left to pay for it — the
- * trap §7.5 builds for the careless agent.
- */
-const HARD_WANT = ['trainer', 'vet'] as const;
-
-function keepStaffHard(plan: Plan): void {
-  const weeksLeft = balance.weeks - plan.s.week + 1;
-  if (weeksLeft < 4) return; // too late for any wage to earn itself back
-  // D30, and it survives Phase E untouched: two hires, not three. The question Phase D asked here
-  // — is a **Fixer** the first third hire a racing stable can profitably make? — is no longer
-  // askable, because the Fixer is not a hire (E-D45). What is left of it is `HARD_KNOBS.worksTheFix`
-  // below, which is about whether Hard buys §13's *jobs*, and that costs no slot at all.
-  keepStaff(plan, { want: [...HARD_WANT], cover: weeksLeft });
-}
-
-// Measured and rejected (M4): buying the kennel module and engine tiers cost Hard more than
-// they returned — the 0.7 resale factor takes 30% off the moment you pay, and a fifth dog
-// bought at its asking price adds upkeep without adding worth. See claude/M4_NOTES.md.
-
-/**
- * Track-day passes and racing muzzles are permanent stat points on the best dog, and — unlike
- * a race result — they do not move its *rating*, so the dog stays in its class and the bookie
- * keeps pricing the old one. GDD §8's payback rule wants five weeks, so Hard stops buying them
- * once there are fewer than five left.
- */
-function buyGear(plan: Plan): void {
-  const { s, p, playerId, out } = plan;
-  const planet = currentPlanet(s);
-  const target = [...plan.kennel].sort((a, b) => b.rating - a.rating)[0];
-  if (!target) return;
-  if (balance.weeks - s.week < 5) return;
-  for (const item of ['trackDay', 'muzzle'] as const) {
-    const inStock = item === 'trackDay' ? s.planet.trackDayPasses : s.planet.muzzlesInStock;
-    if (!inStock) continue;
-    const price = upgradePrice(item, planet, p);
-    if (plan.cash - price < plan.reserve * 1.5) continue;
-    out.push({ t: 'BuyUpgrade', playerId, upgrade: item, dogId: target.id });
-    plan.cash -= price;
-  }
-}
-
-/**
- * Sell a dog before it declines. Ages tick at the end of week `ageTickWeek` and the value
- * multiplier falls hardest going into the decline years, so the week of the tick is the last
- * chance to sell an ageing dog at the better factor; after that it only pays where the buyers do.
- */
-function sellAgeingDog(plan: Plan): void {
-  const { s, playerId, out } = plan;
-  if (!HARD_KNOBS.sellsAgeingDogs) return;
-  if (plan.kennel.length < 3) return;
-  const planet = currentPlanet(s);
-  const buyerBonus = planet.special.buyerBonus ?? 0;
-  const valueMod = planet.special.dogValueMod ?? 1;
-  const beforeTheTick = s.week === balance.ageTickWeek;
-  if (!beforeTheTick && buyerBonus + (valueMod - 1) <= 0) return;
-
-  const best = [...plan.kennel].sort((a, b) => b.rating - a.rating)[0];
-  const minAge = beforeTheTick ? balance.declineMinAge - 1 : balance.declineMinAge;
-  const sell = plan.kennel
-    .filter(
-      (d) =>
-        d.id !== best?.id &&
-        d.injuryWeeks === 0 &&
-        !d.traits.includes('oldSoul') &&
-        d.age >= minAge &&
-        // Keep one veteran. GDD §6.3 makes the Veterans race "a late-career job for an old dog,
-        // and a reason to keep one" — selling the last old dog in the yard is selling a race.
-        !onlyVeteran(plan.kennel, d),
-    )
-    .sort((a, b) => b.age - a.age || a.rating - b.rating)[0];
-  if (!sell) return;
-
-  out.push({ t: 'SellDog', playerId, dogId: sell.id });
-  plan.cash += dogSalePrice(sell, buyerBonus, valueMod);
-  plan.kennel = plan.kennel.filter((d) => d.id !== sell.id);
-}
-
-/** Is this the last dog in the kennel that could take a trap in a Veterans race (GDD §6.3)? */
-function onlyVeteran(kennel: readonly Dog[], d: Dog): boolean {
-  if (!raceType('veterans').eligible(d)) return false;
-  return kennel.filter((x) => raceType('veterans').eligible(x)).length <= 1;
 }
 
 /** Choose and declare this week's runners, holding fitness back for a Major if one is next. */
@@ -324,47 +171,6 @@ function throwingTheCheapRace(s: GameState, playerId: Id): boolean {
 }
 
 /**
- * Supplements, priced rather than assumed. GDD §14 has Hard doping on Vatgrown, where the
- * stewards do not look; the honest generalisation is that it dopes wherever the sum comes out
- * positive, which at the stewards' usual 15% is a real but occasional call.
- *
- *   gain   (1 − q) × the purse with the bonus, against the purse without it
- *   cost   the price, plus q × (the forfeited purse + the rating the dog loses + the ban)
- *
- * The bonus is valued at speed × the rating weight — what a player reading the stat bars would
- * reckon, and deliberately conservative, because the race sim rewards raw Speed by more than
- * the bookie's rating model implies (measured; see claude/M4_NOTES.md).
- */
-function feedSupplements(plan: Plan, assignment: Assignment): void {
-  const { s, p, playerId, out } = plan;
-  if (s.toggles.cleanSport) return;
-  const q = dopingCatchRate(s);
-  const price = upgradePrice('supplement', currentPlanet(s), p);
-  const bonusRating = balance.itemSupplementBonus * balance.ratingWeightSpeed;
-  for (const race of thisWeeksCard(s)) {
-    const dogId = assignment.plan[race];
-    if (!dogId) continue;
-    const d = s.dogs[dogId];
-    if (!d || d.supplemented) continue;
-    if (plan.cash - price < plan.reserve) break;
-    const rating = effectiveRating(d);
-    const ev0 = expectedPurse(s, d, race, playerId, rating);
-    const ev1 = expectedPurse(s, d, race, playerId, rating + bonusRating);
-    const valueLoss =
-      dogValue(d) -
-      dogValue({
-        rating: Math.max(5, d.rating - balance.supplementRatingPenalty),
-        age: d.age,
-        injuryWeeks: d.injuryWeeks,
-      });
-    const banLoss = balance.supplementBanWeeks * ev0;
-    if ((1 - q) * ev1 - q * (valueLoss + banLoss) - price - ev0 <= 0) continue;
-    out.push({ t: 'BuyUpgrade', playerId, upgrade: 'supplement', dogId });
-    plan.cash -= price;
-  }
-}
-
-/**
  * The bookie prices public ratings and nothing else. It cannot see a supplement, and it cannot
  * see that a dog's stats have outgrown its rating after a month with a trainer and a track-day
  * pass — which is exactly the "you know things the bookie doesn't" of GDD §10. So Hard prices
@@ -425,15 +231,6 @@ export const HARD_KNOBS = {
   /** Stake in proportion to the measured edge rather than a flat fraction of cash. */
   sizeBetsByEdge: false,
   /**
-   * Work §13's road — buy jobs from whoever is drinking here, and bet into the stale board.
-   *
-   * ⚠️ **This is not Phase D's `wantsFixer` re-asked, and it must not be treated as though it
-   * were.** That knob spent a *staff slot* on a fixer and lost 9.5 points by it; the per-job hire
-   * spends no slot, so the only thing left of the question is whether Hard should buy the jobs.
-   * Ablated in Phase E — see `claude/V2_PHASE_E_NOTES.md`.
-   */
-  worksTheFix: false,
-  /**
    * ⚠️ **Phase E's four, and the answer they gave: none of them is a bad decision.**
    *
    * The record said the only thing that has ever moved Hard is removing a bad decision, so these
@@ -477,8 +274,6 @@ export const HARD_KNOBS = {
   holdsForMajor: true,
   /** Now and then leave the cheap race to the locals and put the money over the counter. */
   throwsCheapRace: true,
-  /** Sell an ageing dog before the week-7 tick takes a chunk out of its book value. */
-  sellsAgeingDogs: true,
 };
 
 function placeBets(plan: Plan): void {

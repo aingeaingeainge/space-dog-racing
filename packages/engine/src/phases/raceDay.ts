@@ -1,9 +1,7 @@
 import { balance } from '../content/balance';
-import { vetInjuryRelief } from '../economy/staff';
-type VetRelief = ReturnType<typeof vetInjuryRelief>;
 import { OPEN_TYPE_ID, raceType } from '../content/raceTypes';
 import { pow10 } from '../determinism';
-import { createLocalDog } from '../economy/market';
+import { createLocalDog } from '../economy/dogs';
 import { dogValue } from '../economy/dogValue';
 import { decimalOdds, placeProbabilities, winProbabilities } from '../race/odds';
 import { simulateRace, type Runner } from '../race/simulateRace';
@@ -13,8 +11,6 @@ import {
   championshipTable,
   currentPlanet,
   dog,
-  dopingCatchRate,
-  fixCatchRate,
   log,
   player,
   purseFor,
@@ -58,34 +54,15 @@ export function lockDeclarations(ctx: Ctx): void {
       }
     }
 
-    // Trap draw: shuffle, then honour wide runners (outside), the dodgy steward, and anybody who
-    // has had a word with a real one (GDD §13).
+    // Trap draw: shuffle, then honour wide runners (outside).
+    //
+    // ⚠️ The dodgy steward and the bought box are gone with the crook's road (BUILD_PLAN_V3 §2.1).
+    // GDD_V3 §9.3 brings the bought box back as a Back Alley event in Phase D; the draw itself is
+    // untouched and stays the place it would be applied.
     const draw = rng.shuffle([...runners]);
     const wide = draw.filter((d) => d.traits.includes('wideRunner'));
     const rest = draw.filter((d) => !d.traits.includes('wideRunner'));
-    let ordered = [...rest, ...wide];
-    if (race === OPEN_TYPE_ID) {
-      for (const briber of s.players.filter((p) => p.flags.rivalTrap8)) {
-        const rivals = ordered.filter((d) => d.ownerId !== briber.id && d.ownerId !== 'local');
-        const target = rivals.sort((a, b) => b.rating - a.rating)[0];
-        if (target) ordered = [...ordered.filter((d) => d !== target), target];
-      }
-    }
-    // A bought box (§13). Applied **last**, after the draw and after the two existing rules that
-    // move dogs about, because a bribe that a later rule could undo would be a fee for nothing —
-    // the same mistake §8.4 is the standing example of. Swapped rather than inserted, so the field
-    // stays a permutation of the boxes and `properties.test.ts`'s "a runner's trap is its position"
-    // holds at every instant.
-    for (const fix of s.fixes) {
-      if (fix.kind !== 'bribe' || fix.week !== s.week || fix.race !== race || !fix.trap) continue;
-      const from = ordered.findIndex((d) => d.id === fix.dogId);
-      const to = fix.trap - 1;
-      if (from < 0 || to < 0 || to >= ordered.length || from === to) continue;
-      const swap = ordered[to]!;
-      ordered[to] = ordered[from]!;
-      ordered[from] = swap;
-    }
-
+    const ordered = [...rest, ...wide];
     const ratings = ordered.map((d) => d.rating);
     const winP = winProbabilities(ratings);
     const placeP = placeProbabilities(ratings);
@@ -125,7 +102,7 @@ function runnerFrom(d: Dog, trap: number): Runner {
     accel: d.accel,
     stamina: d.stamina,
     trapStat: d.trap,
-    fitness: Math.max(0, d.fitness - d.nobbled),
+    fitness: Math.max(0, d.fitness),
     form: d.form,
     traits: d.traits,
     speedBonus: d.raceBonus,
@@ -155,90 +132,21 @@ function applyRaceOutcome(s: GameState, d: Dog, place: number, field: Dog[]): nu
 }
 
 /**
- * Did this dog pull up, and for how long (GDD §5.5, §8.3).
+ * Did this dog pull up, and for how long (GDD §5.5, GDD_V3 §4.4).
  *
- * The vet's three tiers do three different things, and this is where two of them land: a **Prime**
- * vet cuts the chance of an injury happening at all, a **Proper or Prime** vet halves the weeks,
- * and a **Rough** vet takes a week off the end instead. So the cheap vet is worth having and is
- * plainly worse than the dear one, which is what a ladder is for.
+ * ⚠️ **The vet is gone with the staff ladder (BUILD_PLAN_V3 §2.1)**, so nothing shortens a layoff
+ * any more. GDD_V3 §4.4 flags this as something to watch: with three dogs and no market, losing one
+ * for three weeks is a third of a stable for a third of a season, and the guards it names — the free
+ * local runner and an Explore door that shortens a layoff — both arrive in Phase D. Until then the
+ * base rate is the only dial, and §4.4 says so.
  */
-function rollInjury(ctx: Ctx, d: Dog, hazard: number, relief: VetRelief): number {
-  let p = balance.injuryBase * hazard * (1 - relief.chanceCut);
+function rollInjury(ctx: Ctx, d: Dog, hazard: number): number {
+  let p = balance.injuryBase * hazard;
   if (d.fitness < balance.injuryLowFitnessBelow) p *= balance.injuryLowFitnessMult;
   if (d.traits.includes('fragile')) p *= 2;
   if (d.traits.includes('iron')) p *= 0.5;
   if (!ctx.rng.chance(p)) return 0;
-  let weeks = ctx.rng.int(balance.injuryWeeksMin, balance.injuryWeeksMax);
-  if (relief.halve) weeks = Math.max(1, Math.floor(weeks / 2));
-  else if (relief.weeksOff) weeks = Math.max(1, weeks - relief.weeksOff);
-  return weeks;
-}
-
-/**
- * The stewards' round (GDD §13). One roll per job, on race day, before the purse is paid.
- *
- * ⚠️ **Three decisions live in this function and each is a direct answer to §8.4's cautionary
- * tale**, which is the supplement: caught doping forfeits the *purse*, so its punishment grows
- * with the size of the race while its benefit is a fixed speed bump — worse the bigger the race,
- * which is exactly backwards from tempting.
- *
- * 1. **The roll happens here, not when the job is placed.** The fine is a multiple of what the
- *    crook had on that race, and the bets are struck in the betting phase — so rolling any earlier
- *    would make it impossible to size the deterrent against the bet, which is what §13 asks for in
- *    as many words.
- * 2. **The fine is `base + mult × stake on that race`, and the purse is untouched.** §13's edge is
- *    a percentage of the stake, so the punishment is a multiple of the stake: it grows with what
- *    the crime was actually *for*, and a crook who fixed a race and did not back it pays the flat
- *    part only. A crook whose own dog then wins keeps the purse, because taking it would be §8.4
- *    again, wearing a different hat.
- * 3. **The nobbling stands.** A caught crook does not get the race run again — the dog is slow,
- *    the money is lost, and the stewards are at the door. Undoing it as well would make the whole
- *    mechanic a coin flip on its own main effect, and §13 asks for severe rather than random.
- *
- * The man is struck off and no other will take the stable's money again this season, which is the
- * half of the deterrent that grows with how often the road is used. ⚠️ **That half got simpler
- * when the Fixer stopped being a hire (E-D45)**, and is worth watching for it: there is no longer
- * a wage to stop paying, so being caught takes away the road and nothing else. It still bites,
- * because the road is the thing the crook was paying for.
- *
- * ⚠️ **§13's third penalty — "the wronged stable is told who did it" — is logged and does nothing,
- * and that is a decision rather than an omission (D40).** The line is public, so it reaches every
- * stable at the table; but an AI holds no grudge, so in single-player it is flavour. Making it bite
- * means retaliation, which is a rule the GDD does not describe and a fourth thing to balance in a
- * phase that already carries a three-road balance pass. It is a **multiplayer** feature, written up
- * for M6, and the fine and the season ban are sized to carry the whole deterrent without it.
- */
-function catchFixers(ctx: Ctx, race: RaceResult['race']): void {
-  const { s } = ctx;
-  for (const fix of s.fixes) {
-    if (fix.week !== s.week || fix.race !== race || fix.caught) continue;
-    const p = player(s, fix.playerId);
-    // The grade is the job's, not the stable's: a crook who bought a box from a Rough man and a
-    // nobbling from a careful one is two different risks in the same weekend (E-D45).
-    if (!ctx.rng.chance(fixCatchRate(s, fix.tier))) continue;
-    fix.caught = true;
-    const staked = s.bets
-      .filter((b) => b.playerId === p.id && b.week === s.week && b.race === race)
-      .reduce((sum, b) => sum + b.stake, 0);
-    const fine = Math.round(balance.fixFineBase + balance.fixFineStakeMult * staked);
-    p.cash -= fine;
-    // The fine belongs to the crook's column and not to the general costs line, the same as the
-    // fees that bought the job — `roadSplit` reads both off `fixArchive` (E item 1).
-    fix.fine = fine;
-    p.flags.fixerBarred = true;
-    const d = s.dogs[fix.dogId];
-    const what =
-      fix.kind === 'bribe'
-        ? `buying trap ${fix.trap} for ${d?.name ?? 'a dog'}`
-        : `getting at ${d?.name ?? 'a dog'}`;
-    // No playerId: this one is public. Everybody at the table hears who it was (§13).
-    log(
-      s,
-      `Stewards' enquiry, ${raceType(race).label}: ${p.name} caught ${what}. ` +
-        `Fined ${fine}${staked > 0 ? ` (${balance.fixFineBase} plus a share of the ${staked} they had on it)` : ''}` +
-        `, and ${fix.fixer} is struck off. Nobody will take their money again this season.`,
-    );
-  }
+  return ctx.rng.int(balance.injuryWeeksMin, balance.injuryWeeksMax);
 }
 
 /**
@@ -263,7 +171,6 @@ function payChampionship(ctx: Ctx): void {
     const amount = purse[i]!;
     if (row.points <= 0 || amount <= 0) return;
     const p = player(s, row.playerId);
-    if (p.flags.bankrupt) return;
     p.cash += amount;
     p.stats.prizeIncome += amount;
     log(
@@ -301,29 +208,7 @@ export function runRaces(ctx: Ctx): void {
       ratingDeltas: {},
       injuries: {},
       payouts: [],
-      dopingCaught: [],
     };
-
-    // Stewards: supplements may be caught before the purse is paid (never on Vatgrown).
-    const catchRate = dopingCatchRate(s);
-    for (const d of dogs) {
-      if (d.supplemented && d.ownerId !== 'local' && ctx.rng.chance(catchRate)) {
-        result.dopingCaught.push(d.id);
-        const owner = player(s, d.ownerId);
-        owner.flags.caughtDoping = true;
-        owner.stats.supplementsCaught++;
-        d.rating = clamp(d.rating - balance.supplementRatingPenalty, 5, 99);
-        d.banWeeks = balance.supplementBanWeeks;
-        log(
-          s,
-          `Stewards catch ${d.name} doped: purse forfeited, rating −${balance.supplementRatingPenalty}, banned ${balance.supplementBanWeeks} week.`,
-          owner.id,
-        );
-      }
-    }
-
-    // §13's stewards, after the doping ones and before a Bone of this race's purse is paid.
-    catchFixers(ctx, race);
 
     sim.order.forEach((dogId, idx) => {
       const place = idx + 1;
@@ -331,9 +216,9 @@ export function runRaces(ctx: Ctx): void {
       const delta = applyRaceOutcome(s, d, place, dogs);
       result.ratingDeltas[dogId] = delta;
       if (race === OPEN_TYPE_ID && place === 1) d.openWins++;
-      if (d.ownerId !== 'local' && d.ownerId !== 'market') {
+      if (d.ownerId !== 'local') {
         const owner = player(s, d.ownerId);
-        const weeks = rollInjury(ctx, d, planet.track.hazard, vetInjuryRelief(owner));
+        const weeks = rollInjury(ctx, d, planet.track.hazard);
         if (weeks) {
           d.injuryWeeks = weeks;
           result.injuries[dogId] = weeks;
@@ -343,7 +228,7 @@ export function runRaces(ctx: Ctx): void {
             owner.id,
           );
         }
-        if (place <= 3 && !result.dopingCaught.includes(dogId)) {
+        if (place <= 3) {
           let amount = purse[place - 1]!;
           if (planet.special.winningsTax)
             amount = Math.round(amount * (1 - planet.special.winningsTax));
@@ -385,15 +270,8 @@ export function runRaces(ctx: Ctx): void {
   if (entry.grandFinal) payChampionship(ctx);
 
   // Clear race-day buffs.
-  for (const d of Object.values(s.dogs)) {
-    d.raceBonus = 0;
-    d.supplemented = false;
-    d.nobbled = 0;
-  }
-  for (const p of s.players) {
-    p.flags.rivalTrap8 = false;
-    p.flags.tipOff = false;
-  }
+  for (const d of Object.values(s.dogs)) d.raceBonus = 0;
+  for (const p of s.players) p.flags.tipOff = false;
   startPlayerPhase(s, 'planetPost');
 }
 

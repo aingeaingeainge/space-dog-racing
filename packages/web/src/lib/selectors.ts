@@ -1,25 +1,17 @@
 import {
   balance,
-  vetRestBonus,
-  wageBill,
-  cargoTotal,
   kibbleAboard,
   KIBBLE_ID,
-  debt,
   dogsValue,
   dogValue,
-  fuelCost,
   netWorthBreakdown,
   planetOf,
-  shipValue,
-  weeklyInterest,
   thisWeeksCard,
   FREE_HORIZON,
   raceType,
   LOCAL_RATING_BY_TIER,
   OPEN_TYPE_ID,
   RACE_TYPE_IDS,
-  type Action,
   type Dog,
   type GameState,
   type Id,
@@ -111,9 +103,7 @@ export interface StandingRow {
   player: Player;
   cash: number;
   dogs: number;
-  ship: number;
   cargo: number;
-  debt: number;
   netWorth: number;
   openWins: number;
 }
@@ -126,9 +116,7 @@ export function standings(s: GameState): StandingRow[] {
       player,
       cash: w.cash,
       dogs: w.dogs,
-      ship: w.ship,
       cargo: w.cargo,
-      debt: w.debt,
       netWorth: w.total,
       openWins: open[player.id] ?? 0,
     };
@@ -155,7 +143,6 @@ export function criterionFor(race: RaceTypeId): string {
 /** Why a dog cannot run in one race — null when it can. */
 export function ineligibleReason(d: Dog, race: RaceTypeId): string | null {
   if (d.injuryWeeks > 0) return `injured (${d.injuryWeeks}w)`;
-  if (d.banWeeks > 0) return `banned (${d.banWeeks}w)`;
   if (!raceType(race).eligible(d)) return `needs ${raceType(race).criterion}`;
   return null;
 }
@@ -164,8 +151,6 @@ export function ineligibleReason(d: Dog, race: RaceTypeId): string | null {
 export function cannotRunReason(s: GameState, d: Dog): string | null {
   if (d.injuryWeeks > 0)
     return `injured — out for ${d.injuryWeeks} more week${d.injuryWeeks > 1 ? 's' : ''}`;
-  if (d.banWeeks > 0)
-    return `banned by the stewards for ${d.banWeeks} more week${d.banWeeks > 1 ? 's' : ''}`;
   if (thisWeeksCard(s).every((race) => !raceType(race).eligible(d)))
     return "nothing on this weekend's card will have it";
   return null;
@@ -187,11 +172,11 @@ export interface FitnessOutlook {
   resting: number;
 }
 
-export function fitnessOutlook(d: Dog, me: Player): FitnessOutlook {
+export function fitnessOutlook(d: Dog): FitnessOutlook {
   const bounce = d.traits.includes('bouncesBack') ? 5 : 0;
-  // The vet's contribution is a number now, not a yes/no: nothing from a Rough one, +5 Proper,
-  // +10 Prime (GDD §8.3).
-  const rest = balance.fitnessRest + vetRestBonus(me) + bounce;
+  // ⚠️ No vet to add to the rest any more (BUILD_PLAN_V3 §2.1). GDD_V3 §8.2's staff bonuses put
+  // "+5 fitness recovery per week" back in Phase D, and `me` is kept in the signature for it.
+  const rest = balance.fitnessRest + bounce;
   const cap = (n: number) => Math.max(0, Math.min(100, Math.round(n)));
   return {
     now: d.fitness,
@@ -205,33 +190,21 @@ export function fitnessOutlook(d: Dog, me: Player): FitnessOutlook {
  * The fog (GDD §9.3, D5). What this stable is allowed to see of the circuit, week by week.
  *
  * You know the planet you are standing on completely, and next week's by name and Major status.
- * Beyond that, nothing — unless you bought a dossier on it, which is why this reads the action
- * log rather than the state: the whole circuit is in `calendar` because the reducer had to build
- * it, and the fog is a rule about who may look. A purchase is in the log, so the log is the
- * answer, and nothing had to be added to GameState to hold it.
+ * Beyond that, nothing.
+ *
+ * ⚠️ **The `'bought'` level is gone with the dossier (BUILD_PLAN_V3 §2.1).** The fog itself is kept
+ * whole (§2.3) and GDD_V3 §2.1 makes it load-bearing for the first time — it is now the *only* thing
+ * information is for, and §9.4 moves the buying of it into Bar events in Phase D. So this is three
+ * levels plus 'past' until then, and `fogLevel` keeps its signature so the Galaxy Map does not have
+ * to change shape twice.
  */
-export type FogLevel = 'here' | 'named' | 'bought' | 'dark' | 'past';
+export type FogLevel = 'here' | 'named' | 'dark' | 'past';
 
-export function dossierWeeks(log: readonly Action[], playerId: Id): Set<number> {
-  const out = new Set<number>();
-  for (const a of log) {
-    if (a.t === 'BuyUpgrade' && a.upgrade === 'dossier' && a.playerId === playerId && a.week)
-      out.add(a.week);
-  }
-  return out;
-}
-
-export function fogLevel(s: GameState, week: number, bought: ReadonlySet<number>): FogLevel {
+export function fogLevel(s: GameState, week: number): FogLevel {
   if (week < s.week) return 'past';
   if (week === s.week) return 'here';
   if (week <= s.week + FREE_HORIZON) return 'named';
-  return bought.has(week) ? 'bought' : 'dark';
-}
-
-/** The week a dossier can be bought for from here, or null if the season ends first. */
-export function dossierWeek(s: GameState): number | null {
-  const week = s.week + balance.dossierReach;
-  return week <= s.calendar.length ? week : null;
+  return 'dark';
 }
 
 /** Typical rating of the local dogs that will fill the empty traps (GDD §6.1). */
@@ -246,21 +219,13 @@ export function declaredCount(s: GameState, race: RaceTypeId): number {
 export const TRAPS = balance.traps;
 
 export function worthParts(s: GameState, p: Player) {
-  return {
-    dogs: dogsValue(s, p),
-    ship: shipValue(p),
-    debt: debt(p),
-  };
+  return { dogs: dogsValue(s, p) };
 }
 
 export { dogValue };
 
 export interface WeeklyBill {
-  upkeep: number;
-  wages: number;
-  fuel: number;
   food: number;
-  interest: number;
   total: number;
   /** Crates the dogs will eat, and how many of them are already in the hold. */
   foodNeeded: number;
@@ -268,38 +233,25 @@ export interface WeeklyBill {
 }
 
 /**
- * What the jump at the end of this week will cost (GDD §7.2). This mirrors phases/endTurn.ts
- * for display only — the engine still does the charging — so a player can see a bad week coming
- * rather than discovering it on the leaderboard.
+ * What the jump at the end of this week will cost. This mirrors phases/endTurn.ts for display only
+ * — the engine still does the charging — so a player can see a bad week coming rather than
+ * discovering it on the leaderboard.
+ *
+ * ⚠️ **Upkeep, wages, fuel and interest are all gone (BUILD_PLAN_V3 §2.1), so the bill is food.**
+ * GDD_V3 V10 is explicit that food is the only running cost and pillar 5 is why: nobody should be
+ * dead at week 6 of a game with friends. The consequence, named in §6.3, is that the empty-hold
+ * penalty Phase B builds is carrying the entire economy's pressure — so this one-line bill is a
+ * thing to watch rather than a simplification to be pleased about.
  */
 export function weeklyBill(s: GameState, p: Player): WeeklyBill {
-  const planet = planetOf(s.planet.planetId);
   const dogs = ownedDogs(s, p);
-  let upkeep = 0;
-  if (!planet.special.noUpkeep)
-    for (const d of dogs)
-      upkeep += d.traits.includes('cheapDate') ? balance.upkeepPerDog / 2 : balance.upkeepPerDog;
-  const wages = wageBill(p);
-  const fuel = s.week < balance.weeks ? fuelCost(cargoTotal(p.cargo)) : 0;
   let foodNeeded = 0;
   for (const d of dogs)
     foodNeeded += d.traits.includes('glutton') ? 2 * balance.foodPerDog : balance.foodPerDog;
   if (p.sponsorWeeks > 0) foodNeeded *= 2;
-  // Dogs eat the staple and nothing else (GDD §8.2), so a hold full of speed feed still pays
-  // the no-kibble penalty. The bill has to say that or a stable is surprised at the jump.
   const foodFromHold = Math.min(kibbleAboard(p.cargo), foodNeeded);
   const food = Math.round(
     (foodNeeded - foodFromHold) * s.planet.goods[KIBBLE_ID].buy * balance.foodNoCargoPenalty,
   );
-  const interest = weeklyInterest(p);
-  return {
-    upkeep: Math.round(upkeep),
-    wages,
-    fuel,
-    food,
-    interest,
-    total: Math.round(upkeep) + wages + fuel + food + interest,
-    foodNeeded,
-    foodFromHold,
-  };
+  return { food, total: food, foodNeeded, foodFromHold };
 }

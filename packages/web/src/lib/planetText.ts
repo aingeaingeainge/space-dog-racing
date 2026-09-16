@@ -17,38 +17,28 @@ const pct = (n: number) => `${Math.round(n * 100)}%`;
 /**
  * Plain-English list of a planet's always-on rules (GDD §12). The engine applies these; this
  * is only how the player finds out about them. Add a rule to PlanetSpecial, add a line here.
+ *
+ * ⚠️ **Eighteen of these lines went with the systems behind them (BUILD_PLAN_V3 §2.1)** — the banks,
+ * the sharks, the staff halls, the ship discounts, the dog-market biases, the muzzles, the cold
+ * store and the stewards' swabs. GDD_V3 §12 is explicit about what that costs: the planets used to be
+ * told apart by what you could buy there, and what is left is the track, the food band and (from
+ * Phase D) **which three Explore doors a planet offers**, which is where §9.1 says planet character
+ * lives in v3. Until then eighteen planets are thinner than they were, and that is expected rather
+ * than a bug — but it is the thing to feel for in a playtest.
  */
 export function specialText(p: Planet): string[] {
   const s = p.special;
   const out: string[] = [];
-  if (s.bank) out.push('Bank open');
-  if (s.shark) out.push('Fat Tony lends here');
-  if (s.vet) out.push('Vet for hire');
-  if (s.trainer) out.push('Trainer for hire');
   if (s.noBetting) out.push('No betting');
   if (s.bettingMargin !== undefined) out.push(`Bookie margin ${pct(s.bettingMargin)}`);
   if (s.maxStakeFraction !== undefined) out.push(`Max stake ${pct(s.maxStakeFraction)} of cash`);
-  if (s.dopingCatch !== undefined)
-    out.push(s.dopingCatch === 0 ? 'Supplements legal' : `Stewards catch ${pct(s.dopingCatch)}`);
   if (s.purseMult) out.push(`Purses ×${s.purseMult}`);
   if (s.winningsTax) out.push(`${pct(s.winningsTax)} tax on winnings`);
-  if (s.buyerBonus) out.push(`Buyers pay +${pct(s.buyerBonus)}`);
-  if (s.dogValueMod) out.push(`Dog prices ×${s.dogValueMod}`);
   if (s.everythingMarkup) out.push(`Everything +${pct(s.everythingMarkup)}`);
-  if (s.shipDiscount) out.push(`Ship upgrades −${pct(s.shipDiscount)}`);
-  if (s.engineDiscount) out.push(`Engines −${pct(s.engineDiscount)}`);
-  if (s.kennelDiscount) out.push(`Kennel modules −${pct(s.kennelDiscount)}`);
   if (s.fitnessOnArrival)
     out.push(`Fitness ${s.fitnessOnArrival > 0 ? '+' : ''}${s.fitnessOnArrival} on arrival`);
-  if (s.noUpkeep) out.push('No upkeep this week');
   if (s.turnOrderReversed) out.push('Turn order reversed');
-  if (s.foodSpoils) out.push(`Cargo spoils ${pct(s.foodSpoils)} without a cold store`);
   if (s.localsNervy) out.push('Local dogs are Nervy');
-  if (s.marketAgeBias === 'old') out.push('Cheap old dogs');
-  if (s.marketAgeBias === 'pups') out.push('Pups for sale');
-  if (s.marketQualityBonus) out.push('Gold-class dogs for sale');
-  if (s.fellOffAShip) out.push('Stolen dogs at 60% of value');
-  if (s.muzzles) out.push('Racing muzzles in stock');
   if (s.piratesLikely) out.push('Pirates about');
   return out;
 }

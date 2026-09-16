@@ -40,8 +40,6 @@ describe('golden season (seed 42, 6 Normal AIs)', () => {
           const d = state.dogs[id]!;
           return `${d.name}:${d.rating}:${d.age}:${d.wins}/${d.runs}`;
         }),
-        ship: p.ship,
-        loans: p.loans,
         stats: p.stats,
       })),
       results: state.results.map(

@@ -27,13 +27,11 @@
  */
 import {
   balance,
-  cargoCap,
   cargoTotal,
+  HOLD_CAP,
   KIBBLE_ID,
   createSeason,
   drive,
-  planetOf,
-  upgradePrice,
   raceType,
   thisWeeksCard,
   type RaceTypeId,
@@ -73,54 +71,34 @@ function ownDogs(s: GameState, p: Player): Dog[] {
 }
 
 function eligible(d: Dog, race: RaceTypeId): boolean {
-  return d.injuryWeeks === 0 && d.banWeeks === 0 && raceType(race).eligible(d);
+  return d.injuryWeeks === 0 && raceType(race).eligible(d);
 }
 
 function planetTurn(s: GameState, p: Player): Action[] {
   const out: Action[] = [];
-  const planet = planetOf(s.planet.planetId);
   const pre = s.phase === 'planetPre';
   const dogs = ownDogs(s, p);
-  let cash = p.cash;
+  const cash = p.cash;
 
-  // The hub player keeps a trainer and a vet — Normal's own line (GDD §14) — at whatever tier it
-  // can cover, so the Saloon is worth a walk on the weeks something good is drinking there.
-  if (pre) {
-    for (const role of ['trainer', 'vet'] as const) {
-      if (p.staff.length >= balance.staffSlots) break;
-      if (p.staff.some((o) => o.role === role)) continue;
-      const offer = s.planet.staff.find((o) => o.role === role && cash > o.wage * 5);
-      if (!offer) continue;
-      out.push({ t: 'HireStaff', playerId: p.id, staffId: offer.id });
-      cash -= offer.wage;
-    }
-  }
+  // ⚠️ **Three of the hub player's decisions are gone (BUILD_PLAN_V3 §2.1)**: hiring, buying a dog
+  // and buying gear. That should push `hub-clicks` down on its own, which matters because GDD_V3
+  // §10.1 cuts the budget from 14.5 to **10** — the number that counts now is decisions × players,
+  // and eight players at 14 is an unplayable evening. Phase D's Explore adds one back.
   // GDD §5.7's per-dog decision, counted honestly: the hub player plans every dog's week the way
   // the Kennels' "Plan the week" button does. That is *one* click for the yard, not one per dog —
   // the summary BUILD_PLAN §11 asks for when a per-dog decision meets a click budget — so the
   // weekend costs one more decision than it did, not six.
   if (pre) {
     for (const d of dogs) {
-      if (d.injuryWeeks > 0 || d.banWeeks > 0) continue;
+      if (d.injuryWeeks > 0) continue;
       const state = d.fitness >= 65 ? 'race' : d.fitness >= 45 ? 'train' : 'rest';
       if (d.weekState !== state) out.push({ t: 'SetDogState', playerId: p.id, dogId: d.id, state });
     }
   }
 
-  if (dogs.length < p.kennelSlots) {
-    const buy = s.planet.marketDogIds
-      .map((id) => s.dogs[id])
-      .filter((d): d is Dog => !!d && (d.askingPrice ?? 0) < cash - 4000)
-      .sort((a, b) => b.rating - a.rating)[0];
-    if (buy) {
-      out.push({ t: 'BuyDog', playerId: p.id, dogId: buy.id });
-      cash -= buy.askingPrice ?? 0;
-    }
-  }
-
   if (s.toggles.trading && p.cargo[KIBBLE_ID] < dogs.length * 2) {
     const units = Math.min(
-      cargoCap(p) - cargoTotal(p.cargo),
+      HOLD_CAP - cargoTotal(p.cargo),
       dogs.length * 2,
       Math.floor(Math.max(0, cash - 1500) / Math.max(1, s.planet.goods[KIBBLE_ID].buy)),
     );
@@ -140,9 +118,6 @@ function planetTurn(s: GameState, p: Player): Action[] {
         out.push({ t: 'Declare', playerId: p.id, race, dogId: pick.id });
       }
     }
-    const gear = upgradePrice('trackDay', planet, p);
-    if (s.planet.trackDayPasses && gear < cash - 6000 && dogs[0])
-      out.push({ t: 'BuyUpgrade', playerId: p.id, upgrade: 'trackDay', dogId: dogs[0].id });
   }
   out.push({ t: 'EndPhase', playerId: p.id });
   return out;
