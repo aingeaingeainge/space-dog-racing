@@ -2,11 +2,8 @@
  * Balance harness (BUILD_PLAN §7 and §7a). Runs N headless seasons and prints the stats the
  * plan asks for. Usage (from the repo root):
  *   npm run harness -- --seasons 200 [--ai normal,normal,normal,normal,normal,normal] [--seed 1]
- *   npm run harness -- --seasons 400 --ai careless,normal,normal,normal   # D6, bankruptRate
  *   npm run harness -- --calibrate        # race-sim win rates vs rating gap + oddsScale fit
  *   npm run harness -- --stats            # D12 regression: +10 to one stat, at three lengths
- *   npm run harness -- --pups             # D14: what a Train week is worth, and when a pup arrives
- *   npm run harness -- --card             # D2: can a broad stable fill the card, and a narrow one?
  *   npm run harness -- --autoplan --seasons 200   # §7a.3: autoplan% and the sampled apLoss rollout
  *   npm run harness -- --fix              # §13: what a nobbling is worth, and what it costs
  *
@@ -22,11 +19,11 @@
 import { balance } from '../src/content/balance';
 import { GOODS } from '../src/content/goods';
 import { createDog, fitRating } from '../src/economy/dogs';
-import { baseRating, dogValue } from '../src/economy/dogValue';
+import { dogValue } from '../src/economy/dogValue';
 import { netWorth } from '../src/economy/netWorth';
 import { cargoTotal } from '../src/economy/goods';
 import { roadSplit } from '../src/economy/roadSplit';
-import { clamp, mulberry32 } from '../src/rng';
+import { mulberry32 } from '../src/rng';
 import { createSeason, eligible, player, thisWeeksCard } from '../src/state';
 import { decide } from '../src/ai';
 import { HARD_KNOBS } from '../src/ai/hard';
@@ -34,10 +31,9 @@ import { hash01 } from '../src/ai/shared';
 import { isSeasonOver, needsAdvance, reduceMut } from '../src/reduce';
 import { simulateRace, type Runner } from '../src/race/simulateRace';
 import { winProbabilities } from '../src/race/odds';
-import { DRAWN_PER_WEEKEND, OPEN_TYPE_ID, RACE_TYPES, raceType } from '../src/content/raceTypes';
+import { HEADLINE_TYPE_ID, raceType } from '../src/content/raceTypes';
 import {
   RACE_TYPE_IDS,
-  STAT_KEYS,
   type Action,
   type AiAgent,
   type Dog,
@@ -57,8 +53,6 @@ interface Args {
   seed: number;
   calibrate: boolean;
   stats: boolean;
-  pups: boolean;
-  card: boolean;
   autoplan: boolean;
   /** §7a.4's Prime-amplification test (GDD §20 Q3). */
   leadConversion: boolean;
@@ -80,8 +74,6 @@ function parseArgs(argv: string[]): Args {
     seed: 1,
     calibrate: false,
     stats: false,
-    pups: false,
-    card: false,
     autoplan: false,
     leadConversion: false,
     hardAblation: false,
@@ -98,8 +90,6 @@ function parseArgs(argv: string[]): Args {
     else if (a === '--seed') args.seed = Number(next());
     else if (a === '--calibrate') args.calibrate = true;
     else if (a === '--stats') args.stats = true;
-    else if (a === '--pups') args.pups = true;
-    else if (a === '--card') args.card = true;
     else if (a === '--autoplan') args.autoplan = true;
     else if (a === '--leadConversion' || a === '--lead') args.leadConversion = true;
     else if (a === '--hardAblation') args.hardAblation = true;
@@ -132,8 +122,11 @@ interface AgentStats {
   entries: number[];
   dogsOwned: number[];
   dogsAtEnd: number[];
-  /** §6.3: how many of the weekend's three races the stable filled, every stable-week. */
+  /** **Pace measure 2**: how many of the weekend's three races the stable filled, every
+   * stable-week. GDD_V3 Phase A wants the mean in 1.8–2.4 of 3. */
   filled: number[];
+  /** **Pace measure 1**: decisions taken, per stable-weekend (see `SeasonSample.decisions`). */
+  decisions: number[];
   /** §7a.4: Herfindahl over the stable's dog values at week 13. 1.0 is one dog, 0.2 is five. */
   concentration: number[];
   /** §7.1: gross income by road, so "prize is 87% of it" is a number rather than a claim. */
@@ -163,9 +156,17 @@ interface SeasonSample {
   entries: Map<Id, number>;
   dogsSeen: Map<Id, Set<Id>>;
   fieldByWeek: ByType<number[][]>;
-  /** §7a.4 cardCoverage: weekends a type was on the card, and weekends a stable could fill it. */
-  coverOffered: ByType<number>;
-  coverHad: ByType<number>;
+  /**
+   * **Pace measure 1 (BUILD_PLAN_V3 Phase A): decisions a stable takes per weekend.**
+   *
+   * A *decision* is an action that changes the world because the player chose it — a declaration, a
+   * Race/Rest change, a trade, a bet, an event answer. `EndPhase`, `EndTurn` and `AdvancePhase` are
+   * not decisions: they are the player saying "done", and counting them would make a stable that
+   * does nothing look busy. `hub-clicks.ts` measures the *presses* a human pays for the same
+   * weekend, navigation included, and GDD_V3 §10.1's ≤ 10 budget is against that instrument; this
+   * one is the same question asked of six AI stables over hundreds of seasons.
+   */
+  decisions: Map<Id, number>;
   /** Player entries and races run, per type — §7a.2's replacement for the Gold field row. */
   entriesByType: ByType<number>;
   racesByType: ByType<number>;
@@ -174,9 +175,6 @@ interface SeasonSample {
   /** GDD §7.1: the posted purse pool against what actually reached a player's pocket. */
   poolPosted: number;
   poolToPlayers: number;
-  /** D2's "a maiden win costs you the next Maiden": entries per Maiden run, by week. */
-  maidenEntries: number[];
-  maidenRuns: number[];
   /** Gross income by road, tallied from the cash each action moves (see grossFrom). */
   grossFood: Map<Id, number>;
   /**
@@ -187,20 +185,12 @@ interface SeasonSample {
   goodsBought: Map<GoodId, { crates: number; bones: number }>;
   goodsSold: Map<GoodId, { crates: number; bones: number }>;
   /**
-   * §7a.4 `leadConversion` (GDD §20 Q3), one row per stable-season: its net-worth **rank at week 6**
-   * and at the end.
-   *
-   * ⚠️ **The Prime half of this measure is gone with the tier ladder (BUILD_PLAN_V3 §2.1)**, so what
-   * is left is the rank pair. Kept because "does the leader pull away" is a v3 question too —
-   * GDD_V3 §11 asks for the 1st-to-last net-worth gap to be *narrower* than v2's — and the ranks are
-   * what answers it.
-   *
    * Crates aboard at the end of every week, per stable.
    *
-   * ⚠️ Measured across the season rather than at week 13, and the difference matters: a trader sells
-   * its hold down before the Grand Final, so an end-of-season snapshot read 6.6 crates for a stable
-   * that had been carrying 21. Reading the wrong one nearly bought a wrong conclusion about whether
-   * the hold was the binding constraint.
+   * ⚠️ Measured across the season rather than at the last week, and the difference matters: a trader
+   * sells its hold down before the Grand Final, so an end-of-season snapshot read 6.6 crates for a
+   * stable that had been carrying 21. Reading the wrong one nearly bought a wrong conclusion about
+   * whether the hold was the binding constraint.
    */
   cratesByWeek: Map<Id, number[]>;
   /** Net-worth rank at week 6 and at the end, per stable — `leadConversion`'s two columns. */
@@ -209,23 +199,18 @@ interface SeasonSample {
   staked: Map<Id, number>;
 }
 
-/** One purchase, waiting to be sold (D44). FIFO: the oldest crates leave the hold first. */
-
 export function emptySample(): SeasonSample {
   return {
     declFitness: new Map(),
     entries: new Map(),
     dogsSeen: new Map(),
     fieldByWeek: byType(() => Array.from({ length: balance.weeks }, () => [] as number[])),
-    coverOffered: byType(() => 0),
-    coverHad: byType(() => 0),
+    decisions: new Map(),
     entriesByType: byType(() => 0),
     racesByType: byType(() => 0),
     filled: new Map(),
     poolPosted: 0,
     poolToPlayers: 0,
-    maidenEntries: Array.from({ length: balance.weeks }, () => 0),
-    maidenRuns: Array.from({ length: balance.weeks }, () => 0),
     grossFood: new Map(),
     goodsBought: new Map(),
     goodsSold: new Map(),
@@ -248,15 +233,6 @@ const bumpGood = (
 };
 
 const bumpMap = <K>(m: Map<K, number>, k: K, by = 1) => m.set(k, (m.get(k) ?? 0) + by);
-
-/**
- * Is this dog one the stable could actually put in this race? The eligibility predicate plus the
- * fitness floor below which the injury roll doubles (GDD §5.2) — a dog it *could* enter but never
- * would is not coverage, and cardCoverage is meant to answer "was there a decision here".
- */
-function couldEnter(d: Dog, race: RaceTypeId): boolean {
-  return eligible(d, race) && d.fitness >= balance.injuryLowFitnessBelow;
-}
 
 /**
  * §7a.4 `concentration`: the Herfindahl index over a stable's dog values, `Σ (vᵢ / Σv)²`. One dog
@@ -306,7 +282,7 @@ function decidedByWeek(s: GameState, winner: Id): number {
  * 10% the player cannot find the plan at all and depth reads as noise.
  */
 function autoplanFor(s: GameState, p: Player, sold: ReadonlySet<Id> = new Set()): Action[] {
-  const card = thisWeeksCard(s);
+  const card = thisWeeksCard();
   const kennel = p.dogIds
     .filter((id) => !sold.has(id))
     .map((id) => s.dogs[id])
@@ -342,7 +318,7 @@ interface WeekPlan {
 
 function planFrom(s: GameState, p: Player, actions: readonly Action[]): WeekPlan {
   const entries = new Map<RaceTypeId, Id | null>();
-  for (const race of thisWeeksCard(s)) entries.set(race, s.declarations[race][p.id] ?? null);
+  for (const race of thisWeeksCard()) entries.set(race, s.declarations[race][p.id] ?? null);
   const states = new Map<Id, WeekState>();
   for (const id of p.dogIds) states.set(id, s.dogs[id]?.weekState ?? 'race');
   for (const a of actions) {
@@ -591,20 +567,21 @@ export function playSeason(
     // The one instant the card is known and nothing has run: fitness here is pre-race.
     if (s.fields && !s.races && sampledWeek !== s.week) {
       sampledWeek = s.week;
-      const card = thisWeeksCard(s);
+      const card = thisWeeksCard();
       for (const race of card) {
         bumpMap(sample.racesByType, race);
-        if (race === 'maiden') sample.maidenRuns[s.week - 1]!++;
       }
-      // §7a.4 cardCoverage and the fill rate, per stable: could you have filled this race, and
-      // did you? Read off the stable's own kennel rather than off the field, because a race a
-      // stable left to the locals is exactly what these two measures are for.
+      // **Pace measure 2: races entered per weekend per stable.** Read off the stable's own
+      // declaration book rather than off the field, because a race a stable left to the locals is
+      // exactly what this measure is for.
+      //
+      // ⚠️ **`cardCoverage` used to sit here and is deleted (BUILD_PLAN_V3 §2.1, item 10).** It
+      // asked "on the weekends this type ran, could the stable have filled it" — a question that
+      // only exists while a race can refuse a dog. Every v3 race is open entry (§7.1), so coverage
+      // is the fitness floor and nothing else, which is what the kennel table already reports.
       for (const p of s.players) {
-        const kennel = p.dogIds.map((id) => s.dogs[id]).filter((d): d is Dog => !!d);
         let filled = 0;
         for (const race of card) {
-          bumpMap(sample.coverOffered, race);
-          if (kennel.some((d) => couldEnter(d, race))) bumpMap(sample.coverHad, race);
           if (s.declarations[race][p.id]) filled++;
         }
         const list = sample.filled.get(p.id) ?? [];
@@ -622,7 +599,6 @@ export function playSeason(
           sample.declFitness.set(e.ownerId, list);
           bumpMap(sample.entries, e.ownerId);
           bumpMap(sample.entriesByType, race);
-          if (race === 'maiden') sample.maidenEntries[s.week - 1]!++;
         }
       }
     }
@@ -660,6 +636,9 @@ export function playSeason(
       const before = p.cash;
       reduceMut(s, a);
       const gained = p.cash - before;
+      // **Pace measure 1.** Counted here rather than from the finished log because the log does not
+      // say whose weekend an action belonged to once the season is over.
+      if (a.t !== 'EndPhase') bumpMap(sample.decisions, who);
       if (gained > 0 && a.t === 'TradeFood') bumpMap(sample.grossFood, who, gained);
       if (a.t === 'PlaceBet') bumpMap(sample.staked, who, a.stake);
       // §7a.2's row per good, both ways, gross.
@@ -702,6 +681,7 @@ export function runHarness(args: Args): string {
         dogsOwned: [],
         dogsAtEnd: [],
         filled: [],
+        decisions: [],
         concentration: [],
         grossPrize: [],
         grossFood: [],
@@ -728,12 +708,8 @@ export function runHarness(args: Args): string {
   };
   let actions = 0;
   let championWonAMajor = 0;
-  const coverOffered = byType(() => 0);
-  const coverHad = byType(() => 0);
   const entriesByType = byType(() => 0);
   const racesByType = byType(() => 0);
-  const maidenEntries = Array.from({ length: balance.weeks }, () => 0);
-  const maidenRuns = Array.from({ length: balance.weeks }, () => 0);
   let poolPosted = 0;
   let poolToPlayers = 0;
   const championConcentration: number[] = [];
@@ -819,6 +795,8 @@ export function runHarness(args: Args): string {
       st.dogsOwned.push(sample.dogsSeen.get(p.id)?.size ?? 0);
       st.dogsAtEnd.push(p.dogIds.length);
       for (const f of sample.filled.get(p.id) ?? []) st.filled.push(f);
+      // Per stable-weekend, so the row is comparable with hub-clicks' per-weekend budget.
+      st.decisions.push((sample.decisions.get(p.id) ?? 0) / balance.weeks);
       const h = herfindahl(s, p);
       if (h !== null) st.concentration.push(h);
       // Gross, by road. Bet returns come off the settled slips rather than `betIncome`, which is
@@ -833,14 +811,8 @@ export function runHarness(args: Args): string {
       st.betsStruck.push(sample.staked.get(p.id) ?? 0);
     }
     for (const race of RACE_TYPE_IDS) {
-      bumpMap(coverOffered, race, sample.coverOffered.get(race) ?? 0);
-      bumpMap(coverHad, race, sample.coverHad.get(race) ?? 0);
       bumpMap(entriesByType, race, sample.entriesByType.get(race) ?? 0);
       bumpMap(racesByType, race, sample.racesByType.get(race) ?? 0);
-    }
-    for (let w = 0; w < balance.weeks; w++) {
-      maidenEntries[w]! += sample.maidenEntries[w]!;
-      maidenRuns[w]! += sample.maidenRuns[w]!;
     }
     poolPosted += sample.poolPosted;
     poolToPlayers += sample.poolToPlayers;
@@ -872,7 +844,7 @@ export function runHarness(args: Args): string {
     }
     const majorWins = new Map<string, number>();
     for (const r of s.results) {
-      if (s.calendar[r.week - 1]?.major && r.race === OPEN_TYPE_ID) {
+      if (s.calendar[r.week - 1]?.major && r.race === HEADLINE_TYPE_ID) {
         const w = r.payouts.find((x) => x.place === 1);
         if (w) majorWins.set(w.playerId, (majorWins.get(w.playerId) ?? 0) + 1);
       }
@@ -921,17 +893,27 @@ export function runHarness(args: Args): string {
     '  ⚠️ costs is food and event bills only — no upkeep, wages, fuel or interest (GDD_V3 V10)',
   );
 
-  // §7a.4: the kennel measures. Race/Train/Rest is judged on these three and nothing else.
+  // §7a.4: the kennel measures. Race or Rest is judged on these and nothing else.
+  //
+  // ⚠️ **Two of v2's four targets are gone rather than missed.** `dogs at wk 13 ≥ 4.5` and the
+  // `distinct dogs owned` column measured a stable that could *buy* dogs; with the dog market
+  // deleted (BUILD_PLAN_V3 §2.1) every stable owns the three it was dealt, and a column whose only
+  // possible value is 3.00 is not a measure. Both are kept in the print for one phase as a
+  // deletion check — if either ever reads anything but 3.00, something is making dogs it should
+  // not be — and `races/dog` moves from v2's fitted 7–9 to GDD_V3 Phase A's **5–7**, because a
+  // three-dog stable over ten weekends cannot reach 7 and being told so every run is noise.
   lines.push('');
   lines.push(
-    `The kennel — fitness at declaration, races per dog, dogs owned (targets: fitness 60–80, under ${balance.fitnessScaleBelow} 10–25%, races/dog 7–9, dogs at wk ${balance.weeks} ≥ 4.5)`,
+    `The kennel — fitness at declaration and races per dog (targets: fitness 60–80, under ${balance.fitnessScaleBelow} 10–25%, races/dog 5–7)`,
   );
-  lines.push('  agent     meanFit   <thresh   races/dog   dogs@wk13   distinct dogs owned');
+  lines.push(
+    `  agent     meanFit   <thresh   races/dog   dogs@wk${balance.weeks}   distinct dogs owned`,
+  );
   for (const [d, st] of byAgent) {
     const declared = st.declFitness.length;
     const racesPerDog = mean(st.entries) / Math.max(0.001, mean(st.dogsOwned));
     lines.push(
-      `  ${d.padEnd(8)} ${mean(st.declFitness).toFixed(1).padStart(7)} ${pct(st.declBelowThreshold / Math.max(1, declared)).padStart(9)} ${racesPerDog.toFixed(1).padStart(11)} ${mean(st.dogsAtEnd).toFixed(2).padStart(11)} ${mean(st.dogsOwned).toFixed(2).padStart(21)}`,
+      `  ${d.padEnd(8)} ${mean(st.declFitness).toFixed(1).padStart(7)} ${pct(st.declBelowThreshold / Math.max(1, declared)).padStart(9)} ${racesPerDog.toFixed(1).padStart(11)} ${mean(st.dogsAtEnd).toFixed(2).padStart(10)} ${mean(st.dogsOwned).toFixed(2).padStart(21)}`,
     );
   }
 
@@ -948,27 +930,23 @@ export function runHarness(args: Args): string {
     );
   }
 
-  // §7a.4 cardCoverage, and the two numbers that say whether the card is a decision or a lottery.
+  // The two numbers that say whether the card is a decision or a lottery. ⚠️ `cardCoverage` is
+  // deleted (item 10) — see the sampling loop for why an open-entry card cannot have one.
   const totalRaces = RACE_TYPE_IDS.reduce((sum, r) => sum + (racesByType.get(r) ?? 0), 0);
   const totalEntries = RACE_TYPE_IDS.reduce((sum, r) => sum + (entriesByType.get(r) ?? 0), 0);
   lines.push('');
   lines.push('The card (GDD §6.3) — how often each type runs, and whether a stable can fill it');
-  lines.push('  type            share of races   share of entries   cardCoverage   entries/race');
+  lines.push('  type            share of races   share of entries   entries/race');
   for (const race of RACE_TYPE_IDS) {
     const runs = racesByType.get(race) ?? 0;
     const ent = entriesByType.get(race) ?? 0;
-    const offered = coverOffered.get(race) ?? 0;
-    const cover = offered ? (coverHad.get(race) ?? 0) / offered : 0;
     lines.push(
       `  ${raceType(race).label.padEnd(14)} ${pct(runs / Math.max(1, totalRaces)).padStart(13)} ` +
-        `${pct(ent / Math.max(1, totalEntries)).padStart(18)} ${pct(cover).padStart(14)} ` +
+        `${pct(ent / Math.max(1, totalEntries)).padStart(18)} ` +
         `${(ent / Math.max(1, runs)).toFixed(2).padStart(14)}`,
     );
   }
-  lines.push(
-    '  cardCoverage: share of the weekends it ran where a stable had a fit, eligible dog.',
-  );
-  lines.push('  Target (BUILD_PLAN §6b): every type ≥ 8% of all races run.');
+  lines.push('  Every weekend runs all three now, so the share columns are a shape check.');
 
   lines.push('');
   lines.push('Filling the card — how many of the weekend’s three races a stable declares into');
@@ -979,6 +957,46 @@ export function runHarness(args: Args): string {
       `  ${d.padEnd(8)} all three ${share(3).padStart(6)} · two ${share(2).padStart(6)} · one ${share(1).padStart(6)} · none ${share(0).padStart(6)}   (mean ${mean(st.filled).toFixed(2)})`,
     );
   }
+
+  // **The three pace measures (BUILD_PLAN_V3 Phase A, item 10).**
+  //
+  // These are the rows v3 is actually about — §1 asks whether four players takes forty minutes and
+  // whether anything memorable happens in it — so they are printed together, with their bands, at
+  // the level of a single weekend rather than buried in three different tables.
+  //
+  // ⚠️ **Only one of the three is tunable in this phase, and only by one number.** Phase A's
+  // instruction is that if `races entered per weekend` misses 1.8–2.4 the Race fitness cost moves
+  // and nothing else does — not the purses, which would reach the same row by paying a stable to
+  // run a tired dog rather than by making a tired dog cheaper to run.
+  lines.push('');
+  lines.push('Pace (GDD_V3 §1, §10.1) — the three rows v3 is about');
+  lines.push('  agent     decisions/weekend   races entered/weekend   races/dog/season');
+  for (const [d, st] of byAgent) {
+    const racesPerDog = mean(st.entries) / Math.max(0.001, mean(st.dogsOwned));
+    lines.push(
+      `  ${d.padEnd(8)} ${mean(st.decisions).toFixed(2).padStart(17)} ${mean(st.filled).toFixed(2).padStart(23)} ${racesPerDog.toFixed(2).padStart(18)}`,
+    );
+  }
+  const paceBand = (v: number, lo: number, hi: number) =>
+    v < lo ? `MISSED low (${v.toFixed(2)})` : v > hi ? `MISSED high (${v.toFixed(2)})` : 'MET';
+  const allFilled = [...byAgent.values()].flatMap((st) => st.filled);
+  const allEntries = mean([...byAgent.values()].flatMap((st) => st.entries));
+  const allDogs = mean([...byAgent.values()].flatMap((st) => st.dogsOwned));
+  const allDecisions = mean([...byAgent.values()].flatMap((st) => st.decisions));
+  lines.push(
+    `  all stables: decisions ${allDecisions.toFixed(2)} a weekend · entered ` +
+      `${mean(allFilled).toFixed(2)} of 3 (band 1.8–2.4: ${paceBand(mean(allFilled), 1.8, 2.4)}) · ` +
+      `races/dog ${(allEntries / Math.max(0.001, allDogs)).toFixed(2)} ` +
+      `(band 5–7: ${paceBand(allEntries / Math.max(0.001, allDogs), 5, 7)})`,
+  );
+  lines.push(
+    '  decisions/weekend counts chosen actions only, not EndPhase. The ≤ 10 budget belongs to' +
+      ' hub-clicks,',
+  );
+  lines.push(
+    '  which counts a human’s presses including navigation; this row is the same question asked of' +
+      ' the AI.',
+  );
 
   // GDD §7.1 / D15. The pool is what the card posts; the share is what a player actually banks.
   lines.push('');
@@ -1048,7 +1066,7 @@ export function runHarness(args: Args): string {
   const leaderBet = mean(leadBet.aheadBet) - mean(leadBet.aheadNone);
   const trailerBet = mean(leadBet.behindBet) - mean(leadBet.behindNone);
   lines.push(
-    `  Flat ceiling ${fmt(balance.maxStakeFlat)} (×${balance.maxStakeFlatFinalMult} at the Collar) against the ` +
+    `  Max stake ${pct(balance.maxStakeFraction)} of cash (GDD_V3 §7.4) against the ` +
       `${pct(balance.maxStakeFraction)} fraction. Leader ${leaderBet >= 0 ? '+' : ''}${leaderBet.toFixed(2)}, ` +
       `trailer ${trailerBet >= 0 ? '+' : ''}${trailerBet.toFixed(2)} — ${leaderBet <= trailerBet ? 'MET' : 'MISSED'}.`,
   );
@@ -1062,22 +1080,8 @@ export function runHarness(args: Args): string {
     `Season decided by week ${mean(decidedBy).toFixed(1)} — the earliest week the champion led and never lost the lead (v1: 7.6, later is better)`,
   );
 
-  // D2's own claim, measured: winning a Maiden costs you the next one.
-  const third = (from: number, to: number) => {
-    let e = 0;
-    let r = 0;
-    for (let w = from; w <= to; w++) {
-      e += maidenEntries[w - 1]!;
-      r += maidenRuns[w - 1]!;
-    }
-    return r ? (e / r).toFixed(2) : 'n/a';
-  };
   lines.push(
-    `Maiden entries per Maiden run: weeks 1–4 ${third(1, 4)}, 5–9 ${third(5, 9)}, 10–13 ${third(10, balance.weeks)} — ` +
-      `it should fall, because winning one is what bars you from the next`,
-  );
-  lines.push(
-    `Seasons where the champion won at least one Major Open: ${pct(championWonAMajor / Math.max(1, args.seasons))}`,
+    `Seasons where the champion won at least one Major Gold Cup: ${pct(championWonAMajor / Math.max(1, args.seasons))}`,
   );
 
   return lines.join('\n');
@@ -1243,300 +1247,28 @@ export function runStatLeverage(n = 3000, seed = 20260911): string {
   return lines.join('\n');
 }
 
-/**
- * D2's structural claim, measured directly (GDD §6.3, BUILD_PLAN §6b Phase B).
- *
- * This is not a season — it is the eligibility arithmetic on its own, which is the honest way to
- * answer "does keeping a broad stable let you fill the card?". A season's fill rate mixes the
- * question with fitness, cash and whether the AI thought the race was worth entering; this asks
- * only whether the dogs *qualify*. The two acceptance rows are read off it.
- *
- * The stables are **rolled fresh for every draw** rather than hand-built once. A single
- * hand-picked stable answers the question you designed it to answer: pick one dog per criterion
- * and it fills the card every week, which says more about the picker than about the card. Rolling
- * age, wins, runs and rating from the archetype's own distribution gives the spread a real stable
- * has, and the answer is a distribution rather than a fact about one kennel.
- *
- *  - **broad**: dogs spread over the facts the card gates on, ages 1–6, wins and runs growing
- *    with age, ratings around the middle of the field.
- *  - **concentrated**: one very good, well-raced four-year-old plus cheap fillers — v1's optimal
- *    stable, and the one D2 exists to punish.
+/*
+ * ⚠️ **`--card` is gone (BUILD_PLAN_V3 §2.1, item 10's `cardCoverage`).** It rolled stables against
+ * random cards and asked what share of weeks each could *fill* — the measure D2's fact-gated card
+ * existed for, and the one that proved a one-good-dog stable could only fill all three 10.3% of the
+ * time. With open entry (GDD_V3 §7.1) every stable with three sound dogs fills all three, every
+ * week, so the answer is 100% by construction and the probe measures nothing. `maxFilled` went with
+ * it. The live question it leaves behind — *do stables actually enter all three?* — is a fitness
+ * question now, and it is Phase A's `races entered per weekend` row.
  */
-export function runCardProbe(draws = 20000, seed = 20260912): string {
-  const rng = mulberry32(seed);
-  let counter = 0;
-  const nextId = () => `d${counter++}`;
-  const shape = (quality: number, age: number, wins: number, runs: number, oom = false): Dog => {
-    const q = clamp(Math.round(rng.gauss(quality, 7)), 20, 92);
-    const d = fitRating(createDog({ quality: q, age, owner: 'p1', traits: [] }, rng, nextId), q, q);
-    d.wins = wins;
-    d.runs = runs;
-    d.outOfMoneyFor = oom ? balance.consolationReach : 0;
-    return d;
-  };
-  /** A dog of no particular plan: any age, a career that fits its age, a middling rating. */
-  const anyDog = (): Dog => {
-    const age = rng.int(1, 6);
-    const runs = age === 1 ? rng.int(0, 4) : rng.int(2, 6 * age);
-    return shape(46, age, Math.min(runs, rng.int(0, age)), runs, rng.chance(0.35));
-  };
-  const goodDog = (): Dog => shape(70, 4, rng.int(4, 8), rng.int(14, 26));
-  const filler = (): Dog => shape(34, 4, rng.int(1, 3), rng.int(8, 20), rng.chance(0.35));
 
-  const stables: { label: string; roll: () => Dog[] }[] = [
-    { label: 'broad, 5 dogs   ', roll: () => [anyDog(), anyDog(), anyDog(), anyDog(), anyDog()] },
-    { label: 'broad, 3 dogs   ', roll: () => [anyDog(), anyDog(), anyDog()] },
-    { label: 'one good + 2    ', roll: () => [goodDog(), filler(), filler()] },
-    {
-      label: 'one good + 4    ',
-      roll: () => [goodDog(), filler(), filler(), filler(), filler()],
-    },
-    {
-      label: 'four good dogs  ',
-      roll: () => [goodDog(), goodDog(), goodDog(), goodDog()],
-    },
-  ];
-
-  const pool = RACE_TYPES.filter((t) => t.drawn).map((t) => t.id);
-  const lines: string[] = [
-    `Race card coverage (GDD §6.3 / D2) — ${draws} rolled stables against ${draws} random cards`,
-    'A card is The Open plus two types drawn from the pool of seven. "Fills" means the stable owns',
-    'a distinct qualifying dog for every race, one dog per race — the same one-per-race rule the',
-    'Race Office enforces. Fitness, cash and whether the race looked worth entering are all out of',
-    'it: this is what the stable is *allowed* to do, and the season fill rate in the main printout',
-    'is what it actually does.',
-    '',
-    'Targets (BUILD_PLAN §6b): a broad five-dog stable fills all three 55–70% of weeks; a stable',
-    'built around one good dog fills all three no more than 20% of the time.',
-    '',
-    '  stable             all three      two or more        just one           none',
-  ];
-
-  for (const { label, roll } of stables) {
-    const counts = [0, 0, 0, 0];
-    for (let i = 0; i < draws; i++) {
-      const card = [...rng.shuffle([...pool]).slice(0, DRAWN_PER_WEEKEND), OPEN_TYPE_ID];
-      counts[maxFilled(roll(), card)]!++;
-    }
-    const share = (k: number) => pct(counts[k]! / draws);
-    const atLeast = (k: number) => pct(counts.slice(k).reduce((a, b) => a + b, 0) / draws);
-    lines.push(
-      `  ${label} ${share(3).padStart(12)} ${atLeast(2).padStart(16)} ${share(1).padStart(17)} ${share(0).padStart(14)}`,
-    );
-  }
-  return lines.join('\n');
-}
-
-/**
- * The most races this stable could fill, one dog per race. Three races and at most six dogs, so
- * the exhaustive search is free and a greedy one would under-count — a dog that fits two races
- * has to go in the one nothing else can fill.
+/*
+ * ⚠️ **`--pups` is gone (BUILD_PLAN_V3 §2.1).** It measured D14's pup curve: what a Train week with
+ * each grade of trainer buys a one-year-old, and the week a raised pup reaches par. Every input to
+ * it is deleted — there are no pups to buy (no dog market), no Train week (GDD_V3 V8) and no
+ * trainers to grade (§2.1) — so it cannot be pointed at anything v3 has.
+ *
+ * GDD_V3 §4.3's growth bands are much flatter than v2's on purpose (+1 a week at ages 1–2 against
+ * v2's +2), because age now matters **across seasons** rather than inside one. What would be worth
+ * measuring is therefore a multi-season question, and it belongs with Phase E's off-season and its
+ * retirement window rather than here.
  */
-function maxFilled(dogs: readonly Dog[], card: readonly RaceTypeId[]): number {
-  let best = 0;
-  const walk = (i: number, used: Set<string>, filled: number) => {
-    if (i === card.length) {
-      if (filled > best) best = filled;
-      return;
-    }
-    walk(i + 1, used, filled);
-    for (const d of dogs) {
-      if (used.has(d.id) || !raceType(card[i]!).eligible(d)) continue;
-      used.add(d.id);
-      walk(i + 1, used, filled + 1);
-      used.delete(d.id);
-    }
-  };
-  walk(0, new Set(), 0);
-  return best;
-}
 
-/**
- * The D14 pup curve (GDD §5.6). BUILD_PLAN §11 names this phase's narrowest band and says the
- * acceptance criterion is the *week a pup reaches par*, not a stat number, and that the whole
- * curve gets reported rather than a pass or a fail — so it is an instrument, not a script that
- * was run once. Phase C changes both inputs (real feeds, a trainer ladder) and will want it again.
- *
- * A pup at age 1 with all stats ≈ 37, trained for N of the 13 weeks, against the Open locals.
- * Averaged over many pups because the points land on random stats and one pup is noise.
- */
-export function runPupCurve(pups = 200, racesPerCell = 900, seed = 4242): string {
-  const track: Track = { distance: 480, length: 'standard', bends: 'medium', hazard: 1 };
-  const field = balance.localRatingOpen;
-  // Weekly around the target band, because the acceptance row is a *week* and 4/8/10/13 cannot
-  // tell 8 from 9.
-  const checkpoints = [4, 6, 8, 9, 10, 11, 13];
-  const lines: string[] = [
-    `Pup curve — age-1 pup (all stats ≈ 37, rating 37) against seven rating-${field} locals at fitness ${balance.localFitness}.`,
-    `Par is 12.5%. Plain kibble +${balance.trainKibbleMin}–${balance.trainKibbleMax} a Train week, growth +${balance.growthAge1}/week at age 1 and +${balance.growthAge2} at age 2.`,
-    `Target (BUILD_PLAN §6b): a pup bought in week 1 and trained throughout reaches par between weeks 9 and 11.`,
-    '',
-    `trainer          train  pts/train-wk  pts/wk  |  win% at weeks ${checkpoints.join(' · ')}  | par`,
-  ];
-
-  const raise = (trainWeeks: number, trainerPoints: number) => {
-    const rng = mulberry32(seed);
-    let counter = 0;
-    const nextId = (p: string) => `${p}${counter++}`;
-    const at = new Map<number, { speed: number; accel: number; stamina: number }>();
-    for (const w of checkpoints) at.set(w, { speed: 0, accel: 0, stamina: 0 });
-    let gain = 0;
-    for (let n = 0; n < pups; n++) {
-      const pup = fitRating(
-        createDog({ quality: 37, age: 1, owner: 'p1', traits: [] }, rng, nextId),
-        37,
-        37,
-      );
-      const start = pup.speed + pup.accel + pup.stamina;
-      for (let week = 1; week <= balance.weeks; week++) {
-        if (week <= trainWeeks) {
-          if (trainerPoints > 0)
-            pup[pup.trainStat] = clamp(pup[pup.trainStat] + trainerPoints, 1, 99);
-          const kibble = rng.int(balance.trainKibbleMin, balance.trainKibbleMax);
-          const stat = rng.pick(STAT_KEYS);
-          pup[stat] = clamp(pup[stat] + kibble, 1, 99);
-        }
-        const g = pup.age <= 1 ? balance.growthAge1 : pup.age === 2 ? balance.growthAge2 : 0;
-        for (let i = 0; i < g; i++) {
-          const stat = rng.pick(STAT_KEYS);
-          pup[stat] = clamp(pup[stat] + 1, 1, 99);
-        }
-        if (week === balance.ageTickWeek) pup.age = Math.min(7, pup.age + 1);
-        const slot = at.get(week);
-        if (slot) {
-          slot.speed += pup.speed;
-          slot.accel += pup.accel;
-          slot.stamina += pup.stamina;
-        }
-      }
-      gain += pup.speed + pup.accel + pup.stamina - start;
-    }
-    for (const slot of at.values()) {
-      slot.speed /= pups;
-      slot.accel /= pups;
-      slot.stamina /= pups;
-    }
-    return { at, gain: gain / pups };
-  };
-
-  const winRate = (line: { speed: number; accel: number; stamina: number }, s2: number) => {
-    const rng = mulberry32(s2);
-    let counter = 0;
-    const nextId = (p: string) => `${p}${counter++}`;
-    let wins = 0;
-    for (let i = 0; i < racesPerCell; i++) {
-      const runners: Runner[] = [
-        {
-          id: 'hero',
-          trap: 1,
-          speed: Math.round(line.speed),
-          accel: Math.round(line.accel),
-          stamina: Math.round(line.stamina),
-          fitness: 90,
-          form: 0,
-          traits: [],
-        },
-      ];
-      for (let k = 0; k < 7; k++) {
-        const r = fitRating(
-          createDog({ quality: field, age: 3, owner: 'local', traits: [] }, rng, nextId),
-          field,
-          field,
-        );
-        runners.push({
-          id: `r${k}`,
-          trap: k + 2,
-          speed: r.speed,
-          accel: r.accel,
-          stamina: r.stamina,
-          fitness: balance.localFitness,
-          form: 0,
-          traits: [],
-        });
-      }
-      const draw = rng.shuffle(runners).map((x, idx) => ({ ...x, trap: idx + 1 }));
-      const res = simulateRace(draw, { track, major: false }, mulberry32(rng.int(0, 2 ** 31)));
-      if (res.order[0] === 'hero') wins++;
-    }
-    return wins / racesPerCell;
-  };
-
-  // The staff ladder as it is now built (GDD §8.3). Each row is the trainer's points a Train
-  // week; the feed a dog eats is on top of it and is what `--stats` and the season runs measure.
-  const trainers: [string, number][] = [
-    ['none           ', 0],
-    [`Rough      +${balance.trainerPointsRough}  `, balance.trainerPointsRough],
-    [`Gristle    +${balance.trainerPointsRough + 1}  `, balance.trainerPointsRough + 1],
-    [`Proper     +${balance.trainerPointsProper}  `, balance.trainerPointsProper],
-    [`Prime      +${balance.trainerPointsPrime}  `, balance.trainerPointsPrime],
-  ];
-  for (const [label, points] of trainers) {
-    for (const trainWeeks of [13, 10, 8, 6]) {
-      const { at, gain } = raise(trainWeeks, points);
-      const cells: string[] = [];
-      let par = 0;
-      for (const w of checkpoints) {
-        const line = at.get(w)!;
-        const rating = baseRating({
-          speed: Math.round(line.speed),
-          accel: Math.round(line.accel),
-          stamina: Math.round(line.stamina),
-        });
-        // One rival seed for every checkpoint, so the curve reads as a curve: a fresh field per
-        // week adds ±3 points of noise and makes week 9 look worse than week 8.
-        const win = winRate(line, 1000);
-        void rating;
-        cells.push(`${(win * 100).toFixed(1).padStart(4)}`);
-        if (!par && win > 0.125) par = w;
-      }
-      lines.push(
-        `${label}  ${String(trainWeeks).padStart(2)}/13  ` +
-          `${(gain / trainWeeks).toFixed(1).padStart(11)}  ` +
-          `${(gain / balance.weeks).toFixed(1).padStart(6)}  |  ${cells.join('  ')}  | ${par ? 'wk ' + par : 'never'}`,
-      );
-    }
-    lines.push('');
-  }
-  lines.push(
-    'All four tiers are built (Phase C). The rows are the trainer alone on plain kibble — a dog on a',
-  );
-  lines.push(
-    'stat feed gains its band on top, +1-3 Rough to +4-6 Prime, so the Prime row understates a',
-  );
-  lines.push('stable that is also feeding properly. That pairing is what the season runs measure.');
-  return lines.join('\n');
-}
-
-/**
- * GDD §20 Q6 / BUILD_PLAN §6b: **does a +20-unit cargo upgrade pay back inside one season?**
- *
- * An ablation rather than an estimate. The same trader agent, the same seeds, once buying hold and
- * once refusing to — so the only difference between the two runs is the purchase, and the difference
- * in end worth is what the purchase was worth. v1's estimate was "about 1,000 a season against 2,500
- * spent"; this is the measurement that replaces it.
- */
-/**
- * §13's road, priced (GDD §13, §10, §20 Q7). `npm run harness -- --fix`
- *
- * ⚠️ **This is the measurement the whole phase turns on, and it did not exist before Phase D.**
- * §13 carries one number — "+23% EV [measured]" — taken on a hand-built Gold-class field before
- * the §6.2 rebalance, before the card, before the goods. What a nobbling is worth *in the fields
- * this game actually produces* is a different question, and the deterrent cannot be sized against
- * a number nobody has re-taken.
- *
- * The probe plays real seasons, stops at the instant declarations lock, and for every race on
- * every card asks: take `sabotageFitness` off whoever the book has shortest, and what is the best
- * price left on the board now worth? The bookie's model is applied to the **unmoved** ratings,
- * because that is precisely what the bookie does.
- *
- * Two rows, and the difference between them is the finding:
- *
- * - **own runner only** — §13 as written, "backing your own dog at its unmoved odds".
- * - **best price in the race** — §10 as written, which has allowed a bet on any dog since v1.
- *
- * Then the break-even stake at the current fee, fine and catch rate, which is what actually
- * decides whether the road exists.
- */
 /**
  * What `sabotageFitness` is worth in rating points to the bookie's model — the conversion any
  * agent, screen or probe has to make, because the engine takes *fitness* off a runner and the book
@@ -1625,8 +1357,6 @@ function main() {
   const args = parseArgs(process.argv.slice(2));
   if (args.calibrate) console.log(runCalibration());
   else if (args.stats) console.log(runStatLeverage());
-  else if (args.pups) console.log(runPupCurve());
-  else if (args.card) console.log(runCardProbe());
   else if (args.autoplan) console.log(runAutoplan(args.seasons));
   else if (args.hardAblation)
     console.log(runHardAblation(args.seasons === 50 ? 600 : args.seasons, args.seed));

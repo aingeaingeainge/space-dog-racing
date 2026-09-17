@@ -51,6 +51,14 @@ import { HOTSPOT_VENUES } from '../src/lib/hotspots';
  * Declarations (3) + **plan the week** + head to the track + run the races + back to the planet +
  * end turn.
  *
+ * ⚠️ **Four of these eight are navigation, not decisions, and v3's budget row is about decisions.**
+ * BUILD_PLAN_V3 Phase A asks for "decisions per weekend per player ≤ 10" and names this script as the
+ * instrument, so the headline number below stays the full press count — moving the goalposts by
+ * re-defining the instrument in the phase that is supposed to measure it is exactly the move the
+ * standing instruction forbids. But the split is printed too, because the two numbers answer
+ * different questions: presses are how long the evening takes, decisions are how much of it was a
+ * choice, and §1 asks both.
+ *
  * "Plan the week" is v2 Phase A's addition and it is counted here deliberately. GDD §5.7 gives
  * every dog a weekly state, which is six decisions for a full kennel; the Kennels' summary button
  * (screens/Stable.tsx) sets the whole yard by fitness in one press and the player then overrides
@@ -65,6 +73,9 @@ import { HOTSPOT_VENUES } from '../src/lib/hotspots';
  * finally gets shown and the weekend costs exactly what a betting weekend costs.
  */
 const FIXED_PER_WEEKEND = 8;
+
+/** Head to the track, run the races, back to the planet, end turn — pressed, never chosen. */
+const FIXED_NAVIGATION = 4;
 
 function ownDogs(s: GameState, p: Player): Dog[] {
   return p.dogIds.map((id) => s.dogs[id]).filter((d): d is Dog => !!d);
@@ -230,6 +241,13 @@ console.log(`  after  — only the ones with stock      : ${(tally.after / weeke
 console.log(`\nClicks a weekend (venues + ${FIXED_PER_WEEKEND} fixed)`);
 console.log(`  before : ${before.toFixed(1)}`);
 console.log(`  after  : ${after.toFixed(1)}   (${(100 * (1 - after / before)).toFixed(0)}% fewer)`);
+console.log(
+  `  budget (BUILD_PLAN_V3 Phase A): ≤ 10 — ${after <= 10 ? 'MET' : `MISSED by ${(after - 10).toFixed(1)}`}`,
+);
+console.log(
+  `  of which decisions : ${(after - FIXED_NAVIGATION).toFixed(1)}   ` +
+    `(navigation : ${FIXED_NAVIGATION}.0 — track, races, back, end turn)`,
+);
 console.log(`\nClicks a ${balance.weeks}-week season`);
 console.log(`  before : ${Math.round(seasonBefore)}`);
 console.log(
