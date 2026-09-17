@@ -3,7 +3,6 @@ import {
   formatBones,
   planetOf,
   purseFor,
-  thisWeeksCard,
   type GameState,
   type Player,
 } from '@sdr/engine';
@@ -61,7 +60,7 @@ export function LockedField({ s, me }: { s: GameState; me: Player }) {
           <TicketCard
             key={race}
             cls={raceLabel(race)}
-            tone={raceTone(race, thisWeeksCard(s))}
+            tone={raceTone(race)}
             cap="trap draw and prices"
             purse={formatBones(purse[0])}
             serial={`2nd ${formatBones(purse[1])} · 3rd ${formatBones(purse[2])}`}

@@ -1,6 +1,6 @@
 import { balance } from './balance';
 import { planetOf } from './planets';
-import { OPEN_TYPE_ID, RACE_TYPES, raceType } from './raceTypes';
+
 import { KIBBLE_ID } from './goods';
 import { type IdGen } from '../economy/dogs';
 import { cargoTotal, emptyHold, spoilCargo, HOLD_CAP } from '../economy/goods';
@@ -567,10 +567,13 @@ export const EVENTS: readonly EventCard[] = [
     weight: 4,
     kind: 'choice',
     // Only while there is a week past the free horizon left to sell.
-    roll: (ctx) =>
-      ctx.s.calendar[ctx.s.week - 1 + balance.dossierReach]
-        ? { price: Math.round(balance.dossierCost * 0.4) }
-        : null,
+    //
+    // ⚠️ **The price and the reach are the card's own now (BUILD_PLAN_V3 §2.1).** They were
+    // `dossierCost` and `dossierReach`, and the dossier is deleted. GDD_V3 §9.4 keeps information but
+    // moves it into Bar events like this one, and says it has exactly one use: knowing whether next
+    // week's planet buys your food high. That makes it a number about *this card* rather than a
+    // global tunable, which is also the shape Phase D's eighty events need.
+    roll: (ctx) => (ctx.s.calendar[ctx.s.week + 1] ? { price: 260 } : null),
     choices: [
       {
         label: 'Buy him a drink',
@@ -582,13 +585,14 @@ export const EVENTS: readonly EventCard[] = [
           }
           ctx.p.cash -= price;
           ctx.p.stats.costs += price;
-          const week = ctx.s.week + balance.dossierReach;
+          const week = ctx.s.week + 2;
           const entry = ctx.s.calendar[week - 1]!;
           const ahead = planetOf(entry.planetId);
+          // No card to sell: the same three races run every weekend now (GDD_V3 §7.1), so what is
+          // worth buying is the planet and its food band — which is precisely §9.4's one use.
           ctx.log(
             `Week ${week} (${price} and two drinks): ${ahead.name}${entry.major ? ` — ${ahead.event}` : ''}. ` +
-              `Kibble ${ahead.foodBand[0]}–${ahead.foodBand[1]}. ` +
-              `Card: ${entry.card.map((r) => raceType(r).label).join(', ')}.`,
+              `Food ${ahead.foodBand[0]}–${ahead.foodBand[1]}.`,
           );
         },
       },
@@ -606,7 +610,7 @@ export const EVENTS: readonly EventCard[] = [
     weight: 4,
     kind: 'choice',
     roll: (ctx) => {
-      const entry = ctx.s.calendar[ctx.s.week - 1 + balance.dossierReach];
+      const entry = ctx.s.calendar[ctx.s.week + 1];
       if (!entry) return null;
       // ⚠️ The lie is rolled **when the card is drawn**, not when the choice is taken, so that a
       // human and an AI facing the same card face the same manifest — and so that the rng stream
@@ -623,52 +627,17 @@ export const EVENTS: readonly EventCard[] = [
           }
           ctx.p.cash -= 200;
           ctx.p.stats.costs += 200;
-          const week = ctx.s.week + balance.dossierReach;
+          const week = ctx.s.week + 2;
           const ahead = planetOf(ctx.s.calendar[week - 1]!.planetId);
           const drift = Number(ctx.params.lying) ? Number(ctx.params.drift) : 0;
           const lo = Math.max(1, ahead.foodBand[0] + drift);
           const hi = Math.max(lo + 1, ahead.foodBand[1] + drift);
-          ctx.log(`Manifest, week ${week}: kibble is running ${lo}–${hi} out there.`);
+          ctx.log(`Manifest, week ${week}: food is running ${lo}–${hi} out there.`);
         },
       },
       { label: 'Not interested', apply: (ctx) => ctx.log('The clerk shrugs and rolls it up.') },
     ],
     aiChoice: (ctx) => (ctx.p.cash > 2000 && cargoTotal(ctx.p.cargo) > 10 ? 0 : 1),
-  },
-  {
-    id: 'toutWithACard',
-    name: 'A tout with next week’s card',
-    text: 'Somebody at the bar has next week’s race card and wants 150 for it. He may even have it.',
-    weight: 4,
-    kind: 'choice',
-    roll: (ctx) => (ctx.s.calendar[ctx.s.week] ? { lying: ctx.rng.chance(0.2) ? 1 : 0 } : null),
-    choices: [
-      {
-        label: 'Give him 150',
-        apply: (ctx) => {
-          if (ctx.p.cash < 150) {
-            ctx.log('He wants cash, and you have not got it.');
-            return;
-          }
-          ctx.p.cash -= 150;
-          ctx.p.stats.costs += 150;
-          const entry = ctx.s.calendar[ctx.s.week]!;
-          // A lie is a card for the *right* week with the wrong races on it — plausible, unmarked,
-          // and exactly as useful as the truth until the traps open.
-          const card = Number(ctx.params.lying)
-            ? ctx.rng.shuffle(RACE_TYPES.filter((t) => t.drawn).map((t) => t.id)).slice(0, 2)
-            : entry.card.filter((r) => r !== OPEN_TYPE_ID);
-          ctx.log(
-            `Next week's card, allegedly: ${[...card, OPEN_TYPE_ID].map((r) => raceType(r).label).join(', ')}.`,
-          );
-        },
-      },
-      { label: 'He has not', apply: (ctx) => ctx.log('You tell him he has not.') },
-    ],
-    // Worth it to a stable deciding what to rest and what to raise — a card you can see is a card
-    // you can point a dog at. There is no Tipster to sell it standing any more (BUILD_PLAN_V3 §2.1),
-    // so the only question left is whether the stable can spare the money.
-    aiChoice: (ctx) => (ctx.p.cash > 3000 ? 0 : 1),
   },
 ];
 

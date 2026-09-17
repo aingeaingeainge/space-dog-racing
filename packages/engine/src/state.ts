@@ -6,13 +6,7 @@ import {
   REGULAR_PLANET_IDS,
 } from './content/planets';
 import { AI_PERSONALITIES, AI_STABLE_NAMES } from './content/names';
-import {
-  DRAWN_PER_WEEKEND,
-  OPEN_TYPE_ID,
-  PURSE_BY_TIER,
-  RACE_TYPES,
-  raceType,
-} from './content/raceTypes';
+import { CARD, raceType } from './content/raceTypes';
 import { createStartingDog, emptyPlanetState, type IdGen } from './economy/dogs';
 import { emptyCargo } from './economy/goods';
 import { KIBBLE_ID } from './content/goods';
@@ -55,7 +49,14 @@ import { ActionError, RACE_TYPE_IDS } from './types';
  * old save fails soft to the title screen rather than replaying into a different game.
  */
 export const STATE_VERSION = 5;
-export const MAJOR_WEEKS: readonly number[] = [4, 7, 10];
+/**
+ * The Major weekends. **One, at week 5 (GDD_V3 §2.1)**, where v2 had three.
+ *
+ * Kept as a list rather than collapsed to a number because the shape of the season is a list — the
+ * Grand Final is week 10 and is its own thing — and because a multi-season game (Phase E) will want
+ * to reshuffle this rather than recompute it.
+ */
+export const MAJOR_WEEKS: readonly number[] = [balance.majorWeek];
 
 /**
  * How far ahead the circuit is free to look (GDD §9.3, D5). This planet in full, and next week's
@@ -117,9 +118,16 @@ export function isMajorWeek(s: GameState): boolean {
   return calendarEntry(s).major;
 }
 
-/** This weekend's three races, in the order they are run (GDD §6.3). */
-export function thisWeeksCard(s: GameState, week = s.week): readonly RaceTypeId[] {
-  return calendarEntry(s, week).card;
+/**
+ * This weekend's three races, in the order they are run (GDD_V3 §7.1): Bronze, Silver, Gold.
+ *
+ * ⚠️ **The same three every weekend now**, so this no longer reads the calendar at all. The
+ * signature is kept — including the unused `week` — because every caller asks "what is on this
+ * week", and a card that varies again (a Major with a fourth race, say) should not be a change to
+ * thirty call sites.
+ */
+export function thisWeeksCard(): readonly RaceTypeId[] {
+  return CARD;
 }
 
 /** An empty declaration book: every race type is a key, and most weeks most of them stay empty. */
@@ -130,13 +138,16 @@ export function emptyDeclarations(): Record<RaceTypeId, Record<Id, Id>> {
   >;
 }
 
-/** Purse for one race this week (GDD §6.4, planet purse modifiers). */
+/** Purse for one race this week (GDD_V3 §7.1, plus the planet's own modifier). */
 export function purseFor(s: GameState, race: RaceTypeId): [number, number, number] {
   const e = calendarEntry(s);
   const mult = e.grandFinal ? balance.finalMult : e.major ? balance.majorMult : 1;
   const planetMult = currentPlanet(s).special.purseMult ?? 1;
-  const base = PURSE_BY_TIER[raceType(race).tier];
-  return base.map((x) => Math.round(x * mult * planetMult)) as [number, number, number];
+  return raceType(race).purse.map((x) => Math.round(x * mult * planetMult)) as [
+    number,
+    number,
+    number,
+  ];
 }
 
 /**
@@ -178,24 +189,26 @@ export function placeThisWeek(s: GameState, dogId: Id): number | null {
 }
 
 /**
- * Fitness a dog gains (or loses) for what it did with its week (GDD §5.7).
+ * What this week does to a dog's fitness (GDD_V3 §4.2, §4.3).
  *
- * The vet's contribution arrives as a **number of points** rather than as "have you got one",
- * because the ladder makes three different answers out of one hire: a Rough vet shortens a layoff
- * and adds nothing here, a Proper vet adds 5 and a Prime vet 10 (GDD §8.3).
+ * A dog that actually **ran** already paid the race's cost on race day, so it gains nothing here.
+ * Everything else recovers at the Rest rate, **banded by age**: a five-year-old comes back at 25 and
+ * a six- or seven-year-old at 20, against 30 for anything younger (§4.3). That is what makes the
+ * retirement window of §2.2 a decision rather than a formality — an old dog is not just slower, it
+ * takes longer to be ready again.
  *
- * A **race** is charged where it happens, in applyRaceOutcome, so a dog that ran gains nothing
- * more here — it has already paid its 25. A dog *set* to race that never got a run has had the
- * week off whatever the Kennels says, so it takes Rest's recovery; otherwise the friendly
- * "declaring implies racing" rule would quietly punish a stable for pointing a dog at a card
- * that turned out not to want it. **Train** is work rather than rest and pays its own small
- * gain. **Rest** and the imposed **Layoff** both recover in full.
+ * Layoff recovers like Rest, which is why it is derived rather than stored.
  */
-export function weeklyFitnessDelta(d: Dog, vetRestBonus: number, ran: boolean): number {
-  const status = weekStatusOf(d);
-  if (status === 'race' && ran) return 0;
-  if (status === 'train') return balance.fitnessTrain;
-  return balance.fitnessRest + vetRestBonus + (d.traits.includes('bouncesBack') ? 5 : 0);
+export function restRateFor(age: number): number {
+  if (age >= 7) return balance.restAge7;
+  if (age === 6) return balance.restAge6;
+  if (age === 5) return balance.restAge5;
+  return balance.fitnessRest;
+}
+
+export function weeklyFitnessDelta(d: Dog, bonus: number, ran: boolean): number {
+  if (weekStatusOf(d) === 'race' && ran) return 0;
+  return restRateFor(d.age) + bonus + (d.traits.includes('bouncesBack') ? 5 : 0);
 }
 
 export function assertPhase(s: GameState, ...phases: Phase[]): void {
@@ -226,80 +239,42 @@ export function maxStakeFor(s: GameState, p: Player): number {
   return Math.floor(p.cash * maxStakeFraction(s));
 }
 
-/**
- * Championship points as they stand (GDD §4.3, D3): 10 / 6 / 3 / 1 for the first four home in
- * **any** race, all season.
- *
- * ⚠️ **Derived from the race archive rather than stored, and that is the whole implementation
- * note.** `RaceResult` already carries the finishing order and, on each entry, who owned the dog
- * when it ran — so the points are a fact the state already holds, and a field would be a second
- * copy of it to keep honest. Same argument as Phase B's dossier (D36) and for the same payoff:
- * a scoreboard that cannot drift out of step with the results it is a scoreboard of.
- *
- * Local runners score nothing. Points belong to the stable that owned the dog **on the day**, so
- * selling a dog does not sell the points it has already won you.
+/*
+ * ⚠️ **The championship is gone (BUILD_PLAN_V3 §2.1, GDD_V3 V18).** `championshipPoints`,
+ * `championshipTable` and the purse they fed lived here. GDD_V3 §2.4 is explicit: net worth is the
+ * whole scoring system, the purse paid whoever was already winning (v2 D39), and a multi-season game
+ * would have needed a second scoreboard on top of one nobody read. The tie-break it used to share
+ * with is kept, on Gold Cup wins.
  */
-export function championshipPoints(s: GameState): Record<Id, number> {
-  const table = [
-    balance.champPoints1,
-    balance.champPoints2,
-    balance.champPoints3,
-    balance.champPoints4,
-  ];
-  const points: Record<Id, number> = {};
-  for (const p of s.players) points[p.id] = 0;
-  for (const r of [...s.results, ...(s.races ?? [])]) {
-    r.order.slice(0, table.length).forEach((dogId, i) => {
-      const e = r.entries.find((x) => x.dogId === dogId);
-      if (!e || e.local || e.ownerId === 'local') return;
-      if (points[e.ownerId] !== undefined) points[e.ownerId]! += table[i]!;
-    });
-  }
-  return points;
-}
 
 /**
- * The championship standings, richest in points first (GDD §4.3).
+ * The ten-week circuit (GDD_V3 §2.1).
  *
- * Ties break on the stable id, which is arbitrary and **deliberately** so: it is a function of the
- * state and nothing else, so the same season pays the same purse on every machine. A tie-break
- * that reached for net worth would make the purse depend on the thing it is paid into.
- */
-export function championshipTable(s: GameState): { playerId: Id; points: number }[] {
-  const points = championshipPoints(s);
-  return s.players
-    .map((p) => ({ playerId: p.id, points: points[p.id] ?? 0 }))
-    .sort((a, b) => b.points - a.points || (a.playerId < b.playerId ? -1 : 1));
-}
-
-/**
- * This weekend's card (GDD §6.3): two types drawn without replacement from the pool, then The
- * Open, which runs every weekend, last, for the headline money.
+ * Eight regular planets drawn without replacement from the pool of fourteen, one Major venue at
+ * week 5, and Collar Prime at week 10. The card no longer lives on the entry — it is the same three
+ * races every weekend (`CARD`), so there is nothing per-week to draw and nothing for the fog to hide
+ * about it.
  *
- * Drawn here, with the calendar, rather than on arrival — the whole season's cards exist from
- * week 1 so that the fog (§9.3) has something to hide and a dossier something to sell. A type
- * whose `minWeek` has not arrived is simply not in the pool that week, which is how the
- * Consolation stays out of week 1 without a branch.
+ * ⚠️ **§2.1's own arithmetic does not add up, and this is the reading that does.** It says "9 regular
+ * planets drawn without replacement from the pool of 14 … plus Collar Prime at week 10", and then
+ * "week 5's Major venue is drawn from the other three Major venues" — which is eleven weekends in a
+ * ten-week season. Two of the ten weeks are named (5 and 10), so eight are regular. The parts of
+ * §2.1 that are unambiguous are the ones kept; the 9 is the number that has to give. **Flagged for
+ * Jesse in the phase notes rather than settled here.**
  */
-function drawCard(rng: Rng, week: number): RaceTypeId[] {
-  const pool = RACE_TYPES.filter((t) => t.drawn && week >= t.minWeek).map((t) => t.id);
-  return [...rng.shuffle(pool).slice(0, DRAWN_PER_WEEKEND), OPEN_TYPE_ID];
-}
-
 function buildCalendar(rng: Rng): CalendarEntry[] {
   const majors = rng.shuffle(MAJOR_PLANET_IDS.filter((id) => id !== GRAND_FINAL_PLANET_ID));
-  const regulars = rng.shuffle([...REGULAR_PLANET_IDS]).slice(0, balance.weeks - 4);
+  const regulars = rng.shuffle([...REGULAR_PLANET_IDS]).slice(0, balance.regularPlanets);
   const cal: CalendarEntry[] = [];
   let m = 0;
   let r = 0;
   for (let week = 1; week <= balance.weeks; week++) {
-    const card = drawCard(rng, week);
-    if (week === balance.weeks) {
-      cal.push({ week, planetId: GRAND_FINAL_PLANET_ID, major: true, grandFinal: true, card });
+    if (week === balance.grandFinalWeek) {
+      cal.push({ week, planetId: GRAND_FINAL_PLANET_ID, major: true, grandFinal: true });
     } else if (MAJOR_WEEKS.includes(week)) {
-      cal.push({ week, planetId: majors[m++]!, major: true, grandFinal: false, card });
+      cal.push({ week, planetId: majors[m++]!, major: true, grandFinal: false });
     } else {
-      cal.push({ week, planetId: regulars[r++]!, major: false, grandFinal: false, card });
+      cal.push({ week, planetId: regulars[r++]!, major: false, grandFinal: false });
     }
   }
   return cal;

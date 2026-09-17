@@ -41,7 +41,7 @@ export function decideNormal(s: GameState, playerId: Id): Action[] {
   if (s.phase === 'planetPre' || s.phase === 'planetPost') {
     if (s.phase === 'planetPre') {
       const assignment = declareBest(plan, { reserve: stateHold(plan, NORMAL_STATES) });
-      setStates(plan, racingDogs(assignment), NORMAL_STATES);
+      setStates(plan, racingDogs(assignment));
       // After setStates, because what feed to buy depends on which dogs are training and on
       // which stat each one is on — and setStates is what decides both (GDD §8.2).
       buyFeedPlan(plan);

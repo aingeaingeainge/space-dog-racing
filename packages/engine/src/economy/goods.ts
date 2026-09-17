@@ -38,7 +38,7 @@ export function kibbleAboard(cargo: Cargo): number {
  * economy in the phase that is supposed to be measuring what deleting things did. Phase B raises
  * this to 50 when it has six goods and shelf depth to spend it on.
  */
-export const HOLD_CAP = balance.cargoCapStart;
+export const HOLD_CAP = balance.holdCap;
 
 /** Room left in the hold. */
 export function holdRoom(p: Player): number {

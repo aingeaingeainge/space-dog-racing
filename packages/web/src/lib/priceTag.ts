@@ -155,12 +155,19 @@ export function feedEffect(s: GameState, g: Good, d: Dog): string {
 }
 
 /** One crate per dog per Train week — so how many Train weeks the hold currently covers. */
+/**
+ * How many of the yard's dogs have the food they want aboard.
+ *
+ * ⚠️ **Every dog eats every week now (GDD_V3 §6.3), so this counts the whole yard rather than the
+ * dogs set to Train.** The name is kept for one more phase because Phase B replaces this outright
+ * with the Market's hold gauge and the §6.2 Price Range column.
+ */
 export function cratesForTrainees(s: GameState, me: Player): { trainees: number; covered: number } {
   let trainees = 0;
   let covered = 0;
   for (const id of me.dogIds) {
     const d = s.dogs[id];
-    if (!d || d.weekState !== 'train' || d.injuryWeeks > 0) continue;
+    if (!d || d.injuryWeeks > 0) continue;
     trainees++;
     const g = bestFeedAboard(me.cargo, d.trainStat);
     if (g && me.cargo[g.id] > 0) covered++;

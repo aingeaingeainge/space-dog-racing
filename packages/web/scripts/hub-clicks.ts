@@ -91,7 +91,7 @@ function planetTurn(s: GameState, p: Player): Action[] {
   if (pre) {
     for (const d of dogs) {
       if (d.injuryWeeks > 0) continue;
-      const state = d.fitness >= 65 ? 'race' : d.fitness >= 45 ? 'train' : 'rest';
+      const state = d.fitness >= 65 ? 'race' : 'rest';
       if (d.weekState !== state) out.push({ t: 'SetDogState', playerId: p.id, dogId: d.id, state });
     }
   }
@@ -109,7 +109,7 @@ function planetTurn(s: GameState, p: Player): Action[] {
     const taken = new Set<Id>();
     // Richest race first, so the best dog goes where the money is — the same order a player
     // fills the card in. The card is ordered with the headline race last (GDD §6.3).
-    for (const race of [...thisWeeksCard(s)].reverse()) {
+    for (const race of [...thisWeeksCard()].reverse()) {
       const pick = dogs
         .filter((d) => !taken.has(d.id) && eligible(d, race) && d.fitness > 40)
         .sort((a, b) => b.rating - a.rating)[0];

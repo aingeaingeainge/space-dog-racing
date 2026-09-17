@@ -98,7 +98,7 @@ export function RaceOffice({ s, me }: { s: GameState; me: Player }) {
   const pct = (n: number) => `${Math.round(n * 100)}%`;
   const otherHumans = s.players.filter((p) => p.kind === 'human' && p.id !== me.id).length > 0;
 
-  const card = thisWeeksCard(s);
+  const card = thisWeeksCard();
   const declare = (race: RaceTypeId, dogId: string) =>
     dispatch({ t: 'Declare', playerId: me.id, race, dogId: dogId || null });
 
@@ -162,7 +162,7 @@ export function RaceOffice({ s, me }: { s: GameState; me: Player }) {
             <TicketCard
               key={race}
               cls={raceLabel(race)}
-              tone={raceTone(race, card)}
+              tone={raceTone(race)}
               cap={criterionFor(race)}
               purse={formatBones(purse[0])}
               serial={`2nd ${formatBones(purse[1])} · 3rd ${formatBones(purse[2])}`}

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createHash } from 'node:crypto';
 import { createSeason, netWorthBreakdown, replay, runSeason, type SeasonSetup } from '../src/index';
+import { balance } from '../src/content/balance';
 
 /**
  * Golden seed: seed 42, six Normal AIs, a whole season. If this snapshot changes, a rule
@@ -21,7 +22,11 @@ describe('golden season (seed 42, 6 Normal AIs)', () => {
 
   it('finishes the season', () => {
     expect(state.phase).toBe('seasonEnd');
-    expect(state.week).toBe(13);
+    // The counter stops on the last weekend rather than running past it, so this is derived
+    // rather than typed: v3 runs ten weekends (GDD_V3 §2.1) where v2 ran thirteen, and a literal
+    // here would have to be edited every time the calendar length moves.
+    expect(state.week).toBe(balance.weeks);
+    expect(state.calendar).toHaveLength(balance.weeks);
     expect(state.finalStandings).toHaveLength(6);
   });
 

@@ -9,8 +9,7 @@ import {
   thisWeeksCard,
   FREE_HORIZON,
   raceType,
-  LOCAL_RATING_BY_TIER,
-  OPEN_TYPE_ID,
+  HEADLINE_TYPE_ID,
   RACE_TYPE_IDS,
   type Dog,
   type GameState,
@@ -53,12 +52,11 @@ export function raceLabel(race: RaceTypeId): string {
  * races come out — three identical stubs side by side is a worse screen than three that name
  * themselves.
  */
-export function raceTone(
-  race: RaceTypeId,
-  card: readonly RaceTypeId[],
-): 'bronze' | 'silver' | 'gold' {
-  if (race === OPEN_TYPE_ID) return 'gold';
-  return card.indexOf(race) === 0 ? 'bronze' : 'silver';
+export function raceTone(race: RaceTypeId): 'bronze' | 'silver' | 'gold' {
+  // The tone IS the tier now (GDD_V3 §7.1), so this is a rename rather than a lookup. It used to
+  // take the card as well, because "which of the two drawn races is the cheaper one" was a fact
+  // about the week rather than about the race.
+  return race === 'goldCup' ? 'gold' : race === 'silverPlate' ? 'silver' : 'bronze';
 }
 
 export function humans(s: GameState): Player[] {
@@ -84,12 +82,12 @@ export function playerById(s: GameState, id: Id | null | undefined): Player | un
  * from the dogs still owned, so selling a champion does not erase the win. First tie-break for
  * the season (GDD §4.3).
  */
-export function openWins(s: GameState): Record<Id, number> {
+export function goldCupWins(s: GameState): Record<Id, number> {
   const out: Record<Id, number> = {};
   for (const p of s.players) out[p.id] = 0;
   const finished = [...s.results, ...(s.races ?? [])];
   for (const r of finished) {
-    if (r.race !== OPEN_TYPE_ID) continue;
+    if (r.race !== HEADLINE_TYPE_ID) continue;
     const winner = r.order[0];
     const entry = r.entries.find((e) => e.dogId === winner);
     if (entry && entry.ownerId !== 'local' && out[entry.ownerId] !== undefined) {
@@ -109,7 +107,7 @@ export interface StandingRow {
 }
 
 export function standings(s: GameState): StandingRow[] {
-  const open = openWins(s);
+  const open = goldCupWins(s);
   const rows = s.players.map((player) => {
     const w = netWorthBreakdown(s, player);
     return {
@@ -151,7 +149,7 @@ export function ineligibleReason(d: Dog, race: RaceTypeId): string | null {
 export function cannotRunReason(s: GameState, d: Dog): string | null {
   if (d.injuryWeeks > 0)
     return `injured — out for ${d.injuryWeeks} more week${d.injuryWeeks > 1 ? 's' : ''}`;
-  if (thisWeeksCard(s).every((race) => !raceType(race).eligible(d)))
+  if (thisWeeksCard().every((race) => !raceType(race).eligible(d)))
     return "nothing on this weekend's card will have it";
   return null;
 }
@@ -209,7 +207,7 @@ export function fogLevel(s: GameState, week: number): FogLevel {
 
 /** Typical rating of the local dogs that will fill the empty traps (GDD §6.1). */
 export function localRatingFor(race: RaceTypeId, major: boolean): number {
-  return LOCAL_RATING_BY_TIER[raceType(race).tier] + (major ? balance.localRatingMajorBonus : 0);
+  return raceType(race).localRating + (major ? balance.localRatingMajorBonus : 0);
 }
 
 export function declaredCount(s: GameState, race: RaceTypeId): number {

@@ -57,7 +57,7 @@ export function declare(ctx: Ctx, action: Extract<Action, { t: 'Declare' }>): vo
   // A race that is not on this weekend's card is not a race you can enter (GDD §6.3). The
   // declaration book has a key for every type, so nothing else would stop an entry landing in
   // one that is not being run and then quietly vanishing at endTurn.
-  if (!thisWeeksCard(s).includes(action.race))
+  if (!thisWeeksCard().includes(action.race))
     fail(`There is no ${type.label} on this weekend's card`, action);
   if (action.dogId === null) {
     delete s.declarations[action.race][p.id];
@@ -157,11 +157,10 @@ export function tradeFood(ctx: Ctx, action: Extract<Action, { t: 'TradeFood' }>)
 }
 
 /**
- * Race or Rest (GDD_V3 §4.2).
+ * Race or Rest (GDD_V3 §4.2), and the dog's diet pointer.
  *
- * ⚠️ **Train is still in `WeekState` at this commit and leaves in the next one.** The deletion
- * commit takes out the systems; the rule changes are landed separately, per BUILD_PLAN_V3's
- * instruction, so that the golden snapshot moves for one reason at a time.
+ * Standing a declared dog down is refused rather than silently withdrawing it: declaring implies
+ * racing, and the reverse has to be asked for, or a stray click could bin an entry.
  */
 export function setDogState(ctx: Ctx, action: Extract<Action, { t: 'SetDogState' }>): void {
   const { s } = ctx;

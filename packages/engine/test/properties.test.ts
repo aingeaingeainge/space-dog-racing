@@ -9,7 +9,6 @@ import {
   netWorthBreakdown,
   cargoTotal,
   HOLD_CAP,
-  championshipPoints,
   player,
   raceType,
   reduceMut,
@@ -17,7 +16,7 @@ import {
   weekStatusOf,
   KIBBLE_ID,
   GOOD_IDS,
-  OPEN_TYPE_ID,
+  HEADLINE_TYPE_ID,
   RACE_TYPE_IDS,
   STAT_KEYS,
   WEEK_STATES,
@@ -90,19 +89,15 @@ function checkInvariants(s: GameState): void {
       'w.total === Math.round(p.cash) + dogs + the hold at local sell prices',
     );
   }
-  const card = thisWeeksCard(s);
-  // GDD §4.3: the championship is derived from the archive, so it can never disagree with it.
-  const points = championshipPoints(s);
-  for (const p of s.players) assert((points[p.id] ?? 0) >= 0, 'negative championship points');
-
+  const card = thisWeeksCard();
   // GDD §6.3: a weekend's card is exactly three races, run in a fixed order with the headline
   // race last, and no race appears on it twice. Every week of the season, not just this one —
   // the card is drawn when the calendar is built, so a bad draw is a bug from week 1.
   for (let w = 1; w <= balance.weeks; w++) {
-    const card = thisWeeksCard(s, w);
+    const card = thisWeeksCard();
     assert(card.length === 3, `week ${w}'s card has ${card.length} races`);
     assert(new Set(card).size === 3, `week ${w}'s card runs a race twice`);
-    assert(card[card.length - 1] === OPEN_TYPE_ID, `week ${w} does not end on the headline race`);
+    assert(card[card.length - 1] === HEADLINE_TYPE_ID, `week ${w} does not end on the headline race`);
   }
 
   // A dog is never declared in two races, is declared only into a race being run this weekend,

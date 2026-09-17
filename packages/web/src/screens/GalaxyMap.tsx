@@ -2,7 +2,7 @@ import { planetOf, type GameState, type Player } from '@sdr/engine';
 import { Panel } from '../components/Panel';
 import { Badge, Notes } from '../components/ui';
 import { specialText, trackText } from '../lib/planetText';
-import { fogLevel, raceLabel, type FogLevel } from '../lib/selectors';
+import { fogLevel, type FogLevel } from '../lib/selectors';
 import { rumours } from '../lib/rumours';
 
 /**
@@ -103,9 +103,6 @@ export function GalaxyMap({ s }: { s: GameState; me: Player }) {
                           ) : (
                             <span className="muted">—</span>
                           )}
-                        </td>
-                        <td className="muted wrap">
-                          {detailed(level) ? e.card.map((r) => raceLabel(r)).join(', ') : '—'}
                         </td>
                         <td className="wrap rules">
                           {detailed(level) ? (

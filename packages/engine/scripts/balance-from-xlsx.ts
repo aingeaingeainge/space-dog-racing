@@ -16,39 +16,44 @@ const extrasPath = resolve(here, 'balance.extras.json');
 const outPath = resolve(here, '../src/content/balance.json');
 
 /** Exact column-A label in the Assumptions sheet → balance.json key. */
+/**
+ * Exact column-A label in the Assumptions sheet → balance.json key.
+ *
+ * ⚠️ **107 rows were pruned from the sheet in v3 Phase A** (BUILD_PLAN_V3 §2.1) and this map shrank
+ * with them: the tier ladder, the twelve feeds, the six staff roles, the ship, the fuel, the crook's
+ * road, the flat stake ceiling, the championship purse, the dossier and v2's two purse tiers are all
+ * gone. Pruning rows rather than marking them superseded was safe because **this workbook contains
+ * no formulas at all** — verified, no `<f>` element in any sheet's XML — so nothing could be
+ * referencing the cells that moved. A future phase should not assume that still holds.
+ */
 const LABELS: Record<string, string> = {
   'Currency name': 'currencyName',
   'Race weekends per season': 'weeks',
   'Traps (runners) per race': 'traps',
-  'Major purse multiplier (weeks 4, 7, 10)': 'majorMult',
-  'Grand Final purse multiplier (week 13)': 'finalMult',
-  // GDD §6.4: two purse tiers, not three classes. The Open pays the headline money every
-  // weekend; both drawn types pay the same, because what they ask of a dog differs and what
-  // they pay does not.
-  'The Open 1st': 'purseOpen1',
-  'The Open 2nd': 'purseOpen2',
-  'The Open 3rd': 'purseOpen3',
-  'Drawn race 1st': 'purseDrawn1',
-  'Drawn race 2nd': 'purseDrawn2',
-  'Drawn race 3rd': 'purseDrawn3',
-  // The two race types that post a number rather than a fact (GDD §6.3).
-  'Handicap: max rating': 'capHandicap',
-  'Invitational: min rating': 'floorInvitational',
-  'Consolation: weekends of eligibility after a losing run': 'consolationReach',
-  'Kennel upkeep per dog': 'upkeepPerDog',
+  'Major purse multiplier (week 5)': 'majorMult',
+  'Grand Final purse multiplier (week 10)': 'finalMult',
+  // GDD_V3 §7.1: three purse tiers, open entry. Each race carries its own three numbers now —
+  // with three rows that *are* the ladder, a shared tier table is what would hide it.
+  'Gold Cup 1st': 'purseGold1',
+  'Gold Cup 2nd': 'purseGold2',
+  'Gold Cup 3rd': 'purseGold3',
+  'Silver Plate 1st': 'purseSilver1',
+  'Silver Plate 2nd': 'purseSilver2',
+  'Silver Plate 3rd': 'purseSilver3',
+  'Bronze Dash 1st': 'purseBronze1',
+  'Bronze Dash 2nd': 'purseBronze2',
+  'Bronze Dash 3rd': 'purseBronze3',
   'Food units eaten per dog per week': 'foodPerDog',
-  'Ship fuel per jump (base)': 'fuelBase',
   'Food price: cheapest planet': 'foodPriceMin',
   'Food price: dearest planet': 'foodPriceMax',
   'Typical realised margin per unit': 'foodTypicalMargin',
-  'Starting cargo capacity (units)': 'cargoCapStart',
-  'Cargo hold upgrade (+units)': 'cargoUpgradeUnits',
+  'Hold capacity (units, everyone, forever)': 'holdCap',
   'Starting cash': 'startCash',
   'Starting dogs': 'startDogs',
   'Average starting dog rating': 'startDogRatingAvg',
-  'Starting ship value': 'shipStartValue',
   'a (floor)': 'valueFloor',
   'b (curve)': 'valueCurve',
+  // GDD_V3 §4.3's value column. Ages 1 and 2 are the growth years, 3–4 the peak, 5+ the decline.
   'Age factor: 1 (pup, high upside)': 'ageFactor1',
   'Age factor: 2': 'ageFactor2',
   'Age factor: 3 (peak)': 'ageFactor3',
@@ -57,23 +62,22 @@ const LABELS: Record<string, string> = {
   'Age factor: 6+ (retire soon)': 'ageFactor6',
   'House margin (overround)': 'bettingMargin',
   'Max stake per race (% of cash)': 'maxStakeFraction',
-  // The race simulation (GDD §6.2). These nine decide which stats matter, so they belong in the
-  // design instrument rather than in extras — D12 was found by sweeping exactly these.
+  // The race simulation (GDD §6.2). Unchanged in v3 (BUILD_PLAN_V3 §2.3) except that the break
+  // from the boxes reads Acceleration rather than Trap.
   'Race: base speed (m/s)': 'raceBaseSpeed',
   'Race: speed coefficient (m/s per 100 Speed)': 'raceSpeedCoef',
   'Race: fade penalty past the stamina point': 'raceFadePenalty',
   'Race: acceleration base (m/s²)': 'raceAccelBase',
   'Race: acceleration coefficient (m/s² per 100 Accel)': 'raceAccelCoef',
-  'Race: break from the boxes (metres at 100 Trap)': 'raceBreakMetres',
+  'Race: break from the boxes (metres at 100 Accel)': 'raceBreakMetres',
   'Race: bump chance on a bend': 'raceBumpChance',
   'Race: bump speed penalty': 'raceBumpPenalty',
   'Race: bump distance (metres)': 'raceBumpDistance',
-  // Condition (GDD §5.2). fitScale multiplies every stat in the race, so it is the most violent
-  // lever in the game and the one D13 softens — it does not belong buried in simulateRace.ts.
+  // Condition (GDD §5.2 / GDD_V3 §4.2). The fitness curve is kept whole (§2.3).
   'Fitness multiplier: floor': 'fitScaleBase',
   'Fitness multiplier: range': 'fitScaleCoef',
-  // Race, Train or Rest (GDD §5.7) and growth by age (§5.6). The whole of Phase A's training
-  // game is these eleven numbers, and D14's pup band is narrow enough to want sweeping.
+  // Race or Rest (GDD_V3 §4.2). Train is gone; these two are the whole of the fitness budget, and
+  // the Race cost is the ONE number Phase A is allowed to tune (the races-entered band).
   'Fitness: cost of a race': 'fitnessPerRace',
   'Fitness: gain from a training week': 'fitnessTrain',
   'Fitness: gain from a rest week': 'fitnessRest',
@@ -82,115 +86,36 @@ const LABELS: Record<string, string> = {
   'Growth: stat points a week at age 1': 'growthAge1',
   'Growth: stat points a week at age 2': 'growthAge2',
   'Decline: stat points a week at age 5+': 'declinePerWeek',
-  'Kennel slots at the top ship tier': 'kennelSlotsMax',
   'Local dog fitness': 'localFitness',
-  // Locals are priced by the purse tier of the race they fill, not by a class (D17).
-  'Local dog rating: The Open': 'localRatingOpen',
-  'Local dog rating: a drawn race': 'localRatingDrawn',
-  // The information economy (GDD §9.3). The fog is free; buying your way out of it is not.
-  'Dossier price': 'dossierCost',
-  'Dossier reach (weeks ahead)': 'dossierReach',
-  // ---- v2 Phase C ----
-  // The one ladder (GDD §8.1, D11). Shared by the goods, the staff and the ship's engine, which
-  // is why the three stock chances and the three depths have no "feed" in their names.
-  'Tier stock chance: Rough': 'stockChanceRough',
-  'Tier stock chance: Proper': 'stockChanceProper',
-  'Tier stock chance: Prime': 'stockChancePrime',
-  'Tier shelf depth: Rough, min crates': 'stockRoughMin',
-  'Tier shelf depth: Rough, max crates': 'stockRoughMax',
-  'Tier shelf depth: Proper, min crates': 'stockProperMin',
-  'Tier shelf depth: Proper, max crates': 'stockProperMax',
-  'Tier shelf depth: Prime, min crates': 'stockPrimeMin',
-  'Tier shelf depth: Prime, max crates': 'stockPrimeMax',
-  // The feeds (GDD §8.2). Price is base × stat × tier, so a sweep moves twelve prices by moving
-  // one number — which is the whole reason the prices are not twelve rows of their own.
-  'Feed price: base crate (Rough trap feed)': 'feedPriceBase',
-  'Feed price: Speed multiplier': 'feedStatSpeed',
-  'Feed price: Stamina multiplier': 'feedStatStamina',
-  'Feed price: Accel multiplier': 'feedStatAccel',
-  'Feed price: Trap multiplier': 'feedStatTrap',
-  'Feed price: Rough tier multiplier': 'feedTierRough',
-  'Feed price: Proper tier multiplier': 'feedTierProper',
-  'Feed price: Prime tier multiplier': 'feedTierPrime',
-  'Feed gain: Rough, minimum stat points': 'feedGainRoughMin',
-  'Feed gain: Rough, maximum stat points': 'feedGainRoughMax',
-  'Feed gain: Proper, minimum stat points': 'feedGainProperMin',
-  'Feed gain: Proper, maximum stat points': 'feedGainProperMax',
-  'Feed gain: Prime, minimum stat points': 'feedGainPrimeMin',
-  'Feed gain: Prime, maximum stat points': 'feedGainPrimeMax',
-  'Feed bias: a feed-poor planet': 'feedBiasPoor',
-  'Feed bias: a feed-rich planet': 'feedBiasRich',
-  // Staff (GDD §8.3, D7). Wages replace the flat trainerWage / vetWage: what a member of staff
-  // costs is now a fact about the tier, not about the role.
-  'Staff slots': 'staffSlots',
-  'Staff wage per week: Rough': 'wageRough',
-  'Staff wage per week: Proper': 'wageProper',
-  'Staff wage per week: Prime': 'wagePrime',
-  'Staff appearance chance per role': 'staffAppearChance',
-  'Trainer: stat points a Train week, Rough': 'trainerPointsRough',
-  'Trainer: stat points a Train week, Proper': 'trainerPointsProper',
-  'Trainer: stat points a Train week, Prime': 'trainerPointsPrime',
-  'Vet: injury weeks removed, Rough': 'vetInjuryWeeksOff',
-  'Vet: rest bonus, Proper': 'vetRestProper',
-  'Vet: rest bonus, Prime': 'vetRestPrime',
-  'Vet: injury chance cut, Prime': 'vetInjuryCutPrime',
-  'Scout: extra market dogs, Rough': 'scoutDogsRough',
-  'Scout: extra market dogs, Proper': 'scoutDogsProper',
-  'Scout: extra market dogs, Prime': 'scoutDogsPrime',
-  'Scout: the under-book dog, fraction of value': 'scoutUnderBook',
-  'Trader: extra hold, Rough': 'traderHoldRough',
-  'Trader: extra hold, Proper': 'traderHoldProper',
-  'Trader: extra hold, Prime': 'traderHoldPrime',
-  'Trader: consigned crates, Proper': 'traderConsignProper',
-  'Trader: consigned crates, Prime': 'traderConsignPrime',
-  'Trader: buy-price discount, Prime': 'traderDiscountPrime',
-  // The trader's road (GDD §9.2, §20 Q6). Both levers, in the instrument, so they can be swept
-  // together — the payback row is about the pair rather than either one.
-  'Ship fuel per cargo unit over the free allowance': 'fuelPerCargoUnitOver',
-  'Ship fuel: crates carried free': 'fuelCargoFree',
-  'Cargo hold upgrade price': 'shipCargoCost',
-  // The ship's engine on the one ladder (GDD §8.1).
-  'Ship engine: top tier': 'shipMaxSpeed',
-  'Ship engine: starting tier': 'shipStartSpeed',
-  'Ship engine: arrival roll per tier': 'arrivalSpeedMult',
-  'Ship engine upgrade price': 'shipEngineCost',
-  // ---- v2 Phase D ----
-  // The draw (GDD §6.2, D37). Two numbers pulling opposite ways: the rail is the short way round
-  // and the rail is where the traffic is, so which end of the boxes a dog wants depends on its
-  // trap craft. Sweeping them together is the only way to size either.
+  // Locals are priced by the race they fill (GDD_V3 §7.1).
+  'Local dog rating: Gold Cup': 'localRatingGold',
+  'Local dog rating: Silver Plate': 'localRatingSilver',
+  'Local dog rating: Bronze Dash': 'localRatingBronze',
+  // The draw (GDD §6.2, D37). Kept whole: folding Trap into Accel was done precisely so that
+  // these two keep pulling against each other (GDD_V3 V9).
   'Trap draw: top-speed edge across the width of the boxes': 'trapDrawEdge',
   'Trap draw: trap craft the rail costs, across the width of the boxes': 'trapTraffic',
-  // §13's two shady acts and the deterrent, which is the half that had never been measured.
-  'Steward bribe: fee': 'bribeCost',
-  'Sabotage: fee': 'sabotageCost',
-  'Sabotage: fitness taken off the target for that race': 'sabotageFitness',
-  'Fixing: chance the stewards catch you': 'fixCatchBase',
-  'Fixing: catch chance multiplier, Rough fixer': 'fixCatchMultRough',
-  'Fixing: catch chance multiplier, Proper fixer': 'fixCatchMultProper',
-  'Fixing: catch chance multiplier, Prime fixer': 'fixCatchMultPrime',
-  'Fixing: fine, flat part': 'fixFineBase',
-  'Fixing: fine, multiple of what you had on that race': 'fixFineStakeMult',
-  // The guard on §10's rich-get-richer channel (GDD §20 Q7).
-  'Max stake per race (flat ceiling)': 'maxStakeFlat',
-  'Max stake per race (flat ceiling), Collar Prime multiple': 'maxStakeFlatFinalMult',
-  // The championship purse (GDD §4.3, D3). A purse, not a scoreboard.
-  'Championship points: 1st': 'champPoints1',
-  'Championship points: 2nd': 'champPoints2',
-  'Championship points: 3rd': 'champPoints3',
-  'Championship points: 4th': 'champPoints4',
-  'Championship purse: 1st on points': 'champPurse1',
-  'Championship purse: 2nd on points': 'champPurse2',
-  'Championship purse: 3rd on points': 'champPurse3',
-  // ---- v2 Phase E ----
-  // The Fixer's price list (GDD §13, E-D45). He left the staff ladder when D42's arithmetic said a
-  // percentage edge on a racing stable's working capital cannot carry a weekly wage, and these
-  // four rows are the whole of what replaced it: three job-price multipliers on the fees above,
-  // and how often a man is about at all — which, for a job rather than a hire, *is* how often the
-  // road can be walked.
-  'Fixing: job price multiplier, Rough fixer': 'fixJobMultRough',
-  'Fixing: job price multiplier, Proper fixer': 'fixJobMultProper',
-  'Fixing: job price multiplier, Prime fixer': 'fixJobMultPrime',
-  'Fixing: chance a fixer is drinking here at all, per planet-week': 'fixerHereChance',
+  // ---- v3 Phase A ----
+  // GDD_V3 §4.3's age bands. Growth, rest recovery and the injury multiplier all band by age, and
+  // growth is on top of whatever the food gives — which is the shape that makes the retirement
+  // window of §2.2 a real decision rather than a formality.
+  'Age 1: growth, stat points a week': 'growthAge1Band',
+  'Age 2: growth, stat points a week': 'growthAge2Band',
+  'Age 5: decline, stat points a week': 'declineAge5',
+  'Age 6: decline, stat points a week': 'declineAge6',
+  'Age 7: decline, stat points a week': 'declineAge7',
+  'Age 5: rest recovery': 'restAge5',
+  'Age 6: rest recovery': 'restAge6',
+  'Age 7: rest recovery': 'restAge7',
+  'Age 5: injury multiplier': 'injuryMultAge5',
+  'Age 6: injury multiplier': 'injuryMultAge6',
+  'Age 7: injury multiplier': 'injuryMultAge7',
+  // The circuit (GDD_V3 §2.1).
+  'Major weekend': 'majorWeek',
+  'Grand Final weekend': 'grandFinalWeek',
+  'Regular planets drawn from the pool of 14': 'regularPlanets',
+  'Dogs dealt at the start': 'startDogsDealt',
+  'Starting dog stat budget (total across three stats)': 'startStatBudget',
 };
 
 const wb = XLSX.read(readFileSync(xlsxPath));

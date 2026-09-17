@@ -131,7 +131,7 @@ function declareForThisWeek(plan: Plan): Assignment {
 
   // Now and then, leave the first race on the card to the locals: the dog keeps its fitness and
   // the money goes over the counter at the bookie instead (GDD §14, §10).
-  const [cheap, second] = cheapAndSecond(s);
+  const [cheap, second] = cheapAndSecond();
   if (
     toMajor !== 0 &&
     cheap &&
@@ -148,7 +148,7 @@ function declareForThisWeek(plan: Plan): Assignment {
   }
 
   emitDeclarations(plan, assignment);
-  setStates(plan, racingDogs(assignment), HARD_STATES);
+  setStates(plan, racingDogs(assignment));
   return assignment;
 }
 
@@ -156,9 +156,12 @@ function declareForThisWeek(plan: Plan): Assignment {
  * The race Hard is willing to skip, and the one it backs instead. The card is ordered with the
  * headline race last (GDD §6.3), so the first two are the cheap pair and skipping the first to
  * back the second is the same trade the Bronze/Silver version made.
+ *
+ * Takes nothing: with the drawn card gone (§2.1) every weekend runs the same three races, so the
+ * cheap pair is a property of `CARD` rather than of this week's state.
  */
-function cheapAndSecond(s: GameState): [RaceTypeId | undefined, RaceTypeId | undefined] {
-  const card = thisWeeksCard(s);
+function cheapAndSecond(): [RaceTypeId | undefined, RaceTypeId | undefined] {
+  const card = thisWeeksCard();
   return [card[0], card[1]];
 }
 
@@ -280,7 +283,7 @@ function placeBets(plan: Plan): void {
   const { s, p, playerId, out } = plan;
   if (!s.fields) return;
   const mine = new Set(p.dogIds);
-  const [cheap, second] = cheapAndSecond(s);
+  const [cheap, second] = cheapAndSecond();
   const threwTheCheapRace =
     !!cheap && throwingTheCheapRace(s, playerId) && !s.declarations[cheap][playerId];
   const margin = bettingMargin(s);

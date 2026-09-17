@@ -37,7 +37,6 @@ function status(d: Dog): { text: string; tone?: 'bad' | 'hot' } {
 
 const STATE_LABEL: Record<WeekState, string> = {
   race: 'Race',
-  train: 'Train',
   rest: 'Rest',
 };
 
@@ -63,8 +62,6 @@ function fitnessLine(d: Dog, me: Player, declared: boolean): string {
     return declared
       ? `racing: −${balance.fitnessPerRace} fitness (${f.now} → ${f.racing}; ${f.resting} if you rest it instead)`
       : `set to race but not entered — it will take the week off (${f.now} → ${f.resting})`;
-  if (status === 'train')
-    return `training ${STAT_LABEL[d.trainStat]}: +${balance.fitnessTrain} fitness (${f.now} → ${f.training}), one crate of food`;
   return `resting: +${weeklyFitnessDelta(d, 0, false)} fitness (${f.now} → ${f.resting})`;
 }
 
@@ -132,11 +129,6 @@ export function Stable({ s, me }: { s: GameState; me: Player }) {
                         {raceLabel(race)}
                       </Badge>
                     ) : null}
-                    {weekStatusOf(d) === 'train' ? (
-                      <Badge title={`on a training week: ${STAT_LABEL[d.trainStat]}`}>
-                        training {STAT_LABEL[d.trainStat].toLowerCase()}
-                      </Badge>
-                    ) : null}
                     {weekStatusOf(d) === 'rest' ? (
                       <Badge title="resting this week">resting</Badge>
                     ) : null}
@@ -155,11 +147,15 @@ export function Stable({ s, me }: { s: GameState; me: Player }) {
 }
 
 /**
- * GDD §5.7's control, and the centre of the v2 game: Race, Train or Rest, one per dog per week.
+ * GDD_V3 §4.2's control, and the centre of the game: **Race or Rest**, one per dog per week.
  *
- * Layoff is shown rather than offered — an injured or banned dog is on Layoff whatever the
- * Kennels says — but the three buttons stay live underneath it, because what a dog does the week
- * it comes sound is a decision worth taking early.
+ * ⚠️ Train is gone (GDD_V3 V8) — a dog eats and gains every week whatever it is doing, so a third
+ * state had nothing left to be. Three dogs × a binary is three decisions a week against §10.1's
+ * budget of ten.
+ *
+ * Layoff is shown rather than offered — an injured dog is on Layoff whatever the Kennels says — but
+ * the two buttons stay live underneath it, because what a dog does the week it comes sound is a
+ * decision worth taking early.
  *
  * Standing a declared dog down is refused by the engine (withdraw it from its race first), so the
  * button says so rather than throwing an ActionError at the player.
@@ -214,28 +210,33 @@ function WeekPlan({
             </NeonButton>
           );
         })}
-        {d.weekState === 'train' ? (
-          <select
-            aria-label={`What ${d.name} works on`}
-            value={d.trainStat}
-            disabled={!inTurn}
-            onChange={(e) =>
-              dispatch({
-                t: 'SetDogState',
-                playerId: me.id,
-                dogId: d.id,
-                state: 'train',
-                stat: e.target.value as StatKey,
-              })
-            }
-          >
-            {STAT_KEYS.map((k) => (
-              <option key={k} value={k}>
-                {STAT_LABEL[k]} ({d[k]})
-              </option>
-            ))}
-          </select>
-        ) : null}
+        {/*
+          ⚠️ **The stat picker is kept and repointed (GDD_V3 §6.3).** It used to say what a Train week
+          worked on; there is no Train week, and what it says now is the dog's **diet** — the stat its
+          food is aimed at. Nothing in Phase A reads it, because one placeholder good has no stat to
+          aim, so it is shown but does nothing. Phase B's six foods and its sticky named-food / best
+          available / worst available setting are what make it live.
+        */}
+        <select
+          aria-label={`What ${d.name} is fed for`}
+          value={d.trainStat}
+          disabled={!inTurn}
+          onChange={(e) =>
+            dispatch({
+              t: 'SetDogState',
+              playerId: me.id,
+              dogId: d.id,
+              state: d.weekState,
+              stat: e.target.value as StatKey,
+            })
+          }
+        >
+          {STAT_KEYS.map((k) => (
+            <option key={k} value={k}>
+              {STAT_LABEL[k]} ({d[k]})
+            </option>
+          ))}
+        </select>
       </div>
       <span className="muted small">
         {laidOff ? `Out for ${d.injuryWeeks} more week(s). ` : ''}
@@ -244,12 +245,11 @@ function WeekPlan({
       {barred && !laidOff ? (
         <span className="muted small">Cannot run this weekend — {barred}.</span>
       ) : null}
-      {d.weekState === 'train' ? (
-        <span className="muted small">
-          A Train week is plain food: +{balance.trainKibbleMin}–{balance.trainKibbleMax} to a stat
-          of its own choosing. Phase B makes the food itself the training programme.
-        </span>
-      ) : null}
+      <span className="muted small">
+        Every dog eats one crate a week whatever it is doing: +{balance.trainKibbleMin}–
+        {balance.trainKibbleMax} to a stat of its own choosing. Phase B makes the food itself the
+        training programme.
+      </span>
     </div>
   );
 }
@@ -272,9 +272,9 @@ function PlanTheWeek({
   inTurn: boolean;
 }) {
   const dispatch = useGame((g) => g.dispatch);
-  const restBelow = balance.fitnessScaleBelow - 15;
-  const plan = (d: Dog): WeekState =>
-    d.fitness >= 65 ? 'race' : d.fitness >= restBelow ? 'train' : 'rest';
+  // Race or Rest (GDD_V3 §4.2): anything fresh enough runs, everything else takes the week off.
+  // There is no middle state to fall into any more, so the whole policy is one threshold.
+  const plan = (d: Dog): WeekState => (d.fitness >= 65 ? 'race' : 'rest');
   const todo = dogs.filter(
     (d) => weekStatusOf(d) !== 'layoff' && !declaredRace(s, me.id, d.id) && d.weekState !== plan(d),
   );
@@ -286,7 +286,7 @@ function PlanTheWeek({
         title={
           !todo.length
             ? 'Every dog already has the week it would be given'
-            : `Race anything over 65 fitness, train anything over ${restBelow}, rest the rest — then change your mind about the ones that matter`
+            : 'Race anything over 65 fitness, rest the rest — then change your mind about the ones that matter'
         }
         onClick={() => {
           for (const d of todo)
