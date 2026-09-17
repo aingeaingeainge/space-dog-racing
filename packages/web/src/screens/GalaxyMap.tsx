@@ -1,4 +1,4 @@
-import { planetOf, type GameState, type Player } from '@sdr/engine';
+import { balance, MAJOR_WEEKS, planetOf, type GameState, type Player } from '@sdr/engine';
 import { Panel } from '../components/Panel';
 import { Badge, Notes } from '../components/ui';
 import { specialText, trackText } from '../lib/planetText';
@@ -33,7 +33,7 @@ export function GalaxyMap({ s }: { s: GameState; me: Player }) {
         <Notes
           lines={[
             'The circuit is drawn fresh every season and the stewards do not publish it. You know this planet in full and next week by name, and the rest is rumour.',
-            'The Majors are the exception: weeks 4, 7, 10 and 13 always, and the Grand Final always at Collar Prime. The rhythm is fixed even when the content is not.',
+            `The Majors are the exception: week ${MAJOR_WEEKS.join(', ')} always, and the Grand Final always at Collar Prime in week ${balance.weeks}. The rhythm is fixed even when the content is not.`,
             gossip.length
               ? `They are saying: ${gossip.map((r) => r.text).join(' ')}`
               : 'Nobody in the Saloon has anything worth repeating this week.',
@@ -41,7 +41,7 @@ export function GalaxyMap({ s }: { s: GameState; me: Player }) {
         />
       </Panel>
 
-      <Panel title="The circuit" sub="13 stops, Majors starred" tight>
+      <Panel title="The circuit" sub={`${balance.weeks} stops, Majors starred`} tight>
         <div className="table-wrap">
           <table>
             <thead>
@@ -50,7 +50,6 @@ export function GalaxyMap({ s }: { s: GameState; me: Player }) {
                 <th>Planet</th>
                 <th>Track</th>
                 <th>Food</th>
-                <th>Card</th>
                 <th>Rules</th>
               </tr>
             </thead>
@@ -83,7 +82,7 @@ export function GalaxyMap({ s }: { s: GameState; me: Player }) {
                       ) : null}
                     </td>
                     {level === 'dark' ? (
-                      <td className="muted" colSpan={5}>
+                      <td className="muted" colSpan={4}>
                         {e.major
                           ? 'A Major, venue not yet announced'
                           : 'An unknown stop — buy the file, or wait and see'}

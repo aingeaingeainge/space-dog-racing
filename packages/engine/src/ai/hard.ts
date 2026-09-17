@@ -32,21 +32,17 @@ const THROW_CHEAP_RATE = 0.15;
 const MAJOR_FITNESS_FLOOR = balance.fitnessScaleBelow + 20;
 
 /**
- * Hard's Race/Train/Rest policy (GDD §14). Normal's fitness rule with one addition:
- * `trainThroughCheapWeeks` prices a week in the yard against the purse the dog is passing up,
- * so a young or outclassed dog spends a quiet weekend training and turns up for the Major. It
- * is the first behaviour in the game that reasons about *later*, so it is a flag rather than a
- * number and the notes carry its ablation.
+ * Hard's Race-or-Rest policy (GDD_V3 §4.2): one number, and it is the *only* thing left separating
+ * Hard's week from Normal's. It races a little deeper into the fitness range — a dog at 58 is a dog
+ * you might choose to run, where Normal wants 65.
  *
- * It also races a little deeper into the fitness range than Normal: with the vet it keeps and
- * the §5.2 curve softened, a dog at 60 is a dog you might choose to run.
+ * ⚠️ **`trainThroughCheapWeeks` is deleted (see `ai/shared.ts` for the measurement).** Pricing a week
+ * in the yard against the purse it passes up needs the yard to be worth something, and with food
+ * reaching every dog every week (§6.3) it is not. It was the first behaviour in the game that
+ * reasoned about *later*; what is left that does is `holdsForMajor`, which reasons about fitness
+ * rather than about rating and survives untouched.
  */
-const HARD_STATES: StateOptions = {
-  raceAbove: 58,
-  restBelow: 45,
-  train: true,
-  trainThroughCheapWeeks: true,
-};
+const HARD_STATES: StateOptions = { raceAbove: 58 };
 
 /**
  * Hard AI (GDD §14): Normal, plus — it spends a cheap weekend training a dog that would earn
