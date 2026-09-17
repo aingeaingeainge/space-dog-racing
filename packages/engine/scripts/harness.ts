@@ -5,7 +5,12 @@
  *   npm run harness -- --calibrate        # race-sim win rates vs rating gap + oddsScale fit
  *   npm run harness -- --stats            # D12 regression: +10 to one stat, at three lengths
  *   npm run harness -- --autoplan --seasons 200   # §7a.3: autoplan% and the sampled apLoss rollout
- *   npm run harness -- --fix              # §13: what a nobbling is worth, and what it costs
+ *   npm run harness -- --lead            # §7a.4: does a lead at week 6 convert, split on betting
+ *   npm run harness -- --hardAblation    # §14: which of Hard's own decisions earns its head-to-head
+ *
+ * ⚠️ `--fix` and `--card` are gone with the crook's road and the drawn card (BUILD_PLAN_V3 §2.1).
+ * An unrecognised flag is an error rather than a silent plain run — the v2 habit of typing a mode
+ * that no longer exists and reading the default output as its result is a real way to be wrong.
  *
  * ## Why this drives the season itself rather than calling runSeason
  *
@@ -54,16 +59,10 @@ interface Args {
   calibrate: boolean;
   stats: boolean;
   autoplan: boolean;
-  /** §7a.4's Prime-amplification test (GDD §20 Q3). */
+  /** §7a.4: does a lead at week 6 convert, split on whether the stable bet (GDD §20 Q3, Q7). */
   leadConversion: boolean;
-  /** §7a.5's three-way printout: the trainer and the trader in the same seasons. */
-  /** §13's ablation: the crook agent with the road worked and with it switched off (D42). */
-  /** D43: which of the three constraints on a mixed stable actually binds. */
-  /** §14: which of Hard's own decisions is costing it its head-to-head band. */
+  /** §14: which of Hard's own decisions is earning — or costing — it its head-to-head band. */
   hardAblation: boolean;
-  /** §6b's cargo-payback ablation: run the trader with and without buying hold. */
-  /** D7's stacking row: three of one role against a mixed three, in the same seasons. */
-  /** §13's road, priced against the fields the game actually produces (GDD §20 Q7). */
   quiet: boolean;
 }
 
@@ -94,6 +93,7 @@ function parseArgs(argv: string[]): Args {
     else if (a === '--leadConversion' || a === '--lead') args.leadConversion = true;
     else if (a === '--hardAblation') args.hardAblation = true;
     else if (a === '--quiet') args.quiet = true;
+    else throw new Error(`Unknown flag ${a}. See the usage block at the top of this file.`);
   }
   return args;
 }
