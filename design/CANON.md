@@ -19,7 +19,7 @@ document read out of context can still tell you what it is.
 | `design/BUILD_PLAN.md` §§1–5 | **CURRENT** | Architecture, tech stack, repo layout, the data model. Not restated in V3 — this is still the reference. |
 | `design/BUILD_PLAN.md` §6 onward | historical | v1's milestones and v2's five phases, complete through tag `v2e`. §7a's harness methodology still applies. |
 | `design/GDD.md` | historical | v2, shipped at `v2e`. **Do not build from it.** Kept because its measurements and its decision log (D1–D53) are the record of *why* the game works as it does, and GDD_V3 cites it throughout. |
-| `claude/*_NOTES.md`, `claude/*_PROMPT.md` | historical, write-once | The build log, one pair per session. Never edited after a phase ends, so these cannot drift. |
+| `claude/*_NOTES.md`, `claude/*_PROMPT.md` | historical, write-once | The build log, one pair per session. **Write-once from the moment the file lands in this repo**, not from the moment it was drafted — see below. |
 | `design/space_dog_racing_economy.xlsx` | **CURRENT** | The source of truth for *numbers*. `packages/engine/src/content/balance.json` is generated from it — never hand-edit the JSON. |
 
 ⚠️ **v2's documents are marked historical but are still referenced.** GDD_V3 leans on v2's measured
@@ -53,6 +53,19 @@ is a write-once record of a session that has already happened; the spreadsheet h
 at all; and `CLAUDE.md` is deliberately **not** mirrored, because it is read by a builder standing
 in the working tree and a Project copy would be drift surface for no benefit.
 
+### ⚠️ Write-once starts when the file lands here, and `V3_PHASE_A_PROMPT.md` is the reason that is spelled out
+
+A phase prompt is written *before* the phase, so it can be wrong about how the phase will be built —
+and `claude/V3_PHASE_A_PROMPT.md` was. It told the builder it was Claude Code standing in the working
+tree and must not clone or produce a bundle; Jesse chose not to switch to Claude Code, and Phase A was
+built in Cowork from a clone, handing back a bundle. **The repo's copy is the corrected one. The
+claude.ai Project holds the earlier draft, and it is superseded.**
+
+The general rule, so this does not need deciding again: a prompt or a set of notes is frozen at the
+commit that adds it, because that is when it becomes the record. Correcting a draft *before* it is
+committed is writing the record, not editing it. After that commit, nothing touches it — a later
+correction goes in the next phase's notes.
+
 ---
 
 ## Version history
@@ -61,6 +74,6 @@ in the working tree and a Project copy would be drift surface for no benefit.
 |---|---|---|
 | v1 | `m4` | `design/GDD.md` 0.1, `design/BUILD_PLAN.md` §6 |
 | v2 | `v2a` … `v2e` | `design/GDD.md` 0.2–0.7, `design/BUILD_PLAN.md` §6b |
-| **v3** | *unbuilt* | **`design/GDD_V3.md` 3.0, `design/BUILD_PLAN_V3.md`** |
+| **v3** | `v3a` | **`design/GDD_V3.md` 3.0, `design/BUILD_PLAN_V3.md`** |
 
-Last reviewed: 16 September 2026.
+Last reviewed: 17 September 2026. `design/` mirrors in the claude.ai Project need re-syncing: `GDD_V3.md` gained decision rows A1–A7 and `CANON.md` gained the write-once note above.
