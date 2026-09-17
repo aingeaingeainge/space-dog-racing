@@ -75,7 +75,7 @@ export function decideEasy(s: GameState, playerId: Id): Action[] {
         (a, b) => hash01(s.seed, s.week, playerId, a.id) - hash01(s.seed, s.week, playerId, b.id),
       );
       const used = new Set<Id>();
-      for (const race of thisWeeksCard(s)) {
+      for (const race of thisWeeksCard()) {
         let chosen: Id | null = null;
         if (hash01(s.seed, s.week, playerId, race, 'skip') > SKIP_RATE) {
           const pick = shuffled.find((d) => !used.has(d.id) && eligible(d, race));
@@ -87,7 +87,7 @@ export function decideEasy(s: GameState, playerId: Id): Action[] {
         if ((s.declarations[race][playerId] ?? null) !== chosen)
           out.push({ t: 'Declare', playerId, race, dogId: chosen });
       }
-      setStates(plan, used, { train: false });
+      setStates(plan, used);
     }
   }
 

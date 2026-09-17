@@ -27,11 +27,6 @@ export function dogValue(dog: Pick<Dog, 'rating' | 'age' | 'injuryWeeks'>): numb
   return Math.round(base * injury);
 }
 
-/** What a stable gets for selling a dog on a given planet (80% of value, plus any buyer bonus). */
-export function dogSalePrice(dog: Dog, buyerBonus = 0, valueMod = 1): number {
-  return Math.round(dogValue(dog) * balance.marketSellFactor * (1 + buyerBonus) * valueMod);
-}
-
 /**
  * Rating from raw stats (GDD_V3 §4.1), integer: `0.40 speed + 0.35 accel + 0.25 stamina`.
  *

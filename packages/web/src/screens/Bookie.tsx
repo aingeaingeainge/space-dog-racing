@@ -76,7 +76,7 @@ export function Bookie({ s, me }: { s: GameState; me: Player }) {
         />
       </Panel>
 
-      {thisWeeksCard(s).map((race) => (
+      {thisWeeksCard().map((race) => (
         <RaceBetting key={race} s={s} me={me} race={race} margin={margin} />
       ))}
     </>
@@ -130,7 +130,7 @@ function RaceBetting({
   return (
     <TicketCard
       cls={raceLabel(race)}
-      tone={raceTone(race, thisWeeksCard(s))}
+      tone={raceTone(race)}
       cap="trap draw and odds"
       purse={formatBones(purse[0])}
       serial={`2nd ${formatBones(purse[1])} · 3rd ${formatBones(purse[2])}`}

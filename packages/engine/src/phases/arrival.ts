@@ -1,7 +1,7 @@
 import { balance } from '../content/balance';
 import { emptyPlanetState } from '../economy/dogs';
 import { rollGoodPrices } from '../economy/food';
-import { cargoTotal } from '../economy/goods';
+import { cargoTotal, HOLD_CAP } from '../economy/goods';
 import { currentPlanet, emptyDeclarations, log, type Ctx } from '../state';
 import { clamp } from '../rng';
 import { drawEvents } from './events';
@@ -39,7 +39,7 @@ export function runArrival(ctx: Ctx): void {
     const crates = cargoTotal(p.cargo);
     let score = -crates / balance.arrivalCargoDiv + die;
     let reason =
-      crates > balance.fuelCargoFree
+      crates > HOLD_CAP / 2
         ? 'heavy cargo'
         : die >= 8
           ? 'lucky approach'

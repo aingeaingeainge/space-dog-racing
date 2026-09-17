@@ -6,44 +6,18 @@
 export type Id = string;
 
 /**
- * A race is a **row**, not a member of a closed union of three classes (GDD §6.3, D2).
+ * A race is a **row**, not a member of a closed union (GDD §6.3, D2). The id is all that lives in
+ * state — on a declaration, on a bet, on an archived result — and everything else hangs off
+ * `content/raceTypes.ts`.
  *
- * The id is all that lives in state — on a declaration, on a bet, on an archived result — and
- * everything else about the race (its label, the criterion it posts, the purse tier it pays, the
- * facts a local dog needs to be allowed in it) hangs off `content/raceTypes.ts`, one object per
- * row. Adding a type is adding a row there and an id here; nothing branches on which race it is.
- *
- * Bronze, Silver and Gold are gone. Every weekend runs **The Open** plus **two types drawn from
- * a pool of seven**, and what a stable can enter depends on what it has raised rather than on a
- * number it could suppress.
+ * ⚠️ **Three purse tiers, open entry (GDD_V3 §7.1, V15).** v2's seven fact-gated types are cut: they
+ * rewarded a broad stable you *built*, and v3 deals you three dogs and has no market, so eligibility
+ * would have been luck rather than planning. The depth moves into running styles and the shape of
+ * the field (§5).
  */
-export type RaceTypeId =
-  | 'open'
-  | 'maiden'
-  | 'juvenile'
-  | 'veterans'
-  | 'novice'
-  | 'handicap'
-  | 'invitational'
-  | 'consolation';
+export type RaceTypeId = 'bronzeDash' | 'silverPlate' | 'goldCup';
 
-export const RACE_TYPE_IDS: readonly RaceTypeId[] = [
-  'open',
-  'maiden',
-  'juvenile',
-  'veterans',
-  'novice',
-  'handicap',
-  'invitational',
-  'consolation',
-] as const;
-
-/**
- * What a race pays, before the Major and planet multipliers. A tier rather than a purse per row
- * because GDD §6.4 prices the card by kind — the headline race and everything else — and a row
- * that carried its own three numbers would make the ladder invisible.
- */
-export type RacePurseTier = 'open' | 'drawn';
+export const RACE_TYPE_IDS: readonly RaceTypeId[] = ['bronzeDash', 'silverPlate', 'goldCup'] as const;
 
 /**
  * Three stats, not four (GDD_V3 §4.1).
@@ -86,16 +60,21 @@ export const GOOD_IDS: readonly GoodId[] = ['kibble'] as const;
 export type Cargo = Record<GoodId, number>;
 
 /**
- * What a dog does with its week (GDD §5.7). Exactly one of the three, set in the Kennels, and
- * the centre of the v2 game: Race −25 fitness, Train +8 and a feed's stat points, Rest +30.
+ * What a dog does with its week (GDD_V3 §4.2). **Race −20 fitness, or Rest +30.** Set in the Kennels.
  *
- * There is deliberately no fourth. A dog that is injured or banned is on **Layoff**, which is
- * imposed rather than chosen and recovers like Rest — so it is derived by `weekStateOf()` and
- * never stored, or the state on the Dog would stop being the player's answer to the question.
+ * ⚠️ **Train is cut, and it is a load-bearing simplification (GDD_V3 V8).** v2 had three states
+ * because training was how food reached a dog. In v3 a dog **eats every week and gains its food's
+ * bonus every week, whatever it is doing** (§6.3), so Train had nothing left to do except be a third
+ * option that mostly resolved itself. Three dogs × a binary is three decisions a week; three dogs ×
+ * a ternary is what pushed v2's click budget over, and §10.1 has cut that budget from 14.5 to 10.
+ *
+ * A dog that is injured is in a fourth state, **Layoff**, which is imposed rather than chosen and
+ * recovers like Rest — so it is derived by `weekStatusOf()` and never stored, or the state on the Dog
+ * would stop being the player's answer to the question.
  */
-export type WeekState = 'race' | 'train' | 'rest';
-export const WEEK_STATES: readonly WeekState[] = ['race', 'train', 'rest'] as const;
-/** What the Kennels shows: the three a player can pick, plus the one the stewards pick for them. */
+export type WeekState = 'race' | 'rest';
+export const WEEK_STATES: readonly WeekState[] = ['race', 'rest'] as const;
+/** What the Kennels shows: the two a player can pick, plus the one the stewards pick for them. */
 export type WeekStatus = WeekState | 'layoff';
 
 /** The three a player can pick. GDD §14: difficulty is decision quality, never a stat bonus. */
@@ -207,19 +186,20 @@ export interface Dog {
   injuryWeeks: number; // 0 = fit to race
   wins: number;
   runs: number;
-  /** Wins in the headline race of the weekend — the season's first tie-break (GDD §4.3). */
-  openWins: number;
-  /**
-   * Weekends of Consolation eligibility this dog has left after a run out of the money
-   * (GDD §6.3). Set to `consolationReach` the week it finishes out of the money and counted down
-   * every week after, so "ran and finished out of the money in the last two weekends" is a fact
-   * on the dog rather than a lookup into `results` — which is what lets a local generated for the
-   * race carry it and satisfy the same predicate every declared dog is held to.
-   */
-  outOfMoneyFor: number;
+  /** Gold Cup wins — the season's first tie-break (GDD_V3 §2.4). */
+  goldCupWins: number;
   raceBonus: number; // temporary speed-stat bonus for this weekend's race (lucky bone)
-  weekState: WeekState; // GDD §5.7 — what this dog is doing with the week
-  trainStat: StatKey; // which stat a Train week works on; ignored in the other two states
+  weekState: WeekState; // GDD_V3 §4.2 — Race or Rest
+  /**
+   * Which stat this dog's food is pointed at.
+   *
+   * ⚠️ **Nothing reads this in Phase A and it is kept on purpose.** Train is gone, so there is no
+   * per-week stat choice left; but GDD_V3 §6.3's **sticky per-dog diet** — a named food, or best
+   * available, or worst available — is the same field doing the same job for the six goods, and
+   * Phase B replaces the type rather than adding a field. Deleting it would move the state shape
+   * twice for one idea.
+   */
+  trainStat: StatKey;
   look: { body: number; palette: number; accessory: number };
 }
 
@@ -277,12 +257,6 @@ export interface CalendarEntry {
   planetId: Id;
   major: boolean;
   grandFinal: boolean;
-  /**
-   * This weekend's three races, in the order they are run, headline race last (GDD §6.3): two
-   * types drawn without replacement from the pool, then The Open. Drawn when the calendar is
-   * built, so the fog can hide it.
-   */
-  card: RaceTypeId[];
 }
 
 export interface Bet {

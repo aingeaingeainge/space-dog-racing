@@ -60,7 +60,7 @@ function eligibleFor(d: Dog, race: RaceTypeId): boolean {
 function declarations(s: GameState, kennel: Dog[], p: Player): Action[] {
   const out: Action[] = [];
   const taken = new Set<Id>();
-  for (const race of [...thisWeeksCard(s)].reverse()) {
+  for (const race of [...thisWeeksCard()].reverse()) {
     const pick = kennel
       .filter((d) => !taken.has(d.id) && eligibleFor(d, race) && d.fitness > 40)
       .sort((a, b) => b.rating - a.rating)[0];
@@ -89,7 +89,7 @@ function planetTurn(s: GameState, p: Player, tally: Tally): Action[] {
   if (pre) {
     for (const d of kennel) {
       if (d.injuryWeeks > 0) continue;
-      const state: WeekState = d.fitness >= 65 ? 'race' : d.fitness >= 45 ? 'train' : 'rest';
+      const state: WeekState = d.fitness >= 65 ? 'race' : 'rest';
       if (d.weekState === state) continue;
       out.push({ t: 'SetDogState', playerId: p.id, dogId: d.id, state });
       bump(tally, 'SetDogState');

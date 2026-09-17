@@ -8,7 +8,7 @@ import {
   weekStatusOf,
   thisWeeksCard,
   dogValue,
-  OPEN_TYPE_ID,
+  HEADLINE_TYPE_ID,
   RACE_TYPE_IDS,
   type GameState,
   type Player,
@@ -99,7 +99,6 @@ export function venueStatus(s: GameState, me: Player): Record<VenueId, VenueStat
   // not. GDD_V3 §10.1 cuts that budget from 14.5 to 10, so this matters more than it did.
   const plans = mine.map((d) => weekStatusOf(d));
   const racing = plans.filter((x) => x === 'race').length;
-  const training = plans.filter((x) => x === 'train').length;
   const resting = plans.filter((x) => x === 'rest').length;
   const layoff = plans.filter((x) => x === 'layoff').length;
   // "Unplanned" is a dog set to race that nothing has entered yet — it will idle the week away.
@@ -113,7 +112,6 @@ export function venueStatus(s: GameState, me: Player): Record<VenueId, VenueStat
       : 0;
   const plan = [
     racing ? `${racing} racing` : null,
-    training ? `${training} training` : null,
     resting ? `${resting} resting` : null,
     layoff ? `${layoff} on layoff` : null,
   ]
@@ -140,7 +138,7 @@ export function venueStatus(s: GameState, me: Player): Record<VenueId, VenueStat
         : nothing('Opens when the card locks', 'shut till lock');
 
   // --- Race Office: a runner still to declare in a race you are eligible for.
-  const card = thisWeeksCard(s);
+  const card = thisWeeksCard();
   const undeclared = card.filter((race) => {
     if (s.declarations[race][me.id]) return false;
     return mine.some((d) => !ineligibleReason(d, race) && !isDeclaredElsewhere(s, me, d.id, race));
@@ -155,7 +153,7 @@ export function venueStatus(s: GameState, me: Player): Record<VenueId, VenueStat
           worth: true,
         }
       : nothing(
-          `All ${declaredMine} declared · ${TRAPS - declaredCount(s, OPEN_TYPE_ID)} locals in the ${raceLabel(OPEN_TYPE_ID)}`,
+          `All ${declaredMine} declared · ${TRAPS - declaredCount(s, HEADLINE_TYPE_ID)} locals in the ${raceLabel(HEADLINE_TYPE_ID)}`,
           `${declaredMine} declared`,
         );
 

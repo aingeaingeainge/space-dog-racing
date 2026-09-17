@@ -1,6 +1,6 @@
 import { balance } from '../content/balance';
 import { planetOf } from '../content/planets';
-import { LOCAL_RATING_BY_TIER, raceType } from '../content/raceTypes';
+import { raceType } from '../content/raceTypes';
 import { winProbabilities } from '../race/odds';
 import { baseRating, dogValue } from '../economy/dogValue';
 import { calendarEntry, eligible, FREE_HORIZON, player, purseFor, thisWeeksCard } from '../state';
@@ -40,8 +40,7 @@ export function expectedField(
   ratingOf: (d: Dog) => number = (d) => d.rating,
 ): number[] {
   const major = calendarEntry(s).major;
-  const mid =
-    LOCAL_RATING_BY_TIER[raceType(race).tier] + (major ? balance.localRatingMajorBonus : 0);
+  const mid = raceType(race).localRating + (major ? balance.localRatingMajorBonus : 0);
   const ratings: number[] = [];
   for (const [pid, dogId] of Object.entries(s.declarations[race])) {
     if (pid === excludePlayer) continue;
@@ -138,7 +137,7 @@ export function bestAssignment(
   candidates: Dog[] = ownDogs(s, p),
   opts: AssignmentOptions = {},
 ): Assignment {
-  const card = thisWeeksCard(s);
+  const card = thisWeeksCard();
   const scale = opts.minPurseScale ?? 1;
   const available = candidates.filter((d) => d.injuryWeeks === 0 && !opts.hold?.has(d.id));
   const dogs = available.filter((d) => !opts.reserve?.has(d.id));
@@ -431,9 +430,12 @@ export function buyFeedPlan(plan: Plan, opts: FeedBuyOptions = {}): void {
     return;
   }
 
-  const training = plan.kennel.filter((d) => d.weekState === 'train' && d.injuryWeeks === 0);
+  // ⚠️ **Every dog that is not on layoff wants its stat's food now (GDD_V3 §6.3).** This used to
+  // count only the dogs set to Train, because Train was the only week food reached a dog. A dog eats
+  // every week whatever it is doing, so the question is simply which stats the yard is pointed at.
+  const feeding = plan.kennel.filter((d) => d.injuryWeeks === 0);
   const byStat = new Map<StatKey, number>();
-  for (const d of training) byStat.set(d.trainStat, (byStat.get(d.trainStat) ?? 0) + 1);
+  for (const d of feeding) byStat.set(d.trainStat, (byStat.get(d.trainStat) ?? 0) + 1);
   // Most-wanted stat first, so a thin budget goes where the most dogs are working.
   const stats = [...byStat.entries()].sort((a, b) => b[1] - a[1]);
   for (const [stat, dogs] of stats) {
@@ -505,7 +507,7 @@ function trainingBeatsRacing(plan: Plan, d: Dog, gain: number, weeksLeft: number
   const { s, p } = plan;
   let now = 0;
   let better = 0;
-  for (const race of thisWeeksCard(s)) {
+  for (const race of thisWeeksCard()) {
     if (!eligible(d, race)) continue;
     const rating = effectiveRating(d);
     now = Math.max(now, expectedPurse(s, d, race, p.id, rating));
@@ -517,30 +519,31 @@ function trainingBeatsRacing(plan: Plan, d: Dog, gain: number, weeksLeft: number
 }
 
 /**
- * Set every dog that is not racing to Train or Rest (GDD §5.7). Run *after* the declarations,
- * because Declare already sets a runner to 'race' — so this only ever touches the dogs left in
- * the yard, and never trips setDogState's "withdraw it from its race first".
+ * Set every dog that is not racing to **Rest** (GDD_V3 §4.2). Run *after* the declarations, because
+ * Declare already sets a runner to 'race' — so this only ever touches the dogs left in the yard, and
+ * never trips setDogState's "withdraw it from its race first".
+ *
+ * ⚠️ **There is no Train to choose any more, so this is no longer a policy — it is bookkeeping.**
+ * `StateOptions.train` and `restBelow` were the whole of the difference between Easy, Normal and
+ * Hard's weekly rule ("race above 65, rest below 45, train in between"), and with a binary state the
+ * only decision left is *which dogs to enter*, which `stateHold` and `bestAssignment` make. The
+ * options are kept in the signature because all three agents pass them and Phase B's diet decision
+ * (§6.3's sticky named food / best available / worst available) lands here — but they no longer do
+ * anything, and an agent difference that used to live here has to be found somewhere else.
+ *
+ * `weakestWeightedStat` still sets `trainStat`, which is now the dog's **diet pointer** rather than
+ * its training focus. Nothing reads it in Phase A; Phase B's six goods do.
  */
-export function setStates(plan: Plan, racing: ReadonlySet<Id>, opts: StateOptions = {}): void {
+export function setStates(plan: Plan, racing: ReadonlySet<Id>): void {
   const { playerId, out } = plan;
-  const restBelow = opts.restBelow ?? 45;
-  const mayTrain = opts.train ?? true;
   for (const d of plan.kennel) {
     if (racing.has(d.id)) continue;
     if (d.injuryWeeks > 0) continue; // Layoff: nothing to choose
-    const train = mayTrain && d.fitness >= restBelow;
-    const state = train ? 'train' : 'rest';
     const stat = weakestWeightedStat(d);
-    if (d.weekState === state && (!train || d.trainStat === stat)) continue;
-    out.push({
-      t: 'SetDogState',
-      playerId,
-      dogId: d.id,
-      state,
-      ...(train ? { stat } : {}),
-    });
-    d.weekState = state;
-    if (train) d.trainStat = stat;
+    if (d.weekState === 'rest' && d.trainStat === stat) continue;
+    out.push({ t: 'SetDogState', playerId, dogId: d.id, state: 'rest', stat });
+    d.weekState = 'rest';
+    d.trainStat = stat;
   }
 }
 
@@ -640,8 +643,9 @@ function sellFeedLegs(plan: Plan, nextBand: readonly [number, number] | null): v
     const here = s.planet.goods[g.id].sell;
     // With nowhere better to go, or a better price here than the next stop expects, take the money.
     const expectedNext = mid === null ? 0 : mid * g.priceMult * (1 - balance.foodSpread);
-    // A dog that is training on this stat wants the crate more than the bookkeeper does.
-    const wanted = plan.kennel.some((d) => d.weekState === 'train' && d.trainStat === g.stat);
+    // A dog pointed at this stat wants the crate more than the bookkeeper does. Every dog eats every
+    // week now (GDD_V3 §6.3), so this is about the diet pointer rather than about a Train week.
+    const wanted = plan.kennel.some((d) => d.trainStat === g.stat);
     if (wanted) continue;
     if (here >= expectedNext) {
       out.push({ t: 'TradeFood', playerId, good: g.id, units: -aboard });
@@ -719,7 +723,7 @@ export function racingDogs(assignment: Assignment): Set<Id> {
 /** Turn a chosen assignment into Declare actions, skipping the ones already standing. */
 export function emitDeclarations(plan: Plan, assignment: Assignment): void {
   const { s, playerId, out } = plan;
-  for (const race of thisWeeksCard(s)) {
+  for (const race of thisWeeksCard()) {
     const dogId = assignment.plan[race] ?? null;
     if ((s.declarations[race][playerId] ?? null) !== dogId)
       out.push({ t: 'Declare', playerId, race, dogId });

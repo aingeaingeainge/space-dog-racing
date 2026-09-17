@@ -13,7 +13,7 @@
  */
 import { balance } from '../content/balance';
 import { NAME_FIRST, NAME_SECOND, NAME_SOLO } from '../content/names';
-import { LOCAL_RATING_BY_TIER, raceType } from '../content/raceTypes';
+import { raceType } from '../content/raceTypes';
 import { TRAIT_IDS } from '../content/traits';
 import type { Dog, GoodId, GoodMarket, Id, PlanetState, RaceTypeId, TraitId } from '../types';
 import { GOOD_IDS } from '../types';
@@ -59,8 +59,7 @@ export function createDog(spec: DogSpec, rng: Rng, nextId: IdGen): Dog {
     injuryWeeks: 0,
     wins: 0,
     runs: 0,
-    openWins: 0,
-    outOfMoneyFor: 0,
+    goldCupWins: 0,
     raceBonus: 0,
     // GDD §5.7: every dog starts the week pointed at a race. That is the state a player who
     // touches nothing gets, and it is v1's behaviour, so the Kennels is a decision you may
@@ -97,15 +96,52 @@ export function fitRating(dog: Dog, lo: number, hi: number): Dog {
   return dog;
 }
 
-/** A starting-stable dog: ratings 38–48, ages 2–4 (GDD §5.6). */
+/**
+ * A starting-stable dog: **an equal stat budget, split differently, ages 2–4** (GDD_V3 §5.5).
+ *
+ * ⚠️ **Every stable's three dogs are rolled to the same total, and that is a rule rather than a
+ * nicety.** §5.5 is blunt about why: *"In a game people play against each other, 'you got better
+ * dogs' is the complaint that ends the evening."* v2 fitted each dog into a **rating band** instead,
+ * which is a different and weaker promise — two dogs inside 38–48 can be ten rating points apart, and
+ * across three dogs a stable could start a season a class up on the table.
+ *
+ * So the budget is exact: `startStatBudget` points spread over three stats, with the split drawn at
+ * random. What varies between stables is the *shape* of a dog, never the total — which is also the
+ * shape Phase C wants, because §5.5 deals one of each running style and a style is a redistribution
+ * of the same energy (§5.1).
+ *
+ * The rating that falls out of a budget is not free to choose: with weights summing to 1, a dog with
+ * 150 points over three stats rates 50 whatever the split, so this function does not need to fit a
+ * band at all. That is worth knowing before anybody re-adds one.
+ */
 export function createStartingDog(owner: Id, rng: Rng, nextId: IdGen): Dog {
-  const target = rng.int(balance.startDogRatingMin, balance.startDogRatingMax);
   const dog = createDog(
-    { quality: target, age: rng.int(balance.startDogAgeMin, balance.startDogAgeMax), owner },
+    { quality: 0, age: rng.int(balance.startDogAgeMin, balance.startDogAgeMax), owner },
     rng,
     nextId,
   );
-  return fitRating(dog, balance.startDogRatingMin, balance.startDogRatingMax);
+  // Split the budget three ways by drawing two cut points, then clamp each stat into the legal
+  // 20–99 range and give any rounding remainder to the largest stat, so the total is exact.
+  const budget = balance.startStatBudget;
+  const cuts = [rng.int(1, budget - 1), rng.int(1, budget - 1)].sort((a, b) => a - b);
+  const raw = [cuts[0]!, cuts[1]! - cuts[0]!, budget - cuts[1]!];
+  const parts = raw.map((x) => clamp(x, 20, 99));
+  let drift = budget - parts.reduce((a, b) => a + b, 0);
+  for (let i = 0; drift !== 0 && i < 300; i++) {
+    const at = i % 3;
+    const step = Math.sign(drift);
+    const next = parts[at]! + step;
+    if (next >= 20 && next <= 99) {
+      parts[at] = next;
+      drift -= step;
+    }
+  }
+  const order = rng.shuffle([0, 1, 2]);
+  dog.speed = parts[order[0]!]!;
+  dog.accel = parts[order[1]!]!;
+  dog.stamina = parts[order[2]!]!;
+  dog.rating = baseRating(dog);
+  return dog;
 }
 
 /**
@@ -124,20 +160,21 @@ export function createLocalDog(
   rng: Rng,
   nextId: IdGen,
 ): Dog {
-  const type = raceType(race);
-  const spec = type.local;
-  const mid = LOCAL_RATING_BY_TIER[type.tier] + (major ? balance.localRatingMajorBonus : 0);
-  // The tier says how good the home team is; the row's window says what the race will admit.
-  // The draw is squeezed into the window rather than rejected, so an Invitational's locals are
-  // pushed up to its floor and a Handicap's squashed under its cap — which is how a race that
-  // posts a number still fields eight dogs that satisfy it.
-  const lo = spec.ratingMin ?? 15;
-  const hi = spec.ratingMax ?? 99;
-  const target = clamp(Math.round(rng.gauss(mid, balance.localRatingSd)), lo, hi);
+  // The race's own home-team level (GDD_V3 §7.1): Gold 55, Silver 45, Bronze 35. A rich race draws a
+  // strong home team, and with open entry that IS the whole of what makes the Gold Cup hard — there
+  // is no eligibility gate left to keep a good dog out of it.
+  //
+  // ⚠️ **`LocalSpec`'s rating and age windows are gone with the fact-gated types (§2.1).** They
+  // existed so that a local generated for a Juvenile was actually two years old and one for a
+  // Handicap was actually under the cap — a race that posts a number still needing eight dogs that
+  // satisfy it. Nothing posts a number any more, so a local is simply a dog of about the right
+  // standard.
+  const mid = raceType(race).localRating + (major ? balance.localRatingMajorBonus : 0);
+  const target = clamp(Math.round(rng.gauss(mid, balance.localRatingSd)), 15, 99);
   const dog = createDog(
     {
       quality: target,
-      age: rng.int(spec.ageMin ?? 2, spec.ageMax ?? 5),
+      age: rng.int(2, 5),
       owner: 'local',
       traits: nervy ? ['nervy'] : undefined,
     },
@@ -146,11 +183,10 @@ export function createLocalDog(
   );
   // A local turns up fresh but not perfect. v1 left every dog on createDog's 90, which cost
   // nothing while campaigning stables declared at a mean fitness of 96 — and became a standing
-  // handicap the moment §5.7 put them in the 60–80 band the design asks for. Locals now run at
-  // the top of that band: still the fresher home team, no longer a rating class better.
+  // handicap the moment the weekly state put them in the 60–80 band the design asks for. Locals run
+  // at the top of that band: still the fresher home team, no longer a rating class better.
   dog.fitness = balance.localFitness;
-  if (spec.outOfMoney) dog.outOfMoneyFor = balance.consolationReach;
-  return fitRating(dog, Math.max(lo, target - 3), Math.min(hi, target + 3));
+  return fitRating(dog, Math.max(15, target - 3), Math.min(99, target + 3));
 }
 
 export function emptyPlanetState(planetId: Id): PlanetState {

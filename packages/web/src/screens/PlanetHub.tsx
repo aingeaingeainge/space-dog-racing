@@ -180,7 +180,7 @@ export function PlanetHub({ s, me }: { s: GameState; me: Player }) {
 
       <h3 className="section">This weekend&apos;s card</h3>
       <div className="grid3">
-        {thisWeeksCard(s).map((race) => {
+        {thisWeeksCard().map((race) => {
           const purse = purseFor(s, race);
           const mineId = s.declarations[race][me.id];
           const dog = mineId ? s.dogs[mineId] : undefined;
@@ -189,7 +189,7 @@ export function PlanetHub({ s, me }: { s: GameState; me: Player }) {
             <TicketCard
               key={race}
               cls={raceLabel(race)}
-              tone={raceTone(race, thisWeeksCard(s))}
+              tone={raceTone(race)}
               cap={criterionFor(race)}
               purse={formatBones(purse[0])}
               serial={`2nd ${formatBones(purse[1])} · 3rd ${formatBones(purse[2])}`}

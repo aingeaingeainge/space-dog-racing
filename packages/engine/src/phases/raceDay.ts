@@ -1,5 +1,5 @@
 import { balance } from '../content/balance';
-import { OPEN_TYPE_ID, raceType } from '../content/raceTypes';
+import { HEADLINE_TYPE_ID, raceType } from '../content/raceTypes';
 import { pow10 } from '../determinism';
 import { createLocalDog } from '../economy/dogs';
 import { dogValue } from '../economy/dogValue';
@@ -8,7 +8,6 @@ import { simulateRace, type Runner } from '../race/simulateRace';
 import {
   bettingMargin,
   calendarEntry,
-  championshipTable,
   currentPlanet,
   dog,
   log,
@@ -26,7 +25,7 @@ export function lockDeclarations(ctx: Ctx): void {
   const { s, rng } = ctx;
   const planet = currentPlanet(s);
   const major = calendarEntry(s).major;
-  const card = thisWeeksCard(s);
+  const card = thisWeeksCard();
   const fields: RaceField[] = [];
   const margin = bettingMargin(s);
   const tipsters = s.players.filter((p) => p.flags.tipOff);
@@ -148,37 +147,6 @@ function rollInjury(ctx: Ctx, d: Dog, hazard: number): number {
   return ctx.rng.int(balance.injuryWeeksMin, balance.injuryWeeksMax);
 }
 
-/**
- * The championship purse (GDD §4.3, D3). Paid once, at the Galactic Collar, after the last race of
- * the season has been run and counted.
- *
- * ⚠️ **A purse, not a scoreboard, and D3 is emphatic about why:** net worth is the only condition
- * under which all three roads compete, so a points table as the win condition would delete two
- * thirds of the design. It rewards racing breadth, which is the trainer's road alone, so it is
- * deliberately modest — about 6% of a champion's end worth. It is paid as prize money because that
- * is what it is.
- *
- * ⚠️ **And it is the latest-paying thing in the game**, which is a real cost to watch: Q12 asks why
- * the season is decided at week 6.6, and a purse that lands in week 13 is the one shape that could
- * move it. Measured rather than hoped — see the phase notes.
- */
-function payChampionship(ctx: Ctx): void {
-  const { s } = ctx;
-  const purse = [balance.champPurse1, balance.champPurse2, balance.champPurse3];
-  const table = championshipTable(s);
-  table.slice(0, purse.length).forEach((row, i) => {
-    const amount = purse[i]!;
-    if (row.points <= 0 || amount <= 0) return;
-    const p = player(s, row.playerId);
-    p.cash += amount;
-    p.stats.prizeIncome += amount;
-    log(
-      s,
-      `The championship: ${p.name} finishes ${i + 1}${['st', 'nd', 'rd'][i]} on ${row.points} points and takes ${amount}.`,
-    );
-  });
-}
-
 /** GDD §4.2 step 5: run the card in order; pay out; update dogs; settle bets. */
 export function runRaces(ctx: Ctx): void {
   const { s } = ctx;
@@ -214,7 +182,7 @@ export function runRaces(ctx: Ctx): void {
       const d = dog(s, dogId);
       const delta = applyRaceOutcome(s, d, place, dogs);
       result.ratingDeltas[dogId] = delta;
-      if (race === OPEN_TYPE_ID && place === 1) d.openWins++;
+      if (race === HEADLINE_TYPE_ID && place === 1) d.goldCupWins++;
       if (d.ownerId !== 'local') {
         const owner = player(s, d.ownerId);
         const weeks = rollInjury(ctx, d, planet.track.hazard);
@@ -260,13 +228,7 @@ export function runRaces(ctx: Ctx): void {
     races.push(result);
   }
 
-  // The archive first, then the purse that is counted off it. `championshipPoints` reads
-  // `s.results` plus `s.races`, so publishing this week's card before paying is what makes the
-  // Grand Final's own three races count toward the championship they decide.
   s.races = races;
-
-  // GDD §4.3: the championship purse, once, after the last card of the season.
-  if (entry.grandFinal) payChampionship(ctx);
 
   // Clear race-day buffs.
   for (const d of Object.values(s.dogs)) d.raceBonus = 0;
