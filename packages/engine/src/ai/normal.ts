@@ -12,15 +12,18 @@ import {
 } from './shared';
 
 /**
- * Normal's Race/Train/Rest rule (GDD §14): race above 65 fitness, rest below 45, train in
- * between. Deliberately a single readable line — it is what a player works out in their first
- * season, and Hard's job is to beat it by reasoning about later rather than by knowing more.
+ * Normal's Race-or-Rest rule (GDD_V3 §4.2): race above 65 fitness, rest below it. Deliberately a
+ * single readable line — it is what a player works out in their first season.
+ *
+ * ⚠️ It used to read "race above 65, rest below 45, train in between", and losing the middle case is
+ * why Normal and Hard's weeks are now nearly the same week. Hard's job is still to beat it, and it
+ * has to do that in the declarations and at the bookie.
  */
-const NORMAL_STATES = { raceAbove: 65, restBelow: 45, train: true } as const;
+const NORMAL_STATES = { raceAbove: 65 } as const;
 
 /**
- * Normal AI (GDD §14): declares to maximise expected purse, sets every dog to Race, Train or Rest
- * by a fitness rule, buys feed for the stat its trainees are on, trades the staple when the spread
+ * Normal AI (GDD §14): declares to maximise expected purse, sets every dog to Race or Rest
+ * by a fitness rule, buys feed for the stats its yard is pointed at, trades the staple when the spread
  * beats aiFoodSpreadMin, and bets small on favourites.
  * Deterministic: no randomness, so replays never diverge.
  *
@@ -42,8 +45,9 @@ export function decideNormal(s: GameState, playerId: Id): Action[] {
     if (s.phase === 'planetPre') {
       const assignment = declareBest(plan, { reserve: stateHold(plan, NORMAL_STATES) });
       setStates(plan, racingDogs(assignment));
-      // After setStates, because what feed to buy depends on which dogs are training and on
-      // which stat each one is on — and setStates is what decides both (GDD §8.2).
+      // Still after setStates, though the reason has changed: every dog eats every week now
+      // (GDD_V3 §6.3), so what to buy depends on the diet pointers setStates sets, not on which
+      // dogs are training.
       buyFeedPlan(plan);
     }
     tradeFoodPlan(plan, { workGoods: true });

@@ -15,7 +15,6 @@ import {
 import { cargoTotal, HOLD_CAP } from '../economy/goods';
 import {
   RACE_TYPE_IDS,
-  STAT_KEYS,
   type Action,
   type Cargo,
   type Dog,
@@ -342,38 +341,25 @@ export function startPlan(s: GameState, playerId: Id): Plan {
   };
 }
 
-/**
- * Rating points one Train week is worth: the trainer's points on the chosen stat, plus whatever
- * the dog eats (GDD §8.2, §8.3).
+/*
+ * ⚠️ **`ratingPerTrainWeek` is deleted, and so is the one decision that used it.**
  *
- * The feed half is what Phase C adds. A stable with Prime speed feed aboard gets +4–6 on the stat
- * it chose rather than +1–3 on a random one, which is close to four times the rating for the same
- * week — so an agent that does not price the feed will rest dogs it should be training.
+ * It priced a week in the yard — the trainer's points on the chosen stat plus whatever the dog ate —
+ * and Hard's `trainThroughCheapWeeks` compared that against the purse the dog was passing up. Both
+ * rest on a premise v3 removes: that food reaches a dog only on a week it does not race. GDD_V3 §6.3
+ * feeds **every** dog **every** week whatever it is doing, so resting buys fitness and nothing else,
+ * and a comparison whose right-hand side is a rating gain the dog gets anyway is not a comparison.
+ *
+ * ⚠️ **Measured before deleting, and it was already inert**: 200 seasons of three Hard against three
+ * Normal are identical to the last Bone with the flag on and off (43,625 / 39,279 either way, 48.4%
+ * head to head). With the trainer gone the gain was ~0.7 rating points, which never clears
+ * `(better − now) × weeksLeft × 0.66 > now`. So this is a deletion of dead code rather than of a
+ * behaviour, which is worth knowing because the *notes* will say Hard lost a §14 behaviour here and a
+ * reader would otherwise expect a number to have moved.
+ *
+ * Phase B wants the pricing back — six foods with real effects is exactly when "which food is worth
+ * buying" becomes a decision — and `git show v3a~2:packages/engine/src/ai/shared.ts` has it.
  */
-export function ratingPerTrainWeek(p: Player): number {
-  // Three stats now, not four (GDD_V3 §4.1). The weights sum to 1, so the mean is a third — but
-  // it is written out rather than hard-coded so that a weight moved in the sheet moves this too.
-  const meanWeight =
-    (balance.ratingWeightSpeed + balance.ratingWeightAccel + balance.ratingWeightStamina) / 3;
-  // The floor: plain kibble, on a random stat, so it is worth the mean weight.
-  const kibble = ((balance.trainKibbleMin + balance.trainKibbleMax) / 2) * meanWeight;
-  // Whatever feed is aboard lands on the stat the dog is on. Priced on the best crate in the hold,
-  // which is what `trainOneWeek` will actually feed.
-  let feed = 0;
-  for (const stat of STAT_KEYS) {
-    const g = bestFeedAboard(p.cargo, stat);
-    if (!g) continue;
-    const gain = ((g.gainMin + g.gainMax) / 2) * RATING_WEIGHT[stat];
-    if (gain > feed) feed = gain;
-  }
-  return Math.max(kibble, feed);
-}
-
-const RATING_WEIGHT: Record<StatKey, number> = {
-  speed: balance.ratingWeightSpeed,
-  accel: balance.ratingWeightAccel,
-  stamina: balance.ratingWeightStamina,
-};
 
 export interface FeedBuyOptions {
   /** Crates to aim for per stat being trained. */
@@ -452,70 +438,32 @@ export function buyFeedPlan(plan: Plan, opts: FeedBuyOptions = {}): void {
 }
 
 export interface StateOptions {
-  /** Fitness at or above which a dog is offered to the race card at all. */
-  raceAbove?: number;
-  /** Below this, a dog that is not racing rests rather than trains. */
-  restBelow?: number;
-  /** Whether the stable trains at all. Easy does not. */
-  train?: boolean;
   /**
-   * Hard only: hold a dog out of a cheap week because the training is worth more than the purse
-   * it is passing up. The first behaviour in the game that reasons about *later*, so it is a
-   * flag rather than a constant, and the ablation table in the notes is what it is for.
+   * Fitness at or above which a dog is offered to the race card at all.
+   *
+   * ⚠️ **The only knob left, and it is now the whole of an agent's weekly rule.** `restBelow` and
+   * `train` went with Train (GDD_V3 §4.2): "race above 65, rest below 45, train in between" had
+   * three cases and a binary state has one, so a dog either clears this line or it rests. Which
+   * means the difference between Easy, Normal and Hard's *week* is a single number — and any real
+   * difference between them now has to live in which dogs they enter, not in what they do with the
+   * rest of the yard.
    */
-  trainThroughCheapWeeks?: boolean;
+  raceAbove?: number;
 }
 
 /**
  * Dogs the state policy will not offer to the race card this week (GDD §14). Fed to
  * `bestAssignment` as its `hold`, so the fitness rule decides what races before the expected
- * purse does — which is what makes "race above 65, rest below 45, train in between" a policy
- * rather than a label.
+ * purse does.
  */
 export function stateHold(plan: Plan, opts: StateOptions = {}): Set<Id> {
-  const { s, p } = plan;
   const raceAbove = opts.raceAbove ?? 65;
   const hold = new Set<Id>();
-  const weeksLeft = balance.weeks - s.week;
-  const gain = ratingPerTrainWeek(p);
   for (const d of plan.kennel) {
     if (d.injuryWeeks > 0) continue; // Layoff decides for itself
-    if (d.fitness < raceAbove) {
-      hold.add(d.id);
-      continue;
-    }
-    if (
-      opts.trainThroughCheapWeeks &&
-      weeksLeft > 0 &&
-      trainingBeatsRacing(plan, d, gain, weeksLeft)
-    )
-      hold.add(d.id);
+    if (d.fitness < raceAbove) hold.add(d.id);
   }
   return hold;
-}
-
-/**
- * Is a week in the yard worth more than the week's best purse? (GDD §14 Hard.)
- *
- * The purse passed up is what the dog would expect to win in the best race it can enter now.
- * The training is worth the *uplift* those rating points buy on every remaining race — priced
- * with the same `expectedPurse` the assignment search uses, so the two sides of the comparison
- * are measured with one instrument. It comes out true for a young or weak dog in a cheap week
- * and false in a Major, which is the behaviour §14 asks for and not a rule about ages.
- */
-function trainingBeatsRacing(plan: Plan, d: Dog, gain: number, weeksLeft: number): boolean {
-  const { s, p } = plan;
-  let now = 0;
-  let better = 0;
-  for (const race of thisWeeksCard()) {
-    if (!eligible(d, race)) continue;
-    const rating = effectiveRating(d);
-    now = Math.max(now, expectedPurse(s, d, race, p.id, rating));
-    better = Math.max(better, expectedPurse(s, d, race, p.id, rating + gain));
-  }
-  if (now <= 0) return false;
-  // It will not run every remaining week — two in three is what the fitness cycle allows.
-  return (better - now) * weeksLeft * 0.66 > now;
 }
 
 /**

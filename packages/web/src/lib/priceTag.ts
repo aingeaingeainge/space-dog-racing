@@ -42,8 +42,8 @@ export const STAT_LABEL: Record<StatKey, string> = {
 };
 
 /**
- * Weekends still to come after this one — what a weekly wage runs over and how many Train weeks
- * a feed bought today could possibly be spent on.
+ * Weekends still to come after this one — how many weeks of dinners a feed bought today could
+ * possibly be spent on.
  *
  * ⚠️ **The wage arithmetic this used to carry is gone with the wages (BUILD_PLAN_V3 §2.1).** Phase D
  * pays staff a percentage of race prize money instead (GDD_V3 §8.1), which needs no forward bill at
@@ -53,8 +53,8 @@ export function weeksLeft(s: GameState): number {
   return Math.max(0, balance.weeks - s.week);
 }
 
-export interface TrainProjection {
-  /** Train weeks assumed — every remaining week, which is the ceiling rather than a forecast. */
+export interface FeedProjection {
+  /** Weeks of this diet assumed: every remaining week, which is now a forecast rather than a ceiling. */
   weeks: number;
   statNow: number;
   statThen: number;
@@ -63,20 +63,23 @@ export interface TrainProjection {
 }
 
 /**
- * Where a stat and a rating land if this dog trains that stat every week left in the season.
+ * Where a stat and a rating land if this dog eats that feed every week left in the season.
  *
- * Deliberately the ceiling, and said as one: "would reach 61 by week 13 if it trained every week".
- * A dog cannot both train and race, so the honest framing is the most the purchase could buy,
- * against which the player prices their own plan. Kibble's floor gain is left out — it lands on a
- * random stat and is what a stable that spends nothing already gets, so counting it would flatter
- * every feed by the same amount.
+ * ⚠️ **This stopped being a ceiling and became a forecast, and that is a real improvement in the
+ * number's honesty.** It used to be caveated "if it trained every week", because a dog could not
+ * both train and race and so the projection was the most a purchase could possibly buy. GDD_V3 §6.3
+ * feeds every dog every week whatever it is doing, so a stable that keeps the crate aboard *does*
+ * get this — the only thing that can stop it is running out of food or out of money.
+ *
+ * Kibble's floor gain is still left out: it lands on a random stat and is what a stable that spends
+ * nothing already gets, so counting it would flatter every feed by the same amount.
  */
-export function projectTrain(
+export function projectFeed(
   d: Dog,
   stat: StatKey,
   gainPerWeek: number,
   weeks: number,
-): TrainProjection {
+): FeedProjection {
   const statThen = Math.max(1, Math.min(99, d[stat] + gainPerWeek * weeks));
   return {
     weeks,
@@ -87,9 +90,9 @@ export function projectTrain(
   };
 }
 
-/** "Speed 54 → 61 by week 13, rating 47 → 50" — one line, and the reason the feed has a price. */
-export function projectionLine(s: GameState, p: TrainProjection, stat: StatKey): string {
-  if (p.weeks <= 0) return `no training weeks left — ${STAT_LABEL[stat]} stays ${p.statNow}`;
+/** "Speed 54 → 61 by week 10, rating 47 → 50" — one line, and the reason the feed has a price. */
+export function projectionLine(s: GameState, p: FeedProjection, stat: StatKey): string {
+  if (p.weeks <= 0) return `no weeks left to feed it — ${STAT_LABEL[stat]} stays ${p.statNow}`;
   const week = Math.min(balance.weeks, s.week + p.weeks);
   return (
     `${STAT_LABEL[stat]} ${p.statNow} → ${p.statThen} by week ${week}` +
@@ -131,22 +134,22 @@ export function bestEarner(s: GameState, me: Player): { dog: Dog; won: number } 
  * **This is the sentence Phase C exists for.** A goods table that says "Proper speed feed, 900" is
  * Phase A's Kennels again: a correct rule with no price on it. What a player needs is
  *
- *   Rosco · Speed 54 → 57 next Train week · rating 47 → 48 · 61 by week 13 if he keeps eating it
+ *   Rosco · Speed 54 → 57 next week · rating 47 → 48 · 61 by week 10 if he keeps eating it
  *
  * so the three numbers that decide the purchase — what it does now, what that is worth in rating,
  * and where a season of it lands — are all on the row with the price.
  */
 export function feedEffect(s: GameState, g: Good, d: Dog): string {
   if (!g.stat) {
-    return `The staple. A Train week on kibble alone gains ${g.gainMin}–${g.gainMax} on a random stat`;
+    return `The staple. A week on kibble alone gains ${g.gainMin}–${g.gainMax} on a random stat`;
   }
   const mid = Math.round((g.gainMin + g.gainMax) / 2);
   const oneWeek = ratingWith(d, g.stat, mid);
   const weeks = weeksLeft(s);
-  const far = projectTrain(d, g.stat, mid, weeks);
+  const far = projectFeed(d, g.stat, mid, weeks);
   const label = STAT_LABEL[g.stat];
   return (
-    `${d.name}: ${label} ${d[g.stat]} → ${Math.min(99, d[g.stat] + g.gainMin)}–${Math.min(99, d[g.stat] + g.gainMax)} next Train week, ` +
+    `${d.name}: ${label} ${d[g.stat]} → ${Math.min(99, d[g.stat] + g.gainMin)}–${Math.min(99, d[g.stat] + g.gainMax)} next week, ` +
     `rating ${d.rating} → ${oneWeek}` +
     (weeks > 0
       ? ` · ${label} ${far.statThen} and rating ${far.ratingThen} by week ${Math.min(balance.weeks, s.week + weeks)} if he ate it every week`
@@ -154,7 +157,6 @@ export function feedEffect(s: GameState, g: Good, d: Dog): string {
   );
 }
 
-/** One crate per dog per Train week — so how many Train weeks the hold currently covers. */
 /**
  * How many of the yard's dogs have the food they want aboard.
  *

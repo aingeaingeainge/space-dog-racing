@@ -32,7 +32,7 @@ export function SeasonEnd({ s }: { s: GameState }) {
         </p>
       </div>
 
-      <Panel title="Podium" sub="highest net worth wins; tie-break most Open wins">
+      <Panel title="Podium" sub="highest net worth wins; tie-break most Gold Cup wins">
         <div className="podium">
           {podium.map((r, i) => (
             <div key={r.player.id} className={i === 0 ? 'first' : undefined}>
@@ -43,7 +43,7 @@ export function SeasonEnd({ s }: { s: GameState }) {
               </div>
               <OwnerBlurb player={r.player} />
               <div className="worth">{formatBones(r.netWorth)}</div>
-              <div className="muted">{r.openWins} Open wins</div>
+              <div className="muted">{r.goldCupWins} Gold Cup wins</div>
             </div>
           ))}
         </div>
@@ -87,7 +87,7 @@ export function SeasonEnd({ s }: { s: GameState }) {
                   <td className="num">
                     <b>{formatBones(r.netWorth)}</b>
                   </td>
-                  <td className="num">{r.openWins}</td>
+                  <td className="num">{r.goldCupWins}</td>
                   <td className="num">{formatBones(r.player.stats.prizeIncome)}</td>
                 </tr>
               ))}

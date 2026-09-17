@@ -103,11 +103,11 @@ export interface StandingRow {
   dogs: number;
   cargo: number;
   netWorth: number;
-  openWins: number;
+  goldCupWins: number;
 }
 
 export function standings(s: GameState): StandingRow[] {
-  const open = goldCupWins(s);
+  const cups = goldCupWins(s);
   const rows = s.players.map((player) => {
     const w = netWorthBreakdown(s, player);
     return {
@@ -116,10 +116,10 @@ export function standings(s: GameState): StandingRow[] {
       dogs: w.dogs,
       cargo: w.cargo,
       netWorth: w.total,
-      openWins: open[player.id] ?? 0,
+      goldCupWins: cups[player.id] ?? 0,
     };
   });
-  rows.sort((a, b) => b.netWorth - a.netWorth || b.openWins - a.openWins);
+  rows.sort((a, b) => b.netWorth - a.netWorth || b.goldCupWins - a.goldCupWins);
   return rows;
 }
 

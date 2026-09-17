@@ -95,7 +95,7 @@ export function Stable({ s, me }: { s: GameState; me: Player }) {
             items={[
               [
                 'This week',
-                `${count('race')} racing · ${count('train')} training · ${count('rest')} resting${count('layoff') ? ` · ${count('layoff')} on layoff` : ''}`,
+                `${count('race')} racing · ${count('rest')} resting${count('layoff') ? ` · ${count('layoff')} on layoff` : ''}`,
               ],
               ['Dogs value', formatBones(worth.dogs)],
             ]}
@@ -105,7 +105,7 @@ export function Stable({ s, me }: { s: GameState; me: Player }) {
         <Notes
           lines={[
             `This week's bill: ${formatBones(bill.total)} — ${bill.foodNeeded} crate${bill.foodNeeded === 1 ? '' : 's'} of food (${bill.foodFromHold} from the hold${bill.food ? `, ${formatBones(bill.food)} bought at the gate` : ''}). Food is the only running cost: no upkeep, no wages, no fuel and no debt.`,
-            `Every dog does exactly one of three things with the week. Race costs ${balance.fitnessPerRace} fitness, Train returns ${balance.fitnessTrain} and eats a second crate, Rest returns ${balance.fitnessRest}. Fitness multiplies every stat at every level — a dog at 60 is slower than a dog at 90, but it is still a runner.`,
+            `Every dog either races or rests. Race costs ${balance.fitnessPerRace} fitness, Rest returns ${balance.fitnessRest} — more for a young dog, less for an old one. Every dog eats one crate either way. Fitness multiplies every stat at every level: a dog at 60 is slower than a dog at 90, but it is still a runner.`,
           ]}
         />
       </Panel>
