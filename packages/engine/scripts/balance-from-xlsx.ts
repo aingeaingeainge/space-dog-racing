@@ -44,9 +44,7 @@ const LABELS: Record<string, string> = {
   'Bronze Dash 2nd': 'purseBronze2',
   'Bronze Dash 3rd': 'purseBronze3',
   'Food units eaten per dog per week': 'foodPerDog',
-  'Food price: cheapest planet': 'foodPriceMin',
   'Food price: dearest planet': 'foodPriceMax',
-  'Typical realised margin per unit': 'foodTypicalMargin',
   'Hold capacity (units, everyone, forever)': 'holdCap',
   'Starting cash': 'startCash',
   'Starting dogs': 'startDogs',
@@ -79,7 +77,6 @@ const LABELS: Record<string, string> = {
   // Race or Rest (GDD_V3 §4.2). Train is gone; these two are the whole of the fitness budget, and
   // the Race cost is the ONE number Phase A is allowed to tune (the races-entered band).
   'Fitness: cost of a race': 'fitnessPerRace',
-  'Fitness: gain from a training week': 'fitnessTrain',
   'Fitness: gain from a rest week': 'fitnessRest',
   'Training: plain kibble, minimum stat points': 'trainKibbleMin',
   'Training: plain kibble, maximum stat points': 'trainKibbleMax',
@@ -116,6 +113,57 @@ const LABELS: Record<string, string> = {
   'Regular planets drawn from the pool of 14': 'regularPlanets',
   'Dogs dealt at the start': 'startDogsDealt',
   'Starting dog stat budget (total across three stats)': 'startStatBudget',
+  // ---- v3 Phase B ----
+  // GDD_V3 §6.1's six goods. Four rows each: the 8× band, and the shelf depth that is the scarcity
+  // rule. `content/goods.ts` is a row per good reading these; nothing branches on which good it is.
+  'Grey Mash: price floor': 'greyMashFloor',
+  'Grey Mash: price ceiling': 'greyMashCeiling',
+  'Grey Mash: shelf depth, minimum': 'greyMashShelfMin',
+  'Grey Mash: shelf depth, maximum': 'greyMashShelfMax',
+  'Scrapmeat: price floor': 'scrapmeatFloor',
+  'Scrapmeat: price ceiling': 'scrapmeatCeiling',
+  'Scrapmeat: shelf depth, minimum': 'scrapmeatShelfMin',
+  'Scrapmeat: shelf depth, maximum': 'scrapmeatShelfMax',
+  'Glow Tripe: price floor': 'glowTripeFloor',
+  'Glow Tripe: price ceiling': 'glowTripeCeiling',
+  'Glow Tripe: shelf depth, minimum': 'glowTripeShelfMin',
+  'Glow Tripe: shelf depth, maximum': 'glowTripeShelfMax',
+  'Vat Steak: price floor': 'vatSteakFloor',
+  'Vat Steak: price ceiling': 'vatSteakCeiling',
+  'Vat Steak: shelf depth, minimum': 'vatSteakShelfMin',
+  'Vat Steak: shelf depth, maximum': 'vatSteakShelfMax',
+  'Pulsar Marrow: price floor': 'pulsarMarrowFloor',
+  'Pulsar Marrow: price ceiling': 'pulsarMarrowCeiling',
+  'Pulsar Marrow: shelf depth, minimum': 'pulsarMarrowShelfMin',
+  'Pulsar Marrow: shelf depth, maximum': 'pulsarMarrowShelfMax',
+  'Ambrosia: price floor': 'ambrosiaFloor',
+  'Ambrosia: price ceiling': 'ambrosiaCeiling',
+  'Ambrosia: shelf depth, minimum': 'ambrosiaShelfMin',
+  'Ambrosia: shelf depth, maximum': 'ambrosiaShelfMax',
+  // §6.3's feeding table. Three cheap foods each aimed at one stat, three exotics that are broader
+  // and touch condition (V6) — the randomness sits inside each row rather than between them.
+  'Grey Mash: stat points a week, minimum': 'greyMashGainMin',
+  'Grey Mash: stat points a week, maximum': 'greyMashGainMax',
+  'Scrapmeat: stat points a week, minimum': 'scrapmeatGainMin',
+  'Scrapmeat: stat points a week, maximum': 'scrapmeatGainMax',
+  'Glow Tripe: stat points a week, minimum': 'glowTripeGainMin',
+  'Glow Tripe: stat points a week, maximum': 'glowTripeGainMax',
+  'Vat Steak: stat points a week, minimum': 'vatSteakGainMin',
+  'Vat Steak: stat points a week, maximum': 'vatSteakGainMax',
+  'Pulsar Marrow: stat points a week, minimum': 'pulsarMarrowGainMin',
+  'Pulsar Marrow: stat points a week, maximum': 'pulsarMarrowGainMax',
+  'Pulsar Marrow: fitness a week': 'pulsarMarrowFitness',
+  'Ambrosia: stat points a week, minimum': 'ambrosiaGainMin',
+  'Ambrosia: stat points a week, maximum': 'ambrosiaGainMax',
+  'Ambrosia: fitness a week': 'ambrosiaFitness',
+  'Ambrosia: injury chance multiplier for the week': 'ambrosiaInjuryMult',
+  // §6.3's running cost — the only one there is (V10).
+  'Empty hold: fitness a dog loses when it does not eat': 'emptyHoldFitness',
+  // §6.4's shape. The distribution is the guard on the p99 trading leg; the bands are not.
+  'Price draw: standard deviation as a fraction of the band': 'priceDrawSd',
+  'Price draw: clamp, closest a draw may come to either end of the band': 'priceDrawClamp',
+  'Planet band bias: floor': 'planetBiasMin',
+  'Planet band bias: ceiling': 'planetBiasMax',
 };
 
 const wb = XLSX.read(readFileSync(xlsxPath));

@@ -6,6 +6,7 @@ import {
   dogValue,
   netWorthBreakdown,
   planetOf,
+  restRateFor,
   thisWeeksCard,
   FREE_HORIZON,
   raceType,
@@ -166,20 +167,30 @@ export function cannotRunReason(s: GameState, d: Dog): string | null {
 export interface FitnessOutlook {
   now: number;
   racing: number;
-  training: number;
   resting: number;
 }
 
+/**
+ * ⚠️ **`training` is gone, and it was Phase A residue of the class Phase A warned about.** There has
+ * been no Train state since GDD_V3 V8, but this still computed a third outlook off
+ * `balance.fitnessTrain` and nothing anywhere rendered it — a screen helper describing a deleted
+ * rule, exactly like the galaxy map's orphaned `Card` header. The tunable left the spreadsheet with
+ * it.
+ *
+ * ⚠️ **The rest figure is banded by age**, which it was not: it read `balance.fitnessRest` flat
+ * while the engine has used `restRateFor(d.age)` since Phase A, so the card promised a
+ * seven-year-old +30 and the jump gave it +20. A display that mirrors the engine has to mirror the
+ * engine.
+ */
 export function fitnessOutlook(d: Dog): FitnessOutlook {
   const bounce = d.traits.includes('bouncesBack') ? 5 : 0;
   // ⚠️ No vet to add to the rest any more (BUILD_PLAN_V3 §2.1). GDD_V3 §8.2's staff bonuses put
   // "+5 fitness recovery per week" back in Phase D, and `me` is kept in the signature for it.
-  const rest = balance.fitnessRest + bounce;
+  const rest = restRateFor(d.age) + bounce;
   const cap = (n: number) => Math.max(0, Math.min(100, Math.round(n)));
   return {
     now: d.fitness,
     racing: cap(d.fitness - balance.fitnessPerRace),
-    training: cap(d.fitness + balance.fitnessTrain),
     resting: cap(d.fitness + rest),
   };
 }
