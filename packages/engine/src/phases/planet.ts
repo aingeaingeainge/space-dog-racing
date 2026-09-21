@@ -1,6 +1,6 @@
 import { raceType } from '../content/raceTypes';
 import { good } from '../content/goods';
-import { cargoTotal, HOLD_CAP } from '../economy/goods';
+import { cargoTotal, HOLD_CAP, recordPurchase } from '../economy/goods';
 import { decimalOdds } from '../race/odds';
 import {
   bettingMargin,
@@ -141,7 +141,7 @@ export function tradeFood(ctx: Ctx, action: Extract<Action, { t: 'TradeFood' }>)
     if (units > available) fail(`Only ${available} crates of ${g.label} to be had here`, action);
     const cost = units * market.buy;
     pay(p, cost, action);
-    p.cargo[action.good] += units;
+    recordPurchase(p, action.good, units, market.buy);
     // Every shelf is finite and shared (GDD_V3 §6.1, V7): what you buy, the stable after you in the
     // turn order cannot. That is what going first is *for* (§2.3).
     market.stock -= units;
@@ -172,5 +172,8 @@ export function setDogState(ctx: Ctx, action: Extract<Action, { t: 'SetDogState'
     fail(`Withdraw ${d.name} from its race first`, action);
   }
   d.weekState = action.state;
-  if (action.stat) d.trainStat = action.stat;
+  if (action.diet) {
+    if (action.diet.kind === 'named') good(action.diet.good); // throws on a good this engine lacks
+    d.diet = action.diet;
+  }
 }

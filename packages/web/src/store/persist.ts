@@ -28,6 +28,16 @@ export interface SaveBlob {
 }
 
 /**
+ * 5 for v3 Phase B. The blob is still seed + action log, and a v3a log does not replay: its
+ * `TradeFood` actions trade `kibble`, which no longer exists, and its `SetDogState` actions carry a
+ * `stat` where v3b expects a `diet`. So a v3a save fails the check below and lands on the title
+ * screen with a new season.
+ *
+ * ⚠️ **This constant did not move from `v2c` to `v3a`**, though v2d, v2e and v3a all changed the
+ * action log's meaning — v3a deleted nine action types. A v2c-to-v2e save therefore *passed* this
+ * check at `v3a` and failed later, at replay, with an error message rather than softly here. v3 Phase
+ * A's notes said such a save "fails soft to the title screen"; it did not. See `STATE_VERSION`.
+ *
  * 3 for v2 Phase B. The blob itself is unchanged in shape — it is still seed + action log — but
  * the log is no longer replayable: `Declare` and `PlaceBet` name a race type rather than a
  * class, so every declaration and every bet in a Phase A log is an action this engine rejects.
@@ -35,7 +45,7 @@ export interface SaveBlob {
  * player on the title screen with a new season rather than half a season that no longer means
  * what it meant.
  */
-export const SAVE_VERSION = 4;
+export const SAVE_VERSION = 5;
 const KEY = 'sdr.save.v1';
 
 export function writeSave(blob: SaveBlob): void {

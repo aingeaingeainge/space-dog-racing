@@ -3,6 +3,7 @@ import { GOODS, good, STAPLE_ID } from '../content/goods';
 import {
   GOOD_IDS,
   type Cargo,
+  type Diet,
   type Dog,
   type GoodId,
   type GoodMarket,
@@ -50,16 +51,19 @@ export function cratesWanted(p: Player, d: Dog): number {
 }
 
 /**
- * Which crate this dog reaches for.
+ * Which crate a dog on this diet reaches for (GDD_V3 §6.3).
  *
- * ⚠️ **The sticky per-dog diet of §6.3 is not built yet** — that is item 4 of this phase, and it
- * puts a named food / best available / worst available choice in front of this. What is here is
- * §6.3's own fallback rule, *"the cheapest thing aboard"*, which is what the diet falls back to when
- * its choice runs out and is therefore the right behaviour for a dog that has no diet yet.
- * "Cheapest" is the good's place on the §6.1 ladder, not this week's price: a diet is a standing
- * order, and a standing order cannot depend on a draw the dog has never seen.
+ * The diet picks first — a named food, the dearest aboard, or the cheapest aboard — and when its
+ * pick is not in the hold the dog **falls back to the cheapest thing aboard**, which is §6.3's own
+ * rule. "Dearest" and "cheapest" are the good's place on the §6.1 ladder (`GOOD_IDS` order), not
+ * this week's price: a diet is a standing order, and a standing order cannot depend on a draw the
+ * owner has not seen.
  */
-function chooseFood(cargo: Cargo): GoodId | null {
+export function chooseFood(cargo: Cargo, diet: Diet): GoodId | null {
+  if (diet.kind === 'named' && cargo[diet.good] > 0) return diet.good;
+  if (diet.kind === 'best') {
+    for (let i = GOOD_IDS.length - 1; i >= 0; i--) if (cargo[GOOD_IDS[i]!] > 0) return GOOD_IDS[i]!;
+  }
   for (const id of GOOD_IDS) if (cargo[id] > 0) return id;
   return null;
 }
@@ -77,7 +81,7 @@ export function planFeeding(p: Player, dogs: readonly Dog[], gateOpen = false): 
   const out: FeedPlan[] = [];
   for (const d of dogs) {
     const crates = cratesWanted(p, d);
-    const good = chooseFood(left);
+    const good = chooseFood(left, d.diet);
     if (good === null) {
       out.push(
         gateOpen

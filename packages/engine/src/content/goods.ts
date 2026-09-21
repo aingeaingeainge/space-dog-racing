@@ -43,6 +43,13 @@ export interface Good {
   /** Stat points a week of this food adds, inclusive. */
   gainMin: number;
   gainMax: number;
+  /** Fitness a week of this food adds on top of the week's own recovery — the exotics' condition. */
+  fitness: number;
+  /**
+   * Multiplier on the dog's injury chance in the races after the jump it ate this at — Ambrosia's
+   * "injury chance halved this week" (§6.3). 1 for every food that does not touch it.
+   */
+  injuryMult: number;
 }
 
 export const GOODS: readonly Good[] = [
@@ -57,6 +64,10 @@ export const GOODS: readonly Good[] = [
     stat: null,
     gainMin: balance.greyMashGainMin,
     gainMax: balance.greyMashGainMax,
+    // 0 and 1 are "this food does not touch condition" — the identities, not tunables. §6.3 gives
+    // fitness and an injury effect to the two exotics only, and those are sheet cells.
+    fitness: 0,
+    injuryMult: 1,
   },
   {
     id: 'scrapmeat',
@@ -69,6 +80,8 @@ export const GOODS: readonly Good[] = [
     stat: 'stamina',
     gainMin: balance.scrapmeatGainMin,
     gainMax: balance.scrapmeatGainMax,
+    fitness: 0,
+    injuryMult: 1,
   },
   {
     id: 'glowTripe',
@@ -81,6 +94,8 @@ export const GOODS: readonly Good[] = [
     stat: 'accel',
     gainMin: balance.glowTripeGainMin,
     gainMax: balance.glowTripeGainMax,
+    fitness: 0,
+    injuryMult: 1,
   },
   {
     id: 'vatSteak',
@@ -93,6 +108,8 @@ export const GOODS: readonly Good[] = [
     stat: 'speed',
     gainMin: balance.vatSteakGainMin,
     gainMax: balance.vatSteakGainMax,
+    fitness: 0,
+    injuryMult: 1,
   },
   {
     id: 'pulsarMarrow',
@@ -105,6 +122,8 @@ export const GOODS: readonly Good[] = [
     stat: null,
     gainMin: balance.pulsarMarrowGainMin,
     gainMax: balance.pulsarMarrowGainMax,
+    fitness: balance.pulsarMarrowFitness,
+    injuryMult: 1,
   },
   {
     id: 'ambrosia',
@@ -117,6 +136,8 @@ export const GOODS: readonly Good[] = [
     stat: null,
     gainMin: balance.ambrosiaGainMin,
     gainMax: balance.ambrosiaGainMax,
+    fitness: balance.ambrosiaFitness,
+    injuryMult: balance.ambrosiaInjuryMult,
   },
 ];
 

@@ -17,7 +17,11 @@ export type Id = string;
  */
 export type RaceTypeId = 'bronzeDash' | 'silverPlate' | 'goldCup';
 
-export const RACE_TYPE_IDS: readonly RaceTypeId[] = ['bronzeDash', 'silverPlate', 'goldCup'] as const;
+export const RACE_TYPE_IDS: readonly RaceTypeId[] = [
+  'bronzeDash',
+  'silverPlate',
+  'goldCup',
+] as const;
 
 /**
  * Three stats, not four (GDD_V3 §4.1).
@@ -60,6 +64,24 @@ export const GOOD_IDS: readonly GoodId[] = [
   'pulsarMarrow',
   'ambrosia',
 ] as const;
+
+/**
+ * What a dog is fed, set once in the Kennel and sticky (GDD_V3 §6.3). Not a weekly click.
+ *
+ * - `named` — this food whenever there is some aboard;
+ * - `best` — the dearest food aboard, by its place on the §6.1 ladder;
+ * - `worst` — the cheapest food aboard, by the same ladder.
+ *
+ * Whatever the setting, a dog whose choice is not aboard **falls back to the cheapest thing
+ * aboard** (§6.3), and a dog the hold cannot feed at all loses `emptyHoldFitness`.
+ *
+ * "Best" and "worst" are the good's place on the ladder, never this week's price: a diet is a
+ * standing order, and a standing order cannot depend on a draw the owner has not seen.
+ *
+ * ⚠️ **This replaced `Dog.trainStat`, a `StatKey`**, which Phase A kept as a placeholder diet
+ * pointer that nothing read. It is a stored-state change — see `STATE_VERSION`.
+ */
+export type Diet = { kind: 'named'; good: GoodId } | { kind: 'best' } | { kind: 'worst' };
 
 /**
  * What is in a stable's hold: crates per good.
@@ -210,16 +232,17 @@ export interface Dog {
   goldCupWins: number;
   raceBonus: number; // temporary speed-stat bonus for this weekend's race (lucky bone)
   weekState: WeekState; // GDD_V3 §4.2 — Race or Rest
+  /** GDD_V3 §6.3's sticky diet: what this dog reaches for at the jump. */
+  diet: Diet;
   /**
-   * Which stat this dog's food is pointed at.
+   * What it ate at the last jump, or null if it went hungry (or has not eaten yet).
    *
-   * ⚠️ **Nothing reads this in Phase A and it is kept on purpose.** Train is gone, so there is no
-   * per-week stat choice left; but GDD_V3 §6.3's **sticky per-dog diet** — a named food, or best
-   * available, or worst available — is the same field doing the same job for the six goods, and
-   * Phase B replaces the type rather than adding a field. Deleting it would move the state shape
-   * twice for one idea.
+   * Stored because a food's effect can outlast the jump it was eaten at: §6.3's Ambrosia halves
+   * the injury chance "this week", and a dog eats at the *end* of its week, after its races — so
+   * the week the halving protects is the next one, and race day reads it from here. It is a fact
+   * about the dog, not a rule about Ambrosia; any row with an `injuryMult` below 1 does the same.
    */
-  trainStat: StatKey;
+  lastMeal: GoodId | null;
   look: { body: number; palette: number; accessory: number };
 }
 
@@ -234,6 +257,21 @@ export interface Player {
   dogIds: Id[];
   /** Crates aboard, per good (GDD §8.2). */
   cargo: Cargo;
+  /**
+   * What this stable paid per crate for what is in its hold, per good — §6.2's **You Paid**.
+   *
+   * ⚠️ **A running average, not FIFO**, and that is a decision (B4): a purchase moves the average
+   * toward its own price in proportion to the crates it adds; a sale, a dinner, a spoiled crate or
+   * a pirate's cut takes crates out *at* the average and leaves it where it was; a crate that
+   * arrives free (an event) comes in at zero and pulls the average down, because you did not pay
+   * for it. FIFO would need a list of lots per good in the save file and a column a player cannot
+   * check in their head; one number per good is what Gazillionaire printed and what "did I pay
+   * more than this?" actually asks.
+   *
+   * Zero whenever that good's hold is zero — kept true by `settleHold` at the end of every action,
+   * so the save never carries an average for crates that are not there.
+   */
+  paid: Cargo;
   flags: {
     arriveFirstNextWeek: boolean;
     tipOff: boolean; // a local runner is not trying this week
@@ -420,7 +458,12 @@ export type Action =
     }
   /** +buy / −sell, of one good. The `good` is what makes the hold a set of decisions. */
   | { t: 'TradeFood'; playerId: Id; good: GoodId; units: number }
-  | { t: 'SetDogState'; playerId: Id; dogId: Id; state: WeekState; stat?: StatKey }
+  /**
+   * Race or Rest, and optionally the dog's sticky diet (GDD_V3 §6.3). ⚠️ `diet` replaced
+   * `stat?: StatKey` in v3 Phase B — the same version bump as `Dog.diet`, because `Action` is the
+   * save file and the replay protocol.
+   */
+  | { t: 'SetDogState'; playerId: Id; dogId: Id; state: WeekState; diet?: Diet }
   | { t: 'ResolveEvent'; playerId: Id; choice: number }
   | { t: 'EndPhase'; playerId: Id }
   | { t: 'AdvancePhase' }; // system

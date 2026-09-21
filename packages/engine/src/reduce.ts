@@ -1,3 +1,4 @@
+import { settleHold } from './economy/goods';
 import { runArrival } from './phases/arrival';
 import { runEndTurn } from './phases/endTurn';
 import { resolveEvent } from './phases/events';
@@ -75,6 +76,9 @@ export function reduceMut(s: GameState, action: Action): GameState {
         action,
       );
   }
+  // You Paid is meaningless for a good that is no longer aboard; zero it here rather than at every
+  // one of the six places a crate can leave the hold (GDD_V3 §6.2, decision B4).
+  for (const p of s.players) settleHold(p);
   return commitCtx(ctx);
 }
 

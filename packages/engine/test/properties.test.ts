@@ -45,6 +45,11 @@ function checkInvariants(s: GameState): void {
     for (const id of GOOD_IDS) {
       assert(p.cargo[id] >= 0, `p.cargo[${id}] >= 0`);
       assert(Number.isInteger(p.cargo[id]), `p.cargo[${id}] is an integer`);
+      // §6.2's You Paid (decision B4): a running average, never negative, and zero whenever there
+      // is nothing of that good aboard — `settleHold` keeps that true after every action. (Zero with
+      // crates aboard is fine: crates that arrived free cost nothing.)
+      assert(p.paid[id] >= 0, `p.paid[${id}] >= 0`);
+      assert(p.cargo[id] > 0 || p.paid[id] === 0, `p.paid[${id}] is set with nothing aboard`);
     }
     assert(cargoTotal(p.cargo) >= 0, 'cargoTotal(p.cargo) >= 0');
     // One hold, the same for everybody, forever — there is no ship to enlarge it (GDD_V3 §6.1).
@@ -68,7 +73,12 @@ function checkInvariants(s: GameState): void {
       // BUILD_PLAN §7: every dog has exactly one weekly state, and Layoff is never stored — an
       // injured dog keeps the state its owner chose and `weekStatusOf` overrides it.
       assert(WEEK_STATES.includes(d!.weekState), `weekState ${d!.weekState} is not one of three`);
-      assert(STAT_KEYS.includes(d!.trainStat), `trainStat ${d!.trainStat} is not a stat`);
+      // ⚠️ v3 Phase B: `trainStat` is replaced by the sticky diet (GDD_V3 §6.3), so the invariant
+      // that the pointer names something real is re-pointed at the field that replaced it.
+      assert(['named', 'best', 'worst'].includes(d!.diet.kind), `diet ${d!.diet.kind} is not a diet`);
+      if (d!.diet.kind === 'named')
+        assert(GOOD_IDS.includes(d!.diet.good), `diet names ${d!.diet.good}, which is not a good`);
+      assert(d!.lastMeal === null || GOOD_IDS.includes(d!.lastMeal), `lastMeal ${d!.lastMeal}`);
       if (d!.injuryWeeks > 0) assert(weekStatusOf(d!) === 'layoff', 'an injured dog is on layoff');
       // A declared dog is racing. Declare sets it, and setDogState refuses to unset it.
       if (!s.locked && RACE_TYPE_IDS.some((r) => s.declarations[r][p.id] === id))
@@ -207,32 +217,38 @@ describe('engine invariants', () => {
     expect(() =>
       reduceMut(s, { t: 'TradeFood', playerId: 'p1', good: STAPLE_ID, units: 1000 }),
     ).toThrow();
-    // Buy the staple a crate at a time until the money runs out. The only purchase left in v3
-    // Phase A is the market, so that is what the refusal has to be tested against.
+    // Spend down a crate at a time, **dearest good first**, moving down the ladder whenever a
+    // shelf runs out, until the reducer refuses — which is how a stable with money in its pocket
+    // actually shops, and the only order in which cash and space can be told apart.
     let bought = 0;
-    for (;;) {
-      try {
-        reduceMut(s, { t: 'TradeFood', playerId: 'p1', good: STAPLE_ID, units: 1 });
-        bought++;
-      } catch (e) {
-        expect(String(e)).toMatch(/Bones|hold space/);
-        break;
+    let stoppedOn: 'cash' | 'hold' | null = null;
+    for (const id of [...GOOD_IDS].reverse()) {
+      for (;;) {
+        try {
+          reduceMut(s, { t: 'TradeFood', playerId: 'p1', good: id, units: 1 });
+          bought++;
+        } catch (e) {
+          const why = String(e);
+          if (/Bones/.test(why)) stoppedOn = 'cash';
+          else if (/hold space/.test(why)) stoppedOn = 'hold';
+          else expect(why).toMatch(/to be had here/); // this shelf is bare: next good down
+          break;
+        }
       }
+      if (stoppedOn) break;
     }
     expect(bought).toBeGreaterThanOrEqual(1);
     expect(p.cash).toBeGreaterThanOrEqual(0);
-    // ⚠️ **The old assertion here was `cash < shipCargoCost × 1.2` — "the money is nearly gone" —
-    // and it no longer holds, for a reason worth keeping rather than a bug.** It spent down through
-    // 1,400-Bone hold upgrades, so cash was always what ran out. With no upgrades to buy, the only
-    // purchase left is food at about a hundred a crate against a 20-crate hold, so **the hold binds
-    // long before the cash does**: this run stops with most of the 6,000 still in hand.
-    //
-    // That is GDD_V3 §6.1's cash-bound-to-hold-bound progression arriving at the wrong end of the
-    // season — with one cheap good and a small hold there is no cash-bound early game at all. It is
-    // the clearest single argument for Phase B's 50-unit hold and its 8× bands, and Phase B's
-    // "the week a stable stops being cash-bound and starts being hold-bound, weeks 4–7" row is where
-    // it gets measured. What is asserted now is the invariant this test is actually for.
     expect(cargoTotal(p.cargo)).toBeLessThanOrEqual(HOLD_CAP);
+    // ⚠️ **Re-examined in v3 Phase B, as Phase A asked, and now it measures something.** Phase A
+    // rewrote this to assert only the hold cap, because with one cheap good and a 20-crate hold the
+    // hold always bound before the cash and there was no early game to test. At GDD_V3 §6.1's 50
+    // crates and six goods on 8× bands, a stable in week 1 shopping dearest-first runs out of
+    // **money** with the hold far from full — "cash binds early" — and at a 20-crate hold the same
+    // walk runs out of *space* first (Ambrosia and Marrow alone fill it), so this line fails if the
+    // hold is ever put back. The crossover to hold-bound later in the season is a harness row.
+    expect(stoppedOn).toBe('cash');
+    expect(cargoTotal(p.cargo)).toBeLessThan(HOLD_CAP);
   });
 
   /**

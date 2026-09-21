@@ -7,11 +7,13 @@ import {
   HOLD_CAP,
   weekStatusOf,
   weeklyFitnessDelta,
-  STAT_KEYS,
+  GOODS,
   WEEK_STATES,
   type Dog,
   type GameState,
   type Player,
+  type Diet,
+  type GoodId,
   type StatKey,
   type WeekState,
   good,
@@ -29,6 +31,7 @@ import {
   raceLabel,
   weeklyBill,
 } from '../lib/selectors';
+import { feedEffect } from '../lib/priceTag';
 import { useGame } from '../store/gameStore';
 
 function status(d: Dog): { text: string; tone?: 'bad' | 'hot' } {
@@ -162,19 +165,26 @@ export function Stable({ s, me }: { s: GameState; me: Player }) {
   );
 }
 
+/** A diet as a `<select>` value, and back. Named foods are their good id. */
+function dietKey(diet: Diet): string {
+  return diet.kind === 'named' ? diet.good : diet.kind;
+}
+function dietFromKey(key: string): Diet {
+  if (key === 'best' || key === 'worst') return { kind: key };
+  return { kind: 'named', good: key as GoodId };
+}
+
 /**
  * What this dog eats at the jump, in its own terms — straight from the engine's `planFeeding`, so
  * the card cannot disagree with what the week actually does (GDD_V3 §6.3).
  */
-function dinnerLine(f: FeedPlan | undefined): string {
+function dinnerLine(s: GameState, d: Dog, f: FeedPlan | undefined): string {
   if (!f) return '';
   if (f.good === null)
     return `Nothing to eat at the jump: −${balance.emptyHoldFitness} fitness and no gain. Buy food at the Market.`;
   const g = good(f.good);
-  const gain = g.gainMin === g.gainMax ? `+${g.gainMin}` : `+${g.gainMin}–${g.gainMax}`;
-  const where = g.stat ? STAT_LABEL[g.stat] : 'a random stat';
   const from = f.fromGate ? ' (bought at the gate)' : '';
-  return `Eats ${g.label} at the jump${from}: ${gain} ${where}.`;
+  return `Eats ${g.label} at the jump${from} — ${feedEffect(s, g, d)}.`;
 }
 
 /**
@@ -243,15 +253,15 @@ function WeekPlan({
           );
         })}
         {/*
-          ⚠️ **The stat picker is kept and repointed (GDD_V3 §6.3).** It used to say what a Train week
-          worked on; there is no Train week, and what it says now is the dog's **diet** — the stat its
-          food is aimed at. Nothing in Phase A reads it, because one placeholder good has no stat to
-          aim, so it is shown but does nothing. Phase B's six foods and its sticky named-food / best
-          available / worst available setting are what make it live.
+          GDD_V3 §6.3's diet: per dog, sticky, and **not a weekly click** — set it once and it holds
+          until you change it. The default is the cheapest food aboard, which is also §6.3's own
+          fallback, so a player who never touches this never sees a dog eat the Ambrosia they bought
+          to sell. The line under the card says what the dog will actually eat at the jump.
         */}
         <select
-          aria-label={`What ${d.name} is fed for`}
-          value={d.trainStat}
+          aria-label={`What ${d.name} eats`}
+          title="Diet — sticky: it holds until you change it"
+          value={dietKey(d.diet)}
           disabled={!inTurn}
           onChange={(e) =>
             dispatch({
@@ -259,13 +269,16 @@ function WeekPlan({
               playerId: me.id,
               dogId: d.id,
               state: d.weekState,
-              stat: e.target.value as StatKey,
+              diet: dietFromKey(e.target.value),
             })
           }
         >
-          {STAT_KEYS.map((k) => (
-            <option key={k} value={k}>
-              {STAT_LABEL[k]} ({d[k]})
+          <option value="worst">Worst available (cheapest aboard)</option>
+          <option value="best">Best available (dearest aboard)</option>
+          {GOODS.map((g) => (
+            <option key={g.id} value={g.id}>
+              {g.label}
+              {g.stat ? ` — ${STAT_LABEL[g.stat]}` : ' — random stat'}
             </option>
           ))}
         </select>
@@ -278,7 +291,7 @@ function WeekPlan({
         <span className="muted small">Cannot run this weekend — {barred}.</span>
       ) : null}
       <span className={dinner && dinner.good === null ? 'warn-text small' : 'muted small'}>
-        {dinnerLine(dinner)}
+        {dinnerLine(s, d, dinner)}
       </span>
     </div>
   );

@@ -164,10 +164,15 @@ ROWS.push(
 
 // ---- Item 3: the hold, for everybody, forever. ----
 //
-// ⚠️ `Hold capacity (units, everyone, forever)` is **not** in this list, and that is deliberate. It
-// already exists at 20, so raising it here would change the economy from a pass that is otherwise
-// pure data — a snapshot move in a commit whose message does not claim one. It is flipped to 50 in
-// the commit that spends it, where the six goods and the shelf depth already exist to spend it on.
+// ⚠️ This row already existed at 20, which makes it the one row here that changes the economy on
+// its own. It was therefore left out of the first pass (22a702a, which moved nothing) and added in
+// the commit that spends it, once the six goods and the shelf depth existed to spend it on.
+ROWS.push({
+  section: 'Food trading',
+  label: 'Hold capacity (units, everyone, forever)',
+  value: 50,
+  note: 'GDD_V3 §6.1. No ship to upgrade. Cash binds early, the hold binds from about the middle of the season',
+});
 
 /**
  * Labels to delete outright, with the reason. A row removed here must also leave `LABELS` in

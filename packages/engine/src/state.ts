@@ -26,11 +26,21 @@ import type {
 import { ActionError, RACE_TYPE_IDS } from './types';
 
 /**
- * 6 for v2 Phase E: the Fixer is hired by the **job** rather than by the week, so he lives on
- * `PlanetState.fixer` instead of in `Player.staff`, every `Fix` carries the man and his grade,
- * and the season's fixing is archived in `fixArchive`. A Phase D log cannot replay on this
- * engine — its `HireStaff` actions can name a fixer, and nothing here would know what to do with
- * one.
+ * 6 for v3 Phase B: a dog carries a sticky `diet` (GDD_V3 §6.3) where it carried a `trainStat`, and
+ * a `lastMeal`; a stable carries `paid`, the running average behind §6.2's You Paid column; the
+ * hold holds six goods rather than one; and `SetDogState` carries a `diet` where it carried a
+ * `stat`. A v3a log cannot replay on this engine: its `TradeFood` actions trade `kibble`, which
+ * does not exist, and its diet pointers would be silently dropped.
+ *
+ * ⚠️ **A correction to the record below, found in v3 Phase B.** This constant was **5 from `v2d`
+ * through `v3a`**. The paragraph that used to head this list said "6 for v2 Phase E", and v3 Phase A
+ * deleted nine action types and changed `Dog`, `Player` and the calendar — and neither bumped it.
+ * Nothing broke, because nothing reads `GameState.version`: the save is seed + log, and what
+ * actually gates an old save is `SAVE_VERSION` in `store/persist.ts`. That one stayed at **4 from
+ * `v2c` through `v3a`**, which means a v2c, v2d or v2e save *passed* `readSave` at `v3a` and failed
+ * later, at replay, with "That save could not be replayed" rather than softly at the title screen as
+ * v3 Phase A's notes said it would. Both move in v3 Phase B. What v2 Phase E described — the Fixer
+ * by the job — never had a number of its own, and 6 is used here because no state ever carried it.
  *
  * 5 for v2 Phase D: dogs carry a `nobbled` figure, the state carries this weekend's `fixes`, and
  * a stable can be barred from hiring a Fixer — so `Action` gains `BribeSteward` and `Sabotage`
@@ -48,7 +58,7 @@ import { ActionError, RACE_TYPE_IDS } from './types';
  * The web save is seed + log (store/persist.ts), which is why SAVE_VERSION moves with it and an
  * old save fails soft to the title screen rather than replaying into a different game.
  */
-export const STATE_VERSION = 5;
+export const STATE_VERSION = 6;
 /**
  * The Major weekends. **One, at week 5 (GDD_V3 §2.1)**, where v2 had three.
  *
@@ -335,6 +345,8 @@ export function createSeason(setup: SeasonSetup): GameState {
       cash: balance.startCash,
       dogIds: [],
       cargo: { ...emptyCargo(), [STAPLE_ID]: balance.startCargo },
+      // The starting crates were not bought, so they cost nothing — which is what You Paid says.
+      paid: emptyCargo(),
       flags: {
         arriveFirstNextWeek: false,
         tipOff: false,

@@ -59,7 +59,7 @@
   "growthAge1Band": 1,
   "growthAge2": 1,
   "growthAge2Band": 1,
-  "holdCap": 20,
+  "holdCap": 50,
   "injuredValueFactor": 0.7,
   "injuryBase": 0.04,
   "injuryLowFitnessBelow": 50,

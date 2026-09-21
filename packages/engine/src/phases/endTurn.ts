@@ -37,14 +37,15 @@ function ownDogs(s: GameState, p: Player): Dog[] {
  * own recovery. **Applying it separately would let it vanish**: a rested dog at 95 would take
  * −10 and then +30 into a ceiling of 100 and never feel it.
  *
- * With one placeholder good there is no stat feed to choose and no fitness bonus to gain, so a fed
- * dog takes the floor: +1 on a random stat. **Phase B item 4 is where this gets interesting** —
- * §6.3 gives each of the six foods its own effect, three pointed at a stat and three broader ones
- * that touch condition, chosen by the sticky per-dog diet.
+ * What the dog eats is its sticky diet's choice, planned by `planFeeding` (§6.3), and each of the
+ * six rows carries its own effect: Scrapmeat, Glow Tripe and Vat Steak are aimed at one stat each,
+ * and Grey Mash, Pulsar Marrow and Ambrosia land on a random one — the dearer two also adding
+ * fitness, and Ambrosia halving the injury chance in the races after this jump (`lastMeal`).
  */
 function feedOneWeek(ctx: Ctx, p: Player, d: Dog, plan: FeedPlan): number {
   const { rng, s } = ctx;
   if (plan.good === null) {
+    d.lastMeal = null;
     log(
       s,
       `${d.name} went hungry — nothing in the hold. −${balance.emptyHoldFitness} fitness.`,
@@ -65,7 +66,10 @@ function feedOneWeek(ctx: Ctx, p: Player, d: Dog, plan: FeedPlan): number {
   const gain = rng.int(feed.gainMin, feed.gainMax);
   const stat = feed.stat ?? rng.pick(STAT_KEYS);
   d[stat] = clamp(d[stat] + gain, 1, 99);
-  return 0;
+  d.lastMeal = feed.id;
+  // The exotics touch condition (§6.3): Pulsar Marrow +5, Ambrosia +8. Returned rather than
+  // applied, for the same reason as the hunger penalty — it has to go through the week's one clamp.
+  return feed.fitness;
 }
 
 /**

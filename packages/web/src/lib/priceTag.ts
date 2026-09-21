@@ -136,12 +136,22 @@ export function bestEarner(s: GameState, me: Player): { dog: Dog; won: number } 
  *   Rosco · Speed 54 → 57 next week · rating 47 → 48 · 61 by week 10 if he keeps eating it
  *
  * so the three numbers that decide the purchase — what it does now, what that is worth in rating,
- * and where a season of it lands — are all on the row with the price.
+ * and where a season of it lands — are all on the row with the price. (The dog's name is the
+ * caller's to add; the Kennel prints this under the dog's own card.)
  */
 export function feedEffect(s: GameState, g: Good, d: Dog): string {
+  // ⚠️ v3 Phase B: every food has an effect now (GDD_V3 §6.3), and the three broad ones carry more
+  // than a stat — Pulsar Marrow and Ambrosia add fitness, and Ambrosia halves the injury chance in
+  // the races after the jump it is eaten at. Those clauses are read off the row, so a food added to
+  // the sheet with a fitness figure says so here without a branch.
+  const extras = [
+    g.fitness ? `+${g.fitness} fitness` : '',
+    g.injuryMult < 1 ? `injury chance ×${g.injuryMult} in next weekend's races` : '',
+  ].filter(Boolean);
+  const tail = extras.length ? `, ${extras.join(', ')}` : '';
   if (!g.stat) {
     const gain = g.gainMin === g.gainMax ? `${g.gainMin}` : `${g.gainMin}–${g.gainMax}`;
-    return `${d.name}: +${gain} on a random stat each week it eats ${g.label}`;
+    return `+${gain} on a random stat${tail}`;
   }
   const mid = Math.round((g.gainMin + g.gainMax) / 2);
   const oneWeek = ratingWith(d, g.stat, mid);
@@ -149,7 +159,7 @@ export function feedEffect(s: GameState, g: Good, d: Dog): string {
   const far = projectFeed(d, g.stat, mid, weeks);
   const label = STAT_LABEL[g.stat];
   return (
-    `${d.name}: ${label} ${d[g.stat]} → ${Math.min(99, d[g.stat] + g.gainMin)}–${Math.min(99, d[g.stat] + g.gainMax)} next week, ` +
+    `${label} ${d[g.stat]} → ${Math.min(99, d[g.stat] + g.gainMin)}–${Math.min(99, d[g.stat] + g.gainMax)} next week${tail}, ` +
     `rating ${d.rating} → ${oneWeek}` +
     (weeks > 0
       ? ` · ${label} ${far.statThen} and rating ${far.ratingThen} by week ${Math.min(balance.weeks, s.week + weeks)} if he ate it every week`

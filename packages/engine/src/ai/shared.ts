@@ -4,12 +4,13 @@ import { raceType } from '../content/raceTypes';
 import { winProbabilities } from '../race/odds';
 import { baseRating, dogValue } from '../economy/dogValue';
 import { calendarEntry, eligible, FREE_HORIZON, player, purseFor, thisWeeksCard } from '../state';
-import { GOODS, good, STAPLE_ID, type Good } from '../content/goods';
+import { feedsFor, GOODS, good, STAPLE_ID, type Good } from '../content/goods';
 import { expectedPrice } from '../economy/food';
 import { cargoTotal, HOLD_CAP } from '../economy/goods';
 import {
   type Action,
   type Cargo,
+  type Diet,
   type Dog,
   type GoodId,
   type GameState,
@@ -18,6 +19,7 @@ import {
   type Player,
   type RaceTypeId,
   type StatKey,
+  type WeekState,
 } from '../types';
 
 export function ownDogs(s: GameState, p: Player): Dog[] {
@@ -388,19 +390,46 @@ export function buyFeedPlan(plan: Plan, opts: FeedBuyOptions = {}): void {
     return;
   }
 
-  const want = weeklyFoodNeed(s, p) * (opts.weeks ?? 2);
-  const have = plan.cargo[STAPLE_ID];
-  if (have >= want) return;
-  const price = s.planet.goods[STAPLE_ID].buy;
-  const units = Math.min(
-    want - have,
-    availableHere(plan, STAPLE_ID),
-    HOLD_CAP - cargoTotal(plan.cargo),
-    Math.floor(Math.max(0, plan.cash) / Math.max(1, price)),
-  );
-  if (units > 0) buy(plan, STAPLE_ID, units);
+  const weeks = opts.weeks ?? 2;
+  const topUp = (id: GoodId, want: number, budget: number): void => {
+    const have = plan.cargo[id];
+    if (have >= want) return;
+    const price = s.planet.goods[id].buy;
+    const units = Math.min(
+      want - have,
+      availableHere(plan, id),
+      HOLD_CAP - cargoTotal(plan.cargo),
+      Math.floor(Math.max(0, budget) / Math.max(1, price)),
+    );
+    if (units > 0) buy(plan, id, units);
+  };
+
+  // The fallback first: whatever a diet names, a dog whose choice is not aboard eats the cheapest
+  // thing there is (§6.3), so the staple is the one food that must never run out.
+  topUp(STAPLE_ID, weeklyFoodNeed(s, p) * weeks, plan.cash);
+
+  // Then each named diet — but only at or below what this planet usually asks for it. Paying over
+  // the odds for dinner is the one feeding mistake the price band makes visible, and a dog whose
+  // food was too dear this week eats the staple instead and loses a week's training rather than a
+  // week's condition.
+  for (const g of GOODS) {
+    if (g.id === STAPLE_ID) continue;
+    const reserve = dietReserve(plan, g.id);
+    if (reserve === 0) continue;
+    if (s.planet.goods[g.id].buy > expectedPrice(planetOf(s.planet.planetId), g.id)) continue;
+    topUp(g.id, reserve * weeks, Math.max(0, plan.cash - plan.reserve));
+  }
   void playerId;
   void out;
+}
+
+/** Crates of this good the yard eats in a week by diet — what the trading step must not sell. */
+export function dietReserve(plan: Plan, id: GoodId): number {
+  let n = 0;
+  for (const d of plan.kennel) {
+    if (d.diet.kind === 'named' && d.diet.good === id) n += d.traits.includes('glutton') ? 2 : 1;
+  }
+  return n * balance.foodPerDog * (plan.p.sponsorWeeks > 0 ? 2 : 1);
 }
 
 export interface StateOptions {
@@ -433,31 +462,57 @@ export function stateHold(plan: Plan, opts: StateOptions = {}): Set<Id> {
 }
 
 /**
- * Set every dog that is not racing to **Rest** (GDD_V3 §4.2). Run *after* the declarations, because
- * Declare already sets a runner to 'race' — so this only ever touches the dogs left in the yard, and
- * never trips setDogState's "withdraw it from its race first".
+ * The diet an agent names for a dog (GDD_V3 §6.3): the food aimed at its weakest stat, weighted by
+ * how much the rating cares about each — Vat Steak for a slow dog, Glow Tripe for one that breaks
+ * badly, Scrapmeat for one that fades.
  *
- * ⚠️ **There is no Train to choose any more, so this is no longer a policy — it is bookkeeping.**
- * `StateOptions.train` and `restBelow` were the whole of the difference between Easy, Normal and
- * Hard's weekly rule ("race above 65, rest below 45, train in between"), and with a binary state the
- * only decision left is *which dogs to enter*, which `stateHold` and `bestAssignment` make. The
- * options are kept in the signature because all three agents pass them and Phase B's diet decision
- * (§6.3's sticky named food / best available / worst available) lands here — but they no longer do
- * anything, and an agent difference that used to live here has to be found somewhere else.
- *
- * `weakestWeightedStat` still sets `trainStat`, which is now the dog's **diet pointer** rather than
- * its training focus. Nothing reads it in Phase A; Phase B's six goods do.
+ * A rule a player works out in their first season, and deliberately not the best one available:
+ * §6.4's "exotic food in the cheap weeks" is the better player's move, and nothing here makes it.
  */
-export function setStates(plan: Plan, racing: ReadonlySet<Id>): void {
+export function dietFor(d: Dog): Diet {
+  const g = feedsFor(weakestWeightedStat(d))[0];
+  return g ? { kind: 'named', good: g.id } : { kind: 'worst' };
+}
+
+function sameDiet(a: Diet, b: Diet): boolean {
+  if (a.kind !== b.kind) return false;
+  return a.kind !== 'named' || (b.kind === 'named' && a.good === b.good);
+}
+
+export interface SetStateOptions {
+  /** Name each dog's diet by `dietFor`. Off, a dog keeps whatever it has — Easy's default. */
+  diets?: boolean;
+}
+
+/**
+ * Set every dog that is not racing to **Rest** (GDD_V3 §4.2), and — for an agent that feeds — point
+ * every dog's sticky diet at the food it needs (§6.3). Run *after* the declarations, because Declare
+ * already sets a runner to 'race', so a runner is only ever re-sent as 'race' and never trips
+ * setDogState's "withdraw it from its race first".
+ *
+ * The diet is sticky, so an action is sent only when it changes — which is rarely, because a dog's
+ * weakest stat moves slowly. That is §10.1's "diet is sticky and normally costs nothing" holding for
+ * the AI as well as for a player.
+ */
+export function setStates(plan: Plan, racing: ReadonlySet<Id>, opts: SetStateOptions = {}): void {
   const { playerId, out } = plan;
   for (const d of plan.kennel) {
-    if (racing.has(d.id)) continue;
-    if (d.injuryWeeks > 0) continue; // Layoff: nothing to choose
-    const stat = weakestWeightedStat(d);
-    if (d.weekState === 'rest' && d.trainStat === stat) continue;
-    out.push({ t: 'SetDogState', playerId, dogId: d.id, state: 'rest', stat });
-    d.weekState = 'rest';
-    d.trainStat = stat;
+    // A runner's state is Declare's business and a laid-off dog's is the stewards'; only the yard
+    // is sent to Rest here. So a runner or a layoff gets an action only when its diet moves.
+    const runs: WeekState = racing.has(d.id) ? 'race' : d.injuryWeeks > 0 ? d.weekState : 'rest';
+    const diet = opts.diets ? dietFor(d) : d.diet;
+    const newDiet = !sameDiet(d.diet, diet);
+    const stateSettled = racing.has(d.id) || d.injuryWeeks > 0 || d.weekState === runs;
+    if (stateSettled && !newDiet) continue;
+    out.push({
+      t: 'SetDogState',
+      playerId,
+      dogId: d.id,
+      state: runs,
+      ...(newDiet ? { diet } : {}),
+    });
+    d.weekState = runs;
+    d.diet = diet;
   }
 }
 
@@ -533,8 +588,19 @@ export function tradeFoodPlan(plan: Plan, opts: FoodOptions = {}): void {
   const dinner = weeklyFoodNeed(s, p);
 
   // ---- Sell ----
+  //
+  // A week's dinner of the staple is never sold, and nor is a week's diet food — **unless it is in
+  // the top quarter of its band here**, which is §6.4's "Grey Mash in the weeks it is worth selling"
+  // written as a rule: the dogs eat the staple this once, and the stable banks the price.
   for (const g of GOODS) {
-    const keep = g.id === STAPLE_ID ? Math.min(plan.cargo[g.id], dinner) : 0;
+    const m = s.planet.goods[g.id];
+    const dear = (m.buy - g.floor) / (g.ceiling - g.floor) >= 0.75;
+    const keep =
+      g.id === STAPLE_ID
+        ? Math.min(plan.cargo[g.id], dinner)
+        : dear
+          ? 0
+          : Math.min(plan.cargo[g.id], dietReserve(plan, g.id));
     const spare = plan.cargo[g.id] - keep;
     if (spare <= 0) continue;
     const next = expectedSellNext(plan, g.id);

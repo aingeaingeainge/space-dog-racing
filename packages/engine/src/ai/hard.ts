@@ -142,7 +142,7 @@ function declareForThisWeek(plan: Plan): Assignment {
   }
 
   emitDeclarations(plan, assignment);
-  setStates(plan, racingDogs(assignment));
+  setStates(plan, racingDogs(assignment), { diets: true });
   return assignment;
 }
 

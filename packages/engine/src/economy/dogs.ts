@@ -65,7 +65,11 @@ export function createDog(spec: DogSpec, rng: Rng, nextId: IdGen): Dog {
     // touches nothing gets, and it is v1's behaviour, so the Kennels is a decision you may
     // take rather than a form you must fill in.
     weekState: 'race',
-    trainStat: 'speed',
+    // GDD_V3 §6.3's diet, defaulting to the cheapest food aboard — which is also §6.3's fallback,
+    // so a player who never touches the setting gets the rule's own behaviour and their dogs never
+    // eat the Ambrosia they bought to sell. "Best available" has to be *chosen*.
+    diet: { kind: 'worst' },
+    lastMeal: null,
     look: { body: rng.int(0, 11), palette: rng.int(0, 5), accessory: rng.int(0, 7) },
   };
   dog.rating = baseRating(dog);

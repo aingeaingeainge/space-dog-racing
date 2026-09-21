@@ -44,7 +44,7 @@ export function decideNormal(s: GameState, playerId: Id): Action[] {
   if (s.phase === 'planetPre' || s.phase === 'planetPost') {
     if (s.phase === 'planetPre') {
       const assignment = declareBest(plan, { reserve: stateHold(plan, NORMAL_STATES) });
-      setStates(plan, racingDogs(assignment));
+      setStates(plan, racingDogs(assignment), { diets: true });
       // Dinner first, so a trading leg bought below it is never what the dogs eat (GDD_V3 §6.3's
       // cheapest-aboard fallback feeds the staple before anything dearer).
       buyFeedPlan(plan);

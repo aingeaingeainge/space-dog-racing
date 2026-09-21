@@ -28,6 +28,8 @@ import {
   type RaceTypeId,
   type SeasonSetup,
   type WeekState,
+  type Diet,
+  type GoodId,
 } from '@sdr/engine';
 import { applyActions, screenFor, type ScreenUi } from '../src/store/loop';
 
@@ -39,6 +41,15 @@ const HUMAN = 'p1';
  * checking" failure Phase A warned about — so the run fails unless most of the ladder was used.
  */
 const goodsTraded = new Set<string>();
+
+/** The week the walk sells its whole hold after the races, to make a dog go hungry at the jump. */
+const HUNGRY_WEEK = 3;
+
+/** The food aimed at a dog's weakest stat — what the walk names as its diet in week 1. */
+function dietFood(d: Dog): GoodId {
+  const weakest = (['speed', 'accel', 'stamina'] as const).reduce((a, b) => (d[b] < d[a] ? b : a));
+  return GOODS.find((g) => g.stat === weakest)!.id;
+}
 
 /**
  * Action counters. `Record<string, number>` plus `noUncheckedIndexedAccess` means every read is
@@ -94,11 +105,16 @@ function planetTurn(s: GameState, p: Player, tally: Tally): Action[] {
   // action and the reason this runs first.
   if (pre) {
     for (const d of kennel) {
-      if (d.injuryWeeks > 0) continue;
-      const state: WeekState = d.fitness >= 65 ? 'race' : 'rest';
-      if (d.weekState === state) continue;
-      out.push({ t: 'SetDogState', playerId: p.id, dogId: d.id, state });
+      // GDD_V3 §6.3's sticky diet, set once in week 1 the way a player would: each dog on the
+      // food aimed at its weakest stat. Sticky, so this is three clicks a season, not a week.
+      const diet: Diet | undefined =
+        s.week === 1 ? { kind: 'named', good: dietFood(d) } : undefined;
+      if (d.injuryWeeks > 0 && !diet) continue;
+      const state: WeekState = d.injuryWeeks > 0 ? d.weekState : d.fitness >= 65 ? 'race' : 'rest';
+      if (d.weekState === state && !diet) continue;
+      out.push({ t: 'SetDogState', playerId: p.id, dogId: d.id, state, ...(diet ? { diet } : {}) });
       bump(tally, 'SetDogState');
+      if (diet) walked.diets++;
     }
   }
 
@@ -112,7 +128,16 @@ function planetTurn(s: GameState, p: Player, tally: Tally): Action[] {
   // **This is the row to watch when Phase B lands**: §6.2's six goods with shelf depth and a sticky
   // per-dog diet are exactly the kind of thing a walk-through can *survive* without exercising, and
   // a check that passes because it stopped checking is worse than a red one.
-  if (s.toggles.trading) {
+  if (s.toggles.trading && s.week === HUNGRY_WEEK && s.phase === 'planetPost') {
+    // ⚠️ **Run out of food on purpose, once a season** (BUILD_PLAN_V3 Phase B item 5): sell the
+    // whole hold after the races so the yard sails empty and §6.3's penalty has to fire. A walk
+    // that never went hungry would pass without ever touching the one rule carrying the economy.
+    for (const g of GOODS) {
+      if (p.cargo[g.id] <= 0) continue;
+      out.push({ t: 'TradeFood', playerId: p.id, good: g.id, units: -p.cargo[g.id] });
+      bump(tally, 'TradeFood');
+    }
+  } else if (s.toggles.trading) {
     // Read the six rows the way §6.2 asks a player to: by where each price sits in its own range.
     // Sell anything in the top quarter, keep two weeks of the staple for dinner, and buy whatever
     // is in the bottom quarter with the money left over — which exercises the finite shelf, the
@@ -324,7 +349,7 @@ const seeds = process.argv
 const toRun = seeds.length ? seeds : [42, 7, 1234, 90210];
 let failures = 0;
 /** Phase A's replacement for the §13 coverage row — see the note at the end of the run. */
-const walked = { declare: 0, states: 0, trades: 0, bets: 0 };
+const walked = { declare: 0, states: 0, trades: 0, bets: 0, diets: 0, hungry: 0 };
 for (const seed of toRun) {
   const variants: [string, SeasonSetup['toggles'] | undefined][] =
     seed === toRun[0]
@@ -372,6 +397,15 @@ for (const seed of toRun) {
       walked.states += tally.SetDogState ?? 0;
       walked.trades += tally.TradeFood ?? 0;
       walked.bets += tally.PlaceBet ?? 0;
+      // GDD_V3 §6.3's penalty, read off the season's own log rather than inferred: the walk sold its
+      // hold in week HUNGRY_WEEK, so in a trading season at least one of its dogs must have gone
+      // hungry at that jump — and a trading season in which none did means the rule did not fire.
+      const hungry = state.eventLog.filter(
+        (l) => l.playerId === HUMAN && l.text.includes('went hungry'),
+      ).length;
+      if (state.toggles.trading && hungry === 0)
+        throw new Error(`sold the hold in week ${HUNGRY_WEEK} and no dog went hungry`);
+      walked.hungry += hungry;
       if (human.dogIds.length === 0) throw new Error('the human stable lost every dog');
     } catch (e) {
       failures++;
@@ -384,7 +418,8 @@ for (const seed of toRun) {
 // walk. So the run fails unless every decision v3 has at this point was actually made.
 console.log(
   `\nThe week walked: ${walked.declare} declarations, ${walked.states} Race/Rest changes, ` +
-    `${walked.trades} trades, ${walked.bets} bets.`,
+    `${walked.trades} trades, ${walked.bets} bets, ${walked.diets} diets set, ` +
+    `${walked.hungry} hungry dog-weeks.`,
 );
 console.log(
   `Goods traded: ${goodsTraded.size} of ${GOODS.length} (${[...goodsTraded].join(', ')}).`,

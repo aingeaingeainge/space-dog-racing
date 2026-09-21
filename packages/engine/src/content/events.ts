@@ -3,7 +3,7 @@ import { planetOf } from './planets';
 
 import { good, STAPLE_ID } from './goods';
 import { type IdGen } from '../economy/dogs';
-import { cargoTotal, emptyHold, spoilCargo, HOLD_CAP } from '../economy/goods';
+import { cargoTotal, emptyHold, recordPurchase, spoilCargo, HOLD_CAP } from '../economy/goods';
 import { describeTaste } from '../economy/food';
 import { winProbAgainst } from '../race/odds';
 import { clamp, type Rng } from '../rng';
@@ -374,7 +374,8 @@ export const EVENTS: readonly EventCard[] = [
       {
         label: 'Haul them in',
         apply: (ctx) => {
-          ctx.p.cargo[STAPLE_ID] += 5;
+          // Free, so they come in at zero and pull You Paid down: you did not pay for them.
+          recordPurchase(ctx.p, STAPLE_ID, 5, 0);
           ctx.log('+5 crates of mystery Grey Mash.');
         },
       },

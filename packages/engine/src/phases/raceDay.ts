@@ -1,4 +1,5 @@
 import { balance } from '../content/balance';
+import { good } from '../content/goods';
 import { HEADLINE_TYPE_ID, raceType } from '../content/raceTypes';
 import { pow10 } from '../determinism';
 import { createLocalDog } from '../economy/dogs';
@@ -143,6 +144,8 @@ function rollInjury(ctx: Ctx, d: Dog, hazard: number): number {
   if (d.fitness < balance.injuryLowFitnessBelow) p *= balance.injuryLowFitnessMult;
   if (d.traits.includes('fragile')) p *= 2;
   if (d.traits.includes('iron')) p *= 0.5;
+  // What it ate at the last jump (GDD_V3 §6.3): Ambrosia halves it for the week that follows.
+  if (d.lastMeal) p *= good(d.lastMeal).injuryMult;
   if (!ctx.rng.chance(p)) return 0;
   return ctx.rng.int(balance.injuryWeeksMin, balance.injuryWeeksMax);
 }

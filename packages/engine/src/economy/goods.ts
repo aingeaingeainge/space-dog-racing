@@ -25,19 +25,42 @@ export function cargoTotal(cargo: Cargo): number {
 }
 
 /**
- * The hold, for everybody, forever.
+ * The hold: **50 crates, for everybody, forever** (GDD_V3 §6.1).
  *
  * ⚠️ **There is no ship to upgrade (BUILD_PLAN_V3 §2.1), so capacity is a constant rather than a
- * field.** Phase A deliberately keeps v2's *starting* capacity rather than adopting GDD_V3 §6.1's
- * 50, because 50 belongs to Phase B's six goods and bringing it forward would quietly change the
- * economy in the phase that is supposed to be measuring what deleting things did. Phase B raises
- * this to 50 when it has six goods and shelf depth to spend it on.
+ * field** — and `Player.ship` went in Phase A. Phase A held it at v2's starting 20 on purpose, so
+ * that deleting things could be measured on its own; Phase B raises it to 50 in the same commit that
+ * gives the six goods something to spend it on. At 50 the cash binds first and the hold binds from
+ * the middle of the season, which is §6.1's progression and the harness's crossover row.
  */
 export const HOLD_CAP = balance.holdCap;
 
 /** Room left in the hold. */
 export function holdRoom(p: Player): number {
   return HOLD_CAP - cargoTotal(p.cargo);
+}
+
+/**
+ * Crates arriving in the hold at a known cost per crate, and the running average that is §6.2's
+ * **You Paid** column (decision B4). A purchase moves the average toward its own price in
+ * proportion to the crates it adds; a free crate (an event) arrives at zero and pulls it down,
+ * because you did not pay for it. Crates leaving — sold, eaten, spoiled, taken — leave *at* the
+ * average and do not move it, which is what makes a partial sale sensible: sell half and what is
+ * left still cost what it cost.
+ */
+export function recordPurchase(p: Player, id: GoodId, crates: number, costEach: number): void {
+  const held = p.cargo[id];
+  p.paid[id] = held > 0 ? (p.paid[id] * held + costEach * crates) / (held + crates) : costEach;
+  p.cargo[id] = held + crates;
+}
+
+/**
+ * Zero the average for any good the hold no longer carries, so the save never records a price for
+ * crates that are not there. Run after every action (`reduce.ts`), which is cheaper to reason about
+ * than hooking every one of the six places a crate can leave the hold.
+ */
+export function settleHold(p: Player): void {
+  for (const id of GOOD_IDS) if (p.cargo[id] === 0 && p.paid[id] !== 0) p.paid[id] = 0;
 }
 
 /**
