@@ -5,7 +5,7 @@ import { winProbabilities } from '../race/odds';
 import { baseRating, dogValue } from '../economy/dogValue';
 import { calendarEntry, eligible, FREE_HORIZON, player, purseFor, thisWeeksCard } from '../state';
 import { feedsFor, GOODS, good, STAPLE_ID, type Good } from '../content/goods';
-import { expectedPrice } from '../economy/food';
+import { expectedPrice, planFeeding } from '../economy/food';
 import { cargoTotal, HOLD_CAP } from '../economy/goods';
 import {
   type Action,
@@ -635,6 +635,46 @@ export function tradeFoodPlan(plan: Plan, opts: FoodOptions = {}): void {
     buy(plan, pick.g.id, units);
     budget -= units * pick.price;
     room -= units;
+  }
+
+  guardDinner(plan);
+}
+
+/**
+ * Never let the yard go hungry for want of looking (GDD_V3 §6.3).
+ *
+ * ⚠️ **Found by the harness, not by reading.** The staple is the cheapest food on every shelf, and
+ * with six stables buying dinner and trading it, the Grey Mash on a planet can be gone by the time
+ * the last stable in the turn order gets there — which is §2.3 working exactly as designed: the shelf
+ * is shared and going first is what it is for. What was *not* working was the agent: a Normal stable
+ * with twenty thousand Bones in hand would find one crate of Mash, sell its Vat Steak, and sail with
+ * two dogs unfed, because nothing asked "can the yard eat?" after the trading was done. 4.8% of
+ * Normal's dog-weeks were hungry that way.
+ *
+ * So this runs last, on the hold as the queued actions will leave it, and asks the engine's own
+ * `planFeeding` the question: any dog the hold cannot feed gets its crates bought now — cheapest
+ * food on the shelf first, whatever the price, because a week's dinner at the top of its band still
+ * costs less than 10 fitness. A careless stable (Easy) never calls this, and that is the penalty's
+ * job: to bite the stable that did not look.
+ */
+function guardDinner(plan: Plan): void {
+  const { s, p } = plan;
+  const hungry = planFeeding({ ...p, cargo: plan.cargo }, plan.kennel).filter(
+    (f) => f.good === null,
+  );
+  let need = hungry.reduce((n, f) => n + f.crates, 0);
+  for (const g of GOODS) {
+    if (need <= 0) break;
+    const price = s.planet.goods[g.id].buy;
+    const units = Math.min(
+      need,
+      availableHere(plan, g.id),
+      HOLD_CAP - cargoTotal(plan.cargo),
+      Math.floor(Math.max(0, plan.cash) / Math.max(1, price)),
+    );
+    if (units <= 0) continue;
+    buy(plan, g.id, units);
+    need -= units;
   }
 }
 
