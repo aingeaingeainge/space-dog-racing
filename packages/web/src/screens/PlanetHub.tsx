@@ -213,7 +213,17 @@ export function PlanetHub({ s, me }: { s: GameState; me: Player }) {
       </div>
 
       <div className="grid2">
-        <Panel title="Turn order" sub="ship speed × 10 − cargo ÷ 5 + d10">
+        {/*
+          GDD_V3 §2.3: turn order is bought with an empty hold and nothing else, and it cuts both
+          ways — first look at a shelf that runs out, against a heavy hold that goes last all season.
+          The engine writes the arithmetic into each stable's reason, so the table shows the whole
+          sum rather than a verdict. (The subtitle said "ship speed × 10" until v3 Phase B; there
+          has been no ship since Phase A.)
+        */}
+        <Panel
+          title="Turn order"
+          sub={`${balance.arrivalBase} − crates aboard ÷ ${balance.arrivalCargoDiv} + d${balance.arrivalDie}, highest first · ties to the lighter hold`}
+        >
           <div className="table-wrap">
             <table>
               <tbody>
@@ -234,6 +244,11 @@ export function PlanetHub({ s, me }: { s: GameState; me: Player }) {
               </tbody>
             </table>
           </div>
+          <Notes
+            lines={[
+              `Every ${balance.arrivalCargoDiv} crates you carry off this planet costs a point next week. A full hold of ${HOLD_CAP} is ${HOLD_CAP / balance.arrivalCargoDiv} points — more than the die can make up — so a stable that trades heavy goes last to the shelf, week after week, and everybody can see why.`,
+            ]}
+          />
         </Panel>
 
         <Panel title="This week" sub="what has happened so far">

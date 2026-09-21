@@ -27,34 +27,45 @@ export function runArrival(ctx: Ctx): void {
   s.races = null;
   s.done = [];
 
-  // Turn order: −cargo ÷ 5 + d10, highest first (reversed at Blackreach).
+  // Turn order: `20 − cargo ÷ 5 + d10`, highest first (reversed at Blackreach) — GDD_V3 §2.3.
   //
   // ⚠️ **There is no ship speed to buy any more (BUILD_PLAN_V3 §2.1), so turn order is bought with
-  // an empty hold and nothing else** — which is exactly what GDD_V3 §2.3 asks for. §2.3 writes the
-  // score as `20 − cargoUnits ÷ 5 + d10`; the constant 20 does not change any ordering, so it is
-  // left out here rather than written in as a number that does nothing. Phase B puts it back when
-  // the 50-unit hold makes the whole expression something the screen has to explain.
+  // an empty hold and nothing else**, and a stable that loads its hold to the roof goes last all
+  // season — a trade the whole table can see it making, which is why the reason names the numbers.
+  //
+  // ⚠️ **The score is computed in whole numbers, scaled by the divisor**: `20×5 − crates + die×5`.
+  // Phase A computed `−crates ÷ 5 + die` in floating point, and 0.2 is not a binary fraction, so two
+  // stables on *exactly* the same score — 1 crate and a 1, 11 crates and a 3 — compared as 0.8
+  // against 0.7999999999999998 and the tie went to whoever the rounding error favoured. Deterministic
+  // (IEEE `+ − ÷` are exact per spec, so every engine agreed), but a tie decided by the last bit of a
+  // double is not a rule anybody can read. Found in Phase B because putting the constant 20 back
+  // moved the golden season when a constant added to every score cannot move an ordering: it moved
+  // which ties the rounding broke. With the score exact, the constant is verifiably inert.
+  //
+  // **Ties go to the lighter hold**, then to the table's seating order. The lighter ship lands first
+  // is the rule's own logic applied to the one case the arithmetic cannot separate.
+  const div = balance.arrivalCargoDiv;
   const scored = s.players.map((p) => {
     const die = rng.int(1, balance.arrivalDie);
     const crates = cargoTotal(p.cargo);
-    let score = -crates / balance.arrivalCargoDiv + die;
-    let reason =
-      crates > HOLD_CAP / 2
-        ? 'heavy cargo'
-        : die >= 8
-          ? 'lucky approach'
-          : 'steady approach';
+    let score = balance.arrivalBase * div - crates + die * div;
+    const sum =
+      `${balance.arrivalBase} − ${crates} crate${crates === 1 ? '' : 's'} ÷ ${div} + ` +
+      `${die} on the die = ${(score / div).toFixed(1)}`;
+    let reason = crates > HOLD_CAP / 2 ? `heavy hold: ${sum}` : sum;
     if (p.flags.arriveFirstNextWeek) {
-      score += 1000;
-      reason = 'wormhole shortcut';
+      score += 1000 * div;
+      reason = 'wormhole shortcut — first, whatever the score';
       p.flags.arriveFirstNextWeek = false;
     }
-    return { id: p.id, score, reason };
+    return { id: p.id, score, crates, reason };
   });
-  scored.sort((a, b) => b.score - a.score);
+  scored.sort((a, b) => b.score - a.score || a.crates - b.crates);
   if (planet.special.turnOrderReversed) {
     scored.reverse();
-    for (const x of scored) x.reason = 'black hole drags heavy ships in first';
+    for (const x of scored)
+      if (!x.reason.startsWith('wormhole'))
+        x.reason = `the black hole drags the heaviest in first — ${x.reason}`;
   }
   s.turnOrder = scored.map((x) => x.id);
   s.turnOrderReason = Object.fromEntries(scored.map((x) => [x.id, x.reason]));

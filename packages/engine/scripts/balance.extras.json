@@ -34,6 +34,7 @@
   "oddsScale": 15.5,
   "oddsFloor": 0.005,
   "foodSpread": 0.1,
+  "arrivalBase": 20,
   "arrivalCargoDiv": 5,
   "arrivalDie": 10,
   "startDogRatingMin": 38,
