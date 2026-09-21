@@ -213,7 +213,7 @@ export function Title() {
             on={!toggles.trading}
             set={(v) => setToggles((t) => ({ ...t, trading: !v }))}
             label="No Trading"
-            blurb="No kibble trade. Your dogs still eat: you pay the local price at the gate."
+            blurb="The market is shut. Your dogs still eat: Grey Mash, at the local price, at the gate."
           />
           <Toggle
             on={toggles.casualEvents}
@@ -229,14 +229,14 @@ export function Title() {
         />
       </Panel>
 
-      <Panel title="What is in this build" sub="milestone M4 — the whole game">
+      <Panel title="What is in this build" sub="v3 Phase B — the market">
         <p className="muted flush">
-          A whole 13-week season against Easy, Normal and Hard stables: declarations, three races a
-          weekend replayed on the track, results, events, the market, the kibble trade, the bookie,
-          the leaderboard, and a season-end screen that shows you where it was won. Every screen is
-          painted to the art bible and every planet tints its own chrome. Most of the pictures are
-          still stand-ins — hatched slots labelled &ldquo;placeholder&rdquo; — because 11 of the 149
-          files in the art library are real so far.
+          A ten-week season against Easy, Normal and Hard stables: three dealt dogs, Race or Rest,
+          three purse tiers, the six-food market that is also your dogs&apos; training, events, the
+          bookie, the leaderboard, and a season-end screen that shows you where it was won. Every
+          screen is painted to the art bible and every planet tints its own chrome. Most of the
+          pictures are still stand-ins — hatched slots labelled &ldquo;placeholder&rdquo; — because
+          11 of the 149 files in the art library are real so far.
         </p>
       </Panel>
     </div>

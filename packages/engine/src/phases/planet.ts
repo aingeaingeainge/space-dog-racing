@@ -1,5 +1,5 @@
 import { raceType } from '../content/raceTypes';
-import { good, STOCK_UNLIMITED } from '../content/goods';
+import { good } from '../content/goods';
 import { cargoTotal, HOLD_CAP } from '../economy/goods';
 import { decimalOdds } from '../race/odds';
 import {
@@ -142,9 +142,9 @@ export function tradeFood(ctx: Ctx, action: Extract<Action, { t: 'TradeFood' }>)
     const cost = units * market.buy;
     pay(p, cost, action);
     p.cargo[action.good] += units;
-    // An unlimited shelf is never drawn down, which is the rule that keeps the staple always
-    // available. Phase B gives every good a finite shelf and this branch becomes the only one.
-    if (market.stock < STOCK_UNLIMITED) market.stock -= units;
+    // Every shelf is finite and shared (GDD_V3 §6.1, V7): what you buy, the stable after you in the
+    // turn order cannot. That is what going first is *for* (§2.3).
+    market.stock -= units;
     p.stats.tradeIncome -= cost;
   } else {
     const sell = -units;

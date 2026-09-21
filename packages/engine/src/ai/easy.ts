@@ -1,8 +1,8 @@
 import { eligible, player, thisWeeksCard } from '../state';
 import type { Action, GameState, Id } from '../types';
-import { KIBBLE_ID } from '../content/goods';
+import { STAPLE_ID } from '../content/goods';
 import { cargoTotal, HOLD_CAP } from '../economy/goods';
-import { buyFeedPlan, hash01, setStates, startPlan, weeklyFoodNeed } from './shared';
+import { availableHere, buyFeedPlan, hash01, setStates, startPlan, weeklyFoodNeed } from './shared';
 
 /**
  * How often Easy cannot be bothered with a race and leaves the trap to the locals. Half the
@@ -51,17 +51,18 @@ export function decideEasy(s: GameState, playerId: Id): Action[] {
     // stand, because the crate above has already taken some of it.
     if (s.toggles.trading) {
       const need = weeklyFoodNeed(s, p);
-      const kibble = s.planet.goods[KIBBLE_ID];
-      if (plan.cargo[KIBBLE_ID] === 0 && kibble.buy > 0) {
+      const staple = s.planet.goods[STAPLE_ID];
+      if (plan.cargo[STAPLE_ID] === 0 && staple.buy > 0) {
         const units = Math.min(
           HOLD_CAP - cargoTotal(plan.cargo),
           need,
-          Math.floor(Math.max(0, plan.cash) / kibble.buy),
+          availableHere(plan, STAPLE_ID),
+          Math.floor(Math.max(0, plan.cash) / staple.buy),
         );
         if (units > 0) {
-          out.push({ t: 'TradeFood', playerId, good: KIBBLE_ID, units });
-          plan.cash -= units * kibble.buy;
-          plan.cargo[KIBBLE_ID] += units;
+          out.push({ t: 'TradeFood', playerId, good: STAPLE_ID, units });
+          plan.cash -= units * staple.buy;
+          plan.cargo[STAPLE_ID] += units;
         }
       }
     }

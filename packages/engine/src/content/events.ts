@@ -1,9 +1,10 @@
 import { balance } from './balance';
 import { planetOf } from './planets';
 
-import { KIBBLE_ID } from './goods';
+import { good, STAPLE_ID } from './goods';
 import { type IdGen } from '../economy/dogs';
 import { cargoTotal, emptyHold, spoilCargo, HOLD_CAP } from '../economy/goods';
+import { describeTaste } from '../economy/food';
 import { winProbAgainst } from '../race/odds';
 import { clamp, type Rng } from '../rng';
 import type { Dog, GameState, GoodId, Id, Planet, Player, StatKey } from '../types';
@@ -58,10 +59,21 @@ const holdValue = (ctx: { s: GameState; p: Player }): number => {
 };
 const crates = (ctx: { p: Player }): number => cargoTotal(ctx.p.cargo);
 /** Move one good's buy and sell price on this planet until the field leaves. */
+/**
+ * Move one good's price on this planet by a factor, **inside its §6.1 band**.
+ *
+ * ⚠️ Clamped since v3 Phase B, because the band became a hard global range: every good is exactly
+ * 8× from floor to ceiling on every planet (GDD_V3 §6.1), and §6.4's whole guard on the p99 trading
+ * leg is that no price escapes it. An event that doubled a price already near the ceiling would be
+ * the one way left to break that, so the event moves the price as far as the band allows and no
+ * further. The sell price is re-derived from the buy rather than scaled separately, so the spread
+ * stays `foodSpread` exactly — the same rule the weekly draw keeps.
+ */
 const scaleGood = (ctx: { s: GameState }, id: GoodId, mult: number): void => {
   const m = ctx.s.planet.goods[id];
-  m.buy = Math.max(1, Math.round(m.buy * mult));
-  m.sell = Math.max(1, Math.round(m.sell * mult));
+  const g = good(id);
+  m.buy = clamp(Math.round(m.buy * mult), g.floor, g.ceiling);
+  m.sell = Math.max(1, Math.round(m.buy * (1 - balance.foodSpread)));
 };
 const fit = (d: Dog, delta: number) => {
   d.fitness = clamp(Math.round(d.fitness + delta), 0, 100);
@@ -173,34 +185,35 @@ export const EVENTS: readonly EventCard[] = [
   },
   {
     id: 'kibbleGlut',
-    name: 'Kibble glut',
-    text: 'A bumper harvest: kibble is half price here until you leave.',
+    name: 'Mash glut',
+    text: 'A bumper harvest: Grey Mash is half price here until you leave.',
     weight: 4,
     kind: 'flavour',
     choices: [
       {
         label: 'Stock up',
         apply: (ctx) => {
-          // The glut is in kibble, so it moves the kibble shelf and leaves the specialist feeds
-          // alone — a bumper harvest of the staple is not a sale on Prime speed feed.
-          scaleGood(ctx, KIBBLE_ID, 0.5);
-          ctx.log('Kibble glut: kibble prices halved on this planet.');
+          // The glut is in the staple, so it moves that one shelf and leaves the other five alone —
+          // a bumper harvest of Grey Mash is not a sale on Ambrosia. The id stays `kibbleGlut`
+          // because it is a save-file and asset key; Phase D rewrites the deck.
+          scaleGood(ctx, STAPLE_ID, 0.5);
+          ctx.log('Mash glut: Grey Mash prices halved on this planet.');
         },
       },
     ],
   },
   {
     id: 'kibbleShortage',
-    name: 'Kibble shortage',
-    text: 'The kibble freighter never arrived. Prices double here until you leave.',
+    name: 'Mash shortage',
+    text: 'The Grey Mash freighter never arrived. Prices double here until you leave.',
     weight: 4,
     kind: 'flavour',
     choices: [
       {
         label: 'Typical',
         apply: (ctx) => {
-          scaleGood(ctx, KIBBLE_ID, 2);
-          ctx.log('Kibble shortage: kibble prices doubled on this planet.');
+          scaleGood(ctx, STAPLE_ID, 2);
+          ctx.log('Mash shortage: Grey Mash prices doubled on this planet.');
         },
       },
     ],
@@ -336,7 +349,7 @@ export const EVENTS: readonly EventCard[] = [
   {
     id: 'cargoSpoiled',
     name: 'Spoiled cargo',
-    text: 'The hold got warm. A quarter of your kibble has gone green.',
+    text: 'The hold got warm. A quarter of your food has gone green.',
     weight: 4,
     kind: 'flavour',
     roll: (ctx) => (crates(ctx) > 0 ? {} : null),
@@ -353,7 +366,7 @@ export const EVENTS: readonly EventCard[] = [
   {
     id: 'freeKibble',
     name: 'Fallen off a freighter',
-    text: 'Five crates of kibble drift past your airlock. Nobody is looking.',
+    text: 'Five crates of Grey Mash drift past your airlock. Nobody is looking.',
     weight: 4,
     kind: 'flavour',
     roll: (ctx) => (crates(ctx) + 5 <= HOLD_CAP ? {} : null),
@@ -361,8 +374,8 @@ export const EVENTS: readonly EventCard[] = [
       {
         label: 'Haul them in',
         apply: (ctx) => {
-          ctx.p.cargo[KIBBLE_ID] += 5;
-          ctx.log('+5 crates of mystery kibble.');
+          ctx.p.cargo[STAPLE_ID] += 5;
+          ctx.log('+5 crates of mystery Grey Mash.');
         },
       },
     ],
@@ -589,10 +602,10 @@ export const EVENTS: readonly EventCard[] = [
           const entry = ctx.s.calendar[week - 1]!;
           const ahead = planetOf(entry.planetId);
           // No card to sell: the same three races run every weekend now (GDD_V3 §7.1), so what is
-          // worth buying is the planet and its food band — which is precisely §9.4's one use.
+          // worth buying is the planet and its food map — which is precisely §9.4's one use.
           ctx.log(
             `Week ${week} (${price} and two drinks): ${ahead.name}${entry.major ? ` — ${ahead.event}` : ''}. ` +
-              `Food ${ahead.foodBand[0]}–${ahead.foodBand[1]}.`,
+              `Food there is ${describeTaste(ahead)}.`,
           );
         },
       },
@@ -629,10 +642,11 @@ export const EVENTS: readonly EventCard[] = [
           ctx.p.stats.costs += 200;
           const week = ctx.s.week + 2;
           const ahead = planetOf(ctx.s.calendar[week - 1]!.planetId);
-          const drift = Number(ctx.params.lying) ? Number(ctx.params.drift) : 0;
-          const lo = Math.max(1, ahead.foodBand[0] + drift);
-          const hi = Math.max(lo + 1, ahead.foodBand[1] + drift);
-          ctx.log(`Manifest, week ${week}: food is running ${lo}–${hi} out there.`);
+          // ⚠️ v3 Phase B: `foodBand` is a per-good map now, not a price band, so the lie is an
+          // inverted map rather than a band nudged by `drift`. `drift` is still rolled when the card
+          // is drawn — removing it would shift the rng stream for a Phase D rewrite to inherit.
+          const lying = Number(ctx.params.lying) === 1;
+          ctx.log(`Manifest, week ${week}: food out there is ${describeTaste(ahead, lying)}.`);
         },
       },
       { label: 'Not interested', apply: (ctx) => ctx.log('The clerk shrugs and rolls it up.') },

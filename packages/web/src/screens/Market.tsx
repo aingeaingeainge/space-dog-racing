@@ -2,161 +2,188 @@ import { useState } from 'react';
 import {
   balance,
   cargoTotal,
+  describeTaste,
   formatBones,
   HOLD_CAP,
-  KIBBLE_ID,
   planetOf,
   type GameState,
+  type GoodId,
   type Player,
 } from '@sdr/engine';
 import { Panel } from '../components/Panel';
-import { Gauge, KV, Notes } from '../components/ui';
+import { Gauge, Notes } from '../components/ui';
 import { NeonButton } from '../components/NeonButton';
-import { ownedDogs } from '../lib/selectors';
+import { marketRows, nextStop, type MarketRow } from '../lib/market';
+import { weeklyBill } from '../lib/selectors';
 import { useGame } from '../store/gameStore';
 
-/** Crates the stable will eat at the end of this week (GDD §7.2, GDD_V3 §6.3). */
-function weeklyFood(s: GameState, p: Player): number {
-  let need = 0;
-  for (const d of ownedDogs(s, p))
-    need += d.traits.includes('glutton') ? 2 * balance.foodPerDog : balance.foodPerDog;
-  return p.sponsorWeeks > 0 ? need * 2 : need;
-}
-
 /**
- * The Market — **the only market in v3** (GDD_V3 §6).
+ * The Market — **the only market in v3**, and GDD_V3 §6.2's table, copied from Gazillionaire more
+ * or less intact because it is a complete trading UI in five columns:
  *
- * ⚠️ **This screen was the dog market and the gear counter, and now it is the food trade.**
- * BUILD_PLAN_V3 §2.1 deletes the shelf of dogs, the asking prices, the track-day passes, the
- * muzzles and the supplement; the food trading that used to live at the Docks moves here, because
- * the Docks is deleted too (GDD_V3 §10) and food is the one thing left to buy. The fuel arithmetic
- * that made carrying a crate a real calculation goes with the fuel — a crate is worth carrying
- * whenever the next planet's floor beats this planet's price, and nothing else.
+ *   Your Hold | On Planet | You Paid | Market Price | Price Range
  *
- * **Phase B replaces this screen wholesale** with GDD_V3 §6.2's five columns — Your Hold / On Planet
- * / You Paid / Market Price / **Price Range** — over six goods on 8× bands. §6.2 is emphatic that
- * the Price Range column is what makes the market legible on a first play, and that it must not be
- * swapped for a cheap/dear icon. What is here now is one good and a slider: enough that the trade
- * loop runs and the harness has something to measure, and deliberately no more than that.
+ * ⚠️ **The Price Range column is the most important thing in the phase and it is printed as
+ * numbers.** "198" means nothing; "198, range 60–480" means *cheap, buy it*, instantly, with no
+ * memory and no notes. The bar under the range marks where this week's price sits in it, as an aid
+ * to the numbers rather than a replacement for them — BUILD_PLAN_V3's prompt is explicit that the
+ * column must not become a cheap/dear icon, because an icon is a verdict and the range is the
+ * evidence, and §6.2's bet is that a player can reach the verdict themselves at a glance.
+ *
+ * Next week's planet is printed under the table as its *food map* — "dear for Pulsar Marrow and
+ * Ambrosia" — which is static planet data, not next week's prices. The fog (§2.1) hides the week's
+ * draw; it does not hide what kind of place Rustgut is, and a game that made you memorise that
+ * would reward whoever brought a pen (the same principle as §5.4's style-on-the-card).
  */
 export function Market({ s, me }: { s: GameState; me: Player }) {
-  const dispatch = useGame((g) => g.dispatch);
   const planet = planetOf(s.planet.planetId);
-  const [qty, setQty] = useState(5);
-
-  const food = s.planet.goods[KIBBLE_ID];
+  const rows = marketRows(s, me);
   const crates = cargoTotal(me.cargo);
-  const aboard = me.cargo[KIBBLE_ID];
-  const room = HOLD_CAP - crates;
-  const affordable = food.buy > 0 ? Math.floor(me.cash / food.buy) : 0;
-  const maxBuy = Math.max(0, Math.min(room, affordable, food.stock));
-  const units = Math.max(0, Math.min(qty, Math.max(maxBuy, aboard)));
-  const spread = food.buy - food.sell;
-  const need = weeklyFood(s, me);
-  const next = s.calendar[s.week];
-  const nextPlanet = next ? planetOf(next.planetId) : null;
+  const next = nextStop(s);
+  const bill = weeklyBill(s, me);
 
   const trading = s.toggles.trading;
-  const tradeShut = trading ? null : 'No Trading is on this season';
   const inTurn = s.phase === 'planetPre' || s.phase === 'planetPost';
-  const shut = inTurn ? tradeShut : 'Shut while the races are on';
+  const shut = !inTurn
+    ? 'Shut while the races are on'
+    : !trading
+      ? 'No Trading is on this season'
+      : null;
 
   return (
     <Panel
       title={`Market — ${planet.name}`}
-      sub={`buy ${food.buy} · sell ${food.sell} · spread ${spread} per crate`}
+      sub="six foods: your inventory and your dogs' training, both at once"
     >
-      <div className="grid2">
-        <KV
-          items={[
-            ['Hold', <Gauge key="g" value={crates} max={HOLD_CAP} unit="crates" />],
-            ['Your dogs eat', `${need} crate${need === 1 ? '' : 's'} at the end of this week`],
-            [
-              'With an empty hold',
-              `each dog loses ${balance.emptyHoldFitness} fitness and gains nothing`,
-            ],
-            [
-              'Next stop',
-              nextPlanet
-                ? `${nextPlanet.name} — food band ${nextPlanet.foodBand[0]}–${nextPlanet.foodBand[1]}`
-                : 'nowhere — this is the Grand Final',
-            ],
-          ]}
-        />
-        <div className="stack">
-          <label>
-            <span className="muted">Crates</span>{' '}
-            <input
-              type="range"
-              min={1}
-              max={Math.max(1, Math.max(maxBuy, aboard))}
-              value={units || 1}
-              disabled={!!shut}
-              onChange={(e) => setQty(Number(e.target.value))}
-            />{' '}
-            <b>{units}</b>
-          </label>
-          <div className="row">
-            <NeonButton
-              disabled={!!shut || units <= 0 || units > maxBuy}
-              title={
-                shut ??
-                (units > room
-                  ? 'Not enough hold space'
-                  : units > affordable
-                    ? 'Not enough Bones'
-                    : `Costs ${formatBones(units * food.buy)}`)
-              }
-              onClick={() => dispatch({ t: 'TradeFood', playerId: me.id, good: KIBBLE_ID, units })}
-            >
-              Buy {units} for {formatBones(units * food.buy)}
-            </NeonButton>
-            <NeonButton
-              disabled={!!shut || units <= 0 || units > aboard}
-              title={shut ?? `Fetches ${formatBones(units * food.sell)}`}
-              onClick={() =>
-                dispatch({ t: 'TradeFood', playerId: me.id, good: KIBBLE_ID, units: -units })
-              }
-            >
-              Sell {units} for {formatBones(units * food.sell)}
-            </NeonButton>
-          </div>
-          <div className="row">
-            <NeonButton
-              disabled={!!shut || maxBuy <= 0}
-              onClick={() =>
-                dispatch({ t: 'TradeFood', playerId: me.id, good: KIBBLE_ID, units: maxBuy })
-              }
-            >
-              Fill the hold ({maxBuy})
-            </NeonButton>
-            <NeonButton
-              disabled={!!shut || aboard <= 0}
-              onClick={() =>
-                dispatch({ t: 'TradeFood', playerId: me.id, good: KIBBLE_ID, units: -aboard })
-              }
-            >
-              Sell the lot ({aboard})
-            </NeonButton>
-          </div>
-          <Notes
-            lines={[
-              shut,
-              units > 0
-                ? `${units} crate${units === 1 ? '' : 's'} costs ${formatBones(units * food.buy)} here — ` +
-                  `they have to fetch ${Math.ceil(food.buy)} a crate at the next stop to break even.`
-                : null,
-              nextPlanet
-                ? `${nextPlanet.name}'s band is ${nextPlanet.foodBand[0]}–${nextPlanet.foodBand[1]}, so a crate bought at ${food.buy} ` +
-                  (nextPlanet.foodBand[0] * (1 - balance.foodSpread) > food.buy
-                    ? 'is worth carrying.'
-                    : 'is probably not worth carrying.')
-                : 'Nothing past this weekend: sell what you are holding.',
-              `Turn order next week is set by how heavy you are — every five crates costs you a place. First pick of the shelf against a hold worth carrying is the whole trade.`,
-            ]}
-          />
-        </div>
+      <div className="market-hold">
+        <b>Hold</b> <Gauge value={crates} max={HOLD_CAP} unit="crates" />
+        <span className="muted">
+          {' '}
+          · the same {HOLD_CAP} for every stable, forever · {formatBones(me.cash)} in hand
+        </span>
       </div>
+      <div className="table-wrap">
+        <table className="market">
+          <thead>
+            <tr>
+              <th>Food</th>
+              <th className="num">Your Hold</th>
+              <th className="num">On Planet</th>
+              <th className="num">Market Price</th>
+              <th>Price Range</th>
+              <th>Trade</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <Row key={r.good.id} r={r} me={me} room={HOLD_CAP - crates} shut={shut} />
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <Notes
+        lines={[
+          shut,
+          next
+            ? `Next stop: ${next.name} — ${describeTaste(next)}. That is what kind of place it is, not next week's prices; those are drawn when you land.`
+            : 'Nothing past this weekend: whatever is in the hold at the end of it is valued at these sell prices.',
+          `Your dogs eat ${bill.foodNeeded} crate${bill.foodNeeded === 1 ? '' : 's'} at the jump, the cheapest aboard first. A dog the hold cannot feed loses ${balance.emptyHoldFitness} fitness.`,
+          `Every ${balance.arrivalCargoDiv} crates aboard when you leave costs you about a place in next week's turn order — first look at the next shelf against a hold worth carrying.`,
+        ]}
+      />
     </Panel>
+  );
+}
+
+function Row({
+  r,
+  me,
+  room,
+  shut,
+}: {
+  r: MarketRow;
+  me: Player;
+  room: number;
+  shut: string | null;
+}) {
+  const dispatch = useGame((g) => g.dispatch);
+  const affordable = r.buy > 0 ? Math.floor(me.cash / r.buy) : 0;
+  const maxBuy = Math.max(0, Math.min(room, affordable, r.onShelf));
+  const [qty, setQty] = useState(1);
+  const n = Math.max(1, qty);
+  const trade = (units: number) =>
+    dispatch({ t: 'TradeFood', playerId: me.id, good: r.good.id as GoodId, units });
+
+  return (
+    <tr className={r.aboard > 0 ? 'me' : ''}>
+      <td>
+        <b>{r.good.label}</b>
+      </td>
+      <td className="num">{r.aboard || <span className="muted">—</span>}</td>
+      <td className="num">{r.onShelf}</td>
+      <td className="num">
+        <b>{r.buy}</b>
+        <div className="muted small">sells {r.sell}</div>
+      </td>
+      <td>
+        <div className="range">
+          <span className="num">{r.good.floor}</span>
+          <span
+            className={`range-bar ${r.word}`}
+            title={`${r.buy} is ${Math.round(r.pos * 100)}% of the way from ${r.good.floor} to ${r.good.ceiling}`}
+          >
+            <span className="range-mark" style={{ left: `${r.pos * 100}%` }} />
+          </span>
+          <span className="num">{r.good.ceiling}</span>
+        </div>
+      </td>
+      <td className="trade">
+        <input
+          type="number"
+          min={1}
+          value={n}
+          disabled={!!shut}
+          onChange={(e) => setQty(Math.max(1, Math.floor(Number(e.target.value) || 1)))}
+          aria-label={`Crates of ${r.good.label}`}
+        />
+        <NeonButton
+          disabled={!!shut || n > maxBuy}
+          title={
+            shut ??
+            (n > room
+              ? 'Not enough hold space'
+              : n > r.onShelf
+                ? `Only ${r.onShelf} on the shelf`
+                : n > affordable
+                  ? 'Not enough Bones'
+                  : `Costs ${formatBones(n * r.buy)}`)
+          }
+          onClick={() => trade(n)}
+        >
+          Buy
+        </NeonButton>
+        <NeonButton
+          disabled={!!shut || n > r.aboard}
+          title={shut ?? `Fetches ${formatBones(n * r.sell)}`}
+          onClick={() => trade(-n)}
+        >
+          Sell
+        </NeonButton>
+        <NeonButton
+          disabled={!!shut || maxBuy <= 0}
+          title={shut ?? `${maxBuy} for ${formatBones(maxBuy * r.buy)}`}
+          onClick={() => trade(maxBuy)}
+        >
+          Max
+        </NeonButton>
+        <NeonButton
+          disabled={!!shut || r.aboard <= 0}
+          title={shut ?? `${r.aboard} for ${formatBones(r.aboard * r.sell)}`}
+          onClick={() => trade(-r.aboard)}
+        >
+          All
+        </NeonButton>
+      </td>
+    </tr>
   );
 }

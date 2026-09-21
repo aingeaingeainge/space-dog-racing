@@ -4,17 +4,10 @@ import { raceType } from '../content/raceTypes';
 import { winProbabilities } from '../race/odds';
 import { baseRating, dogValue } from '../economy/dogValue';
 import { calendarEntry, eligible, FREE_HORIZON, player, purseFor, thisWeeksCard } from '../state';
-import {
-  bestFeedAboard,
-  feedsFor,
-  GOODS,
-  KIBBLE_ID,
-  STOCK_UNLIMITED,
-  type Good,
-} from '../content/goods';
+import { GOODS, good, STAPLE_ID, type Good } from '../content/goods';
+import { expectedPrice } from '../economy/food';
 import { cargoTotal, HOLD_CAP } from '../economy/goods';
 import {
-  RACE_TYPE_IDS,
   type Action,
   type Cargo,
   type Dog,
@@ -225,15 +218,16 @@ export function weeklyFoodNeed(s: GameState, p: Player): number {
 }
 
 /**
- * Cash the AI keeps back for a fortnight of bills.
+ * Cash the AI keeps back: two weeks of the staple's dinners at the top of its band.
  *
- * ⚠️ **Upkeep, fuel and wages are all gone (BUILD_PLAN_V3 §2.1), so the reserve is food and nothing
- * else** (GDD_V3 V10). That makes it much smaller than it was, which is correct and worth watching:
- * a reserve that barely binds is a reserve that stops shaping the AI's spending, and Phase B's
- * empty-hold penalty is what gives it teeth again.
+ * ⚠️ **There is no bill left to reserve against (GDD_V3 V10)** — food is charged to the dog, not the
+ * purse (§6.3) — so the reserve is only the guarantee that a stable which has just spent everything
+ * on a trading leg can still buy dinner next week at the worst price the staple can post. Derived
+ * from the staple's own ceiling rather than from a tunable of its own: it is a fact about the band,
+ * not a policy.
  */
 export function reserveCash(s: GameState, p: Player): number {
-  return weeklyFoodNeed(s, p) * balance.foodPriceMax * 2;
+  return weeklyFoodNeed(s, p) * good(STAPLE_ID).ceiling * 2;
 }
 
 /** The stat a trainer should work on: the weakest one, weighted by how much rating cares. */
@@ -362,79 +356,51 @@ export function startPlan(s: GameState, playerId: Id): Plan {
  */
 
 export interface FeedBuyOptions {
-  /** Crates to aim for per stat being trained. */
-  crates?: number;
-  /** Fraction of the spare cash this step may spend. */
-  spend?: number;
-  /** Buy the dearest feed on the shelf whether or not a dog is on that stat. Easy's weakness. */
+  /** Weeks of dinner to keep aboard. */
+  weeks?: number;
+  /** Buy the dearest food on the shelf whether or not anything will eat it. Easy's weakness. */
   reckless?: boolean;
 }
 
 /**
- * Buy feed for the dogs that are going to train (GDD §8.2).
+ * Make sure the yard can eat (GDD_V3 §6.3), before anything is bought to trade.
  *
- * Called **after** `setStates`, because what to buy depends on which dogs are training and which
- * stat each is on — and `setStates` is what decides both. A stable that already has a crate for
- * that stat buys nothing: the feed is consumed one crate per dog per Train week, so a hold with
- * one crate and three trainees is a real shortage the agent should notice.
+ * ⚠️ **Dinner is the cheapest thing aboard until the diet lands** (item 4 of this phase), so this
+ * keeps `weeks` of dinners of the *staple* aboard and nothing else: a crate of Vat Steak bought to
+ * sell next week is safe in the hold only while there is Grey Mash in front of it, because §6.3's
+ * fallback feeds the cheapest good first. An agent that forgot this would eat its own trading leg.
  *
- * `reckless` is D26's fix, and it is the only line here that is deliberately bad: an Easy stable
- * buys the dearest crate on the shelf whether or not it has a dog to eat it, which is the first
- * weakness in the game that **costs it money while it is still racing**. Every other handicap §14
- * gives Easy — never trains, never bets — is a saving.
+ * `reckless` is D26's fix carried over, and it is the only line here that is deliberately bad: an
+ * Easy stable buys the dearest crate on the shelf whether or not it can sell it at a profit, which
+ * is the weakness that **costs it money while it is still racing**. Every other handicap §14 gives
+ * Easy is a saving.
  */
 export function buyFeedPlan(plan: Plan, opts: FeedBuyOptions = {}): void {
-  const { s, playerId, out } = plan;
+  const { s, p, playerId, out } = plan;
   if (!s.toggles.trading) return;
-  const want = opts.crates ?? 2;
-  const spendFraction = opts.spend ?? 0.5;
-  let budget = Math.max(0, (plan.cash - plan.reserve) * spendFraction);
-  const room = () => HOLD_CAP - cargoTotal(plan.cargo);
-
-  const buy = (g: Good, crates: number): void => {
-    const price = s.planet.goods[g.id].buy;
-    const available = Math.min(
-      availableHere(plan, g.id),
-      room(),
-      Math.floor(budget / Math.max(1, price)),
-      crates,
-    );
-    if (available <= 0) return;
-    out.push({ t: 'TradeFood', playerId, good: g.id, units: available });
-    plan.cargo[g.id] += available;
-    plan.cash -= available * price;
-    budget -= available * price;
-    claim(plan, g.id, available);
-  };
 
   if (opts.reckless) {
-    // The dearest thing on the shelf, one crate, with no thought for whether anything will eat it.
-    const shelf = GOODS.filter((g) => g.stat && availableHere(plan, g.id) > 0).sort(
-      (a, b) => s.planet.goods[b.id].buy - s.planet.goods[a.id].buy,
-    );
-    if (shelf[0]) buy(shelf[0], opts.crates ?? 1);
+    const dear = [...GOODS]
+      .filter((g) => availableHere(plan, g.id) > 0)
+      .sort((a, b) => s.planet.goods[b.id].buy - s.planet.goods[a.id].buy)[0];
+    if (dear && HOLD_CAP - cargoTotal(plan.cargo) > 0 && plan.cash >= s.planet.goods[dear.id].buy)
+      buy(plan, dear.id, 1);
     return;
   }
 
-  // ⚠️ **Every dog that is not on layoff wants its stat's food now (GDD_V3 §6.3).** This used to
-  // count only the dogs set to Train, because Train was the only week food reached a dog. A dog eats
-  // every week whatever it is doing, so the question is simply which stats the yard is pointed at.
-  const feeding = plan.kennel.filter((d) => d.injuryWeeks === 0);
-  const byStat = new Map<StatKey, number>();
-  for (const d of feeding) byStat.set(d.trainStat, (byStat.get(d.trainStat) ?? 0) + 1);
-  // Most-wanted stat first, so a thin budget goes where the most dogs are working.
-  const stats = [...byStat.entries()].sort((a, b) => b[1] - a[1]);
-  for (const [stat, dogs] of stats) {
-    const have = bestFeedAboard(plan.cargo, stat);
-    const need = Math.max(0, Math.min(want, dogs) - (have ? plan.cargo[have.id] : 0));
-    if (need <= 0) continue;
-    // Best tier the budget reaches, which is how a good week buys Prime and a bad one buys Rough.
-    const options = feedsFor(stat)
-      .filter((g) => availableHere(plan, g.id) > 0)
-      .sort((a, b) => b.priceMult - a.priceMult);
-    const pick = options.find((g) => s.planet.goods[g.id].buy <= budget);
-    if (pick) buy(pick, need);
-  }
+  const want = weeklyFoodNeed(s, p) * (opts.weeks ?? 2);
+  const have = plan.cargo[STAPLE_ID];
+  if (have >= want) return;
+  const price = s.planet.goods[STAPLE_ID].buy;
+  const units = Math.min(
+    want - have,
+    availableHere(plan, STAPLE_ID),
+    HOLD_CAP - cargoTotal(plan.cargo),
+    Math.floor(Math.max(0, plan.cash) / Math.max(1, price)),
+  );
+  if (units > 0) buy(plan, STAPLE_ID, units);
+  void playerId;
+  void out;
 }
 
 export interface StateOptions {
@@ -495,169 +461,114 @@ export function setStates(plan: Plan, racing: ReadonlySet<Id>): void {
   }
 }
 
-/**
- * Race types the kennel has nobody fit and eligible for (GDD §6.3). Measured over the whole pool
- * rather than this week's three, because the point of buying for coverage is the weeks you have
- * not seen yet — under the fog you cannot know which types are coming, only that a stable that
- * covers more of them fills more of the card.
- */
-export function coverageGaps(kennel: readonly Dog[]): Set<RaceTypeId> {
-  const gaps = new Set<RaceTypeId>();
-  for (const race of RACE_TYPE_IDS) {
-    const covered = kennel.some(
-      (d) => eligible(d, race) && d.fitness >= balance.injuryLowFitnessBelow,
-    );
-    if (!covered) gaps.add(race);
-  }
-  return gaps;
-}
-
 export interface FoodOptions {
   /**
-   * Fill the hold whatever the spread says. Hard does this the week before Blackreach, where
-   * the black hole drags the heavy ships in first and first look at the market is worth more
-   * than the fuel (GDD §12).
+   * Fill the hold whatever the margins say. Hard does this the week before Blackreach, where the
+   * black hole drags the heavy ships in first and first look at the market is worth more than the
+   * spread (GDD §12).
    */
   fillHold?: boolean;
-  /**
-   * Work the spread on the **specialist feeds** as well as on kibble (GDD §9.2).
-   *
-   * Off by default, which is a statement about Normal rather than an oversight: kibble is the
-   * staple every stable already handles, and a dearer inventory is the trader's road rather than
-   * the racing stable's. §9.1 measured the reason it matters — blind carrying loses 9.5 a crate of
-   * kibble, and a feed crate is five to eight times the price, so the same 15% weekly drift is
-   * worth ten times as much per crate of hold.
-   */
-  workGoods?: boolean;
-  /** Fraction of spare cash the goods arbitrage may commit. */
+  /** Fraction of the spare cash (above the reserve) this step may commit to trading legs. */
   goodsSpend?: number;
 }
 
-/**
- * The one good most worth moving from here to next week's planet, or null (GDD §9.2).
- *
- * Expected profit a crate is `next week's sell − what it costs here`, where next week's sell is
- * that planet's band mid × the good's own price multiplier × (1 − spread). The band is what a
- * stable can see for free (the Docks prints it, `planetAhead` allows it), so this is arbitrage on
- * *public* information — and that is the point of §9.2: the trader stops carrying and starts
- * **selecting**, which is worth +23.6 a crate against blind carrying's −9.5.
- *
- * One good rather than all thirteen, on purpose. The hold is the scarce thing, so the best crate
- * crowds out the second-best anyway, and a step that emitted a dozen TradeFood actions a week would
- * spend the click budget (D10) on decisions a player would not make.
- */
 /** Crates of one good this stable can still buy here, after whatever it has already queued. */
 export function availableHere(plan: Plan, id: GoodId): number {
-  const { s } = plan;
-  const market = s.planet.goods[id];
-  if (market.stock === STOCK_UNLIMITED) return STOCK_UNLIMITED;
-  return Math.max(0, market.stock - (plan.shelfTaken.get(id) ?? 0));
+  return Math.max(0, plan.s.planet.goods[id].stock - (plan.shelfTaken.get(id) ?? 0));
 }
 
 function claim(plan: Plan, id: GoodId, crates: number): void {
   plan.shelfTaken.set(id, (plan.shelfTaken.get(id) ?? 0) + crates);
 }
 
-function bestLeg(
-  plan: Plan,
-  nextBand: readonly [number, number] | null,
-): { good: Good; margin: number } | null {
-  if (!nextBand) return null;
-  const { s } = plan;
-  const mid = (nextBand[0] + nextBand[1]) / 2;
-  let best: { good: Good; margin: number } | null = null;
-  for (const g of GOODS) {
-    if (g.staple) continue; // the staple is handled by the dinner half, below
-    const market = s.planet.goods[g.id];
-    if (availableHere(plan, g.id) <= 0 || market.buy <= 0) continue;
-    const expectedSell = mid * g.priceMult * (1 - balance.foodSpread);
-    const margin = expectedSell - market.buy;
-    // A relative floor as well as the absolute one: 40 Bones is a real margin on a 60-Bone crate
-    // of kibble and noise on a 900-Bone crate of Prime speed feed.
-    const floor = Math.max(balance.aiFoodSpreadMin, market.buy * balance.aiGoodsMarginMin);
-    if (margin > floor && (!best || margin > best.margin)) best = { good: g, margin };
-  }
-  return best;
+/** Queue a buy, and move the Plan's cash, hold and shelf as the reducer will. */
+function buy(plan: Plan, id: GoodId, units: number): void {
+  const price = plan.s.planet.goods[id].buy;
+  plan.out.push({ t: 'TradeFood', playerId: plan.playerId, good: id, units });
+  plan.cargo[id] += units;
+  plan.cash -= units * price;
+  claim(plan, id, units);
 }
 
-/** Sell whatever the hold is carrying at a profit against next week's expected price. */
-function sellFeedLegs(plan: Plan, nextBand: readonly [number, number] | null): void {
-  const { s, p, playerId, out } = plan;
-  const mid = nextBand ? (nextBand[0] + nextBand[1]) / 2 : null;
-  for (const g of GOODS) {
-    if (g.staple) continue;
-    const aboard = plan.cargo[g.id];
-    if (aboard <= 0) continue;
-    const here = s.planet.goods[g.id].sell;
-    // With nowhere better to go, or a better price here than the next stop expects, take the money.
-    const expectedNext = mid === null ? 0 : mid * g.priceMult * (1 - balance.foodSpread);
-    // A dog pointed at this stat wants the crate more than the bookkeeper does. Every dog eats every
-    // week now (GDD_V3 §6.3), so this is about the diet pointer rather than about a Train week.
-    const wanted = plan.kennel.some((d) => d.trainStat === g.stat);
-    if (wanted) continue;
-    if (here >= expectedNext) {
-      out.push({ t: 'TradeFood', playerId, good: g.id, units: -aboard });
-      plan.cargo[g.id] -= aboard;
-      plan.cash += aboard * here;
-      void p;
-    }
-  }
+/** Queue a sale, likewise. */
+function sell(plan: Plan, id: GoodId, units: number): void {
+  const price = plan.s.planet.goods[id].sell;
+  plan.out.push({ t: 'TradeFood', playerId: plan.playerId, good: id, units: -units });
+  plan.cargo[id] -= units;
+  plan.cash += units * price;
 }
 
-/** Eat first, then trade the spread to the next planet (GDD §14 Normal). */
+/**
+ * What a crate of this good is expected to fetch at next week's planet, or null past the Grand
+ * Final. **The engine's own `expectedPrice`**, so an AI trades on exactly the number the Market
+ * screen prints for a player under "next stop" (§14: every difficulty sees what a player sees).
+ */
+function expectedSellNext(plan: Plan, id: GoodId): number | null {
+  const next = planetAhead(plan.s, 1);
+  return next ? expectedPrice(next, id) * (1 - balance.foodSpread) : null;
+}
+
+/**
+ * Sell, then buy, the six goods against next week's planet (GDD_V3 §6.1, §6.4).
+ *
+ * **Sell** anything whose price here already beats what next week's planet is expected to pay —
+ * and everything, bar dinner, past the Grand Final. The dinner the yard eats at the jump is never
+ * sold: it is the staple, kept by `buyFeedPlan`, and selling it would be trading the dogs' fitness
+ * for a spread.
+ *
+ * **Buy** the goods whose expected margin beats `aiGoodsMarginMin` of their price, greedily, with
+ * the one piece of judgement §6.1 says the whole progression is about:
+ *
+ * - while the **cash** binds — the budget could not fill the room left with the best crate on the
+ *   shelf — take the best margin *per Bone*, because the question is what the money is worth;
+ * - once the **hold** binds, take the best margin *per crate*, because the question is what the
+ *   space is worth, and that is the dear stuff.
+ *
+ * That test, made afresh each pick, is how a stable graduates up the ladder without being told to,
+ * and it is the same crossover the harness measures from the outside.
+ */
 export function tradeFoodPlan(plan: Plan, opts: FoodOptions = {}): void {
-  const { s, p, playerId, out } = plan;
+  const { s, p } = plan;
   if (!s.toggles.trading) return;
-  const need = weeklyFoodNeed(s, p);
-  const next = s.calendar[s.week];
-  const nextBand = next ? planetOf(next.planetId).foodBand : null;
-  const kibble = s.planet.goods[KIBBLE_ID];
-  const nextMid = nextBand ? (nextBand[0] + nextBand[1]) / 2 : kibble.buy;
-  const buyHere = kibble.buy;
-  const sellHere = kibble.sell;
-  // ---- The specialist feeds, for an agent that works them (GDD §9.2) ----
-  // Sell first, so the hold has room and the cash is in hand before the next leg is bought.
-  if (opts.workGoods) {
-    sellFeedLegs(plan, nextBand);
-    const leg = bestLeg(plan, nextBand);
-    if (leg) {
-      const spend = Math.max(0, plan.cash - plan.reserve) * (opts.goodsSpend ?? 0.6);
-      const price = s.planet.goods[leg.good.id].buy;
-      const buyable = Math.min(
-        HOLD_CAP - cargoTotal(plan.cargo) - need,
-        availableHere(plan, leg.good.id),
-        Math.floor(spend / Math.max(1, price)),
-      );
-      if (buyable > 0) {
-        out.push({ t: 'TradeFood', playerId, good: leg.good.id, units: buyable });
-        plan.cargo[leg.good.id] += buyable;
-        plan.cash -= buyable * price;
-        claim(plan, leg.good.id, buyable);
-      }
-    }
+  const dinner = weeklyFoodNeed(s, p);
+
+  // ---- Sell ----
+  for (const g of GOODS) {
+    const keep = g.id === STAPLE_ID ? Math.min(plan.cargo[g.id], dinner) : 0;
+    const spare = plan.cargo[g.id] - keep;
+    if (spare <= 0) continue;
+    const next = expectedSellNext(plan, g.id);
+    const here = s.planet.goods[g.id].sell;
+    if (next === null || here >= next) sell(plan, g.id, spare);
   }
 
-  // ---- The staple: dinner, and the one-week spread every stable can see ----
-  const aboard = plan.cargo[KIBBLE_ID];
-  const room = HOLD_CAP - cargoTotal(plan.cargo);
-  let units = 0;
-  if (opts.fillHold) {
-    const spend = Math.max(0, plan.cash - plan.reserve);
-    units = Math.min(room, Math.floor(spend / buyHere));
-  } else if (sellHere - nextMid > balance.aiFoodSpreadMin && aboard > need) {
-    units = -(aboard - need); // sell the surplus here, keep this week's dinner
-  } else if (nextMid * (1 - balance.foodSpread) - buyHere > balance.aiFoodSpreadMin) {
-    const spend = Math.max(0, plan.cash - plan.reserve);
-    units = Math.min(room, Math.floor(spend / buyHere));
+  // ---- Buy ----
+  let budget = Math.max(0, plan.cash - plan.reserve) * (opts.goodsSpend ?? 0.8);
+  let room = HOLD_CAP - cargoTotal(plan.cargo);
+  const legs: { g: Good; price: number; margin: number }[] = [];
+  for (const g of GOODS) {
+    const next = expectedSellNext(plan, g.id);
+    if (next === null) continue;
+    const price = s.planet.goods[g.id].buy;
+    const margin = next - price;
+    if (opts.fillHold || margin > price * balance.aiGoodsMarginMin) legs.push({ g, price, margin });
   }
-  if (units === 0 && aboard < need) {
-    // No trade on, but never arrive hungry: buy this week's food if we can.
-    units = Math.min(room, need - aboard, Math.floor(Math.max(0, plan.cash - 500) / buyHere));
-  }
-  if (units !== 0) {
-    out.push({ t: 'TradeFood', playerId, good: KIBBLE_ID, units });
-    plan.cash -= units * (units > 0 ? buyHere : sellHere);
-    plan.cargo[KIBBLE_ID] += units;
+  while (legs.length && room > 0 && budget > 0) {
+    const perCrate = [...legs].sort((a, b) => b.margin - a.margin)[0]!;
+    const holdBinds = budget >= room * perCrate.price;
+    const pick = holdBinds
+      ? perCrate
+      : [...legs].sort((a, b) => b.margin / b.price - a.margin / a.price)[0]!;
+    legs.splice(legs.indexOf(pick), 1);
+    const units = Math.min(
+      availableHere(plan, pick.g.id),
+      room,
+      Math.floor(budget / Math.max(1, pick.price)),
+    );
+    if (units <= 0) continue;
+    buy(plan, pick.g.id, units);
+    budget -= units * pick.price;
+    room -= units;
   }
 }
 

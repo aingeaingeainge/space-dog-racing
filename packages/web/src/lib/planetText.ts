@@ -34,7 +34,6 @@ export function specialText(p: Planet): string[] {
   if (s.maxStakeFraction !== undefined) out.push(`Max stake ${pct(s.maxStakeFraction)} of cash`);
   if (s.purseMult) out.push(`Purses ×${s.purseMult}`);
   if (s.winningsTax) out.push(`${pct(s.winningsTax)} tax on winnings`);
-  if (s.everythingMarkup) out.push(`Everything +${pct(s.everythingMarkup)}`);
   if (s.fitnessOnArrival)
     out.push(`Fitness ${s.fitnessOnArrival > 0 ? '+' : ''}${s.fitnessOnArrival} on arrival`);
   if (s.turnOrderReversed) out.push('Turn order reversed');

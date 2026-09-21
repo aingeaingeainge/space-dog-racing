@@ -44,7 +44,6 @@ const LABELS: Record<string, string> = {
   'Bronze Dash 2nd': 'purseBronze2',
   'Bronze Dash 3rd': 'purseBronze3',
   'Food units eaten per dog per week': 'foodPerDog',
-  'Food price: dearest planet': 'foodPriceMax',
   'Hold capacity (units, everyone, forever)': 'holdCap',
   'Starting cash': 'startCash',
   'Starting dogs': 'startDogs',
@@ -78,8 +77,6 @@ const LABELS: Record<string, string> = {
   // the Race cost is the ONE number Phase A is allowed to tune (the races-entered band).
   'Fitness: cost of a race': 'fitnessPerRace',
   'Fitness: gain from a rest week': 'fitnessRest',
-  'Training: plain kibble, minimum stat points': 'trainKibbleMin',
-  'Training: plain kibble, maximum stat points': 'trainKibbleMax',
   'Growth: stat points a week at age 1': 'growthAge1',
   'Growth: stat points a week at age 2': 'growthAge2',
   'Decline: stat points a week at age 5+': 'declinePerWeek',

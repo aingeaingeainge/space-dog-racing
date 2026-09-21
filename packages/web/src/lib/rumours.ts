@@ -1,4 +1,5 @@
-import { planetOf, type GameState } from '@sdr/engine';
+import { good, planetOf, type GameState } from '@sdr/engine';
+import { mostNotable } from './market';
 
 /**
  * What they are saying in the Saloon (GDD §9).
@@ -20,8 +21,12 @@ import { planetOf, type GameState } from '@sdr/engine';
  * is, and the Saloon must not move it.
  *
  * ⚠️ A rumour names a planet the fog is hiding, and that is deliberate: §9.3 lists the Saloon as
- * the free carrier in the information economy, reaching 1–2 weeks and *able to be wrong*. It is
- * still only the kibble band, never the card or the track — those are what the dossier sells.
+ * the free carrier in the information economy, reaching 1–2 weeks and *able to be wrong*.
+ *
+ * ⚠️ **v3 Phase B: a rumour is about one food now, not "the" food.** `foodBand` became a per-good
+ * map (GDD_V3 §12), so a planet is not simply cheap or dear — it is cheap for Scrapmeat, or dear
+ * for Ambrosia. The rumour names the one good the planet is most notable for (`mostNotable`), which
+ * is still a steer rather than a forecast: the week's draw can land anywhere in the band.
  */
 
 export interface Rumour {
@@ -44,15 +49,16 @@ function hash01(...parts: (string | number)[]): number {
 }
 
 const DEAR = [
-  (name: string) => `Kibble's scarce on ${name} this month.`,
-  (name: string) => `They're paying through the nose for kibble on ${name}.`,
-  (name: string) => `${name}'s stores are down to the sweepings. Bring your own.`,
+  (name: string, food: string) => `${food}'s scarce on ${name} this month.`,
+  (name: string, food: string) => `They're paying through the nose for ${food} on ${name}.`,
+  (name: string, food: string) =>
+    `${name}'s out of ${food}. Bring your own, or bring some to sell.`,
 ];
 
 const CHEAP = [
-  (name: string) => `Kibble's cheap as dirt on ${name} just now.`,
-  (name: string) => `${name} is swimming in the stuff — they can't shift it.`,
-  (name: string) => `Somebody over-ordered on ${name}. Kibble's going for a song.`,
+  (name: string, food: string) => `${food}'s cheap as dirt on ${name} just now.`,
+  (name: string, food: string) => `${name} is swimming in ${food} — they can't shift it.`,
+  (name: string, food: string) => `Somebody over-ordered on ${name}. ${food}'s going for a song.`,
 ];
 
 /**
@@ -66,42 +72,28 @@ const CHEAP = [
  */
 const HORIZON = 2;
 /**
- * Bones away from the circuit's average band before it is worth talking about. Lowered with the
- * horizon: over two weeks rather than four there are half as many planets to gossip about, and at
- * 14 the Saloon was silent most weeks.
- */
-const NOTABLE = 10;
-/**
  * Roughly how often a given planet is actually being talked about this week. Raised for the same
  * reason — a rumour you get one week in three is a curiosity; the fog needs it to be a habit.
  */
 const CHATTER = 0.75;
 
-function bandMid(planetId: string): number {
-  const [lo, hi] = planetOf(planetId).foodBand;
-  return (lo + hi) / 2;
-}
-
 export function rumours(s: GameState): Rumour[] {
-  const circuit = s.calendar.map((c) => bandMid(c.planetId));
-  if (!circuit.length) return [];
-  const average = circuit.reduce((a, b) => a + b, 0) / circuit.length;
-
   const out: Rumour[] = [];
   for (const entry of s.calendar) {
     if (entry.week <= s.week || entry.week > s.week + HORIZON) continue;
-    const delta = bandMid(entry.planetId) - average;
-    if (Math.abs(delta) < NOTABLE) continue;
+    const notable = mostNotable(planetOf(entry.planetId));
+    if (!notable) continue;
     if (hash01(s.seed, s.week, entry.planetId, 'chatter') > CHATTER) continue;
 
-    const lines = delta > 0 ? DEAR : CHEAP;
+    const lines = notable.cheap ? CHEAP : DEAR;
     const pick = Math.floor(hash01(s.seed, s.week, entry.planetId, 'line') * lines.length);
     const name = planetOf(entry.planetId).name;
+    const food = good(notable.id).label;
     const away = entry.week - s.week;
     const when = away === 1 ? "and you're there next week" : `and you're there in ${away} weeks`;
     out.push({
       key: entry.planetId,
-      text: `${lines[Math.min(pick, lines.length - 1)]!(name)} — ${when}.`,
+      text: `${lines[Math.min(pick, lines.length - 1)]!(name, food)} — ${when}.`,
     });
   }
   return out;

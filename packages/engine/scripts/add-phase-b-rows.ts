@@ -192,6 +192,16 @@ const REMOVE: { label: string; why: string }[] = [
     label: 'Typical realised margin per unit',
     why: 'A planning figure for one good on one band. With six bands and a per-planet bias the harness measures the realised margin directly, per good',
   },
+  // ---- left with the six goods ----
+  {
+    label: 'Food price: dearest planet',
+    why: 'As above. The AI reserve that read it now prices two weeks of dinner off the staple’s own ceiling',
+  },
+  {
+    label: 'Training: plain kibble, minimum stat points',
+    why: 'Kibble is gone. Grey Mash is the floor now and carries its own row above',
+  },
+  { label: 'Training: plain kibble, maximum stat points', why: 'As above' },
 ];
 
 // ---------------------------------------------------------------------------

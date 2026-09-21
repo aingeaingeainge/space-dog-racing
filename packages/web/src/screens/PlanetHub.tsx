@@ -3,7 +3,7 @@ import {
   cargoTotal,
   HOLD_CAP,
   formatBones,
-  KIBBLE_ID,
+  describeTaste,
   planetOf,
   purseFor,
   thisWeeksCard,
@@ -110,7 +110,7 @@ export function PlanetHub({ s, me }: { s: GameState; me: Player }) {
       <Signpost rules={rules}>
         <Notes
           lines={[
-            `${trackText(planet.track)} · food ${s.planet.goods[KIBBLE_ID].buy} in, ${s.planet.goods[KIBBLE_ID].sell} out`,
+            `${trackText(planet.track)} · food here is ${describeTaste(planet)}`,
             purseMult !== 1 ? `Purses are ×${purseMult} this weekend.` : null,
             sp.winningsTax
               ? `${pct(sp.winningsTax)} of every purse goes to the port authority.`

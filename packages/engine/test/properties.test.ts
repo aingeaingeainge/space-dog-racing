@@ -14,7 +14,7 @@ import {
   reduceMut,
   thisWeeksCard,
   weekStatusOf,
-  KIBBLE_ID,
+  STAPLE_ID,
   GOOD_IDS,
   HEADLINE_TYPE_ID,
   RACE_TYPE_IDS,
@@ -205,14 +205,14 @@ describe('engine invariants', () => {
     while (s.pendingEvent) reduceMut(s, { t: 'ResolveEvent', playerId: 'p1', choice: 0 });
     const p = player(s, 'p1');
     expect(() =>
-      reduceMut(s, { t: 'TradeFood', playerId: 'p1', good: KIBBLE_ID, units: 1000 }),
+      reduceMut(s, { t: 'TradeFood', playerId: 'p1', good: STAPLE_ID, units: 1000 }),
     ).toThrow();
     // Buy the staple a crate at a time until the money runs out. The only purchase left in v3
     // Phase A is the market, so that is what the refusal has to be tested against.
     let bought = 0;
     for (;;) {
       try {
-        reduceMut(s, { t: 'TradeFood', playerId: 'p1', good: KIBBLE_ID, units: 1 });
+        reduceMut(s, { t: 'TradeFood', playerId: 'p1', good: STAPLE_ID, units: 1 });
         bought++;
       } catch (e) {
         expect(String(e)).toMatch(/Bones|hold space/);

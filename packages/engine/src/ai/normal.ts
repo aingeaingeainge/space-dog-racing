@@ -23,8 +23,8 @@ const NORMAL_STATES = { raceAbove: 65 } as const;
 
 /**
  * Normal AI (GDD §14): declares to maximise expected purse, sets every dog to Race or Rest
- * by a fitness rule, buys feed for the stats its yard is pointed at, trades the staple when the spread
- * beats aiFoodSpreadMin, and bets small on favourites.
+ * by a fitness rule, keeps two weeks of dinner aboard, trades the six goods against next week's
+ * planet (GDD_V3 §6.1), and bets small on favourites.
  * Deterministic: no randomness, so replays never diverge.
  *
  * ⚠️ **Normal has four decisions fewer than it had at `v2e`** (BUILD_PLAN_V3 §2.1): no hiring, no
@@ -45,12 +45,11 @@ export function decideNormal(s: GameState, playerId: Id): Action[] {
     if (s.phase === 'planetPre') {
       const assignment = declareBest(plan, { reserve: stateHold(plan, NORMAL_STATES) });
       setStates(plan, racingDogs(assignment));
-      // Still after setStates, though the reason has changed: every dog eats every week now
-      // (GDD_V3 §6.3), so what to buy depends on the diet pointers setStates sets, not on which
-      // dogs are training.
+      // Dinner first, so a trading leg bought below it is never what the dogs eat (GDD_V3 §6.3's
+      // cheapest-aboard fallback feeds the staple before anything dearer).
       buyFeedPlan(plan);
     }
-    tradeFoodPlan(plan, { workGoods: true });
+    tradeFoodPlan(plan);
   }
 
   if (s.phase === 'betting' && s.fields) betFavourites(plan);

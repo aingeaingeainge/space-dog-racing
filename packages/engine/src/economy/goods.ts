@@ -1,5 +1,5 @@
 import { balance } from '../content/balance';
-import { GOODS, KIBBLE_ID } from '../content/goods';
+import { GOODS } from '../content/goods';
 import { GOOD_IDS, type Cargo, type GoodId, type GameState, type Player } from '../types';
 
 /**
@@ -22,11 +22,6 @@ export function cargoTotal(cargo: Cargo): number {
   let total = 0;
   for (const id of GOOD_IDS) total += cargo[id];
   return total;
-}
-
-/** Crates of the staple aboard. The eating loop wants this and never the total (GDD §8.2). */
-export function kibbleAboard(cargo: Cargo): number {
-  return cargo[KIBBLE_ID];
 }
 
 /**
@@ -99,7 +94,7 @@ export function emptyHold(cargo: Cargo): number {
   return total;
 }
 
-/** Every good the ladder knows about, in a stable print order: the staple first, then the feeds. */
+/** Every good, cheapest first — the §6.1 ladder, in the order a market table prints it. */
 export function goodsInOrder(): readonly GoodId[] {
   return GOODS.map((g) => g.id);
 }

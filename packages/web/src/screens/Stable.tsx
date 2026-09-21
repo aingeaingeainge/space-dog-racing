@@ -14,6 +14,8 @@ import {
   type Player,
   type StatKey,
   type WeekState,
+  good,
+  type FeedPlan,
 } from '@sdr/engine';
 import { DogCard } from '../components/DogCard';
 import { NeonButton } from '../components/NeonButton';
@@ -161,6 +163,21 @@ export function Stable({ s, me }: { s: GameState; me: Player }) {
 }
 
 /**
+ * What this dog eats at the jump, in its own terms — straight from the engine's `planFeeding`, so
+ * the card cannot disagree with what the week actually does (GDD_V3 §6.3).
+ */
+function dinnerLine(f: FeedPlan | undefined): string {
+  if (!f) return '';
+  if (f.good === null)
+    return `Nothing to eat at the jump: −${balance.emptyHoldFitness} fitness and no gain. Buy food at the Market.`;
+  const g = good(f.good);
+  const gain = g.gainMin === g.gainMax ? `+${g.gainMin}` : `+${g.gainMin}–${g.gainMax}`;
+  const where = g.stat ? STAT_LABEL[g.stat] : 'a random stat';
+  const from = f.fromGate ? ' (bought at the gate)' : '';
+  return `Eats ${g.label} at the jump${from}: ${gain} ${where}.`;
+}
+
+/**
  * GDD_V3 §4.2's control, and the centre of the game: **Race or Rest**, one per dog per week.
  *
  * ⚠️ Train is gone (GDD_V3 V8) — a dog eats and gains every week whatever it is doing, so a third
@@ -194,6 +211,7 @@ function WeekPlan({
   // a ban; once the card is fact-gated it is also "nothing on this card will have it", and the
   // Kennels has to say so or the player is left wondering why Race does nothing.
   const barred = cannotRunReason(s, d);
+  const dinner = weeklyBill(s, me).plan.find((f) => f.dogId === d.id);
 
   return (
     <div className="weekplan">
@@ -259,10 +277,8 @@ function WeekPlan({
       {barred && !laidOff ? (
         <span className="muted small">Cannot run this weekend — {barred}.</span>
       ) : null}
-      <span className="muted small">
-        Every dog eats one crate a week whatever it is doing: +{balance.trainKibbleMin}–
-        {balance.trainKibbleMax} to a stat of its own choosing. Phase B makes the food itself the
-        training programme.
+      <span className={dinner && dinner.good === null ? 'warn-text small' : 'muted small'}>
+        {dinnerLine(dinner)}
       </span>
     </div>
   );

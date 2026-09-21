@@ -1,6 +1,15 @@
 import { balance } from '../content/balance';
-import { GOODS, KIBBLE_ID, STAPLE_ID } from '../content/goods';
-import type { Cargo, Dog, GoodId, GoodMarket, Id, Planet, Player } from '../types';
+import { GOODS, good, STAPLE_ID } from '../content/goods';
+import {
+  GOOD_IDS,
+  type Cargo,
+  type Dog,
+  type GoodId,
+  type GoodMarket,
+  type Id,
+  type Planet,
+  type Player,
+} from '../types';
 import type { Rng } from '../rng';
 
 /**
@@ -44,13 +53,15 @@ export function cratesWanted(p: Player, d: Dog): number {
  * Which crate this dog reaches for.
  *
  * ⚠️ **The sticky per-dog diet of §6.3 is not built yet** — that is item 4 of this phase, and it
- * replaces this function's body with a named food / best available / worst available choice and a
- * cheapest-aboard fallback. With one placeholder good there is nothing to choose between, so the
- * question is only whether the hold has anything in it at all, which is exactly the question the
- * empty-hold penalty asks.
+ * puts a named food / best available / worst available choice in front of this. What is here is
+ * §6.3's own fallback rule, *"the cheapest thing aboard"*, which is what the diet falls back to when
+ * its choice runs out and is therefore the right behaviour for a dog that has no diet yet.
+ * "Cheapest" is the good's place on the §6.1 ladder, not this week's price: a diet is a standing
+ * order, and a standing order cannot depend on a draw the dog has never seen.
  */
 function chooseFood(cargo: Cargo): GoodId | null {
-  return cargo[KIBBLE_ID] > 0 ? KIBBLE_ID : null;
+  for (const id of GOOD_IDS) if (cargo[id] > 0) return id;
+  return null;
 }
 
 /**
@@ -88,34 +99,74 @@ export function goingHungry(plan: readonly FeedPlan[]): number {
 }
 
 /**
- * This week's market on one planet, per good (GDD §9.1).
+ * A planet's food map in one line — "cheap for Grey Mash and Scrapmeat, dear for Ambrosia" — for
+ * the two information events that sell it (GDD_V3 §9.4) and for any screen that needs it said
+ * rather than tabled. Names a good as cheap at a bias of 0.8 or below and dear at 1.2 or above,
+ * which is the point where its typical price sits a tenth of the band away from the middle.
  *
- * The planet's `foodBand` is the band for the staple and every other good is priced against it by
- * its row's `priceMult`, so a planet that is cheap for one good is cheap for all of them — which is
- * what makes "where am I buying" a question with one answer rather than one per row. The ±15%
- * weekly drift is drawn **once per good**, so the goods do not all move together.
- *
- * Stock is rolled here too, and separately from price: a good has a chance of being on the shelf
- * at all, and a depth when it is. The staple is always there in any quantity.
- *
- * ⚠️ **`feedBias` is gone with the tier ladder (BUILD_PLAN_V3 §2.1).** Phase B replaces this
- * function's price model with GDD_V3 §6.1's six 8× bands and §6.4's mid-band clustering, which must
- * use `normalDeviate()` from `determinism.ts` — never `exp` — and per-planet shelf depth.
+ * `invert` swaps the two lists, which is what a lying clerk's manifest does: the lie is about the
+ * *shape* of the market rather than a number nudged by a few Bones, so a player who acts on it is
+ * wrong in a way they will notice.
  */
-export function rollGoodPrices(planet: Planet, rng: Rng): Record<GoodId, GoodMarket> {
-  const [lo, hi] = planet.foodBand;
+export function describeTaste(planet: Planet, invert = false): string {
+  const cheap = GOODS.filter((g) => planet.foodBand[g.id] <= 0.8).map((g) => g.label);
+  const dear = GOODS.filter((g) => planet.foodBand[g.id] >= 1.2).map((g) => g.label);
+  const [lo, hi] = invert ? [dear, cheap] : [cheap, dear];
+  const list = (xs: string[]) =>
+    xs.length <= 1 ? (xs[0] ?? '') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`;
+  const parts = [lo.length ? `cheap for ${list(lo)}` : '', hi.length ? `dear for ${list(hi)}` : ''];
+  const said = parts.filter(Boolean).join(', ');
+  return said || 'middling for everything';
+}
+
+/**
+ * The price a good is *expected* to post on a planet — what a stable standing somewhere else can
+ * reasonably plan to sell it for there (GDD_V3 §6.1, §12).
+ *
+ * **This is the engine's own expectation and the AI and the Market screen both read it**, so the
+ * number a player is shown for "next stop" and the number an AI trades on cannot drift apart. That
+ * is §14's rule — every difficulty sees exactly what a player sees — kept by construction rather
+ * than by care.
+ *
+ * ⚠️ **While the draw is flat across the band (this commit) the expectation is the band's midpoint
+ * on every planet**, which means the trader's map is blank: the only signal is whether *this*
+ * week's draw is below the middle. The planet's `foodBand` bias is data from this commit on and is
+ * read by the price draw in the next, which is where the map appears.
+ */
+export function expectedPrice(_planet: Planet, id: GoodId): number {
+  const g = good(id);
+  return (g.floor + g.ceiling) / 2;
+}
+
+/**
+ * This week's market on one planet, per good (GDD_V3 §6.1).
+ *
+ * Every good is on every shelf — a price to buy at, a price to sell at, and a finite depth of
+ * stock. Buy and sell move together: the sell price is always `foodSpread` below the buy, so a
+ * crate bought and sold in the same place always loses the spread, and the only way to make money
+ * is to carry it somewhere.
+ *
+ * ⚠️ **The price is drawn FLAT across the good's band in this commit, which is exactly what §6.4
+ * forbids** — it is here only so the six goods and the shelf land in a commit of their own and the
+ * next commit's snapshot move is attributable to the distribution alone. A flat draw puts a fifth
+ * of all Ambrosia prices within 126 Bones of the floor, and that is the 8× happening *to* a player
+ * rather than being hunted by one.
+ *
+ * ⚠️ **Every good now makes two draws, price then depth, always.** Phase A's version skipped the
+ * depth draw for a shelf that could not vary (the staple's unlimited stock), with a comment saying
+ * that let a change to the good list replay an unchanged season draw for draw. Every shelf is
+ * finite now — `STOCK_UNLIMITED` is gone, because the depth is the scarcity rule (V7) — so that
+ * property no longer exists, and any change to the good list moves every season. That is a
+ * deliberate trade and the snapshot move that comes with it is named in this commit.
+ */
+export function rollGoodPrices(_planet: Planet, rng: Rng): Record<GoodId, GoodMarket> {
   const out = {} as Record<GoodId, GoodMarket>;
   for (const g of GOODS) {
-    const mid =
-      rng.uniform(lo, hi) * g.priceMult * (1 + rng.uniform(-balance.foodDrift, balance.foodDrift));
+    const mid = rng.uniform(g.floor, g.ceiling);
     const buy = Math.max(1, Math.round(mid));
     const sell = Math.max(1, Math.round(mid * (1 - balance.foodSpread)));
-    // Neither draw is made when the answer cannot vary — a shelf that is always there and always
-    // deep (the staple) consumes no randomness, which is what lets a change to the good list
-    // replay an unchanged season draw for draw.
-    const stocked = g.stockChance >= 1 ? true : rng.chance(g.stockChance);
-    const depth = g.stockMin === g.stockMax ? g.stockMin : rng.int(g.stockMin, g.stockMax);
-    out[g.id] = { buy, sell, stock: stocked ? depth : 0 };
+    const stock = rng.int(g.shelfMin, g.shelfMax);
+    out[g.id] = { buy, sell, stock };
   }
   return out;
 }

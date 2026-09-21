@@ -10,13 +10,13 @@
  */
 import {
   cargoTotal,
+  GOODS,
   HOLD_CAP,
-  KIBBLE_ID,
+  STAPLE_ID,
   bettingMargin,
   createSeason,
   drive,
   maxStakeFor,
-  planetOf,
   replay,
   raceType,
   thisWeeksCard,
@@ -32,6 +32,13 @@ import {
 import { applyActions, screenFor, type ScreenUi } from '../src/store/loop';
 
 const HUMAN = 'p1';
+
+/**
+ * Every good the walk-through bought or sold, across every season it plays. With six goods a walk
+ * can pass while touching one of them, which is the "a check that passes because it stopped
+ * checking" failure Phase A warned about — so the run fails unless most of the ladder was used.
+ */
+const goodsTraded = new Set<string>();
 
 /**
  * Action counters. `Record<string, number>` plus `noUncheckedIndexedAccess` means every read is
@@ -78,7 +85,6 @@ function planetTurn(s: GameState, p: Player, tally: Tally): Action[] {
   const pre = s.phase === 'planetPre';
   let cash = p.cash;
   let cargo = cargoTotal(p.cargo);
-  let kibble = p.cargo[KIBBLE_ID];
   const dogs = ownDogs(s, p);
   const kennel = [...dogs];
 
@@ -107,29 +113,56 @@ function planetTurn(s: GameState, p: Player, tally: Tally): Action[] {
   // per-dog diet are exactly the kind of thing a walk-through can *survive* without exercising, and
   // a check that passes because it stopped checking is worse than a red one.
   if (s.toggles.trading) {
-    const need = kennel.length;
-    const next = s.calendar[s.week];
-    const nextBand = next ? planetOf(next.planetId).foodBand : null;
-    const m = s.planet.goods[KIBBLE_ID];
-    const nextMid = nextBand ? (nextBand[0] + nextBand[1]) / 2 : m.buy;
-    let units = 0;
-    if (m.sell > nextMid + 20 && kibble > need) units = -(kibble - need);
-    else if (nextMid - m.buy > 20) {
-      const spend = Math.max(0, cash - 2500);
-      units = Math.min(HOLD_CAP - cargo, Math.floor(spend / m.buy));
-    } else if (kibble < need) {
-      units = Math.min(
-        HOLD_CAP - cargo,
-        need - kibble,
-        Math.floor(Math.max(0, cash - 500) / m.buy),
-      );
+    // Read the six rows the way §6.2 asks a player to: by where each price sits in its own range.
+    // Sell anything in the top quarter, keep two weeks of the staple for dinner, and buy whatever
+    // is in the bottom quarter with the money left over — which exercises the finite shelf, the
+    // hold and more than one good, where Phase A's walk bought one good or nothing.
+    const dinner = kennel.length;
+    const pos = (id: (typeof GOODS)[number]['id']) => {
+      const g = GOODS.find((x) => x.id === id)!;
+      return (s.planet.goods[id].buy - g.floor) / (g.ceiling - g.floor);
+    };
+    const held = { ...p.cargo };
+    for (const g of GOODS) {
+      const keep = g.id === STAPLE_ID ? dinner : 0;
+      const spare = held[g.id] - keep;
+      if (spare > 0 && pos(g.id) >= 0.75) {
+        out.push({ t: 'TradeFood', playerId: p.id, good: g.id, units: -spare });
+        cash += spare * s.planet.goods[g.id].sell;
+        cargo -= spare;
+        held[g.id] -= spare;
+        bump(tally, 'TradeFood');
+        goodsTraded.add(g.id);
+      }
     }
-    if (units !== 0) {
-      out.push({ t: 'TradeFood', playerId: p.id, good: KIBBLE_ID, units });
-      cash -= units * (units > 0 ? m.buy : m.sell);
-      cargo += units;
-      kibble += units;
-      bump(tally, 'TradeFood');
+    const staple = s.planet.goods[STAPLE_ID];
+    const short = dinner * 2 - held[STAPLE_ID];
+    if (short > 0) {
+      const units = Math.min(short, staple.stock, HOLD_CAP - cargo, Math.floor(cash / staple.buy));
+      if (units > 0) {
+        out.push({ t: 'TradeFood', playerId: p.id, good: STAPLE_ID, units });
+        cash -= units * staple.buy;
+        cargo += units;
+        bump(tally, 'TradeFood');
+      }
+    }
+    const bargain = GOODS.filter((g) => g.id !== STAPLE_ID && pos(g.id) <= 0.25).sort(
+      (a, b) => pos(a.id) - pos(b.id),
+    )[0];
+    if (bargain) {
+      const m = s.planet.goods[bargain.id];
+      const units = Math.min(
+        m.stock,
+        HOLD_CAP - cargo,
+        Math.floor(Math.max(0, cash - 2500) / m.buy),
+      );
+      if (units > 0) {
+        out.push({ t: 'TradeFood', playerId: p.id, good: bargain.id, units });
+        cash -= units * m.buy;
+        cargo += units;
+        bump(tally, 'TradeFood');
+        goodsTraded.add(bargain.id);
+      }
     }
   }
 
@@ -353,6 +386,15 @@ console.log(
   `\nThe week walked: ${walked.declare} declarations, ${walked.states} Race/Rest changes, ` +
     `${walked.trades} trades, ${walked.bets} bets.`,
 );
+console.log(
+  `Goods traded: ${goodsTraded.size} of ${GOODS.length} (${[...goodsTraded].join(', ')}).`,
+);
+if (!failures && goodsTraded.size < 4) {
+  console.error(
+    'Fewer than four of the six goods were ever traded — the check did not walk the market.',
+  );
+  failures++;
+}
 if (!failures && Object.values(walked).some((n) => n === 0)) {
   const dead = Object.entries(walked)
     .filter(([, n]) => n === 0)

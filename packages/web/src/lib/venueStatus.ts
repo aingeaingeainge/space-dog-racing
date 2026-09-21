@@ -2,8 +2,6 @@ import {
   balance,
   cargoTotal,
   HOLD_CAP,
-  KIBBLE_ID,
-  formatBones,
   planetOf,
   weekStatusOf,
   thisWeeksCard,
@@ -14,6 +12,7 @@ import {
   type Player,
   type RaceTypeId,
 } from '@sdr/engine';
+import { marketHeadline } from './market';
 import { declaredCount, ineligibleReason, ownedDogs, raceLabel, TRAPS } from './selectors';
 import type { VenueId } from './venues';
 
@@ -55,41 +54,18 @@ export function venueStatus(s: GameState, me: Player): Record<VenueId, VenueStat
   const inTurn = pre || s.phase === 'planetPost';
   const mine = ownedDogs(s, me);
 
-  // --- Market: the food shelf, and whether there is a margin in carrying any of it.
+  // --- Market: the six foods, and whether anything on the shelf or in the hold is worth a walk.
   //
-  // ⚠️ **This is the Docks' old arithmetic, moved (BUILD_PLAN_V3 §2.1).** The dog market, the gear
-  // and the ship upgrades are deleted, so what is left of "the Market" is the food trade that used
-  // to live at the Docks — which is what GDD_V3 §6 makes the only market in the game. The fuel term
-  // is gone with the fuel, so a crate is worth carrying whenever the next planet's floor beats this
-  // planet's price, full stop.
-  //
-  // Phase B replaces this with the six goods of §6.1 and the Price Range column of §6.2, at which
-  // point the summary should name **which** good is cheap rather than just that something is.
-  const next = s.calendar[s.week];
-  const nextBand = next ? planetOf(next.planetId).foodBand : null;
-  const kibble = s.planet.goods[KIBBLE_ID];
+  // Names **which** good, now that there are six (GDD_V3 §6.1): "cheap Steak" is a reason to go in,
+  // "something is cheap" is not. The judgement is `marketHeadline`'s — a price in the bottom or top
+  // quarter of its own band — which is the same reading the Price Range column asks a player to make.
   const crates = cargoTotal(me.cargo);
-  const roomToBuy = HOLD_CAP - crates > 0 && me.cash >= kibble.buy;
-  const worthSelling = crates > 0 && nextBand !== null && kibble.sell > nextBand[1];
-  const worthBuying =
-    roomToBuy &&
-    nextBand !== null &&
-    s.toggles.trading &&
-    nextBand[0] * (1 - balance.foodSpread) > kibble.buy;
+  const headline = s.toggles.trading ? marketHeadline(s, me) : null;
   const market: VenueStatus = !inTurn
     ? nothing('Shut while the races are on')
-    : worthBuying || worthSelling
-      ? {
-          line: worthBuying
-            ? `Food at ${formatBones(kibble.buy)} a crate — cheap against next week`
-            : `Food sells at ${formatBones(kibble.sell)} — dearer than next week`,
-          short: worthBuying ? 'cheap food' : 'sell high',
-          worth: true,
-        }
-      : nothing(
-          `Food ${formatBones(kibble.buy)} / ${formatBones(kibble.sell)} · ${crates} crates aboard`,
-          `${crates} crates`,
-        );
+    : headline
+      ? { line: headline.line, short: headline.short, worth: true }
+      : nothing(`Six foods · ${crates} / ${HOLD_CAP} crates aboard`, `${crates} crates`);
 
   // --- Kennels: is every dog's week decided, and is anything wrong with one?
   const wrong = mine.filter((d) => d.injuryWeeks > 0 || d.fitness < balance.fitnessScaleBelow);
@@ -165,6 +141,7 @@ export function venueStatus(s: GameState, me: Player): Record<VenueId, VenueStat
    * information now arrives through Bar events and staff bonuses instead — Phase D — and that it has
    * exactly one use, which is knowing whether next week's planet buys your food high.
    */
+  const next = s.calendar[s.week];
   const map: VenueStatus = nothing(
     next ? `Next week: ${planetOf(next.planetId).name}. The rest is dark` : 'The last stop',
     next ? planetOf(next.planetId).name : 'last stop',

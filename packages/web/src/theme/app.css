@@ -2099,3 +2099,80 @@ p.keyhint {
     display: none;
   }
 }
+
+/* ---------------------------------------------------------------- the market (GDD_V3 §6.2) */
+/* The Price Range column is the whole bet of §6.2: the two numbers are the evidence and the bar is
+   only an aid to reading them, so the numbers stay at full weight either side of it. The bar's
+   colour is the quartile — bottom quarter acid, top quarter pink — which is a hint, never the
+   answer; the numbers are the answer. */
+.market-hold {
+  margin-bottom: 10px;
+}
+.market-hold .gauge {
+  display: inline-flex;
+}
+table.market td {
+  vertical-align: middle;
+}
+table.market .small {
+  font-size: 11px;
+}
+.range {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 190px;
+}
+.range .num {
+  font-variant-numeric: tabular-nums;
+  min-width: 28px;
+}
+.range .num:last-child {
+  text-align: right;
+}
+.range-bar {
+  position: relative;
+  flex: 1;
+  height: 8px;
+  border-radius: 4px;
+  background: linear-gradient(
+    90deg,
+    rgba(155, 232, 75, 0.35),
+    #33303f 30%,
+    #33303f 70%,
+    rgba(240, 78, 152, 0.35)
+  );
+  border: 1px solid #4b4560;
+}
+.range-mark {
+  position: absolute;
+  top: -4px;
+  width: 4px;
+  height: 14px;
+  margin-left: -2px;
+  border-radius: 2px;
+  background: var(--text);
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.5);
+}
+.range-bar.cheap .range-mark {
+  background: var(--acid);
+  box-shadow: 0 0 8px var(--acid);
+}
+.range-bar.dear .range-mark {
+  background: var(--pink);
+  box-shadow: 0 0 8px var(--pink);
+}
+td.trade {
+  white-space: nowrap;
+}
+td.trade input {
+  width: 56px;
+  margin-right: 4px;
+}
+td.trade .neon {
+  margin-left: 2px;
+}
+/* A line on a card that is a warning rather than a note — the empty-hold penalty, mostly. */
+.warn-text {
+  color: var(--pink);
+}

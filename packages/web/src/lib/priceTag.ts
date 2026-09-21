@@ -21,7 +21,6 @@
 import {
   balance,
   baseRating,
-  bestFeedAboard,
   ratingWith,
   weakestStat,
   type Dog,
@@ -71,8 +70,8 @@ export interface FeedProjection {
  * feeds every dog every week whatever it is doing, so a stable that keeps the crate aboard *does*
  * get this — the only thing that can stop it is running out of food or out of money.
  *
- * Kibble's floor gain is still left out: it lands on a random stat and is what a stable that spends
- * nothing already gets, so counting it would flatter every feed by the same amount.
+ * The random-stat foods are left out: their gain lands wherever it lands, so a per-stat projection
+ * of them would be a guess dressed as a forecast.
  */
 export function projectFeed(
   d: Dog,
@@ -141,7 +140,8 @@ export function bestEarner(s: GameState, me: Player): { dog: Dog; won: number } 
  */
 export function feedEffect(s: GameState, g: Good, d: Dog): string {
   if (!g.stat) {
-    return `The staple. A week on kibble alone gains ${g.gainMin}–${g.gainMax} on a random stat`;
+    const gain = g.gainMin === g.gainMax ? `${g.gainMin}` : `${g.gainMin}–${g.gainMax}`;
+    return `${d.name}: +${gain} on a random stat each week it eats ${g.label}`;
   }
   const mid = Math.round((g.gainMin + g.gainMax) / 2);
   const oneWeek = ratingWith(d, g.stat, mid);
@@ -155,26 +155,6 @@ export function feedEffect(s: GameState, g: Good, d: Dog): string {
       ? ` · ${label} ${far.statThen} and rating ${far.ratingThen} by week ${Math.min(balance.weeks, s.week + weeks)} if he ate it every week`
       : '')
   );
-}
-
-/**
- * How many of the yard's dogs have the food they want aboard.
- *
- * ⚠️ **Every dog eats every week now (GDD_V3 §6.3), so this counts the whole yard rather than the
- * dogs set to Train.** The name is kept for one more phase because Phase B replaces this outright
- * with the Market's hold gauge and the §6.2 Price Range column.
- */
-export function cratesForTrainees(s: GameState, me: Player): { trainees: number; covered: number } {
-  let trainees = 0;
-  let covered = 0;
-  for (const id of me.dogIds) {
-    const d = s.dogs[id];
-    if (!d || d.injuryWeeks > 0) continue;
-    trainees++;
-    const g = bestFeedAboard(me.cargo, d.trainStat);
-    if (g && me.cargo[g.id] > 0) covered++;
-  }
-  return { trainees, covered };
 }
 
 /**

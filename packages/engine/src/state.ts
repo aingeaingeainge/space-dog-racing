@@ -9,7 +9,7 @@ import { AI_PERSONALITIES, AI_STABLE_NAMES } from './content/names';
 import { CARD, raceType } from './content/raceTypes';
 import { createStartingDog, emptyPlanetState, type IdGen } from './economy/dogs';
 import { emptyCargo } from './economy/goods';
-import { KIBBLE_ID } from './content/goods';
+import { STAPLE_ID } from './content/goods';
 import { mulberry32, type Rng } from './rng';
 import type {
   CalendarEntry,
@@ -334,7 +334,7 @@ export function createSeason(setup: SeasonSetup): GameState {
       kind: ps.kind,
       cash: balance.startCash,
       dogIds: [],
-      cargo: { ...emptyCargo(), [KIBBLE_ID]: balance.startCargo },
+      cargo: { ...emptyCargo(), [STAPLE_ID]: balance.startCargo },
       flags: {
         arriveFirstNextWeek: false,
         tipOff: false,

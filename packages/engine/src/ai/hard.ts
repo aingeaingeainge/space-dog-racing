@@ -70,13 +70,11 @@ export function decideHard(s: GameState, playerId: Id): Action[] {
     //
     // Blackreach reverses the turn order, so arrive heavy and get first look at the market.
     const fillHold = s.phase === 'planetPost' && !!planetAhead(s, 1)?.special.turnOrderReversed;
-    // Feed before kibble: a crate of Prime speed feed is worth more than a crate of dinner, and
-    // the hold is the thing they compete for (GDD §8.2's "hold or feed").
-    // Feeds deeper than Normal: three crates a stat and 70% of the spare cash, against Normal's
-    // two and a half. Ablated at Normal's settings and at none at all: head-to-head reads 58.7%
-    // either way, so this is free rather than good — kept on the same footing as D27's coverage
-    // buying, because it is how a good racer uses the new market and the ablation is recorded.
-    if (s.phase === 'planetPre') buyFeedPlan(plan, { crates: 3, spend: 0.7 });
+    // Dinner first, as Normal: a trading leg sitting below the staple is never what the dogs eat.
+    // ⚠️ v2's "feeds deeper than Normal" (three crates a stat, 70% of spare cash) is gone with the
+    // stat feeds it bought; it was measured free rather than good (58.7% either way) and there is
+    // nothing yet to buy deeper *of* until the diet lands.
+    if (s.phase === 'planetPre') buyFeedPlan(plan);
     tradeFoodPlan(plan, { fillHold });
     // ⚠️ **Declarations last, after the feed and the trade, and that is v2's order rather than an
     // accident.** It used to be `feedSupplements(plan, declareForThisWeek(plan))` — the supplement

@@ -1,78 +1,129 @@
 import { balance } from './balance';
 import type { GoodId, StatKey } from '../types';
+import { GOOD_IDS } from '../types';
 
 /**
- * What a hold can carry, as data (GDD §8.2, D4).
+ * The six foods (GDD_V3 §6), as data.
  *
- * **Content is data: a good is a row here and an id in `GoodId`.** Nothing branches on which
- * good it is — the eating loop asks `staple`, the training loop asks `stat` and the gain band, the
- * market asks `priceMult` and the stock numbers, and none of them knows what a row is called.
- * `content/raceTypes.ts` is the pattern this follows.
+ * **There is exactly one market in v3, and it sells these.** Each is simultaneously a trade good
+ * and a week's training (V5): every dog eats one unit a week whatever it is doing and gains that
+ * food's bonus (§6.3), so every market decision is also a training decision.
  *
- * ⚠️ **v3 Phase A cut the thirteen rows to one.** The four stats × three tiers and the
- * Rough/Proper/Prime ladder are gone (BUILD_PLAN_V3 §2.1), and kibble is left as the **placeholder
- * single good** of Phase A item 8: enough that the trade loop, the eating loop and the harness's
- * trade column all still work, and no more than that.
- *
- * **Phase B replaces this file with GDD_V3 §6.1's six foods** — Grey Mash, Scrapmeat, Glow Tripe,
- * Vat Steak, Pulsar Marrow, Ambrosia — on 8× bands with per-planet shelf depth, where the food *is*
- * the training programme (§6.3) and the empty hold costs 10 fitness (§6.3's running cost). The row
- * shape below deliberately survives that change: `stat`, the gain band, `priceMult` and the stock
- * numbers are all fields §6.1 needs, so Phase B adds rows rather than reworking the interface.
+ * **Content is data: a good is a row here and an id in `GoodId`.** Nothing branches on which good
+ * it is — the price draw asks `floor` and `ceiling`, the shelf asks the depth, the feeding loop asks
+ * `stat` and the gain band — and none of them knows what a row is called. Every number is a cell in
+ * the spreadsheet (`balance.json`), so a row here is names and pointers and nothing else.
  */
 export interface Good {
   id: GoodId;
-  /** Full name, as an error message or a shelf label says it. */
+  /** Full name, as a shelf label or an error message says it. */
   label: string;
-  /** Column form for a table where the tier is its own column. */
+  /** Column form, for a table that is short of room. */
   short: string;
   /**
-   * The stat this feed sharpens, or null for the staple — kibble's gain lands on a **random**
-   * stat, which is the floor of improvement GDD §8.2 describes and the reason a stable that buys
-   * nothing still drifts upward very slowly.
+   * §6.1's band. **Every good is exactly 8× from floor to ceiling**, so every good is the same
+   * *bet* and differs only in how much capital it takes to make it — and the across-good ladder at
+   * the floor (1 / 2 / 3 / 6 / 7.5 / 9) is a near-equal 9×. That near-equality is what makes a
+   * cash-bound stable and a hold-bound stable play different games.
+   */
+  floor: number;
+  ceiling: number;
+  /** §6.1's shelf depth per planet, rolled weekly — the scarcity rule (V7). */
+  shelfMin: number;
+  shelfMax: number;
+  /**
+   * The stat a week of this food is aimed at (§6.3), or null for a random one.
+   *
+   * ⚠️ **The aim is light on purpose (V6).** Three cheap foods each point at one stat and three
+   * dearer ones land at random; the randomness sits *inside* each row, where it adds texture,
+   * rather than between them, where it would reduce six foods to one ladder of magnitude and make
+   * feeding "buy the best you can afford".
    */
   stat: StatKey | null;
-  /** Stat points a feed adds, inclusive. */
+  /** Stat points a week of this food adds, inclusive. */
   gainMin: number;
   gainMax: number;
-  /** Dogs eat this. Exactly one row is the staple, and the eating loop only ever wants that one. */
-  staple: boolean;
-  /** Price against the planet's kibble band (GDD §9.1). Kibble is 1 by definition. */
-  priceMult: number;
-  /** Chance this planet stocks it at all, and how deep the shelf is when it does (GDD §8.1). */
-  stockChance: number;
-  stockMin: number;
-  stockMax: number;
 }
-
-/**
- * A shelf marked this deep is never drawn down: the staple is always available in any quantity.
- * A rule about a *number* rather than about which good it is, so nothing branches on `id` — and
- * `rollGoodPrices` makes no rng draw for a shelf whose depth cannot vary.
- *
- * ⚠️ Phase B gives every good a finite shelf (GDD_V3 §6.1's depth per planet is the scarcity rule
- * that stops "fill the hold with Ambrosia"), at which point this constant should disappear rather
- * than being kept for one row.
- */
-export const STOCK_UNLIMITED = 9999;
 
 export const GOODS: readonly Good[] = [
   {
-    id: 'kibble',
-    label: 'Space Kibble',
-    short: 'Kibble',
+    id: 'greyMash',
+    label: 'Grey Mash',
+    short: 'Mash',
+    floor: balance.greyMashFloor,
+    ceiling: balance.greyMashCeiling,
+    shelfMin: balance.greyMashShelfMin,
+    shelfMax: balance.greyMashShelfMax,
     stat: null,
-    gainMin: balance.trainKibbleMin,
-    gainMax: balance.trainKibbleMax,
-    staple: true,
-    priceMult: 1,
-    // Always on every shelf, in any quantity: it is what the dogs eat, and a planet that ran out
-    // would be a rule about starvation rather than a market.
-    stockChance: 1,
-    stockMin: STOCK_UNLIMITED,
-    stockMax: STOCK_UNLIMITED,
+    gainMin: balance.greyMashGainMin,
+    gainMax: balance.greyMashGainMax,
+  },
+  {
+    id: 'scrapmeat',
+    label: 'Scrapmeat',
+    short: 'Scrap',
+    floor: balance.scrapmeatFloor,
+    ceiling: balance.scrapmeatCeiling,
+    shelfMin: balance.scrapmeatShelfMin,
+    shelfMax: balance.scrapmeatShelfMax,
+    stat: 'stamina',
+    gainMin: balance.scrapmeatGainMin,
+    gainMax: balance.scrapmeatGainMax,
+  },
+  {
+    id: 'glowTripe',
+    label: 'Glow Tripe',
+    short: 'Tripe',
+    floor: balance.glowTripeFloor,
+    ceiling: balance.glowTripeCeiling,
+    shelfMin: balance.glowTripeShelfMin,
+    shelfMax: balance.glowTripeShelfMax,
+    stat: 'accel',
+    gainMin: balance.glowTripeGainMin,
+    gainMax: balance.glowTripeGainMax,
+  },
+  {
+    id: 'vatSteak',
+    label: 'Vat Steak',
+    short: 'Steak',
+    floor: balance.vatSteakFloor,
+    ceiling: balance.vatSteakCeiling,
+    shelfMin: balance.vatSteakShelfMin,
+    shelfMax: balance.vatSteakShelfMax,
+    stat: 'speed',
+    gainMin: balance.vatSteakGainMin,
+    gainMax: balance.vatSteakGainMax,
+  },
+  {
+    id: 'pulsarMarrow',
+    label: 'Pulsar Marrow',
+    short: 'Marrow',
+    floor: balance.pulsarMarrowFloor,
+    ceiling: balance.pulsarMarrowCeiling,
+    shelfMin: balance.pulsarMarrowShelfMin,
+    shelfMax: balance.pulsarMarrowShelfMax,
+    stat: null,
+    gainMin: balance.pulsarMarrowGainMin,
+    gainMax: balance.pulsarMarrowGainMax,
+  },
+  {
+    id: 'ambrosia',
+    label: 'Ambrosia',
+    short: 'Ambrosia',
+    floor: balance.ambrosiaFloor,
+    ceiling: balance.ambrosiaCeiling,
+    shelfMin: balance.ambrosiaShelfMin,
+    shelfMax: balance.ambrosiaShelfMax,
+    stat: null,
+    gainMin: balance.ambrosiaGainMin,
+    gainMax: balance.ambrosiaGainMax,
   },
 ];
+
+// The row list and the canonical id order are two statements of one fact; fail at load, not at a
+// seed nobody tested, if they ever disagree.
+if (GOODS.map((g) => g.id).join() !== GOOD_IDS.join())
+  throw new Error('content/goods.ts rows are out of GOOD_IDS order');
 
 export const GOOD_BY_ID: Record<GoodId, Good> = Object.fromEntries(
   GOODS.map((g) => [g.id, g]),
@@ -85,34 +136,13 @@ export function good(id: GoodId): Good {
 }
 
 /**
- * The staple (GDD §8.2). Dogs eat this, and with one good in the market it is also the only thing
- * the hold can hold — which is exactly what makes it a *placeholder* rather than a market.
+ * The cheapest food: what a stable starts with aboard, what the gate sells in a No Trading season,
+ * and what a hungry dog's owner is steered towards. Read off the rows' floors rather than named, so
+ * nothing branches on which good it is.
  */
-export const KIBBLE_ID: GoodId = 'kibble';
+export const STAPLE_ID: GoodId = [...GOODS].sort((a, b) => a.floor - b.floor)[0]!.id;
 
-/**
- * The good the gate sells when the market is shut (a No Trading season), read off the row's
- * `staple` flag rather than named, so nothing branches on which good it is.
- */
-export const STAPLE_ID: GoodId = GOODS.find((g) => g.staple)!.id;
-
-/** Every feed for one stat, worst first. */
+/** Every food aimed at one stat, cheapest first. */
 export function feedsFor(stat: StatKey): readonly Good[] {
   return GOODS.filter((g) => g.stat === stat);
-}
-
-/**
- * The best feed for this stat that the hold actually has a crate of, or null for none.
- *
- * ⚠️ With one good and no stat feeds this always returns null, and that is honest rather than
- * broken: there is nothing to sharpen a chosen stat with until Phase B. The function is kept
- * because `trainOneWeek` and the AI both ask the question, and Phase B answers it with six rows.
- */
-export function bestFeedAboard(cargo: Record<GoodId, number>, stat: StatKey): Good | null {
-  let best: Good | null = null;
-  for (const g of GOODS) {
-    if (g.stat !== stat || cargo[g.id] <= 0) continue;
-    if (!best || g.priceMult > best.priceMult) best = g;
-  }
-  return best;
 }

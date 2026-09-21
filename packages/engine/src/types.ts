@@ -34,21 +34,32 @@ export type StatKey = 'speed' | 'accel' | 'stamina';
 export const STAT_KEYS: readonly StatKey[] = ['speed', 'accel', 'stamina'] as const;
 
 /**
- * A thing a hold can carry (GDD §8.2, D4). One id per row in `content/goods.ts`.
+ * A thing a hold can carry: one of GDD_V3 §6.1's six foods, which are simultaneously the game's
+ * trade goods and its training programme (§6.3, V5). One id per row in `content/goods.ts`.
  *
- * ⚠️ **v3 Phase A cut this to one row.** The four stat feeds × three tiers and the Rough/Proper/
- * Prime ladder they hung off are gone (BUILD_PLAN_V3 §2.1), and `kibble` is left standing as the
- * **placeholder single good** Phase A item 8 asks for, so the trade loop and the eating machinery
- * still run and the harness still has something to measure. **Phase B replaces this whole type
- * with GDD_V3 §6.1's six foods on 8× bands** — Grey Mash, Scrapmeat, Glow Tripe, Vat Steak, Pulsar
- * Marrow, Ambrosia — with shelf depth per planet. Do not add them here.
+ * Phase A left `kibble` here as a placeholder single good; Phase B replaces it outright.
  */
-export type GoodId = 'kibble';
+export type GoodId =
+  'greyMash' | 'scrapmeat' | 'glowTripe' | 'vatSteak' | 'pulsarMarrow' | 'ambrosia';
 
 /**
- * Every good, in the order a hold serialises and a market table prints.
+ * Every good, cheapest first — the order a hold serialises, a market table prints and a tie breaks.
+ *
+ * ⚠️ **This order is canonical and must never be changed.** `emptyCargo()` builds the dense
+ * `Cargo` record in this order, and the golden digest hashes `JSON.stringify(state)`, so the order
+ * of these six strings is part of every save file's hash. Cheapest-first was chosen once, because it
+ * is also the order §6.1 prints them in and the order a player reads the market in; re-ordering it
+ * for any reason — alphabetical, "most interesting first" — would move every snapshot in the project
+ * without changing a single rule.
  */
-export const GOOD_IDS: readonly GoodId[] = ['kibble'] as const;
+export const GOOD_IDS: readonly GoodId[] = [
+  'greyMash',
+  'scrapmeat',
+  'glowTripe',
+  'vatSteak',
+  'pulsarMarrow',
+  'ambrosia',
+] as const;
 
 /**
  * What is in a stable's hold: crates per good.
@@ -125,7 +136,6 @@ export interface PlanetSpecial {
   noBetting?: boolean;
   bettingMargin?: number; // overrides balance.bettingMargin
   maxStakeFraction?: number; // overrides balance.maxStakeFraction
-  everythingMarkup?: number; // Neon Snout: all market prices +x
   purseMult?: number; // Old Wembley: purse +20%
   winningsTax?: number; // Port Slobber: tax on prize money
   fitnessOnArrival?: number; // Sunbleach −5, Holy Bark +5
@@ -141,7 +151,17 @@ export interface Planet {
   vibe: string;
   major: boolean;
   track: Track;
-  foodBand: [number, number]; // buy price band
+  /**
+   * Where each good's price tends to sit on this planet — the trader's whole map (GDD_V3 §12).
+   *
+   * ⚠️ **This field changed meaning in v3 Phase B, and the name was kept on purpose because §12 uses
+   * it.** It was an absolute price band for the one staple — `[80, 110]` — and it is now a
+   * **multiplier per good over the mid-band centre**: 1.0 is a planet where that food typically
+   * prices in the middle of its §6.1 band, 0.6 one where it sits in the cheap part, 1.4 one where it
+   * sits in the dear part. It moves where the week's price *clusters*, never the band itself, which
+   * is §6.1's hard 8× from floor to ceiling for every planet — see `rollGoodPrices` and decision B2.
+   */
+  foodBand: Record<GoodId, number>;
   special: PlanetSpecial;
   accents: [string, string];
 }

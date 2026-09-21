@@ -1,4 +1,11 @@
-import { balance, MAJOR_WEEKS, planetOf, type GameState, type Player } from '@sdr/engine';
+import {
+  balance,
+  describeTaste,
+  MAJOR_WEEKS,
+  planetOf,
+  type GameState,
+  type Player,
+} from '@sdr/engine';
 import { Panel } from '../components/Panel';
 import { Badge, Notes } from '../components/ui';
 import { specialText, trackText } from '../lib/planetText';
@@ -17,9 +24,12 @@ import { rumours } from '../lib/rumours';
  * The v1 file's own comment read "the whole circuit is visible from week 1 so players can plan",
  * and that line is what D5 deletes. Pillar 2 is "you play the hand you're dealt": the season's
  * texture is meant to come from what you are offered, not from a route you optimised in week 1.
- * And §9.2 is the reason this does not hurt the trader — it *creates* the trader's road. Carrying
- * kibble blind loses 9.5 a unit; carrying it to a planet you know earns 23.6 on the legs worth
- * acting on, so the moment the map goes dark, knowing where you are going becomes worth money.
+ * And §9.2 is the reason this does not hurt the trader — it *creates* the trader's road: the moment
+ * the map goes dark, knowing where you are going becomes worth money.
+ *
+ * ⚠️ **The Food column is a planet's food map now, not a price band** (GDD_V3 §12, v3 Phase B):
+ * "cheap for Scrapmeat, dear for Ambrosia". It is static planet data, shown wherever the planet
+ * itself is shown, because a game that made you memorise it would reward whoever brought a pen.
  */
 export function GalaxyMap({ s }: { s: GameState; me: Player }) {
   const gossip = rumours(s);
@@ -85,7 +95,7 @@ export function GalaxyMap({ s }: { s: GameState; me: Player }) {
                       <td className="muted" colSpan={4}>
                         {e.major
                           ? 'A Major, venue not yet announced'
-                          : 'An unknown stop — buy the file, or wait and see'}
+                          : 'An unknown stop — the circuit is dark past next week'}
                       </td>
                     ) : (
                       <>
@@ -96,12 +106,8 @@ export function GalaxyMap({ s }: { s: GameState; me: Player }) {
                         <td>
                           {detailed(level) ? trackText(p.track) : <span className="muted">—</span>}
                         </td>
-                        <td className="num">
-                          {detailed(level) ? (
-                            `${p.foodBand[0]}–${p.foodBand[1]}`
-                          ) : (
-                            <span className="muted">—</span>
-                          )}
+                        <td className="wrap">
+                          {detailed(level) ? describeTaste(p) : <span className="muted">—</span>}
                         </td>
                         <td className="wrap rules">
                           {detailed(level) ? (

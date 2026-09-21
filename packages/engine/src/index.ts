@@ -18,16 +18,7 @@ export {
   raceType,
   type RaceType,
 } from './content/raceTypes';
-export {
-  bestFeedAboard,
-  feedsFor,
-  GOODS,
-  GOOD_BY_ID,
-  good,
-  KIBBLE_ID,
-  STOCK_UNLIMITED,
-  type Good,
-} from './content/goods';
+export { feedsFor, GOODS, GOOD_BY_ID, good, STAPLE_ID, type Good } from './content/goods';
 export { TRAITS, TRAIT_BY_ID } from './content/traits';
 export { EVENTS, EVENT_BY_ID } from './content/events';
 export * from './content/names';

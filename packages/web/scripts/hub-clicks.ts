@@ -29,7 +29,7 @@ import {
   balance,
   cargoTotal,
   HOLD_CAP,
-  KIBBLE_ID,
+  STAPLE_ID,
   createSeason,
   drive,
   raceType,
@@ -107,13 +107,14 @@ function planetTurn(s: GameState, p: Player): Action[] {
     }
   }
 
-  if (s.toggles.trading && p.cargo[KIBBLE_ID] < dogs.length * 2) {
+  if (s.toggles.trading && p.cargo[STAPLE_ID] < dogs.length * 2) {
     const units = Math.min(
       HOLD_CAP - cargoTotal(p.cargo),
       dogs.length * 2,
-      Math.floor(Math.max(0, cash - 1500) / Math.max(1, s.planet.goods[KIBBLE_ID].buy)),
+      s.planet.goods[STAPLE_ID].stock,
+      Math.floor(Math.max(0, cash - 1500) / Math.max(1, s.planet.goods[STAPLE_ID].buy)),
     );
-    if (units > 0) out.push({ t: 'TradeFood', playerId: p.id, good: KIBBLE_ID, units });
+    if (units > 0) out.push({ t: 'TradeFood', playerId: p.id, good: STAPLE_ID, units });
   }
 
   if (pre) {
