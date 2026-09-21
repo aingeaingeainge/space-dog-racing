@@ -145,7 +145,7 @@ ROWS.push(
     section: PRICE_SECTION,
     label: 'Price draw: standard deviation as a fraction of the band',
     value: 0.16,
-    note: 'GDD_V3 §6.4: prices cluster mid-band with RARE excursions to the ends, so the 8× is something a player hunts rather than something that happens to them. At 0.16 a draw reaches the outer twentieth of the band about 0.2% of the time at either end',
+    note: 'GDD_V3 §6.4: prices cluster mid-band with RARE excursions to the ends, so the 8× is something a player hunts rather than something that happens to them. At 0.16, on a planet that prices the good mid-band, a draw reaches the outer twentieth of the band about one time in four hundred at either end',
   },
   {
     section: PRICE_SECTION,

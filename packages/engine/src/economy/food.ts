@@ -120,51 +120,85 @@ export function describeTaste(planet: Planet, invert = false): string {
 }
 
 /**
+ * Where in its band a good's price clusters on this planet, as a band position: 0 is the floor,
+ * 1 the ceiling, 0.5 the middle (GDD_V3 §6.4, §12).
+ *
+ * The planet's `foodBand` multiplier scales the mid-band centre — 1.0 clusters at 0.5, 0.6 at 0.3,
+ * 1.4 at 0.7 — after being clamped to `planetBiasMin…Max`, so that however a planet row is written
+ * the centre stays far enough from either end for a draw to reach both. **It moves the cluster, not
+ * the band**: §6.1's 8× is the same hard range on every planet.
+ */
+export function priceCentre(planet: Planet, id: GoodId): number {
+  const bias = Math.min(
+    balance.planetBiasMax,
+    Math.max(balance.planetBiasMin, planet.foodBand[id]),
+  );
+  return 0.5 * bias;
+}
+
+/**
  * The price a good is *expected* to post on a planet — what a stable standing somewhere else can
  * reasonably plan to sell it for there (GDD_V3 §6.1, §12).
  *
  * **This is the engine's own expectation and the AI and the Market screen both read it**, so the
  * number a player is shown for "next stop" and the number an AI trades on cannot drift apart. That
  * is §14's rule — every difficulty sees exactly what a player sees — kept by construction rather
- * than by care.
- *
- * ⚠️ **While the draw is flat across the band (this commit) the expectation is the band's midpoint
- * on every planet**, which means the trader's map is blank: the only signal is whether *this*
- * week's draw is below the middle. The planet's `foodBand` bias is data from this commit on and is
- * read by the price draw in the next, which is where the map appears.
+ * than by care. It is the centre of the draw, which is the mean up to the clamp's slight trimming
+ * of whichever tail is nearer an end.
  */
-export function expectedPrice(_planet: Planet, id: GoodId): number {
+export function expectedPrice(planet: Planet, id: GoodId): number {
   const g = good(id);
-  return (g.floor + g.ceiling) / 2;
+  return g.floor + priceCentre(planet, id) * (g.ceiling - g.floor);
 }
 
 /**
- * This week's market on one planet, per good (GDD_V3 §6.1).
+ * This week's market on one planet, per good (GDD_V3 §6.1, §6.4).
  *
  * Every good is on every shelf — a price to buy at, a price to sell at, and a finite depth of
- * stock. Buy and sell move together: the sell price is always `foodSpread` below the buy, so a
- * crate bought and sold in the same place always loses the spread, and the only way to make money
- * is to carry it somewhere.
+ * stock.
  *
- * ⚠️ **The price is drawn FLAT across the good's band in this commit, which is exactly what §6.4
- * forbids** — it is here only so the six goods and the shelf land in a commit of their own and the
- * next commit's snapshot move is attributable to the distribution alone. A flat draw puts a fifth
- * of all Ambrosia prices within 126 Bones of the floor, and that is the 8× happening *to* a player
- * rather than being hunted by one.
+ * ⚠️ **THE PRICE DISTRIBUTION IS THE GUARD ON THE GAME, AND IT IS THIS FUNCTION.** Fifty units of
+ * Ambrosia bought at 90 and sold at 720 is 31,500 Bones — a season's prize money in one leg (§6.4).
+ * Shelf depth stops a stable assembling that in a week; the *shape* of the draw is what stops it
+ * happening by accident. So prices **cluster mid-band with rare excursions to the ends**, and the
+ * 8× is something a player hunts across the map rather than something that happens to them:
  *
- * ⚠️ **Every good now makes two draws, price then depth, always.** Phase A's version skipped the
- * depth draw for a shelf that could not vary (the staple's unlimited stock), with a comment saying
- * that let a change to the good list replay an unchanged season draw for draw. Every shelf is
- * finite now — `STOCK_UNLIMITED` is gone, because the depth is the scarcity rule (V7) — so that
- * property no longer exists, and any change to the good list moves every season. That is a
- * deliberate trade and the snapshot move that comes with it is named in this commit.
+ * - **The draw is a normal deviate in band-position space**, `centre + priceDrawSd × z`, with z from
+ *   `rng.gauss()` → `normalDeviate()` in `determinism.ts`. Never `exp`, and not for form's sake:
+ *   ECMAScript leaves it implementation-defined and this project spans Node 20, 22 and 24. The
+ *   transcendental half of Box–Muller lives behind `normalDeviate`'s single `quantize`.
+ * - **`priceDrawSd` is 0.16 of the band.** At a planet that prices a good mid-band, a draw lands in
+ *   the outer twentieth of the band at either end about one time in four hundred, and in the outer
+ *   quarter about one time in seventeen. At a planet whose map puts the good in its cheap part
+ *   (centre 0.3), the bottom quarter comes up about two weeks in five — which is the point: the
+ *   bargains are *somewhere*, and the map says where.
+ * - **The tails are clamped, not re-drawn**, at `priceDrawClamp` (0.02) of the band from either end.
+ *   A normal deviate is unbounded and the band is not; clamping keeps the draw count fixed at two
+ *   uniforms per good, where rejection sampling would make the rng stream depend on the price.
+ * - **Linear in price, not in ratio.** A player reads "198, range 60–480" as a position along a
+ *   line, so the cluster sits where the middle of the printed range is. A log-scale draw would put
+ *   the typical price well left of the printed middle and make the Price Range column lie.
+ * - **Buy and sell drift together**: the sell is always `foodSpread` below the buy, as it has been
+ *   since v1. A crate bought and sold in the same place always loses the spread, so the only way
+ *   to make money is to carry it somewhere, and a separate sell draw would open a same-planet
+ *   arbitrage nobody could see coming.
+ *
+ * ⚠️ **Every good makes the same three draws, always: two for the price, one for the depth.**
+ * Phase A's version skipped the depth draw for a shelf that could not vary (the staple's unlimited
+ * stock), with a comment saying that let a change to the good list replay an unchanged season draw
+ * for draw. Every shelf is finite now — `STOCK_UNLIMITED` is gone, because the depth is the
+ * scarcity rule (V7) — so that property no longer exists, and any change to the good list moves
+ * every season. That is deliberate.
  */
-export function rollGoodPrices(_planet: Planet, rng: Rng): Record<GoodId, GoodMarket> {
+export function rollGoodPrices(planet: Planet, rng: Rng): Record<GoodId, GoodMarket> {
   const out = {} as Record<GoodId, GoodMarket>;
+  const lo = balance.priceDrawClamp;
+  const hi = 1 - balance.priceDrawClamp;
   for (const g of GOODS) {
-    const mid = rng.uniform(g.floor, g.ceiling);
-    const buy = Math.max(1, Math.round(mid));
-    const sell = Math.max(1, Math.round(mid * (1 - balance.foodSpread)));
+    const drawn = priceCentre(planet, g.id) + balance.priceDrawSd * rng.gauss();
+    const pos = drawn < lo ? lo : drawn > hi ? hi : drawn;
+    const buy = Math.round(g.floor + pos * (g.ceiling - g.floor));
+    const sell = Math.max(1, Math.round(buy * (1 - balance.foodSpread)));
     const stock = rng.int(g.shelfMin, g.shelfMax);
     out[g.id] = { buy, sell, stock };
   }
