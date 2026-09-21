@@ -8,6 +8,13 @@
  *   npm run harness -- --lead            # §7a.4: does a lead at week 6 convert, split on betting
  *   npm run harness -- --hardAblation    # §14: which of Hard's own decisions earns its head-to-head
  *
+ * The standard printout carries **BUILD_PLAN_V3 Phase B's market rows** — food as a share of gross,
+ * the cash-bound → hold-bound crossover week, the p99 best trading leg against mean end worth, the
+ * share of weeks a hold is empty, Ambrosia's shelf depth, and the p90/p10 spread — and a per-good
+ * table with the band position every crate was bought and sold at. None of them is behind a flag:
+ * the p99 leg is the row that protects the game (GDD_V3 §6.4) and a run that did not print it would
+ * be a run that did not check it.
+ *
  * ⚠️ `--fix` and `--card` are gone with the crook's road and the drawn card (BUILD_PLAN_V3 §2.1).
  * An unrecognised flag is an error rather than a silent plain run — the v2 habit of typing a mode
  * that no longer exists and reading the default output as its result is a real way to be wrong.
@@ -22,11 +29,12 @@
  * declarations lock, which costs nothing and leaves the engine alone.
  */
 import { balance } from '../src/content/balance';
-import { GOODS } from '../src/content/goods';
+import { GOODS, good } from '../src/content/goods';
 import { createDog, fitRating } from '../src/economy/dogs';
 import { dogValue } from '../src/economy/dogValue';
 import { netWorth } from '../src/economy/netWorth';
-import { cargoTotal } from '../src/economy/goods';
+import { planFeeding } from '../src/economy/food';
+import { cargoTotal, HOLD_CAP } from '../src/economy/goods';
 import { roadSplit } from '../src/economy/roadSplit';
 import { mulberry32 } from '../src/rng';
 import { createSeason, eligible, player, thisWeeksCard } from '../src/state';
@@ -136,6 +144,10 @@ interface AgentStats {
   /** Mean crates aboard at the end of each week — what the trade is actually carrying. */
   crates: number[];
   betsStruck: number[];
+  /** Phase B: each stable-season's best week of sales, and the week it first went hold-bound. */
+  bestLeg: number[];
+  crossover: number[];
+  neverCrossed: number;
 }
 
 /** Every stable is in the same season, so a pairing is a like-for-like comparison. */
@@ -197,6 +209,30 @@ interface SeasonSample {
   rankAtSix: Map<Id, number>;
   /** Bones staked, per stable. */
   staked: Map<Id, number>;
+  // ---- v3 Phase B: the market (BUILD_PLAN_V3 Phase B item 8) ----
+  /**
+   * Where in its band each crate was bought and sold, as a crate-weighted sum of band positions —
+   * 0 at the floor, 1 at the ceiling. A stable buying at 0.5 is not trading; one buying at 0.2 is.
+   */
+  boughtPos: Map<GoodId, number>;
+  soldPos: Map<GoodId, number>;
+  /** Crates of each good eaten at the jump, straight from the engine's own `planFeeding`. */
+  fed: Map<GoodId, number>;
+  /** Profit realised by each stable's sales this week, against its own You Paid. */
+  legThisWeek: Map<Id, number>;
+  /** The best week of sales each stable had — "the best single trading leg" (§6.4). */
+  bestLeg: Map<Id, number>;
+  /** The first week each stable ended its trading hold-bound (see `holdBound`). */
+  crossover: Map<Id, number>;
+  /** Stables hold-bound at each week's jump. */
+  holdBoundByWeek: number[];
+  /** Stable-weeks with nothing aboard at the jump, and dog-weeks that went hungry. */
+  emptyHoldWeeks: number;
+  stableWeeks: number;
+  hungryDogWeeks: number;
+  dogWeeks: number;
+  /** Each good's shelf depth as the planet posts it, before anybody has bought (§6.1, V7). */
+  shelfAtArrival: Map<GoodId, number[]>;
 }
 
 export function emptySample(): SeasonSample {
@@ -217,8 +253,47 @@ export function emptySample(): SeasonSample {
     cratesByWeek: new Map(),
     staked: new Map(),
     rankAtSix: new Map(),
+    boughtPos: new Map(),
+    soldPos: new Map(),
+    fed: new Map(),
+    legThisWeek: new Map(),
+    bestLeg: new Map(),
+    crossover: new Map(),
+    holdBoundByWeek: Array.from({ length: balance.weeks }, () => 0),
+    emptyHoldWeeks: 0,
+    stableWeeks: 0,
+    hungryDogWeeks: 0,
+    dogWeeks: 0,
+    shelfAtArrival: new Map(),
   };
 }
+
+/**
+ * **The cash-bound → hold-bound crossover, as a definition** (BUILD_PLAN_V3 Phase B item 8,
+ * decision B5). A stable is **hold-bound** in a week if it ends that week's trading — at the jump,
+ * after the last market phase — with the hold at least 90% full *and* enough cash left to have
+ * bought another tenth of the hold of the dearest good at that good's mid-band price. In words: it
+ * stopped buying because it had nowhere to put the next crate, not because it had no money for it.
+ * Anything else is cash-bound, or not trading, which from the outside is the same thing.
+ *
+ * Both thresholds are read off the data rather than chosen: a tenth of the hold is five crates at
+ * 50, and the dearest good's mid-band price is Ambrosia's 405, so the floor is about 2,000 Bones —
+ * a third of the starting cash. The crossover week is the first week a stable is hold-bound.
+ */
+function holdBound(p: Player): boolean {
+  const dearest = GOODS[GOODS.length - 1]!;
+  const tenth = HOLD_CAP / 10;
+  return (
+    cargoTotal(p.cargo) >= HOLD_CAP - tenth &&
+    p.cash >= tenth * ((dearest.floor + dearest.ceiling) / 2)
+  );
+}
+
+/** Where a price sits in its good's band: 0 at the floor, 1 at the ceiling. */
+const bandPos = (id: GoodId, price: number): number => {
+  const g = good(id);
+  return (price - g.floor) / (g.ceiling - g.floor);
+};
 
 const bumpGood = (
   m: Map<GoodId, { crates: number; bones: number }>,
@@ -557,7 +632,17 @@ export function playSeason(
   const LEAD_WEEK = 6;
   let rankAtLeadWeek: Map<Id, number> | null = null;
   let cratesWeek = 0;
+  let shelfWeek = 0;
   while (!isSeasonOver(s) && guard++ < 200_000) {
+    // The shelf as the planet posts it: the first look at a new week, before anybody has traded.
+    if (shelfWeek !== s.week && (s.phase === 'events' || s.phase === 'planetPre')) {
+      shelfWeek = s.week;
+      for (const g of GOODS) {
+        const list = sample.shelfAtArrival.get(g.id) ?? [];
+        list.push(s.planet.goods[g.id].stock);
+        sample.shelfAtArrival.set(g.id, list);
+      }
+    }
     // Own the stable's dogs before anything sells them on.
     for (const p of s.players) {
       let seen = sample.dogsSeen.get(p.id);
@@ -618,6 +703,21 @@ export function playSeason(
         const list = sample.cratesByWeek.get(p.id) ?? [];
         list.push(cargoTotal(p.cargo));
         sample.cratesByWeek.set(p.id, list);
+        // ---- The market at the jump (Phase B item 8) — the week's trading is over. ----
+        const dogs = p.dogIds.map((id) => s.dogs[id]).filter((d): d is Dog => !!d);
+        const plan = planFeeding(p, dogs, !s.toggles.trading);
+        for (const f of plan) if (f.good) bumpMap(sample.fed, f.good, f.got + f.fromGate);
+        sample.stableWeeks++;
+        sample.dogWeeks += dogs.length;
+        if (cargoTotal(p.cargo) === 0) sample.emptyHoldWeeks++;
+        sample.hungryDogWeeks += plan.filter((f) => f.good === null).length;
+        if (holdBound(p)) {
+          sample.holdBoundByWeek[s.week - 1]!++;
+          if (!sample.crossover.has(p.id)) sample.crossover.set(p.id, s.week);
+        }
+        const leg = sample.legThisWeek.get(p.id) ?? 0;
+        if (leg > (sample.bestLeg.get(p.id) ?? 0)) sample.bestLeg.set(p.id, leg);
+        sample.legThisWeek.set(p.id, 0);
       }
     }
     if (needsAdvance(s)) {
@@ -634,6 +734,18 @@ export function playSeason(
       // bought, which cannot answer "what share of a stable's income is prize money"; the cash
       // an action moves can, and reading it here keeps the instrument out of the engine.
       const before = p.cash;
+      // §6.4's leg: a sale realises crates × (sell price − You Paid), read *before* the sale lands.
+      // Summed across the week, so a stable that sells three goods at one stop has made one leg.
+      if (a.t === 'TradeFood') {
+        const price = a.units > 0 ? s.planet.goods[a.good].buy : s.planet.goods[a.good].sell;
+        const crates = Math.abs(Math.trunc(a.units));
+        bumpMap(
+          a.units > 0 ? sample.boughtPos : sample.soldPos,
+          a.good,
+          bandPos(a.good, price) * crates,
+        );
+        if (a.units < 0) bumpMap(sample.legThisWeek, who, crates * (price - p.paid[a.good]));
+      }
       reduceMut(s, a);
       const gained = p.cash - before;
       // **Pace measure 1.** Counted here rather than from the finished log because the log does not
@@ -688,6 +800,9 @@ export function runHarness(args: Args): string {
         grossBets: [],
         crates: [],
         betsStruck: [],
+        bestLeg: [],
+        crossover: [],
+        neverCrossed: 0,
       };
       byAgent.set(d, st);
     }
@@ -717,6 +832,15 @@ export function runHarness(args: Args): string {
   // §7a.2's row per good, across every season.
   const goodsBought = new Map<GoodId, { crates: number; bones: number }>();
   const goodsSold = new Map<GoodId, { crates: number; bones: number }>();
+  const boughtPos = new Map<GoodId, number>();
+  const soldPos = new Map<GoodId, number>();
+  const fed = new Map<GoodId, number>();
+  const shelfAtArrival = new Map<GoodId, number[]>();
+  const holdBoundByWeek = Array.from({ length: balance.weeks }, () => 0);
+  let emptyHoldWeeks = 0;
+  let stableWeeks = 0;
+  let hungryDogWeeks = 0;
+  let dogWeeks = 0;
   /**
    * The same test, split on **whether the stable bet** (GDD §10, §20 Q7).
    *
@@ -766,6 +890,16 @@ export function runHarness(args: Args): string {
     }
     for (const [id, v] of sample.goodsBought) bumpGood(goodsBought, id, v.crates, v.bones);
     for (const [id, v] of sample.goodsSold) bumpGood(goodsSold, id, v.crates, v.bones);
+    for (const [id, v] of sample.boughtPos) bumpMap(boughtPos, id, v);
+    for (const [id, v] of sample.soldPos) bumpMap(soldPos, id, v);
+    for (const [id, v] of sample.fed) bumpMap(fed, id, v);
+    for (const [id, v] of sample.shelfAtArrival)
+      shelfAtArrival.set(id, [...(shelfAtArrival.get(id) ?? []), ...v]);
+    sample.holdBoundByWeek.forEach((n, w) => (holdBoundByWeek[w]! += n));
+    emptyHoldWeeks += sample.emptyHoldWeeks;
+    stableWeeks += sample.stableWeeks;
+    hungryDogWeeks += sample.hungryDogWeeks;
+    dogWeeks += sample.dogWeeks;
   }
 
   function collect(s: GameState, sample: SeasonSample) {
@@ -809,6 +943,10 @@ export function runHarness(args: Args): string {
       st.grossBets.push(betReturns);
       st.crates.push(mean(sample.cratesByWeek.get(p.id) ?? [0]));
       st.betsStruck.push(sample.staked.get(p.id) ?? 0);
+      st.bestLeg.push(sample.bestLeg.get(p.id) ?? 0);
+      const cross = sample.crossover.get(p.id);
+      if (cross === undefined) st.neverCrossed++;
+      else st.crossover.push(cross);
     }
     for (const race of RACE_TYPE_IDS) {
       bumpMap(entriesByType, race, sample.entriesByType.get(race) ?? 0);
@@ -1020,26 +1158,86 @@ export function runHarness(args: Args): string {
   lines.push('  Target (BUILD_PLAN §6b): prize share falls toward 65%. Gross, not net — the');
   lines.push('  question is where the money came in, not whether the road turned a profit.');
 
-  // §7a.2's row per good. ⚠️ The tier column is gone with the ladder (BUILD_PLAN_V3 §2.1), and with
-  // one placeholder good this table is a single row until Phase B gives it six.
+  // §7a.2's row per good, and BUILD_PLAN_V3 Phase B item 8's additions to it: crates fed, and the
+  // mean *band position* of every crate bought and sold — 0.0 at the floor, 1.0 at the ceiling. The
+  // column that says whether a stable is trading at all is `paid@`: at 0.5 it is paying the going
+  // rate, at 0.2 it is hunting.
   const seasonsRun = Math.max(1, args.seasons * args.ai.length);
-  const traded = GOODS.filter(
-    (g) => (goodsBought.get(g.id)?.crates ?? 0) + (goodsSold.get(g.id)?.crates ?? 0) > 0,
+  lines.push('');
+  lines.push(
+    'The goods, per stable-season — bought, sold, fed, and where in its band the price sat (0 floor, 1 ceiling)',
   );
-  if (traded.length) {
-    lines.push('');
-    lines.push('The goods, per stable-season (GDD §8.2 / BUILD_PLAN §7a.2 — a row per good)');
-    lines.push('  good                 crates in    Bones out   crates out    Bones in');
-    for (const g of traded) {
-      const b = goodsBought.get(g.id) ?? { crates: 0, bones: 0 };
-      const sold = goodsSold.get(g.id) ?? { crates: 0, bones: 0 };
-      lines.push(
-        `  ${g.label.padEnd(20)} ${(b.crates / seasonsRun).toFixed(1).padStart(10)} ` +
-          `${fmt(b.bones / seasonsRun).padStart(12)} ${(sold.crates / seasonsRun).toFixed(1).padStart(12)} ` +
-          `${fmt(sold.bones / seasonsRun).padStart(11)}`,
-      );
-    }
+  lines.push(
+    '  good               bought   paid@   Bones out     sold   sold@    Bones in      fed   shelf',
+  );
+  for (const g of GOODS) {
+    const b = goodsBought.get(g.id) ?? { crates: 0, bones: 0 };
+    const sold = goodsSold.get(g.id) ?? { crates: 0, bones: 0 };
+    const at = (sum: number, n: number) => (n ? (sum / n).toFixed(2) : '  — ');
+    lines.push(
+      `  ${g.label.padEnd(16)} ${(b.crates / seasonsRun).toFixed(1).padStart(8)} ` +
+        `${at(boughtPos.get(g.id) ?? 0, b.crates).padStart(7)} ${fmt(b.bones / seasonsRun).padStart(11)} ` +
+        `${(sold.crates / seasonsRun).toFixed(1).padStart(8)} ${at(soldPos.get(g.id) ?? 0, sold.crates).padStart(7)} ` +
+        `${fmt(sold.bones / seasonsRun).padStart(11)} ${((fed.get(g.id) ?? 0) / seasonsRun).toFixed(1).padStart(8)} ` +
+        `${mean(shelfAtArrival.get(g.id) ?? [0])
+          .toFixed(1)
+          .padStart(7)}`,
+    );
   }
+
+  // **The Phase B rows (BUILD_PLAN_V3 Phase B), printed together with their bands**, the way Phase A
+  // printed the pace rows — so a run answers "did the market land?" without a flag. The p99 leg is
+  // the row that protects the game (§6.4) and is deliberately not behind one.
+  const band = (v: number, lo: number, hi: number, fmtV: (x: number) => string) =>
+    v < lo ? `MISSED low (${fmtV(v)})` : v > hi ? `MISSED high (${fmtV(v)})` : 'MET';
+  const all = [...byAgent.values()];
+  const allWorth = all.flatMap((st) => st.worth);
+  const meanWorth = mean(allWorth);
+  const grossAll =
+    mean(all.flatMap((st) => st.grossPrize)) +
+    mean(all.flatMap((st) => st.grossFood)) +
+    mean(all.flatMap((st) => st.grossBets));
+  const foodShare = mean(all.flatMap((st) => st.grossFood)) / Math.max(1, grossAll);
+  const crossWeeks = all.flatMap((st) => st.crossover);
+  const never = all.reduce((n, st) => n + st.neverCrossed, 0);
+  const legs = all.flatMap((st) => st.bestLeg).sort((a, b) => a - b);
+  const p99 = quantile(legs, 0.99);
+  const ambrosia = shelfAtArrival.get(GOODS[GOODS.length - 1]!.id) ?? [0];
+  const emptyShare = emptyHoldWeeks / Math.max(1, stableWeeks);
+  const sortedWorth = [...allWorth].sort((a, b) => a - b);
+  const spread = quantile(sortedWorth, 0.9) / Math.max(1, quantile(sortedWorth, 0.1));
+  lines.push('');
+  lines.push('The market (BUILD_PLAN_V3 Phase B) — the rows that say whether it landed');
+  lines.push(
+    `  food sold, share of gross income   ${pct(foodShare).padStart(7)}   band 20–35%: ${band(foodShare, 0.2, 0.35, pct)}`,
+  );
+  lines.push(
+    `  cash-bound → hold-bound, week      ${mean(crossWeeks).toFixed(1).padStart(7)}   band 4–7: ${band(mean(crossWeeks), 4, 7, (x) => x.toFixed(1))}` +
+      `   (${pct(crossWeeks.length / Math.max(1, crossWeeks.length + never))} of stable-seasons ever cross)`,
+  );
+  lines.push(
+    `  hold-bound at the jump, by week    ${holdBoundByWeek.map((n) => pct(n / Math.max(1, args.seasons * args.ai.length)).padStart(6)).join(' ')}`,
+  );
+  lines.push(
+    `  best trading leg in a season, p99  ${fmt(p99).padStart(7)}   = ${pct(p99 / Math.max(1, meanWorth))} of mean end worth — target < 40%: ${p99 / Math.max(1, meanWorth) < 0.4 ? 'MET' : 'MISSED'}` +
+      `   (p50 ${fmt(quantile(legs, 0.5))}, max ${fmt(legs[legs.length - 1] ?? 0)})`,
+  );
+  lines.push(
+    `  hold empty at the jump             ${pct(emptyShare).padStart(7)}   of stable-weeks — target < 5%: ${emptyShare < 0.05 ? 'MET' : 'MISSED'}` +
+      `   · dogs hungry ${pct(hungryDogWeeks / Math.max(1, dogWeeks))} of dog-weeks`,
+  );
+  lines.push(
+    `  Ambrosia on one planet's shelf     ${mean(ambrosia).toFixed(1).padStart(7)}   mean, max ${Math.max(...ambrosia)} — target ≤ 8: ${mean(ambrosia) <= 8 ? 'MET' : 'MISSED'}`,
+  );
+  lines.push(
+    `  net worth p90 / p10                ${spread.toFixed(2).padStart(6)}×   diagnostic, not a target: wider is variance back through the market (v3a 2.3×)`,
+  );
+  lines.push(
+    '  A leg is one week of a stable’s sales, crates × (sell − You Paid), summed across goods. Hold-bound is',
+  );
+  lines.push(
+    '  ≥ 90% full at the jump with cash for another tenth of the hold of the dearest good (decision B5).',
+  );
 
   // ⚠️ **The Prime half of leadConversion is gone with the tier ladder (BUILD_PLAN_V3 §2.1).**
   // "Does a Prime offer widen the lead?" cannot be asked of a game with no tiers. What survives is
