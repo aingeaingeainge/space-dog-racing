@@ -218,6 +218,12 @@ the whole point.
 8. The bookie prices style but not field interaction (GDD §5.6).
 9. Harness: `--styles`. Closer win rate against fields with 1 vs 2 vs 3 front-runners; the variance
    decomposition of §11; the blind-lone-closer betting return.
+10. **A7, deferred here from Phase A by Jesse's call (GDD_V3 B9):** make `fadeStart` an absolute
+    distance rather than a fraction of the trip, so a staying trip actually taxes stamina. It is what
+    puts stamina ahead of accel at 480 m (22.4 / 16.9 / 17.6 at `v3a` and `v3b`), and it is a
+    race-model change that moves every dog in the golden season — which is why it lands with the
+    running-style curve rather than in a phase about the economy. Its own commit, with a re-baseline
+    either side, like the contest rule.
 
 **Accept when**
 
@@ -226,7 +232,7 @@ the whole point.
 | Closer's win rate, 1 front-runner in the field vs 3 | **≥ 4 points better** |
 | Style expression's share of race outcome variance | below fitness's, above form's |
 | Backing the lone closer blind, return per Bone | **negative** (i.e. below the 15% margin) |
-| Stat leverage | unchanged from Phase A, all in band |
+| Stat leverage, +10 from a balanced rating-50 dog (A7) | speed > accel > stamina at 480 m, all 14–26% |
 | Lead changes per race, mean | ≥ 1.0 |
 | A player can name a dog's style after watching one of its races | 🎲 yes |
 | `npm test` green, snapshot moved once (the race model changed) | ✅ |
