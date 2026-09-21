@@ -23,6 +23,11 @@ import { useGame } from '../store/gameStore';
  *
  *   Your Hold | On Planet | You Paid | Market Price | Price Range
  *
+ * **You Paid** is `Player.paid`, the running average the engine keeps per good (decision B4), so
+ * nobody does break-even arithmetic in their head: it goes green when the sell price here beats it
+ * and pink when it does not. A partial sale leaves it where it was, because what is left still
+ * cost what it cost.
+ *
  * ⚠️ **The Price Range column is the most important thing in the phase and it is printed as
  * numbers.** "198" means nothing; "198, range 60–480" means *cheap, buy it*, instantly, with no
  * memory and no notes. The bar under the range marks where this week's price sits in it, as an aid
@@ -69,6 +74,7 @@ export function Market({ s, me }: { s: GameState; me: Player }) {
               <th>Food</th>
               <th className="num">Your Hold</th>
               <th className="num">On Planet</th>
+              <th className="num">You Paid</th>
               <th className="num">Market Price</th>
               <th>Price Range</th>
               <th>Trade</th>
@@ -87,8 +93,8 @@ export function Market({ s, me }: { s: GameState; me: Player }) {
           next
             ? `Next stop: ${next.name} — ${describeTaste(next)}. That is what kind of place it is, not next week's prices; those are drawn when you land.`
             : 'Nothing past this weekend: whatever is in the hold at the end of it is valued at these sell prices.',
-          `Your dogs eat ${bill.foodNeeded} crate${bill.foodNeeded === 1 ? '' : 's'} at the jump, the cheapest aboard first. A dog the hold cannot feed loses ${balance.emptyHoldFitness} fitness.`,
-          `Every ${balance.arrivalCargoDiv} crates aboard when you leave costs you about a place in next week's turn order — first look at the next shelf against a hold worth carrying.`,
+          `Your dogs eat ${bill.foodNeeded} crate${bill.foodNeeded === 1 ? '' : 's'} at the jump, each by the diet you set in the Kennel, falling back to the cheapest thing aboard. A dog the hold cannot feed loses ${balance.emptyHoldFitness} fitness.`,
+          `Every ${balance.arrivalCargoDiv} crates aboard when you leave costs a point in next week's turn order — first look at the next shelf, against a hold worth carrying.`,
         ]}
       />
     </Panel>
@@ -122,6 +128,25 @@ function Row({
       <td className="num">{r.aboard || <span className="muted">—</span>}</td>
       <td className="num">{r.onShelf}</td>
       <td className="num">
+        {r.paid === null ? (
+          <span className="muted">—</span>
+        ) : (
+          <span
+            className={r.sell > r.paid ? 'gain' : r.sell < r.paid ? 'loss' : ''}
+            title={`Sold here, a crate fetches ${r.sell} against the ${Math.round(r.paid)} you paid: ${r.sell >= r.paid ? '+' : '−'}${Math.abs(Math.round(r.sell - r.paid))} each`}
+          >
+            {Math.round(r.paid)}
+          </span>
+        )}
+      </td>
+      <td
+        className="num"
+        title={
+          r.nextSell === null
+            ? 'The last stop of the season'
+            : `Next stop usually pays about ${r.nextSell} a crate`
+        }
+      >
         <b>{r.buy}</b>
         <div className="muted small">sells {r.sell}</div>
       </td>

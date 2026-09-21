@@ -44,6 +44,8 @@ export function nextStop(s: GameState): Planet | null {
 export interface MarketRow {
   good: Good;
   aboard: number;
+  /** §6.2's You Paid: the running average per crate of what is aboard, or null for none aboard. */
+  paid: number | null;
   onShelf: number;
   buy: number;
   sell: number;
@@ -62,6 +64,7 @@ export function marketRows(s: GameState, me: Player): MarketRow[] {
     return {
       good: g,
       aboard: me.cargo[g.id],
+      paid: me.cargo[g.id] > 0 ? me.paid[g.id] : null,
       onShelf: m.stock,
       buy: m.buy,
       sell: m.sell,

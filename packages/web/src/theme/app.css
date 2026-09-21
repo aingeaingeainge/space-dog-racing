@@ -2176,3 +2176,10 @@ td.trade .neon {
 .warn-text {
   color: var(--pink);
 }
+/* You Paid, against this planet's sell price: green is a profit if you sold here, pink a loss. */
+table.market .gain {
+  color: var(--acid);
+}
+table.market .loss {
+  color: var(--pink);
+}
