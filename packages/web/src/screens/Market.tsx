@@ -121,7 +121,7 @@ function Row({
     dispatch({ t: 'TradeFood', playerId: me.id, good: r.good.id as GoodId, units });
 
   return (
-    <tr className={r.aboard > 0 ? 'me' : ''}>
+    <tr className={r.aboard > 0 ? 'held' : ''}>
       <td>
         <b>{r.good.label}</b>
       </td>
@@ -130,6 +130,12 @@ function Row({
       <td className="num">
         {r.paid === null ? (
           <span className="muted">—</span>
+        ) : r.paid === 0 ? (
+          // Crates that arrived free — the starting hold, an event — cost nothing, and "0" in a
+          // column of prices reads as a mistake where "free" reads as a fact.
+          <span className="gain" title="You did not pay for these — every sale is profit">
+            free
+          </span>
         ) : (
           <span
             className={r.sell > r.paid ? 'gain' : r.sell < r.paid ? 'loss' : ''}

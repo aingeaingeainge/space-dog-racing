@@ -2183,3 +2183,7 @@ table.market .gain {
 table.market .loss {
   color: var(--pink);
 }
+/* A good you are carrying: a quiet marker, not the loud "this row is you" of the field tables. */
+table.market tr.held td:first-child {
+  box-shadow: inset 3px 0 0 var(--accent-1);
+}
