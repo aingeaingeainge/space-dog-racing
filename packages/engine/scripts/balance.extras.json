@@ -35,7 +35,6 @@
   "oddsFloor": 0.005,
   "foodSpread": 0.1,
   "foodDrift": 0.15,
-  "foodNoCargoPenalty": 1.5,
   "arrivalCargoDiv": 5,
   "arrivalDie": 10,
   "startDogRatingMin": 38,

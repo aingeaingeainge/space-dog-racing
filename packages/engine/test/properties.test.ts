@@ -234,4 +234,49 @@ describe('engine invariants', () => {
     // it gets measured. What is asserted now is the invariant this test is actually for.
     expect(cargoTotal(p.cargo)).toBeLessThanOrEqual(HOLD_CAP);
   });
+
+  /**
+   * GDD_V3 §6.3's running cost, which is the whole of v3's (V10): a dog the hold cannot feed loses
+   * `emptyHoldFitness` and gains nothing, and nothing is charged in Bones for it.
+   *
+   * Two copies of one season, played to the same point, differing only in whether the hold was
+   * sold off before the jump. Every dog is set to Rest and dropped to 50 fitness first, because a
+   * rested dog at 90 recovers into the ceiling of 100 either way and would hide the rule — which is
+   * also why `runEndTurn` folds the penalty into the same clamp as the week's recovery rather than
+   * applying it separately.
+   */
+  it('takes the empty-hold penalty in fitness, not in Bones', () => {
+    const toJump = (sellTheHold: boolean) => {
+      const s = createSeason({ seed: 7, players: [{ name: 'A', kind: 'human' }] });
+      reduceMut(s, { t: 'AdvancePhase' });
+      while (s.pendingEvent) reduceMut(s, { t: 'ResolveEvent', playerId: 'p1', choice: 0 });
+      const p = player(s, 'p1');
+      for (const id of GOOD_IDS) {
+        if (sellTheHold && p.cargo[id] > 0)
+          reduceMut(s, { t: 'TradeFood', playerId: 'p1', good: id, units: -p.cargo[id] });
+      }
+      for (const id of p.dogIds) {
+        reduceMut(s, { t: 'SetDogState', playerId: 'p1', dogId: id, state: 'rest' });
+        s.dogs[id]!.fitness = 50;
+      }
+      const cashBefore = p.cash;
+      let guard = 0;
+      while (s.week === 1 && guard++ < 100) {
+        if (needsAdvance(s)) reduceMut(s, { t: 'AdvancePhase' });
+        else reduceMut(s, { t: 'EndPhase', playerId: 'p1' });
+      }
+      return { s, p, cashBefore };
+    };
+    const fed = toJump(false);
+    const hungry = toJump(true);
+    expect(cargoTotal(hungry.p.cargo)).toBe(0);
+    for (const id of fed.p.dogIds) {
+      const d = fed.s.dogs[id]!;
+      const h = hungry.s.dogs[id]!;
+      expect(h.fitness).toBe(d.fitness - balance.emptyHoldFitness);
+    }
+    // Not charged in Bones: v2 bought the missing crates at the gate at 1.5×, and that rule is
+    // replaced rather than kept alongside. Selling the hold is the only cash that moved.
+    expect(hungry.p.cash).toBe(hungry.cashBefore);
+  });
 });

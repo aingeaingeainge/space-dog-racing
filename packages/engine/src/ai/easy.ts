@@ -46,9 +46,9 @@ export function decideEasy(s: GameState, playerId: Id): Action[] {
     // Normal beat the old Easy by turning up rather than by playing better.
     if (s.phase === 'planetPre' && s.toggles.trading) buyFeedPlan(plan, { reckless: true });
     // Food: never a trade, and only when the hold is actually empty — which is how a careless
-    // stable ends up buying a week's kibble at a mining colony's prices, or paying the
-    // no-cargo penalty on the way out. Room as the hold WILL stand, because the crate above has
-    // already taken some of it.
+    // stable ends up buying a week's dinner at a mining colony's prices, or sailing with nothing
+    // aboard and letting its dogs go hungry (GDD_V3 §6.3: −10 fitness each). Room as the hold WILL
+    // stand, because the crate above has already taken some of it.
     if (s.toggles.trading) {
       const need = weeklyFoodNeed(s, p);
       const kibble = s.planet.goods[KIBBLE_ID];

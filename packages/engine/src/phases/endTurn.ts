@@ -1,6 +1,6 @@
 import { balance } from '../content/balance';
-import { kibbleAboard } from '../economy/goods';
-import { bestFeedAboard, KIBBLE_ID } from '../content/goods';
+import { good } from '../content/goods';
+import { planFeeding, type FeedPlan } from '../economy/food';
 import { netWorth } from '../economy/netWorth';
 import { HEADLINE_TYPE_ID } from '../content/raceTypes';
 import {
@@ -19,34 +19,53 @@ function ownDogs(s: GameState, p: Player): Dog[] {
 }
 
 /**
- * What one week's food does to one dog (GDD_V3 §6.3).
+ * What one week's food does to one dog, and what not eating does (GDD_V3 §6.3).
  *
  * ⚠️ **This was `trainOneWeek`, and the rename is the rule change (GDD_V3 V8).** A dog used to eat and
  * gain only on a Train week, which is why Train existed at all. Now **every dog eats one unit a week
  * whatever it is doing and gains that food's bonus** — so this runs for the whole yard, and Train had
  * nothing left to be.
  *
- * With one placeholder good there is no stat feed to find, so every dog takes the floor: +1–3 on a
- * random stat, which is v1's behaviour and the reason a stable that spends nothing still drifts
- * upward very slowly. **Phase B is where this gets interesting**: §6.3 gives each of the six foods its
- * own effect, three of them pointed at a stat and three broader ones that touch condition, and the
- * sticky per-dog diet (`Dog.trainStat`, which nothing reads yet) decides which one a dog takes.
+ * ⚠️ **And this is where the whole economy's pressure now sits.** §6.3: *if the hold is empty, the
+ * dog loses 10 fitness that week and gains nothing.* V10 deleted upkeep, wages, fuel, interest and
+ * debt, so food is the only thing left keeping money scarce — which is why the penalty for not
+ * paying it is a real cost to the dog rather than a bill. It is not an extra charge on top of the
+ * dinner: a hungry dog simply pays in condition instead of in Bones.
+ *
+ * Returns the fitness the dinner is worth, signed — zero or the food's bonus when the dog eats,
+ * `−emptyHoldFitness` when it does not — for the caller to fold into the same clamp as the week's
+ * own recovery. **Applying it separately would let it vanish**: a rested dog at 95 would take
+ * −10 and then +30 into a ceiling of 100 and never feel it.
+ *
+ * With one placeholder good there is no stat feed to choose and no fitness bonus to gain, so a fed
+ * dog takes the floor: +1 on a random stat. **Phase B item 4 is where this gets interesting** —
+ * §6.3 gives each of the six foods its own effect, three pointed at a stat and three broader ones
+ * that touch condition, chosen by the sticky per-dog diet.
  */
-function feedOneWeek(ctx: Ctx, p: Player, d: Dog): void {
+function feedOneWeek(ctx: Ctx, p: Player, d: Dog, plan: FeedPlan): number {
   const { rng, s } = ctx;
-  const feed = bestFeedAboard(p.cargo, d.trainStat);
-  if (feed) {
-    p.cargo[feed.id]--;
-    eaten(s, p, feed.id, 1);
-    d[d.trainStat] = clamp(d[d.trainStat] + rng.int(feed.gainMin, feed.gainMax), 1, 99);
-    log(s, `${d.name} ate ${feed.label}.`, p.id);
-    return;
+  if (plan.good === null) {
+    log(
+      s,
+      `${d.name} went hungry — nothing in the hold. −${balance.emptyHoldFitness} fitness.`,
+      p.id,
+    );
+    return -balance.emptyHoldFitness;
   }
-  // The floor: the staple, on whichever stat it lands. The crate itself is charged with the week's
-  // dinner, above, so there is nothing to deduct here.
-  const staple = rng.int(balance.trainKibbleMin, balance.trainKibbleMax);
-  const stat = rng.pick(STAT_KEYS);
-  d[stat] = clamp(d[stat] + staple, 1, 99);
+  const feed = good(plan.good);
+  p.cargo[plan.good] -= plan.got;
+  eaten(s, p, plan.good, plan.got);
+  if (plan.fromGate > 0) {
+    // A No Trading season only (see `FeedPlan.fromGate`): the market is shut, so there is no
+    // choice to punish, and the staple is bought at the local price with no multiplier.
+    const bill = plan.fromGate * s.planet.goods[plan.good].buy;
+    p.cash -= bill;
+    p.stats.costs += bill;
+  }
+  const gain = rng.int(feed.gainMin, feed.gainMax);
+  const stat = feed.stat ?? rng.pick(STAT_KEYS);
+  d[stat] = clamp(d[stat] + gain, 1, 99);
+  return 0;
 }
 
 /**
@@ -91,34 +110,20 @@ export function runEndTurn(ctx: Ctx): void {
   for (const p of s.players) {
     const dogs = ownDogs(s, p);
 
-    // ---- Costs ----
+    // ---- The week's dinner ----
     //
-    // ⚠️ **Food is the only running cost left (GDD_V3 V10).** Upkeep, wages, fuel and loan interest
-    // are all deleted (BUILD_PLAN_V3 §2.1), which is pillar 5 — nobody is out before the end — and
-    // it is why GDD_V3 §6.3's empty-hold penalty has to be real when Phase B builds it: with
-    // nothing else charged in the quiet weeks, food is the whole of what keeps money scarce.
-    let costs = 0;
-
-    let foodNeeded = 0;
-    for (const d of dogs) {
-      foodNeeded += d.traits.includes('glutton') ? 2 * balance.foodPerDog : balance.foodPerDog;
-      // ⚠️ **One crate a dog a week, full stop (GDD_V3 §6.3).** A Train week used to eat a second
-      // crate on top of the dinner; there is no Train week, and §6.3 is explicit that a dog eats one
-      // unit a week *whatever it is doing* and gains that food's bonus for it.
-    }
-    if (p.sponsorWeeks > 0) foodNeeded *= 2;
-    // Dogs eat **the staple** (GDD §8.2). A stable that sailed without it buys at the local price
-    // with the penalty on top — which is the ancestor of §6.3's empty-hold rule, and the reason
-    // Phase B has somewhere to put it.
-    const fromHold = Math.min(kibbleAboard(p.cargo), foodNeeded);
-    p.cargo[KIBBLE_ID] -= fromHold;
-    eaten(s, p, KIBBLE_ID, fromHold);
-    const shortfall = foodNeeded - fromHold;
-    if (shortfall > 0)
-      costs += Math.round(shortfall * s.planet.goods[KIBBLE_ID].buy * balance.foodNoCargoPenalty);
-
-    p.cash -= costs;
-    p.stats.costs += costs;
+    // ⚠️ **Food is the only running cost left, and it is no longer charged in cash (GDD_V3 V10,
+    // §6.3).** Upkeep, wages, fuel and loan interest are all deleted (BUILD_PLAN_V3 §2.1) — pillar
+    // 5, nobody is out before the end — which leaves this one rule carrying the whole economy's
+    // pressure. v2's answer to an empty hold was to buy the missing crates at the gate at 1.5×; v3's
+    // is that the dog does not eat and loses 10 fitness for it, and the two are **not** run
+    // together. Two overlapping punishments for one miss is how a number ends up impossible to
+    // reason about, and the cash version had the wrong shape anyway: a rich stable could simply
+    // never think about food again.
+    //
+    // The plan is computed once, here, from the same `planFeeding` the Kennel screen reads, so what
+    // the player was shown before ending the turn is what actually happens.
+    const feeding = planFeeding(p, dogs, !s.toggles.trading);
 
     // Fan club money while the dog keeps winning.
     if (p.fanClubDogId) {
@@ -135,8 +140,13 @@ export function runEndTurn(ctx: Ctx): void {
     // that chose to train. Race has already happened at race day; Rest and Layoff recover.
     const remaining = ownDogs(s, p);
     for (const d of remaining) {
-      feedOneWeek(ctx, p, d);
-      d.fitness = clamp(d.fitness + weeklyFitnessDelta(d, 0, ranThisWeek(s, d.id)), 0, 100);
+      const plan = feeding.find((f) => f.dogId === d.id);
+      const dinner = plan ? feedOneWeek(ctx, p, d, plan) : 0;
+      d.fitness = clamp(
+        d.fitness + weeklyFitnessDelta(d, 0, ranThisWeek(s, d.id)) + dinner,
+        0,
+        100,
+      );
       if (d.form > 0) d.form = Math.max(0, d.form - balance.formDecay);
       else if (d.form < 0) d.form = Math.min(0, d.form + balance.formDecay);
       if (d.injuryWeeks > 0) d.injuryWeeks--;

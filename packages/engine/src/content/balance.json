@@ -39,7 +39,6 @@
   "fitScaleBase": 0.9,
   "fitScaleCoef": 0.1,
   "foodDrift": 0.15,
-  "foodNoCargoPenalty": 1.5,
   "foodPerDog": 1,
   "foodPriceMax": 140,
   "foodSpread": 0.1,

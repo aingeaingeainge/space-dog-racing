@@ -102,9 +102,23 @@ export function Stable({ s, me }: { s: GameState; me: Player }) {
           />
           <KV items={[['Net worth', <b key="nw">{formatBones(worth.total)}</b>]]} />
         </div>
+        {/* GDD_V3 §6.3's running cost, said before the week resolves rather than after — which is
+            what BUILD_PLAN_V3 Phase B item 5 means by "visible in the Kennel". */}
+        {bill.hungry > 0 && (
+          <div className="notice error">
+            <b>
+              {bill.hungryNames.join(' and ')} {bill.hungry === 1 ? 'has' : 'have'} nothing to eat
+              at the jump: −{balance.emptyHoldFitness} fitness {bill.hungry === 1 ? '' : 'each '}and
+              no gain this week.
+            </b>{' '}
+            The hold holds {bill.foodFromHold} of the {bill.foodNeeded} crate
+            {bill.foodNeeded === 1 ? '' : 's'} the yard eats. Buy food at the Market before you end
+            the turn.
+          </div>
+        )}
         <Notes
           lines={[
-            `This week's bill: ${formatBones(bill.total)} — ${bill.foodNeeded} crate${bill.foodNeeded === 1 ? '' : 's'} of food (${bill.foodFromHold} from the hold${bill.food ? `, ${formatBones(bill.food)} bought at the gate` : ''}). Food is the only running cost: no upkeep, no wages, no fuel and no debt.`,
+            `This week's dinner: ${bill.foodNeeded} crate${bill.foodNeeded === 1 ? '' : 's'}, ${bill.foodFromHold} of them in the hold. Food is the only running cost in the game — no upkeep, no wages, no fuel, no debt — and it is not charged in Bones: a dog the hold cannot feed loses ${balance.emptyHoldFitness} fitness and gains nothing.`,
             `Every dog either races or rests. Race costs ${balance.fitnessPerRace} fitness, Rest returns ${balance.fitnessRest} — more for a young dog, less for an old one. Every dog eats one crate either way. Fitness multiplies every stat at every level: a dog at 60 is slower than a dog at 90, but it is still a runner.`,
           ]}
         />

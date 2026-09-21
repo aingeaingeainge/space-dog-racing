@@ -90,6 +90,12 @@ export function good(id: GoodId): Good {
  */
 export const KIBBLE_ID: GoodId = 'kibble';
 
+/**
+ * The good the gate sells when the market is shut (a No Trading season), read off the row's
+ * `staple` flag rather than named, so nothing branches on which good it is.
+ */
+export const STAPLE_ID: GoodId = GOODS.find((g) => g.staple)!.id;
+
 /** Every feed for one stat, worst first. */
 export function feedsFor(stat: StatKey): readonly Good[] {
   return GOODS.filter((g) => g.stat === stat);

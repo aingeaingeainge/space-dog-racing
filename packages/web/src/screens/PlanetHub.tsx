@@ -169,11 +169,11 @@ export function PlanetHub({ s, me }: { s: GameState; me: Player }) {
         </div>
         <Notes
           lines={[
-            // ⚠️ Food is the only running cost left (GDD_V3 V10). A week with a full hold now costs
-            // nothing at all, which is the pressure Phase B's empty-hold penalty has to supply.
-            bill.total
-              ? `This week costs ${formatBones(bill.total)} — food bought at the gate, because the hold will not cover the dogs.`
-              : 'This week costs nothing: the hold feeds every dog.',
+            // ⚠️ Food is the only running cost left (GDD_V3 V10, §6.3), and it is charged to the
+            // dog rather than to the purse: a stable that sails without food pays in condition.
+            bill.hungry
+              ? `${bill.hungryNames.join(' and ')} will go hungry at the jump — −${balance.emptyHoldFitness} fitness ${bill.hungry === 1 ? '' : 'each '}and no gain. The hold has ${bill.foodFromHold} of the ${bill.foodNeeded} crates the yard eats.`
+              : `The hold feeds every dog this week: ${bill.foodNeeded} crate${bill.foodNeeded === 1 ? '' : 's'} at the jump. Food is the only running cost there is.`,
           ]}
         />
       </Panel>

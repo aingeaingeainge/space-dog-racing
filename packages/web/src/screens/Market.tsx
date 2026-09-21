@@ -73,7 +73,7 @@ export function Market({ s, me }: { s: GameState; me: Player }) {
             ['Your dogs eat', `${need} crate${need === 1 ? '' : 's'} at the end of this week`],
             [
               'With an empty hold',
-              `you pay ${food.buy} ×${balance.foodNoCargoPenalty} a crate on arrival`,
+              `each dog loses ${balance.emptyHoldFitness} fitness and gains nothing`,
             ],
             [
               'Next stop',

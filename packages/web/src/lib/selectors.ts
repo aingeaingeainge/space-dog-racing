@@ -1,7 +1,7 @@
 import {
   balance,
-  kibbleAboard,
-  KIBBLE_ID,
+  planFeeding,
+  type FeedPlan,
   dogsValue,
   dogValue,
   netWorthBreakdown,
@@ -234,33 +234,42 @@ export function worthParts(s: GameState, p: Player) {
 export { dogValue };
 
 export interface WeeklyBill {
-  food: number;
-  total: number;
-  /** Crates the dogs will eat, and how many of them are already in the hold. */
+  /** Crates the yard will eat at the jump, and how many of them the hold can actually supply. */
   foodNeeded: number;
   foodFromHold: number;
+  /** Dogs the hold cannot feed at all, and the fitness each of them will lose for it. */
+  hungry: number;
+  hungryNames: string[];
+  fitnessLost: number;
+  /** The plan itself, dog by dog, straight from the engine. */
+  plan: FeedPlan[];
 }
 
 /**
- * What the jump at the end of this week will cost. This mirrors phases/endTurn.ts for display only
- * — the engine still does the charging — so a player can see a bad week coming rather than
- * discovering it on the leaderboard.
+ * What the jump at the end of this week costs the yard, read out of the engine's own feeding plan.
  *
- * ⚠️ **Upkeep, wages, fuel and interest are all gone (BUILD_PLAN_V3 §2.1), so the bill is food.**
- * GDD_V3 V10 is explicit that food is the only running cost and pillar 5 is why: nobody should be
- * dead at week 6 of a game with friends. The consequence, named in §6.3, is that the empty-hold
- * penalty Phase B builds is carrying the entire economy's pressure — so this one-line bill is a
- * thing to watch rather than a simplification to be pleased about.
+ * ⚠️ **The bill is no longer in Bones, and that is the rule change, not a presentation choice.**
+ * Upkeep, wages, fuel and interest are all gone (BUILD_PLAN_V3 §2.1) and v2's "buy the missing
+ * crates at the gate at 1.5×" went with them: GDD_V3 §6.3 says a dog the hold cannot feed **loses
+ * 10 fitness and gains nothing**, and that single rule is the whole of v3's running cost (V10). So
+ * the thing a player has to see coming is not a charge, it is a named dog going hungry — which is
+ * why `planFeeding` is imported rather than re-derived here. The hold is drawn down in the stable's
+ * own dog order, so *which* dog misses out is a fact, and a screen that guessed at it would be
+ * lying about the one rule carrying the economy.
  */
 export function weeklyBill(s: GameState, p: Player): WeeklyBill {
   const dogs = ownedDogs(s, p);
-  let foodNeeded = 0;
-  for (const d of dogs)
-    foodNeeded += d.traits.includes('glutton') ? 2 * balance.foodPerDog : balance.foodPerDog;
-  if (p.sponsorWeeks > 0) foodNeeded *= 2;
-  const foodFromHold = Math.min(kibbleAboard(p.cargo), foodNeeded);
-  const food = Math.round(
-    (foodNeeded - foodFromHold) * s.planet.goods[KIBBLE_ID].buy * balance.foodNoCargoPenalty,
-  );
-  return { food, total: food, foodNeeded, foodFromHold };
+  const plan = planFeeding(p, dogs, !s.toggles.trading);
+  const byId = new Map(dogs.map((d) => [d.id, d]));
+  const hungryNames = plan
+    .filter((f) => f.good === null)
+    .map((f) => byId.get(f.dogId)?.name ?? '?');
+  return {
+    foodNeeded: plan.reduce((n, f) => n + f.crates, 0),
+    foodFromHold: plan.reduce((n, f) => n + f.got, 0),
+    hungry: hungryNames.length,
+    hungryNames,
+    fitnessLost: hungryNames.length * balance.emptyHoldFitness,
+    plan,
+  };
 }
