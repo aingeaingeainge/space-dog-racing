@@ -1368,12 +1368,18 @@ export function runCalibration(seed = 7, n = 2000): string {
     `  oddsScale in balance.json: ${balance.oddsScale}; best fit to the sim: ${bestScale}`,
   );
   // D52's criterion, printed rather than remembered: the danger is the *overlay* — the book
-  // under-rating a dog and leaving money on the table — so each candidate's largest overlay is shown
-  // beside its rms error, and the sheet value is the one that leaves the smallest.
+  // under-rating a dog and leaving money on the table — so each candidate's largest overlay on this
+  // probe is shown beside its rms error.
+  //
+  // ⚠️ **This probe is not the whole of the criterion any more (decision C7).** One dog against seven
+  // 50s is not what a field looks like, and after A7 the probe's least-overlay value (15.5) left a
+  // +9.8% overlay on every stable dog in real fields and a house margin of 4% instead of 15%. The
+  // real-field reading is `--styles` row 5; the sheet takes the least-squares fit, which is the value
+  // that puts the house margin back where the rules say it is.
   lines.push(
     '  scale   largest overlay (sim above book)   rms error   (D52: the sheet takes the least overlay)',
   );
-  const candidates = [...new Set([balance.oddsScale, 15.75, 16.5, 17.5, bestScale])].sort(
+  const candidates = [...new Set([balance.oddsScale, 15.5, 16.5, 17.5, bestScale])].sort(
     (a, b) => a - b,
   );
   for (const scale of candidates) {

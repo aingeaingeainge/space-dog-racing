@@ -145,7 +145,7 @@ ROWS.push(
 
 // ---- Item 8, GDD_V3 §5.6: the book prices a public style on the trip, never the field. ----
 //
-// Rating points, fitted by `--styles` from the win rate of each style in fields of equal dogs on each
+// Rating points on the book's own scale (oddsScale 18.75 since decision C7), fitted by `--styles` from the win rate of each style in fields of equal dogs on each
 // trip: x = oddsScale × log10(7w / (1 − w)), the rating a dog would need to win w of an eight-dog
 // field under the book's own model. Standard trips are zero by construction (the style curve was
 // balanced there — see the A7 commit); what is left is the trip.
@@ -155,24 +155,24 @@ const EDGES: { name: string; sprint: number; standard: number; staying: number; 
   [
     {
       name: 'Front-runner',
-      sprint: 3,
+      sprint: 4,
       standard: 0,
-      staying: -5,
-      note: 'Fitted: 17.4% of eight-dog sprints and 6.4% of staying trips, against 12.5% even',
+      staying: -6,
+      note: 'Fitted by --styles at oddsScale 18.75: 18.1% of eight-dog sprints and 6.5% of staying trips, against 12.5% even',
     },
     {
       name: 'Stalker',
       sprint: -1,
       standard: 0,
       staying: 0,
-      note: 'Fitted: 11.4% sprint, 12.1% staying',
+      note: 'Fitted: 11.0% sprint, 11.9% staying',
     },
     {
       name: 'Closer',
-      sprint: -3,
+      sprint: -4,
       standard: 0,
-      staying: 3,
-      note: 'Fitted: 8.7% sprint, 19.0% staying',
+      staying: 4,
+      note: 'Fitted: 8.4% sprint, 19.1% staying',
     },
   ];
 for (const e of EDGES) {
