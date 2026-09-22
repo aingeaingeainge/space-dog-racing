@@ -7,6 +7,8 @@
  *   npm run harness -- --autoplan --seasons 200   # §7a.3: autoplan% and the sampled apLoss rollout
  *   npm run harness -- --lead            # §7a.4: does a lead at week 6 convert, split on betting
  *   npm run harness -- --hardAblation    # §14: which of Hard's own decisions earns its head-to-head
+ *   npm run harness -- --styles --seasons 200   # GDD_V3 §5 / §11: running styles, the kill switch,
+ *                                        # the variance decomposition, the blind-lone-closer return
  *
  * The standard printout carries **BUILD_PLAN_V3 Phase B's market rows** — food as a share of gross,
  * the cash-bound → hold-bound crossover week, the p99 best trading leg against mean end worth, the
@@ -36,8 +38,16 @@ import { netWorth } from '../src/economy/netWorth';
 import { planFeeding } from '../src/economy/food';
 import { cargoTotal, HOLD_CAP } from '../src/economy/goods';
 import { roadSplit } from '../src/economy/roadSplit';
-import { mulberry32 } from '../src/rng';
-import { createSeason, eligible, player, thisWeeksCard } from '../src/state';
+import { mulberry32, type Rng } from '../src/rng';
+import {
+  calendarEntry,
+  createSeason,
+  currentPlanet,
+  eligible,
+  player,
+  thisWeeksCard,
+} from '../src/state';
+import { STYLE_BY_ID } from '../src/content/styles';
 import { decide } from '../src/ai';
 import { HARD_KNOBS } from '../src/ai/hard';
 import { hash01 } from '../src/ai/shared';
@@ -47,6 +57,7 @@ import { winProbabilities } from '../src/race/odds';
 import { HEADLINE_TYPE_ID, raceType } from '../src/content/raceTypes';
 import {
   RACE_TYPE_IDS,
+  STYLE_IDS,
   type Action,
   type AiAgent,
   type Dog,
@@ -56,6 +67,7 @@ import {
   type Player,
   type RaceTypeId,
   type StatKey,
+  type StyleId,
   type Track,
   type WeekState,
 } from '../src/types';
@@ -71,6 +83,8 @@ interface Args {
   leadConversion: boolean;
   /** §14: which of Hard's own decisions is earning — or costing — it its head-to-head band. */
   hardAblation: boolean;
+  /** GDD_V3 §5, §11 and BUILD_PLAN_V3 Phase C: everything running styles are measured by. */
+  styles: boolean;
   quiet: boolean;
 }
 
@@ -84,6 +98,7 @@ function parseArgs(argv: string[]): Args {
     autoplan: false,
     leadConversion: false,
     hardAblation: false,
+    styles: false,
     quiet: false,
   };
   for (let i = 0; i < argv.length; i++) {
@@ -100,6 +115,7 @@ function parseArgs(argv: string[]): Args {
     else if (a === '--autoplan') args.autoplan = true;
     else if (a === '--leadConversion' || a === '--lead') args.leadConversion = true;
     else if (a === '--hardAblation') args.hardAblation = true;
+    else if (a === '--styles') args.styles = true;
     else if (a === '--quiet') args.quiet = true;
     else throw new Error(`Unknown flag ${a}. See the usage block at the top of this file.`);
   }
@@ -1581,11 +1597,371 @@ export function runHardAblation(seasons = 600, seed = 1): string {
   return lines.join('\n');
 }
 
+// -------------------------------------------------------------------------------------------
+// --styles — GDD_V3 §5 and §11, BUILD_PLAN_V3 Phase C's acceptance table.
+// -------------------------------------------------------------------------------------------
+
+const TRIPS: { label: string; track: Track; weight: number }[] = [
+  // The calendar's mix of trips (content/planets.ts): 4 sprints, 11 standards, 3 staying trips.
+  {
+    label: 'sprint 350  ',
+    track: { distance: 350, length: 'sprint', bends: 'medium', hazard: 1 },
+    weight: 4,
+  },
+  {
+    label: 'standard 480',
+    track: { distance: 480, length: 'standard', bends: 'medium', hazard: 1 },
+    weight: 11,
+  },
+  {
+    label: 'staying 600 ',
+    track: { distance: 600, length: 'staying', bends: 'medium', hazard: 1 },
+    weight: 3,
+  },
+  {
+    label: 'tight 480   ',
+    track: { distance: 480, length: 'standard', bends: 'tight', hazard: 1 },
+    weight: 0,
+  },
+];
+
+/** Eight rating-50 dogs off the game's own dog maker, with the styles given. */
+function equalField(rng: Rng, nextId: (p: string) => string, styles: readonly StyleId[]): Runner[] {
+  const field: Runner[] = styles.map((style) => {
+    const d = fitRating(
+      createDog({ quality: 50, age: 3, owner: 'local', traits: [] }, rng, nextId),
+      50,
+      50,
+    );
+    return {
+      id: d.id,
+      trap: 0,
+      speed: d.speed,
+      accel: d.accel,
+      stamina: d.stamina,
+      fitness: 75,
+      form: 0,
+      traits: [],
+      style,
+    };
+  });
+  rng.shuffle(field).forEach((r, i) => (r.trap = i + 1));
+  return field;
+}
+
+/** A field as it actually ran in a played season, with everything the book and the sim saw. */
+interface HarvestedRace {
+  track: Track;
+  major: boolean;
+  runners: Runner[];
+  /** Posted decimal win odds, index-aligned with `runners`. */
+  odds: number[];
+  /** The style the table knew at the lock, index-aligned. */
+  known: (StyleId | null)[];
+  /** Whether each runner is a local, index-aligned. */
+  local: boolean[];
+  order: Id[];
+  leadChanges: number;
+  margin: number;
+  photo: boolean;
+}
+
+function harvest(seasons: number, seed: number): HarvestedRace[] {
+  const out: HarvestedRace[] = [];
+  for (let k = 0; k < seasons; k++) {
+    const s = createSeason({
+      seed: seed + k,
+      players: Array.from({ length: 6 }, () => ({
+        name: '',
+        kind: 'ai' as const,
+        difficulty: 'normal' as const,
+      })),
+    });
+    let guard = 0;
+    while (!isSeasonOver(s) && guard++ < 200_000) {
+      let pending: Omit<HarvestedRace, 'order' | 'leadChanges' | 'margin' | 'photo'>[] | null =
+        null;
+      if (s.phase === 'race' && s.fields) {
+        const track = currentPlanet(s).track;
+        const major = calendarEntry(s).major;
+        pending = s.fields.map((f) => ({
+          track,
+          major,
+          runners: f.entries.map((e) => {
+            const d = s.dogs[e.dogId]!;
+            return {
+              id: d.id,
+              trap: e.trap,
+              speed: d.speed,
+              accel: d.accel,
+              stamina: d.stamina,
+              fitness: Math.max(0, d.fitness),
+              form: d.form,
+              traits: d.traits,
+              speedBonus: d.raceBonus,
+              style: d.style,
+            };
+          }),
+          odds: f.entries.map((e) => e.odds),
+          known: f.entries.map((e) => e.style),
+          local: f.entries.map((e) => e.local),
+        }));
+      }
+      const actions: Action[] = needsAdvance(s)
+        ? [{ t: 'AdvancePhase' }]
+        : decide(
+            s,
+            s.pendingEvent?.playerId ?? s.activePlayer!,
+            player(s, s.activePlayer!).difficulty,
+          );
+      for (const a of actions) reduceMut(s, a);
+      if (pending && s.races) {
+        s.races.forEach((r, i) =>
+          out.push({
+            ...pending![i]!,
+            order: r.order,
+            leadChanges: r.events.filter((e) => e.kind === 'leadChange').length,
+            margin: r.margin,
+            photo: r.photoFinish,
+          }),
+        );
+      }
+    }
+  }
+  return out;
+}
+
+export function runStyles(seasons = 200, seed = 1, n = 6000): string {
+  const lines: string[] = [
+    `Running styles (GDD_V3 §5, §11; BUILD_PLAN_V3 Phase C) — ${n} races a cell for the synthetic rows,`,
+    `${seasons} all-Normal seasons for the rows read off the game`,
+    '',
+  ];
+  const p1 = (x: number) => (x * 100).toFixed(1).padStart(5);
+
+  // --- 1. The no-advantage check (§5.1): equal dogs, styles spread evenly, by trip. ---
+  lines.push(
+    '1. No style may win systematically (§5.1). Eight equal dogs, styles 3/3/2 rotated, win % per runner',
+  );
+  lines.push('   trip           front-runner   stalker   closer     (12.5 is even)');
+  const byTrip = new Map<string, Record<StyleId, number>>();
+  const calendar: Record<StyleId, number> = { frontRunner: 0, stalker: 0, closer: 0 };
+  let weights = 0;
+  for (const { label, track, weight } of TRIPS) {
+    const rng = mulberry32(seed * 7919 + 99);
+    let c = 0;
+    const nextId = (p: string) => `${p}${c++}`;
+    const wins: Record<StyleId, number> = { frontRunner: 0, stalker: 0, closer: 0 };
+    const runs: Record<StyleId, number> = { frontRunner: 0, stalker: 0, closer: 0 };
+    for (let i = 0; i < n; i++) {
+      const field = equalField(
+        rng,
+        nextId,
+        Array.from({ length: 8 }, (_, k) => STYLE_IDS[(k + i) % 3]!),
+      );
+      const res = simulateRace(field, { track, major: false }, mulberry32(rng.int(0, 2 ** 31)));
+      for (const r of field) runs[r.style!]++;
+      wins[field.find((r) => r.id === res.order[0])!.style!]++;
+    }
+    const w = Object.fromEntries(STYLE_IDS.map((id) => [id, wins[id] / runs[id]])) as Record<
+      StyleId,
+      number
+    >;
+    byTrip.set(track.length + track.bends, w);
+    for (const id of STYLE_IDS) calendar[id] += w[id] * weight;
+    weights += weight;
+    lines.push(`   ${label}       ${p1(w.frontRunner)}     ${p1(w.stalker)}    ${p1(w.closer)}`);
+  }
+  const cal = STYLE_IDS.map((id) => calendar[id] / weights);
+  const spread = Math.max(...cal) - Math.min(...cal);
+  lines.push(
+    `   the calendar   ${p1(cal[0]!)}     ${p1(cal[1]!)}    ${p1(cal[2]!)}     weighted 4 / 11 / 3 by trip`,
+  );
+  lines.push(
+    `   Across the calendar the styles are ${(spread * 100).toFixed(1)} points apart — ${spread < 0.015 ? 'no systematic advantage: MET' : '⚠️ one style is systematically ahead: FIX THE CURVE'}.`,
+  );
+  lines.push(
+    '   What is left is the trip, on purpose (§12): a sprint suits a front-runner, a staying trip a closer.',
+  );
+  lines.push('');
+
+  // --- 2. The book's style edge, fitted from the rows above against the sheet. ---
+  lines.push(
+    "2. The bookie's style edge (§5.6), rating points: fitted x = oddsScale × log10(7w / (1 − w)) vs the sheet",
+  );
+  for (const { label, track, weight } of TRIPS) {
+    if (!weight) continue;
+    const w = byTrip.get(track.length + track.bends)!;
+    const cells = STYLE_IDS.map((id) => {
+      const x = balance.oddsScale * Math.log10((7 * w[id]) / (1 - w[id]));
+      return `${STYLE_BY_ID[id].name.toLowerCase()} ${x >= 0 ? '+' : ''}${x.toFixed(1)} (sheet ${STYLE_BY_ID[id].bookEdge[track.length]})`;
+    });
+    lines.push(`   ${label}   ${cells.join('   ')}`);
+  }
+  lines.push('');
+
+  // --- 3. The kill switch (§5.3, V14). ---
+  lines.push(
+    "3. The kill switch (§5.3, V14): a rating-50 closer's win % against seven equal dogs, k front-runners, the rest stalkers, 480 m",
+  );
+  const k3: number[] = [];
+  for (const k of [1, 2, 3]) {
+    const rng = mulberry32(4242);
+    let c = 0;
+    const nextId = (p: string) => `${p}${c++}`;
+    let wins = 0;
+    const track = TRIPS[1]!.track;
+    for (let i = 0; i < n; i++) {
+      const styles: StyleId[] = Array.from({ length: 8 }, (_, m) =>
+        m === 0 ? 'closer' : m <= k ? 'frontRunner' : 'stalker',
+      );
+      const field = equalField(rng, nextId, styles);
+      const hero = field.find((r) => r.style === 'closer')!.id;
+      if (
+        simulateRace(field, { track, major: false }, mulberry32(rng.int(0, 2 ** 31))).order[0] ===
+        hero
+      )
+        wins++;
+    }
+    k3.push(wins / n);
+  }
+  const gap = (k3[2]! - k3[0]!) * 100;
+  lines.push(
+    `   1 front-runner ${p1(k3[0]!)}   2 front-runners ${p1(k3[1]!)}   3 front-runners ${p1(k3[2]!)}   gap ${gap >= 0 ? '+' : ''}${gap.toFixed(1)} points`,
+  );
+  lines.push(
+    '   ⚠️ The contest rule is CUT (decision C3): it read +0.7 against a 4-point floor at 67aa702 and was',
+  );
+  lines.push(
+    '   deleted at the next commit, as V14 requires. This row now measures styles alone — the field-shape',
+  );
+  lines.push(
+    '   effect the simulation produces with no rule written for it. Target ≥ 4 points: MISSED, by design.',
+  );
+  lines.push('');
+
+  // --- 4–6. Read off played seasons. ---
+  const races = harvest(seasons, seed);
+  lines.push(
+    `Rows 4–6 read off ${races.length.toLocaleString('en-NZ')} races in ${seasons} all-Normal seasons.`,
+  );
+  lines.push('');
+
+  // 4. The variance decomposition (§11): hold one source still, re-run the same race, see what moves.
+  lines.push(
+    "4. Where a race's outcome comes from (§11: expression's share below fitness's, above form's)",
+  );
+  const allFit = races.flatMap((r) => r.runners.map((x) => x.fitness));
+  const meanFit = allFit.reduce((a, b) => a + b, 0) / allFit.length;
+  const mid = (balance.styleExpressionMin + balance.styleExpressionMax) / 2;
+  const outcome = (r: HarvestedRace, runners: Runner[], sd: number): number[] => {
+    const res = simulateRace(runners, { track: r.track, major: r.major }, mulberry32(sd));
+    const t = runners.map((x) => res.finishTicks[x.id] ?? 0);
+    const m = t.reduce((a, b) => a + b, 0) / t.length;
+    return t.map((x) => x - m);
+  };
+  const sources: { label: string; pin: (x: Runner) => Runner }[] = [
+    { label: 'fitness', pin: (x) => ({ ...x, fitness: meanFit }) },
+    { label: 'style expression', pin: (x) => ({ ...x, expression: mid }) },
+    { label: 'form', pin: (x) => ({ ...x, form: 0 }) },
+  ];
+  let total = 0;
+  const moved = sources.map(() => 0);
+  const sample = races.filter((_, i) => i % 3 === 0);
+  sample.forEach((r, i) => {
+    const sd = 1_000_003 * (i + 1);
+    const base = outcome(r, r.runners, sd);
+    total += base.reduce((a, b) => a + b * b, 0);
+    sources.forEach((src, j) => {
+      const alt = outcome(r, r.runners.map(src.pin), sd);
+      moved[j]! += base.reduce((a, b, q) => a + (b - alt[q]!) ** 2, 0);
+    });
+  });
+  const shares = moved.map((m) => m / total);
+  sources.forEach((src, j) =>
+    lines.push(
+      `   ${src.label.padEnd(18)} ${p1(shares[j]!)}% of the variance in finishing time (relative to the field)`,
+    ),
+  );
+  const [fitS, exprS, formS] = shares as [number, number, number];
+  lines.push(
+    `   expression ${exprS < fitS && exprS > formS ? 'sits below fitness and above form: MET' : '⚠️ is not between fitness and form: MISSED'}` +
+      ` — ${sample.length.toLocaleString('en-NZ')} races, each re-run with one source pinned (fitness at the mean`,
+  );
+  lines.push(
+    `   ${meanFit.toFixed(1)}, expression at ${mid}, form at 0) on the same rng; shares need not sum to 100.`,
+  );
+  lines.push('');
+
+  // 5. The blind-lone-closer return (§5.6, §11): the book never sees the field.
+  lines.push(
+    '5. The field-shape overlay (§5.6): back a style blind, 1 Bone a race to win, at the posted price',
+  );
+  // Back every runner a rule picks, one Bone each, to win at the posted price.
+  const back = (pick: (r: HarvestedRace, i: number) => boolean) => {
+    let stake = 0;
+    let ret = 0;
+    for (const r of races)
+      r.runners.forEach((x, i) => {
+        if (!pick(r, i)) return;
+        stake++;
+        if (r.order[0] === x.id) ret += r.odds[i]!;
+      });
+    return { stake, ret: stake ? ret / stake - 1 : 0 };
+  };
+  const count = (r: HarvestedRace, id: StyleId) => r.runners.filter((x) => x.style === id).length;
+  const lone = (r: HarvestedRace, i: number) =>
+    r.runners[i]!.style === 'closer' && count(r, 'closer') === 1;
+  const rows: [string, (r: HarvestedRace, i: number) => boolean][] = [
+    ['every runner (the house margin, for scale)', () => true],
+    ['every stable dog (the D1 edge, for scale)', (r, i) => !r.local[i]],
+    ['the lone closer (one closer in the field)', lone],
+    [
+      'the lone closer, three or more front-runners',
+      (r, i) => lone(r, i) && count(r, 'frontRunner') >= 3,
+    ],
+    [
+      'the lone closer the table can see',
+      (r, i) =>
+        lone(r, i) && r.known[i] === 'closer' && r.known.filter((k) => k === 'closer').length === 1,
+    ],
+  ];
+  const read = rows.map(([label, pick]) => ({ label, ...back(pick) }));
+  for (const { label, stake, ret } of read)
+    lines.push(
+      `   ${label.padEnd(46)} ${String(stake).padStart(6)} bets   return per Bone ${ret >= 0 ? '+' : ''}${ret.toFixed(3)}`,
+    );
+  const blind = read[2]!.ret;
+  lines.push(
+    `   Target: backing the lone closer blind loses money — ${blind < 0 ? 'MET' : '⚠️ MISSED: it is free money'}.` +
+      ` Read it against the stable-dog line: a lone closer is usually a stable dog, and a stable dog`,
+  );
+  lines.push(
+    '   is quietly better than its rating (D1) whatever its style — the field-shape overlay is the difference.',
+  );
+  lines.push('');
+
+  // 6. Watching: lead changes, margins, photos.
+  const lc = races.reduce((a, r) => a + r.leadChanges, 0) / races.length;
+  const ms = races.map((r) => r.margin).sort((a, b) => a - b);
+  lines.push('6. Is a race worth watching');
+  lines.push(
+    `   lead changes per race ${lc.toFixed(2)} (target ≥ 1.0: ${lc >= 1 ? 'MET' : 'MISSED'})` +
+      ` · winning margin median ${ms[Math.floor(ms.length / 2)]!.toFixed(1)} m, mean ${(ms.reduce((a, b) => a + b, 0) / ms.length).toFixed(1)} m` +
+      ` · photo finishes ${pct(races.filter((r) => r.photo).length / races.length)}`,
+  );
+  lines.push(
+    '   v3b, for the record: median margin 7.3 m, photos 2.2%, lead changes 2.36 (decision C5 on why A7 widened it).',
+  );
+  return lines.join('\n');
+}
+
 function main() {
   const args = parseArgs(process.argv.slice(2));
   if (args.calibrate) console.log(runCalibration());
   else if (args.stats) console.log(runStatLeverage());
   else if (args.autoplan) console.log(runAutoplan(args.seasons));
+  else if (args.styles) console.log(runStyles(args.seasons === 50 ? 200 : args.seasons, args.seed));
   else if (args.hardAblation)
     console.log(runHardAblation(args.seasons === 50 ? 600 : args.seasons, args.seed));
   else console.log(runHarness(args));

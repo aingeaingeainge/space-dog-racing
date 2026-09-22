@@ -20,6 +20,12 @@ export interface Runner {
    * which is the stalker's — so a probe or a test that does not care about styles need not say so.
    */
   style?: StyleId;
+  /**
+   * Pins the day's style expression instead of using the draw — for the harness's variance
+   * decomposition (`--styles`), which has to hold one source of variance still and watch the rest.
+   * The draw is still made, so pinning it never shifts the rng stream. Nothing in the game sets it.
+   */
+  expression?: number;
 }
 
 export interface RaceContext {
@@ -155,8 +161,10 @@ export function simulateRace(runners: readonly Runner[], ctx: RaceContext, rng: 
   // like a stalker; one who draws 1.25 goes off like a rocket and pays for it. v2 D13 learned what a
   // 20%-wide multiplier on the dog itself does — it makes everything else invisible.
   const expression = new Float64Array(n);
-  for (let i = 0; i < n; i++)
-    expression[i] = rng.uniform(balance.styleExpressionMin, balance.styleExpressionMax);
+  for (let i = 0; i < n; i++) {
+    const drawn = rng.uniform(balance.styleExpressionMin, balance.styleExpressionMax);
+    expression[i] = runners[i]!.expression ?? drawn;
+  }
   const earlyMult = new Float64Array(n);
   const styleFade = new Float64Array(n);
   const fadeMult = new Float64Array(n);
