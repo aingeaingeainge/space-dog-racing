@@ -15,8 +15,17 @@ import { balance } from '../content/balance';
 import { NAME_FIRST, NAME_SECOND, NAME_SOLO } from '../content/names';
 import { raceType } from '../content/raceTypes';
 import { TRAIT_IDS } from '../content/traits';
-import type { Dog, GoodId, GoodMarket, Id, PlanetState, RaceTypeId, TraitId } from '../types';
-import { GOOD_IDS } from '../types';
+import type {
+  Dog,
+  GoodId,
+  GoodMarket,
+  Id,
+  PlanetState,
+  RaceTypeId,
+  StyleId,
+  TraitId,
+} from '../types';
+import { GOOD_IDS, STYLE_IDS } from '../types';
 import { clamp, type Rng } from '../rng';
 import { baseRating } from './dogValue';
 
@@ -38,6 +47,8 @@ export interface DogSpec {
   owner: Dog['ownerId'];
   traits?: TraitId[];
   statSd?: number;
+  /** Dealt (GDD_V3 §5.5) rather than drawn. A local's is drawn at random. */
+  style?: StyleId;
 }
 
 /** Roll a dog whose stats sit around `quality` (GDD §5.1 / economy_sim.py Dog). */
@@ -56,6 +67,11 @@ export function createDog(spec: DogSpec, rng: Rng, nextId: IdGen): Dog {
     form: 0,
     age: spec.age,
     traits: spec.traits ?? rollTraits(rng),
+    // GDD_V3 §5.1. A local's style is drawn, and is public from the start — the home team's form
+    // guide is pinned up at the track (decision C4). A stable's dog keeps its style to itself until
+    // it races (§5.4).
+    style: spec.style ?? rng.pick(STYLE_IDS),
+    styleKnown: spec.owner === 'local',
     injuryWeeks: 0,
     wins: 0,
     runs: 0,
@@ -101,50 +117,67 @@ export function fitRating(dog: Dog, lo: number, hi: number): Dog {
 }
 
 /**
- * A starting-stable dog: **an equal stat budget, split differently, ages 2–4** (GDD_V3 §5.5).
+ * A starting-stable dog: **an exact starting rating, a shape drawn at random, a dealt style, ages 2–4**
+ * (GDD_V3 §5.5, V2).
  *
- * ⚠️ **Every stable's three dogs are rolled to the same total, and that is a rule rather than a
- * nicety.** §5.5 is blunt about why: *"In a game people play against each other, 'you got better
- * dogs' is the complaint that ends the evening."* v2 fitted each dog into a **rating band** instead,
- * which is a different and weaker promise — two dogs inside 38–48 can be ten rating points apart, and
- * across three dogs a stable could start a season a class up on the table.
+ * ⚠️ **Dealt to an equal *rating*, not an equal stat total — and the difference is the whole of V2's
+ * promise.** Phase A dealt every dog 150 stat points over three stats on the claim (decision A3) that
+ * "with rating weights summing to 1, 150 points rates 50 whatever the split". That is only true if
+ * the weights are equal, and they are 0.40 / 0.35 / 0.25 — so a dealt dog rated anywhere from 44 to
+ * 55, and the best stable at a table of six started a median 16 rating points ahead of the worst
+ * across its three dogs (Phase B's correction 3). §5.5: *"you got better dogs" is the complaint that
+ * ends the evening.*
  *
- * So the budget is exact: `startStatBudget` points spread over three stats, with the split drawn at
- * random. What varies between stables is the *shape* of a dog, never the total — which is also the
- * shape Phase C wants, because §5.5 deals one of each running style and a style is a redistribution
- * of the same energy (§5.1).
+ * So the rating is the budget now: every dealt dog rates exactly `startDogRating`. What varies is its
+ * *shape* — a speed dog, an accel dog, a stamina dog, anything between — and that shape is drawn as
+ * two deviations from the target on speed and accel, with stamina solving for the rating. The stat
+ * *total* now varies instead (a speed-heavy dog carries fewer points than a stamina-heavy one of the
+ * same rating), which is the honest consequence of weighted stats and the right thing to equalise.
  *
- * The rating that falls out of a budget is not free to choose: with weights summing to 1, a dog with
- * 150 points over three stats rates 50 whatever the split, so this function does not need to fit a
- * band at all. That is worth knowing before anybody re-adds one.
+ * The style is dealt by the caller — one of each per stable, §5.5 — and is independent of the shape:
+ * a front-runner with a big engine and no gas is a dog, not a bug.
  */
-export function createStartingDog(owner: Id, rng: Rng, nextId: IdGen): Dog {
+export function createStartingDog(owner: Id, style: StyleId, rng: Rng, nextId: IdGen): Dog {
   const dog = createDog(
-    { quality: 0, age: rng.int(balance.startDogAgeMin, balance.startDogAgeMax), owner },
+    {
+      quality: 0,
+      age: rng.int(balance.startDogAgeMin, balance.startDogAgeMax),
+      owner,
+      style,
+    },
     rng,
     nextId,
   );
-  // Split the budget three ways by drawing two cut points, then clamp each stat into the legal
-  // 20–99 range and give any rounding remainder to the largest stat, so the total is exact.
-  const budget = balance.startStatBudget;
-  const cuts = [rng.int(1, budget - 1), rng.int(1, budget - 1)].sort((a, b) => a - b);
-  const raw = [cuts[0]!, cuts[1]! - cuts[0]!, budget - cuts[1]!];
-  const parts = raw.map((x) => clamp(x, 20, 99));
-  let drift = budget - parts.reduce((a, b) => a + b, 0);
-  for (let i = 0; drift !== 0 && i < 300; i++) {
-    const at = i % 3;
-    const step = Math.sign(drift);
-    const next = parts[at]! + step;
-    if (next >= 20 && next <= 99) {
-      parts[at] = next;
-      drift -= step;
-    }
+  const target = balance.startDogRating;
+  const spread = balance.startDogShapeSpread;
+  // Two draws, always: the stream never depends on the shape it produced.
+  const ds = rng.int(-spread, spread);
+  const da = rng.int(-spread, spread);
+  const stats = { speed: target + ds, accel: target + da, stamina: 0 };
+  stats.stamina = Math.round(
+    (target - balance.ratingWeightSpeed * stats.speed - balance.ratingWeightAccel * stats.accel) /
+      balance.ratingWeightStamina,
+  );
+  stats.speed = clamp(stats.speed, 20, 99);
+  stats.accel = clamp(stats.accel, 20, 99);
+  stats.stamina = clamp(stats.stamina, 20, 99);
+  // Rounding, or a stamina that fell off the 20–99 range, can leave the rating a point or two out.
+  // Walk it home one stat point at a time, stamina first, then speed, then accel — deterministic, no
+  // draws, and bounded.
+  const keys = ['stamina', 'speed', 'accel'] as const;
+  for (let i = 0; i < 300; i++) {
+    const r = baseRating(stats);
+    if (r === target) break;
+    const step = r < target ? 1 : -1;
+    const k = keys[i % 3]!;
+    const next = stats[k] + step;
+    if (next >= 20 && next <= 99) stats[k] = next;
   }
-  const order = rng.shuffle([0, 1, 2]);
-  dog.speed = parts[order[0]!]!;
-  dog.accel = parts[order[1]!]!;
-  dog.stamina = parts[order[2]!]!;
+  dog.speed = stats.speed;
+  dog.accel = stats.accel;
+  dog.stamina = stats.stamina;
   dog.rating = baseRating(dog);
+  if (dog.rating !== target) throw new Error(`Dealt a dog rated ${dog.rating}, not ${target}`);
   return dog;
 }
 

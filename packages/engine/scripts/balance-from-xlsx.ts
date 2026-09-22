@@ -47,7 +47,6 @@ const LABELS: Record<string, string> = {
   'Hold capacity (units, everyone, forever)': 'holdCap',
   'Starting cash': 'startCash',
   'Starting dogs': 'startDogs',
-  'Average starting dog rating': 'startDogRatingAvg',
   'a (floor)': 'valueFloor',
   'b (curve)': 'valueCurve',
   // GDD_V3 §4.3's value column. Ages 1 and 2 are the growth years, 3–4 the peak, 5+ the decline.
@@ -109,7 +108,9 @@ const LABELS: Record<string, string> = {
   'Grand Final weekend': 'grandFinalWeek',
   'Regular planets drawn from the pool of 14': 'regularPlanets',
   'Dogs dealt at the start': 'startDogsDealt',
-  'Starting dog stat budget (total across three stats)': 'startStatBudget',
+  // §5.5 / V2: every dealt dog rates exactly this, with its shape drawn (decision C1).
+  'Starting dog rating (every dealt dog, exactly)': 'startDogRating',
+  'Starting dog shape: widest deviation on speed or accel': 'startDogShapeSpread',
   // ---- v3 Phase B ----
   // GDD_V3 §6.1's six goods. Four rows each: the 8× band, and the shelf depth that is the scarcity
   // rule. `content/goods.ts` is a row per good reading these; nothing branches on which good it is.

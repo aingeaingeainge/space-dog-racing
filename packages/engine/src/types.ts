@@ -206,6 +206,34 @@ export type TraitId =
   | 'oldSoul'
   | 'badBlood';
 
+/**
+ * How a dog runs its race (GDD_V3 §5.1): **front-runner, stalker or closer**. One id per row in
+ * `content/styles.ts`, and the simulation reads the row — it never branches on which style it is.
+ *
+ * ⚠️ **A style is a redistribution of the same energy, not a bonus.** A front-runner is quicker
+ * early and fades sooner; a closer is slower early and fades later and softer. Across a field of
+ * one of each, none of the three should win systematically — `--styles` prints that check, and
+ * every measurement after it assumes it holds.
+ */
+export type StyleId = 'frontRunner' | 'stalker' | 'closer';
+/** Canonical order — the order a stable is dealt them, a screen lists them, and a save hashes them. */
+export const STYLE_IDS: readonly StyleId[] = ['frontRunner', 'stalker', 'closer'] as const;
+
+export interface RunningStyle {
+  id: StyleId;
+  name: string;
+  /** Top speed × this over the early part of the race, scaled by the day's expression (§5.2). */
+  earlySpeed: number;
+  /** Moves the fade point, in the fade point's own units; negative is earlier. Scaled likewise. */
+  fadeShift: number;
+  /** × the fade penalty once the dog is fading. Scaled likewise. */
+  fadeMult: number;
+  /** Whether the contest rule of §5.3 reads this style. A flag, so the rule never names a style. */
+  contests: boolean;
+  /** One line a player reads on the dog card. */
+  blurb: string;
+}
+
 export interface Trait {
   id: TraitId;
   name: string;
@@ -225,6 +253,24 @@ export interface Dog {
   form: number; // −10..10
   age: number; // 1..7 seasons
   traits: TraitId[];
+  /**
+   * How it runs (GDD_V3 §5.1). Dealt one of each to a stable (§5.5); drawn at random for a local.
+   * Always stored — what is hidden is whether the *table* knows it, which is `styleKnown`.
+   */
+  style: StyleId;
+  /**
+   * Whether the style is public (GDD_V3 §5.4): false until the dog races, then true for everyone.
+   *
+   * ⚠️ **A boolean, not a set of player ids, and the choice was made on purpose.** BUILD_PLAN_V3
+   * Phase C offered both. A set would be right if stables learned a style at different times, but the
+   * only way a style becomes known is racing, and a race is watched by the whole table at once — so
+   * the set would always be either empty or everybody. Nobody gets to know it privately, *including
+   * its owner*: §5.5's "a player who has identified two knows the third" only makes sense if the
+   * owner is finding out by racing too. And since the deal is public, that elimination is open to
+   * everyone, so the engine does it for them (`revealStyles`) — §5.4's reason: a game that rewards
+   * note-taking rewards whoever brought a pen. Locals are known from the start (the form guide).
+   */
+  styleKnown: boolean;
   injuryWeeks: number; // 0 = fit to race
   wins: number;
   runs: number;
@@ -334,6 +380,8 @@ export interface RaceEntry {
   ownerId: Id | 'local';
   name: string;
   rating: number;
+  /** Its style, if the table knows it when the field is posted (GDD_V3 §5.4); null if not yet. */
+  style: StyleId | null;
   odds: number; // decimal win odds shown by the bookie
   winProb: number;
   placeProb: number;
@@ -367,8 +415,22 @@ export interface RaceResult {
   ticks: number[][];
   events: RaceEvent[];
   ratingDeltas: Record<Id, number>;
+  /**
+   * How each runner ran, index-aligned with `entries` (GDD_V3 §5.2, §7.5): its style and the day's
+   * expression, rounded to 2 dp. The race view's commentary reads this to say "went off like a
+   * rocket" rather than guessing it from the tick log, and it is safe to show: once a dog has raced,
+   * its style is public anyway.
+   */
+  runs: RunNote[];
   injuries: Record<Id, number>; // dogId → weeks out
   payouts: { playerId: Id; dogId: Id; place: number; amount: number }[];
+}
+
+/** How one runner ran one race (see `RaceResult.runs`). */
+export interface RunNote {
+  style: StyleId;
+  /** The day's style expression, U(0.30, 1.30) (§5.2), 2 dp. */
+  expression: number;
 }
 
 export interface PendingEvent {

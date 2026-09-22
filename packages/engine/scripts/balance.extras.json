@@ -37,8 +37,6 @@
   "arrivalBase": 20,
   "arrivalCargoDiv": 5,
   "arrivalDie": 10,
-  "startDogRatingMin": 38,
-  "startDogRatingMax": 48,
   "startDogAgeMin": 2,
   "startDogAgeMax": 4,
   "aiFoodSpreadMin": 40,

@@ -1,5 +1,6 @@
 import { balance } from '../content/balance';
 import { good } from '../content/goods';
+import { STYLE_BY_ID } from '../content/styles';
 import { HEADLINE_TYPE_ID, raceType } from '../content/raceTypes';
 import { pow10 } from '../determinism';
 import { createLocalDog } from '../economy/dogs';
@@ -19,6 +20,7 @@ import {
 } from '../state';
 import { clamp, fork } from '../rng';
 import type { Dog, GameState, Id, RaceField, RaceResult } from '../types';
+import { STYLE_IDS } from '../types';
 import { bettingOpen, startPlayerPhase } from './turn';
 
 /** GDD §4.2 step 4: fill traps with locals, draw traps, open the bookie. */
@@ -74,6 +76,7 @@ export function lockDeclarations(ctx: Ctx): void {
         ownerId: d.ownerId === 'market' ? 'local' : d.ownerId,
         name: d.name,
         rating: d.rating,
+        style: d.styleKnown ? d.style : null,
         odds: decimalOdds(winP[i]!, margin),
         winProb: winP[i]!,
         placeProb: placeP[i]!,
@@ -105,7 +108,37 @@ function runnerFrom(d: Dog, trap: number): Runner {
     form: d.form,
     traits: d.traits,
     speedBonus: d.raceBonus,
+    style: d.style,
   };
+}
+
+/**
+ * GDD_V3 §5.4: a style is hidden until the dog races, then public to the whole table.
+ *
+ * Every stable dog that just ran is revealed. Then the elimination §5.5 promises — "a player who has
+ * identified two knows the third" — is done by the engine rather than left to whoever brought a pen:
+ * the deal is public (one of each), so once two of a stable's three are known, so is the third, and
+ * it is known to everybody, because everybody can do the same subtraction.
+ *
+ * ⚠️ **The elimination is only sound while a stable holds exactly the three dogs it was dealt.** v3
+ * Phase C has no way to acquire a dog, so that is always true; Phase D's §9.2 acquisition breaks it,
+ * and this is the function it has to revisit.
+ */
+function revealStyles(s: GameState, ran: readonly Dog[]): void {
+  const reveal = (d: Dog, how: string) => {
+    d.styleKnown = true;
+    log(s, `${d.name} ${how} ${STYLE_BY_ID[d.style].name.toLowerCase()} — it is on the card now.`);
+  };
+  for (const d of ran) if (d.ownerId !== 'local' && !d.styleKnown) reveal(d, 'showed itself a');
+  for (const p of s.players) {
+    const kennel = p.dogIds.map((id) => s.dogs[id]).filter((d): d is Dog => !!d);
+    if (kennel.length !== STYLE_IDS.length) continue;
+    const hidden = kennel.filter((d) => !d.styleKnown);
+    if (hidden.length !== 1) continue;
+    const known = new Set(kennel.filter((d) => d.styleKnown).map((d) => d.style));
+    if (known.size === STYLE_IDS.length - 1 && !known.has(hidden[0]!.style))
+      reveal(hidden[0]!, 'is, by elimination, the stable’s');
+  }
 }
 
 /** GDD §5.3 Elo-style update; returns the rating delta applied. */
@@ -176,6 +209,7 @@ export function runRaces(ctx: Ctx): void {
       ticks: sim.ticks,
       events: sim.events,
       ratingDeltas: {},
+      runs: sim.runs,
       injuries: {},
       payouts: [],
     };
@@ -222,6 +256,8 @@ export function runRaces(ctx: Ctx): void {
         p.stats.betIncome += payout;
       }
     }
+
+    revealStyles(s, dogs);
 
     const winner = dog(s, sim.order[0]!);
     log(

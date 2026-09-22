@@ -53,7 +53,7 @@ const STYLES: {
   {
     name: 'Front-runner',
     speed: 1.08,
-    fade: -0.12,
+    fade: -0.06,
     fadeMult: 1,
     contests: 1,
     note: 'Bursts from the boxes, leads early, pays for it later. Leans on Acceleration',
@@ -69,8 +69,8 @@ const STYLES: {
   {
     name: 'Closer',
     speed: 0.94,
-    fade: 0.12,
-    fadeMult: 0.8,
+    fade: 0.05,
+    fadeMult: 1,
     contests: 0,
     note: 'Slow away, comes home hardest. Leans on Stamina',
   },
@@ -146,7 +146,33 @@ ROWS.push(
   },
 );
 
-const REMOVE: { label: string; why: string }[] = [];
+// ---- The deal (GDD_V3 §5.5, V2) — Jesse's call before this phase: fix it here. ----
+const DEAL_SECTION = 'The opening hand (GDD_V3 §5.5 — equal strength, different shapes)';
+ROWS.push(
+  {
+    section: DEAL_SECTION,
+    label: 'Starting dog rating (every dealt dog, exactly)',
+    value: 50,
+    note: 'V2’s promise, kept by the rating rather than by a stat total: with weights of 0.40 / 0.35 / 0.25, an equal total dealt dogs rated 44–55 (Phase B, correction 3)',
+  },
+  {
+    section: DEAL_SECTION,
+    label: 'Starting dog shape: widest deviation on speed or accel',
+    value: 15,
+    note: 'Speed and accel are each drawn within this of the rating, and stamina solves for it — so a dealt dog can be a speed dog, an accel dog or a stamina dog, and never a better one',
+  },
+);
+
+const REMOVE: { label: string; why: string }[] = [
+  {
+    label: 'Starting dog stat budget (total across three stats)',
+    why: 'Replaced by an exact starting rating (decision C1). An equal stat total is not an equal dog when the rating weights are unequal',
+  },
+  {
+    label: 'Average starting dog rating',
+    why: 'Nothing had read it since v3 Phase A dealt to a budget, and it said 43 against a deal that averaged 50. The exact rating above replaces it',
+  },
+];
 
 // ---------------------------------------------------------------------------
 

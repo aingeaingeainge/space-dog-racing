@@ -1322,6 +1322,7 @@ export function runCalibration(seed = 7, n = 2000): string {
         fitness: d.fitness,
         form: d.form,
         traits: d.traits,
+        style: d.style,
       }));
       const r = simulateRace(runners, { track, major: false }, mulberry32(rng.int(0, 2 ** 31)));
       if (r.order[0] === hero.id) wins++;
@@ -1423,6 +1424,7 @@ export function runStatLeverage(n = 3000, seed = 20260911): string {
           fitness: 100,
           form: 0,
           traits: [],
+          style: d.style,
         }));
         const res = simulateRace(runners, { track, major: false }, mulberry32(rng.int(0, 2 ** 31)));
         if (res.order[0] === hero.id) wins++;

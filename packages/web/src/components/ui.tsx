@@ -1,5 +1,13 @@
 import type { ReactNode } from 'react';
-import { formatBones, TRAIT_BY_ID, type Dog, type Player, type TraitId } from '@sdr/engine';
+import {
+  formatBones,
+  STYLE_BY_ID,
+  TRAIT_BY_ID,
+  type Dog,
+  type Player,
+  type StyleId,
+  type TraitId,
+} from '@sdr/engine';
 import { Panel } from './Panel';
 import { NeonButton } from './NeonButton';
 import { StatBar } from './StatBar';
@@ -116,6 +124,31 @@ export function Traits({ ids }: { ids: readonly TraitId[] }) {
     </>
   );
 }
+
+/**
+ * A dog's running style as the table knows it (GDD_V3 §5.4): named once it has raced — written on
+ * the card rather than left for the player to remember — and a plain "style unknown" until then.
+ * `style` is what the table knows, not the truth: pass `dog.styleKnown ? dog.style : null`, or a
+ * posted field entry's own `style`, which is already that.
+ */
+export function StyleTag({ style }: { style: StyleId | null }) {
+  if (!style)
+    return (
+      <Badge title="Nobody knows how this dog runs until it has raced — its first race shows the whole table">
+        style unknown
+      </Badge>
+    );
+  const st = STYLE_BY_ID[style];
+  return (
+    <Badge tone="hot" title={st.blurb}>
+      {st.name}
+    </Badge>
+  );
+}
+
+/** What the table knows about a dog's style: the style once it has raced, null until then. */
+export const publicStyle = (d: Pick<Dog, 'style' | 'styleKnown'>): StyleId | null =>
+  d.styleKnown ? d.style : null;
 
 /** A filled bar with its own caption — the cargo hold, mostly. */
 export function Gauge({ value, max, unit }: { value: number; max: number; unit: string }) {

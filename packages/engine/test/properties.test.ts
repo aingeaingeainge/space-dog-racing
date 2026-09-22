@@ -20,6 +20,7 @@ import {
   RACE_TYPE_IDS,
   STAT_KEYS,
   WEEK_STATES,
+  STYLE_IDS,
   type Action,
   type GameState,
 } from '../src/index';
@@ -295,4 +296,66 @@ describe('engine invariants', () => {
     // replaced rather than kept alongside. Selling the hold is the only cash that moved.
     expect(hungry.p.cash).toBe(hungry.cashBefore);
   });
+});
+
+/*
+ * v3 Phase C — running styles. Additions only: nothing above this line was edited for Phase C.
+ */
+describe('running styles (GDD_V3 §5.4, §5.5)', () => {
+  it('deals every stable one of each style, every dog at exactly the starting rating, all hidden', () => {
+    for (let seed = 1; seed <= 60; seed++) {
+      const n = 3 + (seed % 6);
+      const s = createSeason({
+        seed,
+        players: Array.from({ length: n }, () => ({ name: '', kind: 'ai' as const })),
+      });
+      for (const p of s.players) {
+        const dogs = p.dogIds.map((id) => s.dogs[id]!);
+        expect(dogs.map((d) => d.style).sort()).toEqual([...STYLE_IDS].sort());
+        for (const d of dogs) {
+          expect(d.rating).toBe(balance.startDogRating);
+          expect(d.styleKnown).toBe(false);
+        }
+      }
+    }
+  });
+
+  it('reveals a style by racing, never un-reveals it, and never posts one the table does not know', () => {
+    for (const seed of [7, 8, 9]) {
+      const s = createSeason({
+        seed,
+        players: Array.from({ length: 6 }, () => ({ name: '', kind: 'ai' as const })),
+      });
+      const known = new Set<string>();
+      let guard = 0;
+      while (!isSeasonOver(s) && guard++ < 50_000) {
+        const lockedBefore = s.locked;
+        const actions: Action[] = needsAdvance(s)
+          ? [{ t: 'AdvancePhase' }]
+          : decide(s, s.pendingEvent?.playerId ?? s.activePlayer!, 'normal');
+        for (const a of actions) {
+          reduceMut(s, a);
+          for (const d of Object.values(s.dogs)) {
+            if (known.has(d.id)) expect(d.styleKnown).toBe(true);
+            if (d.styleKnown) known.add(d.id);
+          }
+          // A posted entry shows the style the table knew at the lock, and only that one.
+          if (!lockedBefore && s.locked && s.fields) {
+            for (const f of s.fields)
+              for (const e of f.entries) {
+                const d = s.dogs[e.dogId]!;
+                expect(e.style).toBe(d.styleKnown ? d.style : null);
+              }
+          }
+          if (s.races)
+            for (const r of s.races)
+              r.entries.forEach((e, i) => {
+                expect(s.dogs[e.dogId]!.styleKnown).toBe(true);
+                expect(r.runs[i]!.style).toBe(s.dogs[e.dogId]!.style);
+              });
+        }
+      }
+      expect(isSeasonOver(s)).toBe(true);
+    }
+  }, 60_000);
 });

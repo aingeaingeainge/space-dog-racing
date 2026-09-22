@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { dogValue, formatBones, type Dog } from '@sdr/engine';
 import { StatBar } from './StatBar';
-import { Delta, Traits } from './ui';
+import { Delta, publicStyle, StyleTag, Traits } from './ui';
 import {
   lookKey,
   lookTitle,
@@ -154,6 +154,7 @@ export function DogCard({ dog, badges, sub, actions, children, declared }: DogCa
       </div>
       <div className="tags">
         {badges}
+        <StyleTag style={publicStyle(dog)} />
         <Traits ids={dog.traits} />
       </div>
       {children ? <div className="extra">{children}</div> : null}

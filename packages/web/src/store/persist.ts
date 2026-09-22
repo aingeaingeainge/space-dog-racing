@@ -28,6 +28,12 @@ export interface SaveBlob {
 }
 
 /**
+ * 6 for v3 Phase C. ⚠️ **A v3b log may well replay without an error on this engine** — its actions
+ * are all still valid — and that is exactly why this has to move: the dogs are dealt by a different
+ * rule (an equal rating and one of each running style), the race model is different underneath every
+ * race, and so the same log would play a *different season* silently. Failing the check here is the
+ * only thing that stops it. Verified at v3c by writing a v3b-shaped blob and reading it back (null).
+ *
  * 5 for v3 Phase B. The blob is still seed + action log, and a v3a log does not replay: its
  * `TradeFood` actions trade `kibble`, which no longer exists, and its `SetDogState` actions carry a
  * `stat` where v3b expects a `diet`. So a v3a save fails the check below and lands on the title
@@ -45,7 +51,7 @@ export interface SaveBlob {
  * player on the title screen with a new season rather than half a season that no longer means
  * what it meant.
  */
-export const SAVE_VERSION = 5;
+export const SAVE_VERSION = 6;
 const KEY = 'sdr.save.v1';
 
 export function writeSave(blob: SaveBlob): void {

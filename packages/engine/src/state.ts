@@ -23,9 +23,14 @@ import type {
   SeasonSetup,
   WeekStatus,
 } from './types';
-import { ActionError, RACE_TYPE_IDS } from './types';
+import { ActionError, RACE_TYPE_IDS, STYLE_IDS } from './types';
 
 /**
+ * 7 for v3 Phase C: a dog carries a running `style` and whether the table knows it (`styleKnown`,
+ * GDD_V3 §5.1, §5.4); a posted field entry carries the style the table knows, a race result carries
+ * how each runner ran (`runs`), and the race model changed underneath every tick log. A v3b log
+ * replays into a different season — its dogs were dealt by a different rule — so it must not replay.
+ *
  * 6 for v3 Phase B: a dog carries a sticky `diet` (GDD_V3 §6.3) where it carried a `trainStat`, and
  * a `lastMeal`; a stable carries `paid`, the running average behind §6.2's You Paid column; the
  * hold holds six goods rather than one; and `SetDogState` carries a `diet` where it carried a
@@ -58,7 +63,7 @@ import { ActionError, RACE_TYPE_IDS } from './types';
  * The web save is seed + log (store/persist.ts), which is why SAVE_VERSION moves with it and an
  * old save fails soft to the title screen rather than replaying into a different game.
  */
-export const STATE_VERSION = 6;
+export const STATE_VERSION = 7;
 /**
  * The Major weekends. **One, at week 5 (GDD_V3 §2.1)**, where v2 had three.
  *
@@ -368,8 +373,11 @@ export function createSeason(setup: SeasonSetup): GameState {
       const known = AI_STABLE_NAMES.indexOf(p.name);
       p.personality = known >= 0 ? AI_PERSONALITIES[known]! : rng.pick(AI_PERSONALITIES);
     }
+    // GDD_V3 §5.5: one of each style, dealt in a shuffled order so the dog list does not give the
+    // styles away (the list order is public; which of the three is the closer is not).
+    const styles = rng.shuffle([...STYLE_IDS]);
     for (let k = 0; k < balance.startDogs; k++) {
-      const d = createStartingDog(id, rng, ctx.nextId);
+      const d = createStartingDog(id, styles[k % styles.length]!, rng, ctx.nextId);
       s.dogs[d.id] = d;
       p.dogIds.push(d.id);
     }

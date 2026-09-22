@@ -1,5 +1,6 @@
 import { balance } from '../content/balance';
-import type { Id, RaceEvent, Track, TraitId } from '../types';
+import { STYLE_BY_ID } from '../content/styles';
+import type { Id, RaceEvent, RunNote, StyleId, Track, TraitId } from '../types';
 import type { Rng } from '../rng';
 
 /** Everything the simulator needs to know about one runner. Pure data: no ownership, no money. */
@@ -14,6 +15,11 @@ export interface Runner {
   form: number;
   traits: readonly TraitId[];
   speedBonus?: number; // supplement / lucky bone, in stat points
+  /**
+   * How it runs (GDD_V3 §5.1). Optional because a runner with no style runs the baseline curve,
+   * which is the stalker's — so a probe or a test that does not care about styles need not say so.
+   */
+  style?: StyleId;
 }
 
 export interface RaceContext {
@@ -29,6 +35,8 @@ export interface SimResult {
   events: RaceEvent[];
   margin: number;
   photoFinish: boolean;
+  /** How each runner ran, index-aligned with `runners`: style and the day's expression (§5.2). */
+  runs: RunNote[];
 }
 
 /** Fraction-of-distance windows that count as bends, by track shape. */
@@ -141,6 +149,27 @@ export function simulateRace(runners: readonly Runner[], ctx: RaceContext, rng: 
       rng.uniform(balance.raceBreakMin, balance.raceBreakMax);
   }
 
+  // The day's style expression (GDD_V3 §5.2, V13): one draw per runner, here, before the first tick.
+  // A field is always `balance.traps` runners — short fields are filled with locals — so this is a
+  // fixed number of draws per race and the stream never shifts with how many stables declared.
+  //
+  // ⚠️ **It scales the style's *shape*, never the dog's speed.** A front-runner who draws 0.35 runs
+  // like a stalker; one who draws 1.25 goes off like a rocket and pays for it. v2 D13 learned what a
+  // 20%-wide multiplier on the dog itself does — it makes everything else invisible.
+  const expression = new Float64Array(n);
+  for (let i = 0; i < n; i++)
+    expression[i] = rng.uniform(balance.styleExpressionMin, balance.styleExpressionMax);
+  const earlyMult = new Float64Array(n);
+  const styleFade = new Float64Array(n);
+  const fadeMult = new Float64Array(n);
+  for (let i = 0; i < n; i++) {
+    const st = STYLE_BY_ID[runners[i]!.style ?? 'stalker'];
+    const e = expression[i]!;
+    earlyMult[i] = 1 + (st.earlySpeed - 1) * e;
+    styleFade[i] = st.fadeShift * e;
+    fadeMult[i] = 1 + (st.fadeMult - 1) * e;
+  }
+
   // Static per-dog multipliers from traits, the track, and the draw.
   const mult = new Float64Array(n).fill(1);
   const fadeShift = new Float64Array(n);
@@ -179,10 +208,18 @@ export function simulateRace(runners: readonly Runner[], ctx: RaceContext, rng: 
         fit *
         mult[i]!;
       const fadeStart =
-        balance.raceFadeBase + (balance.raceFadeStamina * r.stamina) / 100 + fadeShift[i]!;
+        balance.raceFadeBase +
+        (balance.raceFadeStamina * r.stamina) / 100 +
+        fadeShift[i]! +
+        styleFade[i]!;
       const frac = pos[i]! / distance;
+      // The style's early pace (§5.1): quicker or slower over the first part of the trip only.
+      if (frac < balance.styleEarlyFraction) top *= earlyMult[i]!;
       if (frac > fadeStart) {
-        top *= 1 - (balance.raceFadePenalty * (frac - fadeStart)) / Math.max(0.05, 1 - fadeStart);
+        top *=
+          1 -
+          (balance.raceFadePenalty * fadeMult[i]! * (frac - fadeStart)) /
+            Math.max(0.05, 1 - fadeStart);
       }
       if (bumpedUntil[i]! > t) top *= 1 - balance.raceBumpPenalty;
       let acc = balance.raceAccelBase + (balance.raceAccelCoef * r.accel) / 100;
@@ -266,5 +303,9 @@ export function simulateRace(runners: readonly Runner[], ctx: RaceContext, rng: 
     events,
     margin,
     photoFinish: margin < balance.racePhotoFinishMetres,
+    runs: runners.map((r, i) => ({
+      style: r.style ?? 'stalker',
+      expression: Math.round(expression[i]! * 100) / 100,
+    })),
   };
 }
