@@ -141,10 +141,8 @@ export function simulateRace(runners: readonly Runner[], ctx: RaceContext, rng: 
   for (let i = 0; i < n; i++) {
     const r = runners[i]!;
     // The break from the boxes, on Acceleration (GDD_V3 §4.1).
-    let breakStat = r.accel;
-    if (r.traits.includes('slowStarter')) breakStat -= 15;
     pos[i] =
-      (Math.max(1, breakStat) / 100) *
+      (Math.max(1, r.accel) / 100) *
       balance.raceBreakMetres *
       rng.uniform(balance.raceBreakMin, balance.raceBreakMax);
   }
@@ -170,13 +168,12 @@ export function simulateRace(runners: readonly Runner[], ctx: RaceContext, rng: 
     fadeMult[i] = 1 + (st.fadeMult - 1) * e;
   }
 
-  // Where each dog starts to tire, in metres from the boxes (A7): its stamina, its traits and its
-  // style's shift, all as fractions of the reference trip, scaled onto `raceFadeRefMetres`. Fixed for
-  // the race, so it is worked out once.
+  // Where each dog starts to tire, in metres from the boxes (A7): its stamina and its style's shift,
+  // both as fractions of the reference trip, scaled onto `raceFadeRefMetres`. Fixed for the race, so
+  // it is worked out once. (The Slow starter trait shifted it too; styles replaced it — GDD_V3 §4.5.)
   const fadeStart = new Float64Array(n);
   // Static per-dog multipliers from traits, the track, and the draw.
   const mult = new Float64Array(n).fill(1);
-  const fadeShift = new Float64Array(n);
   for (let i = 0; i < n; i++) {
     const r = runners[i]!;
     const t = r.traits;
@@ -187,16 +184,9 @@ export function simulateRace(runners: readonly Runner[], ctx: RaceContext, rng: 
     if (t.includes('railer') && track.bends === 'tight') mult[i]! *= 1.03;
     if (t.includes('mudlark') && track.mud) mult[i]! *= 1.05;
     if (t.includes('showboat') && ctx.major) mult[i]! *= 1.03;
-    if (t.includes('nervy') && (r.trap === 1 || r.trap === 8)) mult[i]! *= 0.95;
-    if (t.includes('sprinter') && distance <= 400) mult[i]! *= 1.03;
-    if (t.includes('stayer') && distance >= 550) mult[i]! *= 1.03;
-    if (t.includes('slowStarter')) fadeShift[i] = 0.05;
     fadeStart[i] =
       balance.raceFadeRefMetres *
-      (balance.raceFadeBase +
-        (balance.raceFadeStamina * r.stamina) / 100 +
-        fadeShift[i]! +
-        styleFade[i]!);
+      (balance.raceFadeBase + (balance.raceFadeStamina * r.stamina) / 100 + styleFade[i]!);
   }
 
   ticks.push(Array.from(pos, (p) => Math.round(p * 100) / 100));

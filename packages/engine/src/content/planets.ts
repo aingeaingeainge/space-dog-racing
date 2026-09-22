@@ -244,9 +244,10 @@ export const PLANETS: readonly Planet[] = [
     major: false,
     track: standard('tight'),
     foodBand: taste(1.2, 0.28),
-    // Everybody on this station is on the take, including the stewards. The Fixer's home ground
-    // and the one place on the circuit where the road is cheap to walk.
-    special: { localsNervy: true },
+    // ⚠️ Its one rule was that the locals were Nervy (−5% from traps 1 and 8), and Nervy left the
+    // trait list in v3 Phase C (GDD_V3 §4.5). A floating slum keeps its tight bends and its food map;
+    // Phase D's Back Alley door (§9.1) is where its character is meant to live now.
+    special: {},
     accents: ['#9BE84B', '#1B1A22'],
   },
 ];

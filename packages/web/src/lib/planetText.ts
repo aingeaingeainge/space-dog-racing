@@ -37,7 +37,6 @@ export function specialText(p: Planet): string[] {
   if (s.fitnessOnArrival)
     out.push(`Fitness ${s.fitnessOnArrival > 0 ? '+' : ''}${s.fitnessOnArrival} on arrival`);
   if (s.turnOrderReversed) out.push('Turn order reversed');
-  if (s.localsNervy) out.push('Local dogs are Nervy');
   if (s.piratesLikely) out.push('Pirates about');
   return out;
 }

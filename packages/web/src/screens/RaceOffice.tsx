@@ -126,9 +126,9 @@ export function RaceOffice({ s, me }: { s: GameState; me: Player }) {
             planet.track.mud ? 'Mudlarks love it here.' : null,
             planet.track.slippery ? 'Slippery: acceleration counts for more than usual.' : null,
             planet.track.length === 'sprint'
-              ? 'A sprint: Sprinters and fast starters.'
+              ? 'A sprint: a dog barely gets to tire over 350 m, so front-runners come into their own and closers run out of track.'
               : planet.track.length === 'staying'
-                ? 'A staying trip: Stayers and stamina.'
+                ? 'A staying trip: 600 m finds out every dog’s stamina, and a closer has time to come back at the front-runners.'
                 : null,
             planet.track.bends === 'none'
               ? 'No bends at all: the draw is a starting position and nothing more.'
@@ -142,7 +142,6 @@ export function RaceOffice({ s, me }: { s: GameState; me: Player }) {
                 : null,
             sp.purseMult ? `${planet.name} adds ×${sp.purseMult} to every purse.` : null,
             sp.winningsTax ? `${pct(sp.winningsTax)} of any prize money is taxed here.` : null,
-            sp.localsNervy ? 'The locals are Nervy: they lose 5% in traps 1 and 8.' : null,
             `A run costs ${balance.fitnessPerRace} fitness and a rest returns ${balance.fitnessRest}; below ${balance.fitnessScaleBelow} every stat is scaled down. What you enter this weekend is what you cannot enter next.`,
           ]}
         />

@@ -190,13 +190,7 @@ export function createStartingDog(owner: Id, style: StyleId, rng: Rng, nextId: I
  * four-year-old turning up in a Juvenile; `properties.test.ts` asserts every entrant, local
  * included, passes its race's predicate.
  */
-export function createLocalDog(
-  race: RaceTypeId,
-  major: boolean,
-  nervy: boolean,
-  rng: Rng,
-  nextId: IdGen,
-): Dog {
+export function createLocalDog(race: RaceTypeId, major: boolean, rng: Rng, nextId: IdGen): Dog {
   // The race's own home-team level (GDD_V3 §7.1): Gold 55, Silver 45, Bronze 35. A rich race draws a
   // strong home team, and with open entry that IS the whole of what makes the Gold Cup hard — there
   // is no eligibility gate left to keep a good dog out of it.
@@ -213,7 +207,6 @@ export function createLocalDog(
       quality: target,
       age: rng.int(2, 5),
       owner: 'local',
-      traits: nervy ? ['nervy'] : undefined,
     },
     rng,
     nextId,

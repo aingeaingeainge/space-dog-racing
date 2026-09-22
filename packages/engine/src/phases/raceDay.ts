@@ -26,7 +26,6 @@ import { bettingOpen, startPlayerPhase } from './turn';
 /** GDD §4.2 step 4: fill traps with locals, draw traps, open the bookie. */
 export function lockDeclarations(ctx: Ctx): void {
   const { s, rng } = ctx;
-  const planet = currentPlanet(s);
   const major = calendarEntry(s).major;
   const card = thisWeeksCard();
   const fields: RaceField[] = [];
@@ -41,7 +40,7 @@ export function lockDeclarations(ctx: Ctx): void {
       if (dogId && s.dogs[dogId]) runners.push(s.dogs[dogId]!);
     }
     while (runners.length < balance.traps) {
-      const local = createLocalDog(race, major, !!planet.special.localsNervy, rng, ctx.nextId);
+      const local = createLocalDog(race, major, rng, ctx.nextId);
       s.dogs[local.id] = local;
       runners.push(local);
     }
@@ -151,12 +150,7 @@ function applyRaceOutcome(s: GameState, d: Dog, place: number, field: Dog[]): nu
   const rawDelta = (expected - place) * balance.ratingK;
   const delta = Math.round(rawDelta);
   d.rating = clamp(d.rating + delta, 5, 99);
-  const formSwing = d.traits.includes('primaDonna') ? 2 : 1;
-  d.form = clamp(
-    Math.round(d.form + (expected - place) * formSwing),
-    -balance.formMax,
-    balance.formMax,
-  );
+  d.form = clamp(Math.round(d.form + (expected - place)), -balance.formMax, balance.formMax);
   d.fitness = clamp(d.fitness - balance.fitnessPerRace, 0, 100);
   d.runs++;
   if (place === 1) d.wins++;

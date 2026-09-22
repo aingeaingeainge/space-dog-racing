@@ -162,7 +162,6 @@ export interface PlanetSpecial {
   winningsTax?: number; // Port Slobber: tax on prize money
   fitnessOnArrival?: number; // Sunbleach −5, Holy Bark +5
   turnOrderReversed?: boolean; // Blackreach
-  localsNervy?: boolean; // Lagrange Lows
   piratesLikely?: boolean; // The Drift
 }
 
@@ -189,22 +188,7 @@ export interface Planet {
 }
 
 export type TraitId =
-  | 'railer'
-  | 'wideRunner'
-  | 'slowStarter'
-  | 'mudlark'
-  | 'fragile'
-  | 'iron'
-  | 'showboat'
-  | 'glutton'
-  | 'nervy'
-  | 'sprinter'
-  | 'stayer'
-  | 'cheapDate'
-  | 'primaDonna'
-  | 'bouncesBack'
-  | 'oldSoul'
-  | 'badBlood';
+  'railer' | 'wideRunner' | 'mudlark' | 'fragile' | 'iron' | 'showboat' | 'glutton' | 'badBlood';
 
 /**
  * How a dog runs its race (GDD_V3 §5.1): **front-runner, stalker or closer**. One id per row in

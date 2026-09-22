@@ -223,7 +223,7 @@ export function restRateFor(age: number): number {
 
 export function weeklyFitnessDelta(d: Dog, bonus: number, ran: boolean): number {
   if (weekStatusOf(d) === 'race' && ran) return 0;
-  return restRateFor(d.age) + bonus + (d.traits.includes('bouncesBack') ? 5 : 0);
+  return restRateFor(d.age) + bonus;
 }
 
 export function assertPhase(s: GameState, ...phases: Phase[]): void {

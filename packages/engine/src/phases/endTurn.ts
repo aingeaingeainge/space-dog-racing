@@ -167,14 +167,12 @@ export function runEndTurn(ctx: Ctx): void {
       // rather than inside one. Growth is **on top of** whatever the food gives (§4.3), so a young dog
       // fed well compounds and an old one fed well merely holds station, which is the shape that makes
       // Phase E's retirement window a decision.
-      const effectiveAge = d.traits.includes('oldSoul') ? d.age - 1 : d.age;
-      const growth = growthForAge(effectiveAge);
+      const growth = growthForAge(d.age);
       for (let i = 0; i < Math.abs(growth); i++) {
         const stat = rng.pick(STAT_KEYS);
         d[stat] = clamp(d[stat] + Math.sign(growth), 1, 99);
       }
-      if (s.week === balance.ageTickWeek && !d.traits.includes('oldSoul'))
-        d.age = Math.min(7, d.age + 1);
+      if (s.week === balance.ageTickWeek) d.age = Math.min(7, d.age + 1);
     }
     if (p.sponsorWeeks > 0) p.sponsorWeeks--;
     p.stats.worthByWeek.push(netWorth(s, p));

@@ -118,9 +118,6 @@ export function PlanetHub({ s, me }: { s: GameState; me: Player }) {
             sp.fitnessOnArrival
               ? `Your dogs arrived ${sp.fitnessOnArrival > 0 ? 'refreshed' : 'flat'}: fitness ${sp.fitnessOnArrival > 0 ? '+' : ''}${sp.fitnessOnArrival}.`
               : null,
-            sp.localsNervy
-              ? 'The local runners are all Nervy — traps 1 and 8 do them no favours.'
-              : null,
           ]}
         />
       </Signpost>

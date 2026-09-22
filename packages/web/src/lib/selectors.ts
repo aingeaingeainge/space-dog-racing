@@ -183,10 +183,9 @@ export interface FitnessOutlook {
  * engine.
  */
 export function fitnessOutlook(d: Dog): FitnessOutlook {
-  const bounce = d.traits.includes('bouncesBack') ? 5 : 0;
   // ⚠️ No vet to add to the rest any more (BUILD_PLAN_V3 §2.1). GDD_V3 §8.2's staff bonuses put
   // "+5 fitness recovery per week" back in Phase D, and `me` is kept in the signature for it.
-  const rest = restRateFor(d.age) + bounce;
+  const rest = restRateFor(d.age);
   const cap = (n: number) => Math.max(0, Math.min(100, Math.round(n)));
   return {
     now: d.fitness,
