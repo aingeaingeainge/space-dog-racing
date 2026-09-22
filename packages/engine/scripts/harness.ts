@@ -1439,11 +1439,12 @@ export function runStatLeverage(n = 3000, seed = 20260911): string {
     '  Accel should peak on the sprint AND on the tight bends — it is the break and the line now',
   );
   lines.push(
-    '  every length by construction: fadeStart is a fraction of the distance, so the fade window',
+    '  (GDD_V3 V9). Stamina should climb with the trip: since A7 the fade point is metres from the',
   );
   lines.push(
-    '  is proportionally identical at 350 m and 600 m. That needs a model change, not a number.',
+    '  boxes rather than a fraction of the distance, so a sprint barely reaches it and a staying trip',
   );
+  lines.push('  runs well past it (GDD_V3 B9, decision C5).');
   return lines.join('\n');
 }
 

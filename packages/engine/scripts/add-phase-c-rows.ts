@@ -51,7 +51,7 @@ const STYLES: {
   {
     name: 'Front-runner',
     speed: 1.08,
-    fade: -0.06,
+    fade: -0.07,
     fadeMult: 1,
     note: 'Bursts from the boxes, leads early, pays for it later. Leans on Acceleration',
   },
@@ -64,8 +64,8 @@ const STYLES: {
   },
   {
     name: 'Closer',
-    speed: 0.94,
-    fade: 0.05,
+    speed: 0.97,
+    fade: 0.06,
     fadeMult: 1,
     note: 'Slow away, comes home hardest. Leans on Stamina',
   },
@@ -122,6 +122,24 @@ ROWS.push(
     label: 'Starting dog shape: widest deviation on speed or accel',
     value: 15,
     note: 'Speed and accel are each drawn within this of the rating, and stamina solves for it — so a dealt dog can be a speed dog, an accel dog or a stamina dog, and never a better one',
+  },
+);
+
+// ---- A7, GDD_V3 B9: the fade becomes a distance. Added in the commit that reads it. ----
+const FADE_SECTION =
+  'The fade in metres (A7, GDD_V3 B9 — stamina has to be worth more on a staying trip)';
+ROWS.push(
+  {
+    section: FADE_SECTION,
+    label: 'Race: reference trip for the fade point (metres)',
+    value: 600,
+    note: 'The fade point was a fraction of the trip (0.45 + 0.45 × stamina/100). It is now that fraction of THIS many metres, whatever the trip — so a staying trip runs past it and a sprint barely reaches it',
+  },
+  {
+    section: FADE_SECTION,
+    label: 'Race: metres from the fade point to a full fade',
+    value: 250,
+    note: 'The rate a tiring dog slows at: the fade penalty is reached this far past the fade point, and held from there to the line',
   },
 );
 

@@ -170,6 +170,10 @@ export function simulateRace(runners: readonly Runner[], ctx: RaceContext, rng: 
     fadeMult[i] = 1 + (st.fadeMult - 1) * e;
   }
 
+  // Where each dog starts to tire, in metres from the boxes (A7): its stamina, its traits and its
+  // style's shift, all as fractions of the reference trip, scaled onto `raceFadeRefMetres`. Fixed for
+  // the race, so it is worked out once.
+  const fadeStart = new Float64Array(n);
   // Static per-dog multipliers from traits, the track, and the draw.
   const mult = new Float64Array(n).fill(1);
   const fadeShift = new Float64Array(n);
@@ -187,6 +191,12 @@ export function simulateRace(runners: readonly Runner[], ctx: RaceContext, rng: 
     if (t.includes('sprinter') && distance <= 400) mult[i]! *= 1.03;
     if (t.includes('stayer') && distance >= 550) mult[i]! *= 1.03;
     if (t.includes('slowStarter')) fadeShift[i] = 0.05;
+    fadeStart[i] =
+      balance.raceFadeRefMetres *
+      (balance.raceFadeBase +
+        (balance.raceFadeStamina * r.stamina) / 100 +
+        fadeShift[i]! +
+        styleFade[i]!);
   }
 
   ticks.push(Array.from(pos, (p) => Math.round(p * 100) / 100));
@@ -207,19 +217,21 @@ export function simulateRace(runners: readonly Runner[], ctx: RaceContext, rng: 
           balance.raceLuckCoef * luck[i]!) *
         fit *
         mult[i]!;
-      const fadeStart =
-        balance.raceFadeBase +
-        (balance.raceFadeStamina * r.stamina) / 100 +
-        fadeShift[i]! +
-        styleFade[i]!;
       const frac = pos[i]! / distance;
       // The style's early pace (§5.1): quicker or slower over the first part of the trip only.
       if (frac < balance.styleEarlyFraction) top *= earlyMult[i]!;
-      if (frac > fadeStart) {
+      // ⚠️ **The fade is in metres, not in fractions of the trip (A7, GDD_V3 B9).** A dog runs
+      // `fadeStart` metres before it starts to tire — its stamina, scaled onto a reference trip — and
+      // then loses speed at a fixed rate per metre until it is `raceFadePenalty` down. It used to be a
+      // fraction of the distance, which made the fade window proportionally identical at 350 m and
+      // 600 m, so stamina was worth exactly as much on a sprint as on a staying trip. Now a sprint
+      // barely finds a dog out and a staying trip taxes it for the last third.
+      if (pos[i]! > fadeStart[i]!) {
         top *=
           1 -
-          (balance.raceFadePenalty * fadeMult[i]! * (frac - fadeStart)) /
-            Math.max(0.05, 1 - fadeStart);
+          balance.raceFadePenalty *
+            fadeMult[i]! *
+            Math.min(1, (pos[i]! - fadeStart[i]!) / balance.raceFadeLengthMetres);
       }
       if (bumpedUntil[i]! > t) top *= 1 - balance.raceBumpPenalty;
       let acc = balance.raceAccelBase + (balance.raceAccelCoef * r.accel) / 100;

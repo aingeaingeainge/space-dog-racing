@@ -178,6 +178,9 @@ const LABELS: Record<string, string> = {
   // §5.2 / V13: the day's expression scales the style's *shape*, never the dog's speed.
   'Style expression: minimum': 'styleExpressionMin',
   'Style expression: maximum': 'styleExpressionMax',
+  // A7 (GDD_V3 B9): the fade point is metres from the boxes now, not a fraction of the trip.
+  'Race: reference trip for the fade point (metres)': 'raceFadeRefMetres',
+  'Race: metres from the fade point to a full fade': 'raceFadeLengthMetres',
 };
 
 const wb = XLSX.read(readFileSync(xlsxPath));
