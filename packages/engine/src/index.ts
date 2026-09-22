@@ -20,6 +20,6 @@ export {
 } from './content/raceTypes';
 export { feedsFor, GOODS, GOOD_BY_ID, good, STAPLE_ID, type Good } from './content/goods';
 export { TRAITS, TRAIT_BY_ID } from './content/traits';
-export { STYLES, STYLE_BY_ID } from './content/styles';
+export { publicStyle, STYLES, STYLE_BY_ID } from './content/styles';
 export { EVENTS, EVENT_BY_ID } from './content/events';
 export * from './content/names';

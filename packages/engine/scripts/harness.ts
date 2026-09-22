@@ -1351,6 +1351,33 @@ export function runCalibration(seed = 7, n = 2000): string {
   lines.push(
     `  oddsScale in balance.json: ${balance.oddsScale}; best fit to the sim: ${bestScale}`,
   );
+  // D52's criterion, printed rather than remembered: the danger is the *overlay* — the book
+  // under-rating a dog and leaving money on the table — so each candidate's largest overlay is shown
+  // beside its rms error, and the sheet value is the one that leaves the smallest.
+  lines.push(
+    '  scale   largest overlay (sim above book)   rms error   (D52: the sheet takes the least overlay)',
+  );
+  const candidates = [...new Set([balance.oddsScale, 15.75, 16.5, 17.5, bestScale])].sort(
+    (a, b) => a - b,
+  );
+  for (const scale of candidates) {
+    let over = -Infinity;
+    let at = 0;
+    let sq = 0;
+    for (const r of results) {
+      const p =
+        Math.pow(10, r.q / scale) / (Math.pow(10, r.q / scale) + 7 * Math.pow(10, 50 / scale));
+      if (r.win - p > over) {
+        over = r.win - p;
+        at = r.q;
+      }
+      sq += (r.win - p) ** 2;
+    }
+    const mark = scale === balance.oddsScale ? '  ← balance.json' : '';
+    lines.push(
+      `  ${scale.toFixed(2).padStart(5)}   ${(over * 100).toFixed(2).padStart(5)} points at rating ${String(at).padEnd(14)}   ${(Math.sqrt(sq / results.length) * 100).toFixed(2).padStart(5)}${mark}`,
+    );
+  }
   return lines.join('\n');
 }
 

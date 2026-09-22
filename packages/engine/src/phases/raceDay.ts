@@ -1,11 +1,11 @@
 import { balance } from '../content/balance';
 import { good } from '../content/goods';
-import { STYLE_BY_ID } from '../content/styles';
+import { publicStyle, STYLE_BY_ID } from '../content/styles';
 import { HEADLINE_TYPE_ID, raceType } from '../content/raceTypes';
 import { pow10 } from '../determinism';
 import { createLocalDog } from '../economy/dogs';
 import { dogValue } from '../economy/dogValue';
-import { decimalOdds, placeProbabilities, winProbabilities } from '../race/odds';
+import { decimalOdds, placeProbabilities, styleEdge, winProbabilities } from '../race/odds';
 import { simulateRace, type Runner } from '../race/simulateRace';
 import {
   bettingMargin,
@@ -26,6 +26,7 @@ import { bettingOpen, startPlayerPhase } from './turn';
 /** GDD §4.2 step 4: fill traps with locals, draw traps, open the bookie. */
 export function lockDeclarations(ctx: Ctx): void {
   const { s, rng } = ctx;
+  const track = currentPlanet(s).track;
   const major = calendarEntry(s).major;
   const card = thisWeeksCard();
   const fields: RaceField[] = [];
@@ -64,7 +65,8 @@ export function lockDeclarations(ctx: Ctx): void {
     const wide = draw.filter((d) => d.traits.includes('wideRunner'));
     const rest = draw.filter((d) => !d.traits.includes('wideRunner'));
     const ordered = [...rest, ...wide];
-    const ratings = ordered.map((d) => d.rating);
+    // The book prices the rating and, once it is public, the style on this trip (GDD_V3 §5.6).
+    const ratings = ordered.map((d) => d.rating + styleEdge(publicStyle(d), track));
     const winP = winProbabilities(ratings);
     const placeP = placeProbabilities(ratings);
     fields.push({
@@ -75,7 +77,8 @@ export function lockDeclarations(ctx: Ctx): void {
         ownerId: d.ownerId === 'market' ? 'local' : d.ownerId,
         name: d.name,
         rating: d.rating,
-        style: d.styleKnown ? d.style : null,
+        style: publicStyle(d),
+        bookRating: ratings[i]!,
         odds: decimalOdds(winP[i]!, margin),
         winProb: winP[i]!,
         placeProb: placeP[i]!,

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { dogValue, formatBones, type Dog } from '@sdr/engine';
+import { dogValue, formatBones, publicStyle, type Dog } from '@sdr/engine';
 import { StatBar } from './StatBar';
-import { Delta, publicStyle, StyleTag, Traits } from './ui';
+import { Delta, StyleTag, Traits } from './ui';
 import {
   lookKey,
   lookTitle,

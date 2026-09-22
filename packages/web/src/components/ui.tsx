@@ -146,10 +146,6 @@ export function StyleTag({ style }: { style: StyleId | null }) {
   );
 }
 
-/** What the table knows about a dog's style: the style once it has raced, null until then. */
-export const publicStyle = (d: Pick<Dog, 'style' | 'styleKnown'>): StyleId | null =>
-  d.styleKnown ? d.style : null;
-
 /** A filled bar with its own caption — the cargo hold, mostly. */
 export function Gauge({ value, max, unit }: { value: number; max: number; unit: string }) {
   return (

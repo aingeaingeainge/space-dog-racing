@@ -143,6 +143,59 @@ ROWS.push(
   },
 );
 
+// ---- Item 8, GDD_V3 §5.6: the book prices a public style on the trip, never the field. ----
+//
+// Rating points, fitted by `--styles` from the win rate of each style in fields of equal dogs on each
+// trip: x = oddsScale × log10(7w / (1 − w)), the rating a dog would need to win w of an eight-dog
+// field under the book's own model. Standard trips are zero by construction (the style curve was
+// balanced there — see the A7 commit); what is left is the trip.
+const BOOK_SECTION =
+  'The bookie and running styles (GDD_V3 §5.6 — the style and the trip, never the field)';
+const EDGES: { name: string; sprint: number; standard: number; staying: number; note?: string }[] =
+  [
+    {
+      name: 'Front-runner',
+      sprint: 3,
+      standard: 0,
+      staying: -5,
+      note: 'Fitted: 17.4% of eight-dog sprints and 6.4% of staying trips, against 12.5% even',
+    },
+    {
+      name: 'Stalker',
+      sprint: -1,
+      standard: 0,
+      staying: 0,
+      note: 'Fitted: 11.4% sprint, 12.1% staying',
+    },
+    {
+      name: 'Closer',
+      sprint: -3,
+      standard: 0,
+      staying: 3,
+      note: 'Fitted: 8.7% sprint, 19.0% staying',
+    },
+  ];
+for (const e of EDGES) {
+  ROWS.push(
+    {
+      section: BOOK_SECTION,
+      label: `Book: ${e.name} on a sprint (rating points)`,
+      value: e.sprint,
+      note: e.note,
+    },
+    {
+      section: BOOK_SECTION,
+      label: `Book: ${e.name} on a standard trip (rating points)`,
+      value: e.standard,
+    },
+    {
+      section: BOOK_SECTION,
+      label: `Book: ${e.name} on a staying trip (rating points)`,
+      value: e.staying,
+    },
+  );
+}
+
 /**
  * ⚠️ **The contest rule of §5.3 is cut (decision C3), and its rows leave with it.** They were added
  * in the first commit of the phase and read by the rule's own commit; the kill switch measured a

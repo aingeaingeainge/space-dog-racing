@@ -1,9 +1,18 @@
 import { balance } from '../content/balance';
 import { planetOf } from '../content/planets';
 import { raceType } from '../content/raceTypes';
-import { winProbabilities } from '../race/odds';
+import { styleEdge, winProbabilities } from '../race/odds';
+import { publicStyle } from '../content/styles';
 import { baseRating, dogValue } from '../economy/dogValue';
-import { calendarEntry, eligible, FREE_HORIZON, player, purseFor, thisWeeksCard } from '../state';
+import {
+  calendarEntry,
+  currentPlanet,
+  eligible,
+  FREE_HORIZON,
+  player,
+  purseFor,
+  thisWeeksCard,
+} from '../state';
 import { feedsFor, GOODS, good, STAPLE_ID, type Good } from '../content/goods';
 import { expectedPrice, planFeeding } from '../economy/food';
 import { cargoTotal, HOLD_CAP } from '../economy/goods';
@@ -34,12 +43,15 @@ export function expectedField(
   ratingOf: (d: Dog) => number = (d) => d.rating,
 ): number[] {
   const major = calendarEntry(s).major;
+  const track = currentPlanet(s).track;
   const mid = raceType(race).localRating + (major ? balance.localRatingMajorBonus : 0);
   const ratings: number[] = [];
   for (const [pid, dogId] of Object.entries(s.declarations[race])) {
     if (pid === excludePlayer) continue;
     const d = s.dogs[dogId];
-    if (d) ratings.push(ratingOf(d));
+    // A rival's public style counts as the book counts it (GDD_V3 §5.6); a local not yet drawn is
+    // an average dog of an unknown style, which the book prices at nothing.
+    if (d) ratings.push(ratingOf(d) + styleEdge(publicStyle(d), track));
   }
   while (ratings.length < balance.traps - 1) ratings.push(mid);
   return ratings;
@@ -66,7 +78,10 @@ export function expectedPurse(
   rivalRatingOf?: (d: Dog) => number,
 ): number {
   const others = expectedField(s, race, playerId, rivalRatingOf);
-  const p = winProbabilities([rating, ...others])[0]!;
+  // Our own dog's style, if the table knows it — and only then: an owner learns its dog's style by
+  // racing it, like everybody else (GDD_V3 §5.4).
+  const ours = rating + styleEdge(publicStyle(dog), currentPlanet(s).track);
+  const p = winProbabilities([ours, ...others])[0]!;
   const purse = purseFor(s, race);
   // Places: a cheap approximation of Harville that keeps the AI fast.
   const p2 = Math.min(1 - p, p * 1.2);

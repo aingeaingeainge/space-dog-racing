@@ -212,6 +212,12 @@ export interface RunningStyle {
   fadeShift: number;
   /** × the fade penalty once the dog is fading. Scaled likewise. */
   fadeMult: number;
+  /**
+   * What the bookie adds to a dog's rating for this style, by trip, **once the style is public**
+   * (GDD_V3 §5.6). Rating points. The book sees the style and the track; it does not see the
+   * field — which other styles are in the race with it — and that is deliberate.
+   */
+  bookEdge: Record<TrackLength, number>;
   /** One line a player reads on the dog card. */
   blurb: string;
 }
@@ -364,6 +370,12 @@ export interface RaceEntry {
   rating: number;
   /** Its style, if the table knows it when the field is posted (GDD_V3 §5.4); null if not yet. */
   style: StyleId | null;
+  /**
+   * The rating the bookie priced: `rating` plus the style's `bookEdge` on this trip if the style is
+   * public (GDD_V3 §5.6). What the odds were struck on, so an agent re-pricing a field uses the
+   * book's own ruler.
+   */
+  bookRating: number;
   odds: number; // decimal win odds shown by the bookie
   winProb: number;
   placeProb: number;

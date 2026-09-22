@@ -128,3 +128,25 @@ describe('the engine leaves no raw transcendental in the hot path', () => {
     expect(SIGNIFICANT_DIGITS).toBe(8);
   });
 });
+
+/*
+ * v3 Phase C — additions only; nothing above this line was edited.
+ */
+describe('the book prices a public style, and its inputs stay integers far from a boundary', () => {
+  /**
+   * GDD_V3 §5.6 moves the book's input off the rating alone: `rating + bookEdge`, where the edge is
+   * a whole number of rating points per style per trip. So the domain the test above proves is
+   * widened by the smallest and largest edge in the sheet, and every value in it is proved again.
+   */
+  it('every rating 5–99 plus every style edge has thousands of ULPs of margin', async () => {
+    const { STYLES } = await import('../src/content/styles');
+    const edges = STYLES.flatMap((st) => Object.values(st.bookEdge));
+    for (const e of edges) expect(Number.isInteger(e), `edge ${e} is a whole number`).toBe(true);
+    const lo = 5 + Math.min(0, ...edges);
+    const hi = 99 + Math.max(0, ...edges);
+    let worst = Infinity;
+    for (let r = lo; r <= hi; r++)
+      worst = Math.min(worst, quantizeMarginUlps(Math.pow(10, r / balance.oddsScale)));
+    expect(worst).toBeGreaterThan(1000);
+  });
+});

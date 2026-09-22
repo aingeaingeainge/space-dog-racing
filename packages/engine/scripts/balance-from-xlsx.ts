@@ -181,6 +181,16 @@ const LABELS: Record<string, string> = {
   // A7 (GDD_V3 B9): the fade point is metres from the boxes now, not a fraction of the trip.
   'Race: reference trip for the fade point (metres)': 'raceFadeRefMetres',
   'Race: metres from the fade point to a full fade': 'raceFadeLengthMetres',
+  // §5.6: what the book adds for a public style, by trip. It never sees the field (decision C6).
+  'Book: Front-runner on a sprint (rating points)': 'bookEdgeFrontRunnerSprint',
+  'Book: Front-runner on a standard trip (rating points)': 'bookEdgeFrontRunnerStandard',
+  'Book: Front-runner on a staying trip (rating points)': 'bookEdgeFrontRunnerStaying',
+  'Book: Stalker on a sprint (rating points)': 'bookEdgeStalkerSprint',
+  'Book: Stalker on a standard trip (rating points)': 'bookEdgeStalkerStandard',
+  'Book: Stalker on a staying trip (rating points)': 'bookEdgeStalkerStaying',
+  'Book: Closer on a sprint (rating points)': 'bookEdgeCloserSprint',
+  'Book: Closer on a standard trip (rating points)': 'bookEdgeCloserStandard',
+  'Book: Closer on a staying trip (rating points)': 'bookEdgeCloserStaying',
 };
 
 const wb = XLSX.read(readFileSync(xlsxPath));

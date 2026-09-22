@@ -1,5 +1,20 @@
 import { balance } from '../content/balance';
+import { STYLE_BY_ID } from '../content/styles';
 import { pow10 } from '../determinism';
+import type { StyleId, Track } from '../types';
+
+/**
+ * What the book adds to a rating for a public style on this trip (GDD_V3 §5.6), in rating points.
+ * Zero for a style nobody has seen yet — the book knows exactly what the table knows.
+ *
+ * ⚠️ **It prices the style and the track, never the field.** A style's advantage in the simulation
+ * comes from the trip (a sprint barely makes a dog tire; a staying trip finds everybody out — A7),
+ * and the book knows the trip. Which *other* styles are in the race it does not look at: that is
+ * §5.6's deliberate standing overlay, measured by `--styles` as the blind-lone-closer return.
+ */
+export function styleEdge(style: StyleId | null, track: Pick<Track, 'length'>): number {
+  return style ? STYLE_BY_ID[style].bookEdge[track.length] : 0;
+}
 
 /**
  * strength_i = 10^(rating_i / oddsScale), via the quantized pow10 so the model is bit-identical

@@ -1,6 +1,7 @@
 import { balance } from '../content/balance';
-import { decimalOdds, placeProbabilities, winProbabilities } from '../race/odds';
-import { bettingMargin, maxStakeFor, player, thisWeeksCard } from '../state';
+import { decimalOdds, placeProbabilities, styleEdge, winProbabilities } from '../race/odds';
+import { publicStyle } from '../content/styles';
+import { bettingMargin, currentPlanet, maxStakeFor, player, thisWeeksCard } from '../state';
 import type { Action, GameState, Id, RaceTypeId } from '../types';
 import {
   bestAssignment,
@@ -136,7 +137,8 @@ function declareForThisWeek(plan: Plan): Assignment {
     const backedId = assignment.plan[second];
     const backed = backedId ? s.dogs[backedId] : undefined;
     if (backed) {
-      const p = winProbabilities([backed.rating, ...expectedField(s, second, playerId)])[0]!;
+      const own = backed.rating + styleEdge(publicStyle(backed), currentPlanet(s).track);
+      const p = winProbabilities([own, ...expectedField(s, second, playerId)])[0]!;
       if (p >= 0.35) delete assignment.plan[cheap];
     }
   }
@@ -297,8 +299,10 @@ function placeBets(plan: Plan): void {
       if (!mine.has(e.dogId)) continue;
       const d = s.dogs[e.dogId];
       if (!d) continue;
-      const ours = effectiveRating(d) + d.raceBonus * balance.ratingWeightSpeed;
-      const ratings = field.map((x, j) => (j === i ? ours : x.rating));
+      // On the book's own ruler: its style edge on this trip, as posted (GDD_V3 §5.6).
+      const ours =
+        effectiveRating(d) + d.raceBonus * balance.ratingWeightSpeed + (e.bookRating - e.rating);
+      const ratings = field.map((x, j) => (j === i ? ours : x.bookRating));
       const winEdge = winProbabilities(ratings)[i]! * e.odds;
       const placeEdge = placeProbabilities(ratings)[i]! * decimalOdds(e.placeProb, margin);
       const kind: 'win' | 'place' = placeEdge >= winEdge ? 'place' : 'win';
