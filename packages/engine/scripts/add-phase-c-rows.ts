@@ -11,7 +11,7 @@
  * pair and are edited together.
  *
  * ⚠️ **Phase C's rows arrive in the commit that reads them, not all at once.** The first run added
- * the style and contest rows, which nothing read yet, so it moved nothing; the equal-rating deal, the
+ * the style rows (and the contest rule's, since cut — see REMOVE), which nothing read yet, so it moved nothing; the equal-rating deal, the
  * absolute fade (A7) and the bookie's style term each added theirs in their own commit, because a
  * row that is read changes the game from the commit it lands in.
  */
@@ -36,18 +36,16 @@ interface NewRow {
 
 const STYLE_SECTION =
   'Running styles (GDD_V3 §5.1–5.2 — a redistribution of the same energy, not a bonus)';
-const CONTEST_SECTION = 'The contest rule (GDD_V3 §5.3 — a kill switch, not a tuning target)';
 
 /**
- * §5.1's three styles, one row each. **A style is data**: the pace-curve modifiers and whether it
- * contests the lead are cells, and nothing in the simulation branches on which style it is.
+ * §5.1's three styles, one row each. **A style is data**: the pace-curve modifiers
+ * are cells, and nothing in the simulation branches on which style it is.
  */
 const STYLES: {
   name: string;
   speed: number;
   fade: number;
   fadeMult: number;
-  contests: number;
   note?: string;
 }[] = [
   {
@@ -55,7 +53,6 @@ const STYLES: {
     speed: 1.08,
     fade: -0.06,
     fadeMult: 1,
-    contests: 1,
     note: 'Bursts from the boxes, leads early, pays for it later. Leans on Acceleration',
   },
   {
@@ -63,7 +60,6 @@ const STYLES: {
     speed: 1,
     fade: 0,
     fadeMult: 1,
-    contests: 0,
     note: 'The baseline: even pace, sits handy, wins by being better. Leans on Speed',
   },
   {
@@ -71,7 +67,6 @@ const STYLES: {
     speed: 0.94,
     fade: 0.05,
     fadeMult: 1,
-    contests: 0,
     note: 'Slow away, comes home hardest. Leans on Stamina',
   },
 ];
@@ -95,15 +90,6 @@ for (const st of STYLES) {
           : undefined,
     },
     { section: STYLE_SECTION, label: `${st.name}: fade penalty multiplier`, value: st.fadeMult },
-    {
-      section: STYLE_SECTION,
-      label: `${st.name}: contests the lead (1 = yes)`,
-      value: st.contests,
-      note:
-        st.name === 'Front-runner'
-          ? 'Which styles the contest rule of §5.3 reads. A flag on the row, so the rule never names a style'
-          : undefined,
-    },
   );
 }
 ROWS.push(
@@ -111,7 +97,7 @@ ROWS.push(
     section: STYLE_SECTION,
     label: 'Style: the early part of the race (fraction of the trip)',
     value: 0.333,
-    note: 'Where the early top-speed multiplier applies. The first third, the same window the contest rule reads',
+    note: 'Where the early top-speed multiplier applies. The first third of the trip',
   },
   {
     section: STYLE_SECTION,
@@ -120,30 +106,6 @@ ROWS.push(
     note: 'GDD_V3 §5.2, V13: one U(min, max) draw per runner per race, scaling how strongly its style applies that day. NOT a multiplier on speed — the area under the curve stays put and only its shape moves',
   },
   { section: STYLE_SECTION, label: 'Style expression: maximum', value: 1.3 },
-  {
-    section: CONTEST_SECTION,
-    label: 'Contest: window (fraction of the trip)',
-    value: 0.333,
-    note: 'While a front-runner is inside the first third of the race',
-  },
-  {
-    section: CONTEST_SECTION,
-    label: 'Contest: distance at the head of the field (metres)',
-    value: 2,
-    note: '…and another dog is within this of it at the head of the field',
-  },
-  {
-    section: CONTEST_SECTION,
-    label: 'Contest: speed boost while contesting',
-    value: 0.03,
-    note: '…both get this much on current speed',
-  },
-  {
-    section: CONTEST_SECTION,
-    label: 'Contest: fade start cost for a whole first third contested',
-    value: 0.05,
-    note: '…and their fade point moves this much earlier, in proportion to the share of the window spent contesting. A cost larger than the boost is worth. If the closer’s gap against a front-runner-heavy field is under 4 points, the rule is cut, not tuned',
-  },
 );
 
 // ---- The deal (GDD_V3 §5.5, V2) — Jesse's call before this phase: fix it here. ----
@@ -163,7 +125,25 @@ ROWS.push(
   },
 );
 
+/**
+ * ⚠️ **The contest rule of §5.3 is cut (decision C3), and its rows leave with it.** They were added
+ * in the first commit of the phase and read by the rule's own commit; the kill switch measured a
+ * closer's gap at 0.7 points against a 4-point floor, and V14 says cut rather than tune. The code
+ * and the measurement are in the history at the commit that added the rule.
+ */
+const CUT_WITH_THE_CONTEST_RULE =
+  'Cut with the contest rule of §5.3 (decision C3): the kill switch read 0.7 points against 4';
 const REMOVE: { label: string; why: string }[] = [
+  { label: 'Contest: window (fraction of the trip)', why: CUT_WITH_THE_CONTEST_RULE },
+  { label: 'Contest: distance at the head of the field (metres)', why: CUT_WITH_THE_CONTEST_RULE },
+  { label: 'Contest: speed boost while contesting', why: CUT_WITH_THE_CONTEST_RULE },
+  {
+    label: 'Contest: fade start cost for a whole first third contested',
+    why: CUT_WITH_THE_CONTEST_RULE,
+  },
+  { label: 'Front-runner: contests the lead (1 = yes)', why: CUT_WITH_THE_CONTEST_RULE },
+  { label: 'Stalker: contests the lead (1 = yes)', why: CUT_WITH_THE_CONTEST_RULE },
+  { label: 'Closer: contests the lead (1 = yes)', why: CUT_WITH_THE_CONTEST_RULE },
   {
     label: 'Starting dog stat budget (total across three stats)',
     why: 'Replaced by an exact starting rating (decision C1). An equal stat total is not an equal dog when the rating weights are unequal',

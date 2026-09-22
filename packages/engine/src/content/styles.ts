@@ -5,7 +5,7 @@ import { STYLE_IDS } from '../types';
 /**
  * GDD_V3 §5.1's three running styles, one row each, every number a spreadsheet cell.
  *
- * ⚠️ **A style is a row.** `simulateRace` reads `earlySpeed`, `fadeShift`, `fadeMult` and `contests`
+ * ⚠️ **A style is a row.** `simulateRace` reads `earlySpeed`, `fadeShift` and `fadeMult`
  * and never asks which style it is looking at, so a fourth style is a row here and four cells in the
  * sheet. If adding one ever needs a branch, stop.
  */
@@ -16,7 +16,6 @@ export const STYLES: readonly RunningStyle[] = [
     earlySpeed: balance.styleFrontRunnerSpeed,
     fadeShift: balance.styleFrontRunnerFade,
     fadeMult: balance.styleFrontRunnerFadeMult,
-    contests: balance.styleFrontRunnerContests === 1,
     blurb: 'Bursts from the boxes and leads early, then pays for it',
   },
   {
@@ -25,7 +24,6 @@ export const STYLES: readonly RunningStyle[] = [
     earlySpeed: balance.styleStalkerSpeed,
     fadeShift: balance.styleStalkerFade,
     fadeMult: balance.styleStalkerFadeMult,
-    contests: balance.styleStalkerContests === 1,
     blurb: 'Even pace, sits handy, wins by being better',
   },
   {
@@ -34,7 +32,6 @@ export const STYLES: readonly RunningStyle[] = [
     earlySpeed: balance.styleCloserSpeed,
     fadeShift: balance.styleCloserFade,
     fadeMult: balance.styleCloserFadeMult,
-    contests: balance.styleCloserContests === 1,
     blurb: 'Slow away, comes home hardest over the last third',
   },
 ];

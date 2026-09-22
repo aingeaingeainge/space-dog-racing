@@ -228,8 +228,6 @@ export interface RunningStyle {
   fadeShift: number;
   /** × the fade penalty once the dog is fading. Scaled likewise. */
   fadeMult: number;
-  /** Whether the contest rule of §5.3 reads this style. A flag, so the rule never names a style. */
-  contests: boolean;
   /** One line a player reads on the dog card. */
   blurb: string;
 }
@@ -390,11 +388,7 @@ export interface RaceEntry {
 
 export interface RaceEvent {
   tick: number;
-  /**
-   * `duel` is the contest rule of GDD_V3 §5.3 starting: the first tick a front-runner is taking
-   * another dog on at the head of the field (`otherId`). Once per front-runner a race.
-   */
-  kind: 'bump' | 'leadChange' | 'finish' | 'duel';
+  kind: 'bump' | 'leadChange' | 'finish';
   dogId: Id;
   otherId?: Id;
 }
@@ -435,11 +429,6 @@ export interface RunNote {
   style: StyleId;
   /** The day's style expression, U(0.30, 1.30) (§5.2), 2 dp. */
   expression: number;
-  /**
-   * How much of the contest window (§5.3) it spent contesting the lead: 0 never, 1 the whole first
-   * third, 2 dp. Its fade point moved `contestFadeCost ×` this much earlier.
-   */
-  contested: number;
 }
 
 export interface PendingEvent {

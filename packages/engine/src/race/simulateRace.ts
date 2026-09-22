@@ -189,44 +189,11 @@ export function simulateRace(runners: readonly Runner[], ctx: RaceContext, rng: 
     if (t.includes('slowStarter')) fadeShift[i] = 0.05;
   }
 
-  // The contest rule (GDD_V3 §5.3, V14). Styles alone are independent — three front-runners would
-  // each run their own curve — so the interaction is written: while a front-runner is inside the
-  // first third and another dog is within `contestDistance` of it at the head of the field, both go
-  // `contestSpeedBoost` faster, and both pay for it later with a fade point moved earlier. The cost
-  // accrues with the ground covered while contesting — a whole first third duelled costs
-  // `contestFadeCost`, a brush costs a sliver — so a front-runner who draws a low expression and
-  // never gets to the front is never burned. The closer's curve never changes; the leaders come back
-  // to it. ⚠️ A kill switch, not a tuning target: `--styles` measures it, and if a closer's gap
-  // against a front-runner-heavy field is under 4 points the rule is to be cut.
-  const contests = runners.map((r) => STYLE_BY_ID[r.style ?? 'stalker'].contests);
-  const contesting: boolean[] = new Array(n).fill(false);
-  const contestedMetres = new Float64Array(n);
-  const duelled: boolean[] = new Array(n).fill(false);
-  const contestWindow = balance.contestWindow * distance;
-
   ticks.push(Array.from(pos, (p) => Math.round(p * 100) / 100));
   let leader = -1;
   let t = 0;
   while (order.length < n && t < balance.raceMaxTicks) {
     t++;
-    // Who is contesting the lead this tick, read off where everybody was at the end of the last one.
-    contesting.fill(false);
-    let head = 0;
-    for (let i = 0; i < n; i++) if (!finished[i] && pos[i]! > head) head = pos[i]!;
-    for (let i = 0; i < n; i++) {
-      if (!contests[i] || finished[i] || pos[i]! >= contestWindow) continue;
-      if (pos[i]! < head - balance.contestDistance) continue;
-      for (let j = 0; j < n; j++) {
-        if (j === i || finished[j] || pos[j]! < head - balance.contestDistance) continue;
-        if (Math.abs(pos[i]! - pos[j]!) > balance.contestDistance) continue;
-        contesting[i] = true;
-        contesting[j] = true;
-        if (!duelled[i]) {
-          duelled[i] = true;
-          events.push({ tick: t, kind: 'duel', dogId: runners[i]!.id, otherId: runners[j]!.id });
-        }
-      }
-    }
     for (let i = 0; i < n; i++) {
       if (finished[i]) continue;
       const r = runners[i]!;
@@ -244,8 +211,7 @@ export function simulateRace(runners: readonly Runner[], ctx: RaceContext, rng: 
         balance.raceFadeBase +
         (balance.raceFadeStamina * r.stamina) / 100 +
         fadeShift[i]! +
-        styleFade[i]! -
-        (balance.contestFadeCost * contestedMetres[i]!) / contestWindow;
+        styleFade[i]!;
       const frac = pos[i]! / distance;
       // The style's early pace (§5.1): quicker or slower over the first part of the trip only.
       if (frac < balance.styleEarlyFraction) top *= earlyMult[i]!;
@@ -255,13 +221,11 @@ export function simulateRace(runners: readonly Runner[], ctx: RaceContext, rng: 
           (balance.raceFadePenalty * fadeMult[i]! * (frac - fadeStart)) /
             Math.max(0.05, 1 - fadeStart);
       }
-      if (contesting[i]) top *= 1 + balance.contestSpeedBoost;
       if (bumpedUntil[i]! > t) top *= 1 - balance.raceBumpPenalty;
       let acc = balance.raceAccelBase + (balance.raceAccelCoef * r.accel) / 100;
       if (track.slippery) acc *= 0.85 + (0.3 * r.accel) / 100; // Glassfall: acceleration matters more
       vel[i] = Math.min(top, vel[i]! + acc * dt) + rng.gauss(0, balance.raceTickNoiseSd);
       if (vel[i]! < 0) vel[i] = 0;
-      if (contesting[i]) contestedMetres[i] = contestedMetres[i]! + vel[i]! * dt;
       pos[i] = pos[i]! + vel[i]! * dt;
     }
 
@@ -342,7 +306,6 @@ export function simulateRace(runners: readonly Runner[], ctx: RaceContext, rng: 
     runs: runners.map((r, i) => ({
       style: r.style ?? 'stalker',
       expression: Math.round(expression[i]! * 100) / 100,
-      contested: Math.round((contestedMetres[i]! / contestWindow) * 100) / 100,
     })),
   };
 }

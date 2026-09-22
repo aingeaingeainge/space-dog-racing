@@ -163,29 +163,21 @@ const LABELS: Record<string, string> = {
   'Planet band bias: floor': 'planetBiasMin',
   'Planet band bias: ceiling': 'planetBiasMax',
   // ---- v3 Phase C ----
-  // GDD_V3 §5.1's three styles, one row each: the pace-curve modifiers and the contest flag. A style
+  // GDD_V3 §5.1's three styles, one row each: the pace-curve modifiers. A style
   // is data, so `content/styles.ts` reads these and the simulation never branches on a style's name.
   'Front-runner: early top-speed multiplier': 'styleFrontRunnerSpeed',
   'Front-runner: fade start shift': 'styleFrontRunnerFade',
   'Front-runner: fade penalty multiplier': 'styleFrontRunnerFadeMult',
-  'Front-runner: contests the lead (1 = yes)': 'styleFrontRunnerContests',
   'Stalker: early top-speed multiplier': 'styleStalkerSpeed',
   'Stalker: fade start shift': 'styleStalkerFade',
   'Stalker: fade penalty multiplier': 'styleStalkerFadeMult',
-  'Stalker: contests the lead (1 = yes)': 'styleStalkerContests',
   'Closer: early top-speed multiplier': 'styleCloserSpeed',
   'Closer: fade start shift': 'styleCloserFade',
   'Closer: fade penalty multiplier': 'styleCloserFadeMult',
-  'Closer: contests the lead (1 = yes)': 'styleCloserContests',
   'Style: the early part of the race (fraction of the trip)': 'styleEarlyFraction',
   // §5.2 / V13: the day's expression scales the style's *shape*, never the dog's speed.
   'Style expression: minimum': 'styleExpressionMin',
   'Style expression: maximum': 'styleExpressionMax',
-  // §5.3 / V14: the contest rule, which is a kill switch rather than a tuning target.
-  'Contest: window (fraction of the trip)': 'contestWindow',
-  'Contest: distance at the head of the field (metres)': 'contestDistance',
-  'Contest: speed boost while contesting': 'contestSpeedBoost',
-  'Contest: fade start cost for a whole first third contested': 'contestFadeCost',
 };
 
 const wb = XLSX.read(readFileSync(xlsxPath));
