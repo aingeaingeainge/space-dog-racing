@@ -74,8 +74,8 @@ correction goes in the next phase's notes.
 |---|---|---|
 | v1 | `m4` | `design/GDD.md` 0.1, `design/BUILD_PLAN.md` §6 |
 | v2 | `v2a` … `v2e` | `design/GDD.md` 0.2–0.7, `design/BUILD_PLAN.md` §6b |
-| **v3** | `v3a`, `v3b` | **`design/GDD_V3.md` 3.0, `design/BUILD_PLAN_V3.md`** |
+| **v3** | `v3a`, `v3b`, `v3c` | **`design/GDD_V3.md` 3.0, `design/BUILD_PLAN_V3.md`** |
 
-Last reviewed: 21 September 2026. `design/` mirrors in the claude.ai Project need re-syncing: `GDD_V3.md` gained decision rows A1–A7 (v3 Phase A) and B1–B9 (v3 Phase B), §2.1's calendar now reads 8 regular planets and §12's `foodBand` note is expanded; `BUILD_PLAN_V3.md`'s Phase C gained A7; and `CANON.md` gained the write-once note above and the `v3b` tag.
+Last reviewed: 23 September 2026. ⚠️ **`design/` mirrors in the claude.ai Project are two phases behind and need re-syncing.** Since the last sync: `GDD_V3.md` gained decision rows A1–A7 (v3 Phase A), B1–B9 (v3 Phase B) and C1–C11 (v3 Phase C), §2.1's calendar reads 8 regular planets, §12's `foodBand` note is expanded, and Phase C added inline status notes to §4.5, §5.1, §5.3 (the contest rule is cut), §5.5, §5.6, §7.2 and §11 and questions 9–11 to §14; `BUILD_PLAN_V3.md`'s Phase C gained A7 and a built-at-`v3c` status note, and §2.3 flags the `oddsScale` move; and `CANON.md` gained the write-once note above and the `v3b` and `v3c` tags.
 
 ⚠️ **The `v3a` tag on GitHub points at `18a5bfb`, which is not on `main`** — it is the Phase A notes commit from before the replay onto `c83debc`. `main`'s equivalent is `6978b96`, and the two trees differ only in `claude/V3_PHASE_A_NOTES.md`. See `claude/V3_PHASE_B_NOTES.md`, correction 2, for the one-line fix, which is a force-push of a published tag and therefore Jesse's call.

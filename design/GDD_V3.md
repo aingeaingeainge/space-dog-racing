@@ -282,6 +282,8 @@ shown as icons on the dog card:
 running styles and distance preference. Two systems saying the same thing is the mistake v2 fixed
 once already with `SetTraining` (D19).
 
+*Built at `v3c` (C8): the list is these eight. Nervy took Lagrange Lows' one special rule with it.*
+
 ---
 
 ## 5. Running styles — the centre of v3's racing
@@ -312,6 +314,13 @@ Closer:        early topSpeed ×0.94,  fadeStart +0.12, fade penalty ×0.8   ⚖
 no new maths, and — importantly — **nothing that needs `exp` or `log`**, so the determinism rules in
 `CLAUDE.md` are untouched.
 
+⚠️ **Measured at `v3c` (C2): the estimates above were not a redistribution.** At ±0.12 and ×0.8 a
+closer won 24.7% of eight-dog fields and a front-runner 4.7%, against 12.5% even — the fade is convex,
+so a speed loss *p* costs time *p* / (1 − *p*). What was built: front-runner ×1.08 early / −0.07;
+closer ×0.97 early / +0.06 / ×1.0; "early" is the first third of the trip; shifts are fractions of the
+600 m reference trip (C5). Across the calendar the three read 12.9 / 12.0 / 12.6; what is left is the
+trip — a front-runner wins 18% of sprints and 6.5% of staying trips, a closer 8% and 19%.
+
 ### 5.2 Day-to-day variance — where Jesse's ±30% goes
 
 Every race, each dog draws a **style expression** multiplier, `U(0.30, 1.30)` ⚖️, that scales *how
@@ -326,6 +335,10 @@ variance in the *shape* of the run gives you all of the "he didn't run his race 
 none of the damage — the area under the curve is constant.
 
 ### 5.3 The contest rule — why three front-runners burn each other out
+
+> ⚠️ **Cut at `v3c` (C3), as V14 required.** Built alone (`67aa702`), measured, and deleted at the
+> next commit: a closer's gap between one front-runner and three read **+0.7 points** against a 4-point
+> floor, and no setting in the sweep reached 4. The section is kept as the record of what was tried.
 
 Styles on their own are independent: three front-runners would each run their own curve, fade at
 their own points, and a closer would beat them by exactly as much as it beats one. **The
@@ -376,6 +389,9 @@ fix in a game with no dog market, and a new player meets all three styles on the
 **total stat budget** ⚖️ with different distributions, ages 2–4. In a game people play against each
 other, "you got better dogs" is the complaint that ends the evening.
 
+*Amended at `v3c` (C1, Jesse's call): an equal stat total is not an equal dog when the rating weights
+are 0.40 / 0.35 / 0.25 — it dealt 44–55. Every dealt dog now rates exactly 50, with its shape drawn.*
+
 ### 5.6 What the bookie knows
 
 The book prices **rating, fitness, form and style**. It does **not** price the interaction between
@@ -389,6 +405,12 @@ one is on purpose, it is discoverable by reading the card, and §11 measures its
 
 ❓ **Open:** how big is the field-shape overlay in practice? If backing the lone closer blind beats
 the 15% margin reliably, it is free money and the book needs to see one more thing.
+
+*Built at `v3c` (C6, C7): the book prices a **public** style on the **trip** — nine cells of rating
+points — and never the field. It does not price fitness or form, and never has (§1.1 says "ratings
+and styles"; this section's "fitness, form" was not built — ❓ Q9). Backing the lone closer blind
+returns −17% a Bone. With the contest rule cut there is almost no field-shape effect to price: a
+closer wins 13.1% against one front-runner and 12.8% against three.*
 
 ---
 
@@ -525,6 +547,9 @@ Unchanged from v2 in shape and constants, with three amendments:
 1. `bendCraft` and the trap-draw edge read **Acceleration** instead of Trap (§4.1).
 2. Style modifies the pace curve (§5.1) and the daily expression scales it (§5.2).
 3. The front-runner contest rule (§5.3) is a new positional interaction.
+
+*At `v3c`: amendment 3 was built, measured and cut (C3); the fade point became metres rather than a
+fraction of the trip (A7, C5).*
 
 Everything else — `raceBaseSpeed` 13.75, `raceSpeedCoef` 4.5, `raceFadePenalty` 0.50, the bend
 model, the tick log, the renderer replay contract — carries over. **These constants were fitted over
@@ -732,7 +757,7 @@ v2's harness survives and most of its measures still mean something. New and cha
 | Decisions per weekend per player | ≤ 10 | §10.1 |
 | Races entered per weekend, per stable | 1.8–2.4 of 3 | §4.2's fitness arithmetic; the card is built for it |
 | Races per dog per season | 5–7 | §4.2, 10 weeks |
-| A closer's win rate, 1 front-runner in the field vs 3 | ≥ 4 points better | §5.3 — **if this misses, cut the contest rule** |
+| A closer's win rate, 1 front-runner in the field vs 3 | ≥ 4 points better | §5.3 — **if this misses, cut the contest rule** · *`v3c`: +0.7, cut (C3)* |
 | Style expression's share of race variance | below fitness's, above form's | §5.2 — the ±30% must not swamp the stats |
 | Field-shape betting overlay, backing the lone closer blind | below the 15% margin | §5.6 — an edge for a player who reads, not free money |
 | Mean end worth, all-Normal, one season | 25–40k | roughly v2's band on a 10-week season |
@@ -807,6 +832,17 @@ All 18 planets survive as data. What changes is which fields do work:
 | 2026-09-21 | **B7 — turn order is scored in whole numbers, and ties go to the lighter hold** | Phase A's `−cargo ÷ 5 + d10` in floating point broke exact ties by rounding error (0.8 against 0.7999999999999998) — half toward the lighter hold and half toward the heavier. Scaled to integers, the constant 20 is verifiably inert. The lighter-hold tie-break is the rule's own logic, "the lighter ship lands first", applied to the one case the arithmetic cannot separate |
 | 2026-09-21 | **B8 — a planet's food map is public; the week's prices are not** | The fog (§2.1) hides the week's draw, not what kind of place a planet is — and hiding the map would reward memory, which §5.4 rejects for running styles for the same reason. So the Market prints next stop's map in words ("cheap for Scrapmeat, dear for Ambrosia"), as do the galaxy map, the hub and the rumours; §8.2's staff bonus and §9.4's Bar events still have the week's *band position* to sell |
 | 2026-09-21 | **B9 — A1 confirmed: 8 regular planets + the week-5 Major venue + Collar Prime. A7 deferred to Phase C** | Both Jesse's calls, asked before Phase B built anything. §2.1 now reads 8. The stat-leverage fix — `fadeStart` as an absolute distance — moves every dog in the golden season and belongs with the race-model code Phase C rewrites for running styles; it is in Phase C's deliverables and acceptance table |
+| 2026-09-23 | **C1 — the opening hand is dealt to an equal *rating*, not an equal stat total; A3 is withdrawn** | Jesse's call, asked before Phase C built anything. A3 claimed 150 points over three stats "rates 50 whatever the split"; with weights 0.40 / 0.35 / 0.25 it dealt 44–55, and the best stable at a table of six started a median 16 rating points ahead of the worst (Phase B, correction 3). Every dealt dog now rates exactly `startDogRating` 50: speed and accel are drawn within ±15 of it and stamina solves for the rating. The stat *total* varies instead, which is what weighted stats mean. The p90/p10 spread fell from 2.31× to 1.86× at the same commit — the deal had been a source of it |
+| 2026-09-23 | **C2 — the style curve is measured, not estimated: front-runner ×1.08 / −0.07, closer ×0.97 / +0.06 / ×1.0, over the first third** | §5.1's own test. The ⚖️ estimates gave a closer 24.7% of eight-dog fields and a front-runner 4.7%, because the fade is convex; the curve was fixed before anything else was measured. "Early" is the first third of the trip; the closer's softer fade (×0.8) went, because the later fade point carries "comes home hardest" on its own. Re-balanced once more after A7, which it had to survive: 12.9 / 12.0 / 12.6 across the calendar |
+| 2026-09-23 | **C3 — ⚠️ the contest rule of §5.3 is cut: a closer's gap read +0.7 points against the 4-point kill switch** | V14, applied as written. Built alone, swept (×3 the cost: +1.2; 4 m and ×6: +1.0; "another front-runner" instead of "another dog", 4 m and ×6: +3.6), and deleted at the next commit. Why it cannot, as far as the sweep shows: a burned front-runner's wins are shared by everyone behind it, so a closer collects about a fifth; and "another dog at the head" burns a lone front-runner on the stalkers it takes on, so one front-runner and three are both punished. **A rule meant to pay closers has to be about closers** — a question for the GDD, not a tuning job (§14 Q10) |
+| 2026-09-23 | **C4 — `styleKnown` is a boolean; nobody knows a style privately, including its owner; the engine does the elimination; locals are public** | BUILD_PLAN_V3 offered a set of player ids. Racing is watched by the whole table, so the set would only ever be empty or everybody. §5.5's "a player who has identified two knows the third" only makes sense if the owner is finding out by racing too — and since the deal is public the elimination is open to everyone, so the engine does it (§5.4: no rewards for bringing a pen). A local's style is on the form guide from the start, or the board of §7.3 would be half question marks. ⚠️ The elimination assumes a stable holds the three dogs it was dealt; Phase D's acquisition breaks that |
+| 2026-09-23 | **C5 — the fade point is metres from the boxes: the old fraction of a 600 m reference trip, then a fixed slowing over 250 m to the 0.50 penalty** | A7 / B9. `fadeStart = 600 × (0.45 + 0.45 × stamina/100 + style shift)`; the penalty grows linearly and is reached 250 m past it, held to the line. raceFadeBase, raceFadeStamina and raceFadePenalty keep their values. Swept 520–600 m × 250–400 m; 600 / 250 met the stat-leverage row with the widest margin (24.5 / 18.3 / 16.7 at 480 m) and gave stamina the steepest climb with the trip (12.7 → 16.7 → 22.0). Cost, measured: the fade no longer drags the whole field back at the line, so the median winning margin went from 7.3 m to 10.6 m and photo finishes from 2.2% to 1.8% of races |
+| 2026-09-23 | **C6 — the book prices a public style on the trip, in nine cells of rating points, and never the field; it does not price fitness or form** | §5.6. The fitted edges (front-runner +4 / 0 / −6, stalker −1 / 0 / 0, closer −4 / 0 / +4 on sprint / standard / staying) are `--styles`' own measurement, `oddsScale × log10(7w / (1 − w))`. A style the table has not seen is priced at nothing — the book knows what the table knows. The AI prices entries the same way. §5.6 says the book sees "rating, fitness, form and style"; `odds.ts` has only ever priced the rating, §1.1 says "ratings and styles", and adding fitness would take away the edge D1 leaves a player who reads the card — so it was not built and is ❓ Q9 |
+| 2026-09-23 | **C7 — ⚠️ `oddsScale` moves from 15.5 to 18.75, because A7 left the book a standing overlay in real fields** | D52's criterion is the overlay; its instrument was one dog against seven 50s, and on that probe 15.5 is still least. But A7 moved the race model under the book, and in the fields the game runs 15.5 left **+9.8% a Bone on every stable dog** and a house margin of 4% instead of 15% — the accidental overlay D52 exists to stop. 18.75 is the least-squares fit and puts the house margin back at 12%, stable dogs at +0.2% (D1's deliberate edge). BUILD_PLAN_V3 §2.3 listed 15.5 as kept whole, so **Jesse's call to confirm** |
+| 2026-09-23 | **C8 — sixteen traits become §4.5's eight; Lagrange Lows loses its special rule** | Slow starter, Sprinter and Stayer are what styles and the fade in metres now say; Nervy, Cheap date (an upkeep v3 does not have), Prima donna, Bounces back and Old soul went with them. Eleven readers swept by grep, not by memory. Lagrange Lows' locals were Nervy, and it keeps its tight bends and food map; Phase D's doors are where its character goes. Mean end worth fell 1,070 — the cut traits were mostly bonuses |
+| 2026-09-23 | **C9 — the day's expression is drawn in its own per-runner loop after the break, before the first tick; a probe may pin it** | §5.2 asks for a fixed point. Eight draws a race, always (short fields are filled with locals), so the stream never shifts with the number of stables. `Runner.expression` lets the harness hold it still for the variance decomposition; the draw is still made, and nothing in the game sets it |
+| 2026-09-23 | **C10 — the Race Office board is public in turn order; v2's "a human's pick is hidden until the lock" is reversed** | V16. v2 hid picks so hotseat was not a peeking contest; V16 makes seeing the field the thing going last buys, and turn order already stops anybody seeing a pick that has not been made |
+| 2026-09-23 | **C11 — Hard's field-shape read is not built: with C3 there is nothing in the field for it to read** | Jesse's call was "give Hard the field-shape read and report what it is worth, as a measurement". Measured without building it: a closer wins 13.1% against one front-runner and 12.8% against three, and backing the lone closer in a field of three or more front-runners returns −19%. The read is worth nothing because the effect is not in the simulation. Hard beats Normal 51.5% (v3b 47.5%, band 63–68%) on the changes every agent got |
 
 ---
 
@@ -828,6 +864,16 @@ All 18 planets survive as data. What changes is which fields do work:
    now.
 8. **Do 18 planets still feel distinct** when the only things that vary are the track, the food band
    and the three doors? §12.
+9. **Should the book price fitness and form?** §5.6 says yes, §1.1 says ratings and styles, and the
+   code has only ever priced the rating (C6). Pricing fitness would close the edge a player who reads
+   the card has over the book — the only one left since the Fixer went.
+10. **Is there a field-shape rule worth having?** The contest rule was cut (C3), so the shape of a field
+   barely matters and §7.3's board is read for the *trip*, not the field. A rule that paid closers
+   against a crowded front would have to be about closers — or the kill switch's floor is wrong for
+   an eight-dog field, where one runner can only ever collect a fraction of what the others lose.
+11. **Are the races too processional?** The median winning margin is 10.6 m (v3b 7.3 m) and a photo
+   finish comes up in 1.8% of races, because the fade in metres (C5) no longer drags the field back
+   together at the line. Nothing measures it against a target; the race view is where to judge it.
 
 ---
 

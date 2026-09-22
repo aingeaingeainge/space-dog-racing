@@ -28,11 +28,12 @@ export interface SaveBlob {
 }
 
 /**
- * 6 for v3 Phase C. ⚠️ **A v3b log may well replay without an error on this engine** — its actions
- * are all still valid — and that is exactly why this has to move: the dogs are dealt by a different
- * rule (an equal rating and one of each running style), the race model is different underneath every
- * race, and so the same log would play a *different season* silently. Failing the check here is the
- * only thing that stops it. Verified at v3c by writing a v3b-shaped blob and reading it back (null).
+ * 6 for v3 Phase C. The dogs are dealt by a different rule (an equal rating and one of each running
+ * style) and the race model is different under every race, so a v3b log means a different season
+ * here. In practice it fails fast — three v3b logs replayed at v3c all stopped within the first ten
+ * actions on "It is not p4's turn", because the new deal moves the rng and so the turn order — but
+ * that is an accident of the stream, not a guarantee; this check is the guarantee. Verified at v3c by
+ * writing a v3b-shaped blob and reading it back: null, the title screen.
  *
  * 5 for v3 Phase B. The blob is still seed + action log, and a v3a log does not replay: its
  * `TradeFood` actions trade `kibble`, which no longer exists, and its `SetDogState` actions carry a

@@ -95,7 +95,9 @@ half-way, and a half-deleted system is worse than either state.
 The engine's purity rules and the `CLAUDE.md` non-negotiables. `rng.ts`. The action-log-as-save-file
 and as-protocol design. The tick log and the never-re-simulate renderer contract. `determinism.ts`
 and the `exp`/`log`/`pow` prohibition. The race constants from v2 §6.2. The fitness curve
-(`0.90 + 0.10 × fit/100`). The Elo rating update. The odds model at `oddsScale` 15.5. The fog. The
+(`0.90 + 0.10 × fit/100`). The Elo rating update. The odds model at `oddsScale` 15.5 — ⚠️ *moved to
+18.75 at `v3c` (GDD_V3 C7): A7 changed the race model the book is calibrated against, and 15.5 left
+a +9.8% overlay on every stable dog in real fields. Jesse's call to confirm.* The fog. The
 18 planets as data. `dogValue`. The harness, its 800-season rule, and its methodology warnings.
 
 ---
@@ -197,6 +199,11 @@ the whole point.
 ---
 
 ### Phase C — running styles (1 session) → `v3c`
+
+> **Built, tagged `v3c` (23 September 2026).** See `claude/V3_PHASE_C_NOTES.md`. The contest rule
+> (deliverable 3) was built, measured at +0.7 against the 4-point kill switch, and **cut** (GDD_V3
+> C3). The equal-rating deal was fixed here by Jesse's call (C1), and `oddsScale` moved to 18.75
+> (C7) — which §2.3 below lists as kept whole, so it is flagged there too.
 
 **Goal:** thirty races a season that are worth watching, and a field that is worth reading.
 
