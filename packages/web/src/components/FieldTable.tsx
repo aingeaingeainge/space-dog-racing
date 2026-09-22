@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { decimalOdds, type GameState, type Id, type RaceEntry } from '@sdr/engine';
 import { DogThumb } from './DogCard';
-import { Badge, StableName, Traits } from './ui';
+import { Badge, StableName, StyleTag, Traits } from './ui';
 import { playerById } from '../lib/selectors';
 
 /**
@@ -34,6 +34,7 @@ export function FieldTable({
             <th>Trap</th>
             <th>Dog</th>
             <th>Stable</th>
+            <th>Style</th>
             <th>Traits</th>
             <th className="num">Rating</th>
             <th className="num">Fit</th>
@@ -59,6 +60,9 @@ export function FieldTable({
                   ) : (
                     <Badge>local</Badge>
                   )}
+                </td>
+                <td>
+                  <StyleTag style={e.style} />
                 </td>
                 <td className="wrap">
                   <Traits ids={d?.traits ?? []} />

@@ -2,17 +2,21 @@ import {
   balance,
   formatBones,
   planetOf,
+  publicStyle,
   purseFor,
+  STYLE_BY_ID,
+  STYLE_IDS,
   thisWeeksCard,
   type Dog,
   type GameState,
   type Player,
   type RaceTypeId,
+  type StyleId,
 } from '@sdr/engine';
 import { DogThumb } from '../components/DogCard';
 import { Panel } from '../components/Panel';
 import { TicketCard } from '../components/TicketCard';
-import { Badge, Notes, StableName, Traits } from '../components/ui';
+import { Badge, Notes, StableName, StyleTag, Traits } from '../components/ui';
 import { trackText } from '../lib/planetText';
 import {
   cannotRunReason,
@@ -48,6 +52,7 @@ function WeekLedger({ s, me, dogs }: { s: GameState; me: Player; dogs: Dog[] }) 
       <thead>
         <tr>
           <th>Dog</th>
+          <th>Style</th>
           <th>Rating</th>
           <th>Fitness</th>
           <th>If it runs</th>
@@ -63,6 +68,9 @@ function WeekLedger({ s, me, dogs }: { s: GameState; me: Player; dogs: Dog[] }) 
           return (
             <tr key={d.id} className={barred ? 'muted' : undefined}>
               <td>{d.name}</td>
+              <td>
+                <StyleTag style={publicStyle(d)} />
+              </td>
               <td>{d.rating}</td>
               <td>{f.now}</td>
               <td>{barred ? '—' : `${f.racing}`}</td>
@@ -85,8 +93,36 @@ function WeekLedger({ s, me, dogs }: { s: GameState; me: Player; dogs: Dog[] }) 
 }
 
 /**
- * GDD §15.7. Declarations are public (§2.4) — but a human's pending pick stays hidden from the
- * other humans at the table until the whole card locks, so hotseat play is not a peeking contest.
+ * "2 front-runners, a closer and one nobody has seen run" — the shape of a field so far, in words.
+ * The Race Office's whole reason for showing the board (GDD_V3 §7.3) is that this line can change
+ * which dog you put in the race.
+ */
+function fieldShape(styles: readonly (StyleId | null)[]): string {
+  if (!styles.length) return 'nobody declared yet';
+  const parts: string[] = [];
+  for (const id of STYLE_IDS) {
+    const k = styles.filter((st) => st === id).length;
+    if (!k) continue;
+    const name = STYLE_BY_ID[id].name.toLowerCase();
+    parts.push(k === 1 ? `a ${name}` : `${k} ${name}s`);
+  }
+  const unknown = styles.filter((st) => !st).length;
+  if (unknown)
+    parts.push(unknown === 1 ? 'one nobody has seen run' : `${unknown} nobody has seen run`);
+  return parts.length > 1
+    ? `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}`
+    : parts[0]!;
+}
+
+/**
+ * GDD §15.7, and GDD_V3 §7.3 (V16): **declarations are made in turn order and are public the instant
+ * they are made.** The stables ahead of you in the turn order have already declared, and their
+ * runners — with their styles, once known — are on the board; the stables behind you will see yours.
+ *
+ * ⚠️ **v2 hid a human's picks from the other humans until the card locked**, so that hotseat play was
+ * not a peeking contest. V16 reverses that on purpose: going first buys the best of a finite shelf,
+ * going last buys the right to see the field before you commit a dog to it, and that trade is only
+ * real if the board is. Turn order already stops anybody seeing a pick that has not been made.
  */
 export function RaceOffice({ s, me }: { s: GameState; me: Player }) {
   const dispatch = useGame((g) => g.dispatch);
@@ -96,7 +132,8 @@ export function RaceOffice({ s, me }: { s: GameState; me: Player }) {
   const planet = planetOf(s.planet.planetId);
   const sp = planet.special;
   const pct = (n: number) => `${Math.round(n * 100)}%`;
-  const otherHumans = s.players.filter((p) => p.kind === 'human' && p.id !== me.id).length > 0;
+  const myTurn = s.turnOrder.indexOf(me.id);
+  const trip = planet.track.length;
 
   const card = thisWeeksCard();
   const declare = (race: RaceTypeId, dogId: string) =>
@@ -106,7 +143,7 @@ export function RaceOffice({ s, me }: { s: GameState; me: Player }) {
     <>
       <Panel
         title="Race Office"
-        sub="one runner per race; a dog may race up a class, never down"
+        sub="one runner per race, any dog in any race; declared in turn order, public as they are made"
         actions={
           <span className="muted">
             {dogs.filter((d) => d.injuryWeeks === 0).length} of {dogs.length} dogs fit to run
@@ -114,8 +151,9 @@ export function RaceOffice({ s, me }: { s: GameState; me: Player }) {
         }
       >
         <p className="muted first">
-          Empty traps are filled by local dogs. Declarations lock when every stable has left the
-          planet — after that the fields, traps and odds are public and the races run.
+          Stables declare in turn order and every declaration is public the moment it is made — so
+          the later you go, the more of each field you can see before you commit. Empty traps are
+          filled by local dogs, whose styles are on the form guide at the lock.
         </p>
         <Notes
           lines={[
@@ -152,10 +190,22 @@ export function RaceOffice({ s, me }: { s: GameState; me: Player }) {
         {card.map((race) => {
           const purse = purseFor(s, race);
           const mine = s.declarations[race][me.id] ?? '';
-          const rivals = s.players
-            .filter((p) => p.id !== me.id)
-            .map((p) => ({ p, dogId: s.declarations[race][p.id] }));
+          // The board, in the order the stables declare (GDD_V3 §7.3).
+          const rivals = s.turnOrder
+            .filter((id) => id !== me.id)
+            .map((id) => s.players.find((p) => p.id === id)!)
+            .map((p) => ({
+              p,
+              dogId: s.declarations[race][p.id],
+              after: s.turnOrder.indexOf(p.id) > myTurn,
+            }));
           const declaredHere = rivals.filter((r) => r.dogId).length + (mine ? 1 : 0);
+          const shape = fieldShape(
+            rivals
+              .map((r) => (r.dogId ? s.dogs[r.dogId] : undefined))
+              .filter((d): d is Dog => !!d)
+              .map(publicStyle),
+          );
 
           return (
             <TicketCard
@@ -179,9 +229,12 @@ export function RaceOffice({ s, me }: { s: GameState; me: Player }) {
                     const bad = ineligibleReason(d, race);
                     const other = declaredRace(s, me.id, d.id);
                     const f = fitnessOutlook(d);
+                    const st = publicStyle(d);
                     return (
                       <option key={d.id} value={d.id} disabled={!!bad}>
-                        {d.name} · {d.rating} · fit {f.now} → {f.racing} if it runs
+                        {d.name} · {d.rating}
+                        {st ? ` · ${STYLE_BY_ID[st].name.toLowerCase()}` : ''} · fit {f.now} →{' '}
+                        {f.racing} if it runs
                         {bad ? ` — ${bad}` : ''}
                         {!bad && other && other !== race ? ` — in the ${raceLabel(other)}` : ''}
                       </option>
@@ -193,6 +246,7 @@ export function RaceOffice({ s, me }: { s: GameState; me: Player }) {
               {mine && s.dogs[mine] ? (
                 <p className="tight-p">
                   <DogThumb dog={s.dogs[mine]!} big />
+                  <StyleTag style={publicStyle(s.dogs[mine]!)} />
                   <Traits ids={s.dogs[mine]!.traits} />
                   <span className="muted">
                     fitness {s.dogs[mine]!.fitness} · form {s.dogs[mine]!.form}
@@ -200,6 +254,19 @@ export function RaceOffice({ s, me }: { s: GameState; me: Player }) {
                 </p>
               ) : null}
 
+              <p className="tight-p">
+                <b>In so far:</b> {shape}.
+                {(() => {
+                  const lean = STYLE_IDS.filter((id) => STYLE_BY_ID[id].bookEdge[trip] > 0);
+                  return lean.length && trip !== 'standard' ? (
+                    <span className="muted">
+                      {' '}
+                      This trip suits{' '}
+                      {lean.map((id) => `${STYLE_BY_ID[id].name.toLowerCase()}s`).join(' and ')}.
+                    </span>
+                  ) : null;
+                })()}
+              </p>
               <p className="muted tight-p">
                 {declaredHere} declared · {Math.max(0, TRAPS - declaredHere)} local dogs will fill
                 the rest, rating about {localRatingFor(race, major)}
@@ -207,8 +274,7 @@ export function RaceOffice({ s, me }: { s: GameState; me: Player }) {
 
               <table className="rivals">
                 <tbody>
-                  {rivals.map(({ p, dogId }) => {
-                    const hide = p.kind === 'human' && !s.locked;
+                  {rivals.map(({ p, dogId, after }) => {
                     const dog = dogId ? s.dogs[dogId] : undefined;
                     return (
                       <tr key={p.id}>
@@ -216,14 +282,15 @@ export function RaceOffice({ s, me }: { s: GameState; me: Player }) {
                           <StableName player={p} />
                         </td>
                         <td>
-                          {hide ? (
-                            <span className="muted">hidden until lock</span>
-                          ) : dog ? (
+                          {dog ? (
                             <>
-                              {dog.name} <Badge>{dog.rating}</Badge>
+                              {dog.name} <Badge>{dog.rating}</Badge>{' '}
+                              <StyleTag style={publicStyle(dog)} />
                             </>
+                          ) : after && !s.locked ? (
+                            <span className="muted">declares after you</span>
                           ) : (
-                            <span className="muted">—</span>
+                            <span className="muted">no runner</span>
                           )}
                         </td>
                       </tr>
@@ -231,11 +298,6 @@ export function RaceOffice({ s, me }: { s: GameState; me: Player }) {
                   })}
                 </tbody>
               </table>
-              {otherHumans ? (
-                <p className="muted last">
-                  Other humans&apos; picks stay hidden until the card locks.
-                </p>
-              ) : null}
             </TicketCard>
           );
         })}

@@ -1,4 +1,4 @@
-import type { Id, RaceResult } from '@sdr/engine';
+import type { Id, RaceResult, StyleId } from '@sdr/engine';
 
 /**
  * The commentary bar.
@@ -7,6 +7,12 @@ import type { Id, RaceResult } from '@sdr/engine';
  * lead changes and bumps the simulator recorded, and a fade worked out from a runner's own
  * tick-on-tick speed dropping away. Nothing here re-simulates and nothing here rolls a number:
  * the same log always produces the same call, in the same order, at the same moment.
+ *
+ * ⚠️ **It names the style and the day (GDD_V3 §7.5).** The result carries how every runner ran —
+ * its style and that day's expression (`RaceResult.runs`) — so a front-runner that burned out is
+ * called as a front-runner that burned out, not as a dog that faded. This is how a player learns
+ * §5.4 without being told it: after one race, the commentary has said out loud how the dog runs, and
+ * the dog card says the same thing from then on.
  */
 
 export type CommentaryKind =
@@ -17,6 +23,13 @@ export type CommentaryKind =
   | 'bump'
   | 'fade'
   | 'lateRun'
+  | 'burnedOut'
+  | 'aloneInFront'
+  | 'closerGot'
+  | 'closerShort'
+  | 'flatDay'
+  | 'fromTheFront'
+  | 'stalked'
   | 'marker'
   | 'photo'
   | 'win';
@@ -107,6 +120,47 @@ const TEMPLATES: Record<CommentaryKind, readonly string[]> = {
     '{dog} is running on strongly at the death.',
     'Watch {dog}, still with a run to make.',
   ],
+  // ---- GDD_V3 §7.5: the style and the day, by name ----
+  burnedOut: [
+    '{dog} went off like a rocket and there is nothing left — the front-runner has run its race.',
+    'That early speed is costing {dog} now. Front-runners pay for it, and this one is paying.',
+    '{dog} led them a merry dance early and the legs have gone — nothing left at the turn.',
+    'The front-runner {dog} is coming back to them, and coming back fast.',
+    'Too keen by half from {dog} — blazed away in front and is stopping to nothing.',
+  ],
+  aloneInFront: [
+    'Nobody has taken {dog} on — the front-runner is dictating this, {gap} m clear.',
+    '{dog} has been left alone in front and is bowling along, {gap} m to spare.',
+    'Front-runner {dog} out on its own and loving it — {gap} m clear.',
+    'Nothing is going with {dog}, and a front-runner left alone is a dangerous thing.',
+  ],
+  closerGot: [
+    'Here comes the closer! {dog} was last of all and has got there!',
+    '{dog}, nowhere at halfway, comes home like a train — that is how a closer does it.',
+    'The closer {dog} has swallowed the lot of them up the straight!',
+    '{dog} saved it all for the finish and it has paid — the closer gets up.',
+  ],
+  closerShort: [
+    '{dog} is closing hardest of all — but the line comes too soon for the closer.',
+    'A huge late run from {dog}, too late. Another fifty metres and the closer wins it.',
+    '{dog} left it all to the straight and has run out of track.',
+    'The closer {dog} is flying now — and the post is not going to wait for it.',
+  ],
+  fromTheFront: [
+    '{dog} went from the front and is hanging on — a front-runner making them come and get it.',
+    'Front-runner {dog} set it up early and is still there at the business end.',
+    '{dog} bounced out and led, and has just about enough left.',
+  ],
+  stalked: [
+    '{dog} sat handy all the way, stalking the leaders, and pounces now.',
+    'The stalker {dog} tracked them round and has picked its moment.',
+    '{dog} has been sitting just off the pace — and here it comes, right on cue.',
+  ],
+  flatDay: [
+    '{dog} never went forward today — a front-runner running like a stalker.',
+    'No early dash from {dog} this time; not its day for making the running.',
+    '{dog} is usually up there early. Not today — it has not gone with them at all.',
+  ],
   marker: [
     'Halfway, and {dog} leads by {gap} m.',
     'Down the back and it is {dog} by {gap}.',
@@ -142,6 +196,13 @@ const TEMPLATES: Record<CommentaryKind, readonly string[]> = {
 const PRIORITY: Record<CommentaryKind, number> = {
   win: 6,
   photo: 6,
+  burnedOut: 5,
+  aloneInFront: 5,
+  closerGot: 5,
+  closerShort: 5,
+  flatDay: 5,
+  fromTheFront: 5,
+  stalked: 5,
   fade: 4,
   lateRun: 4,
   leadChange: 3,
@@ -193,6 +254,10 @@ const BREAK_CALL_AT = 1.2;
 const SETTLE_TICKS = 18;
 /** Two runners emptying is a story; five is a list. */
 const MAX_FADES = 2;
+/** Style calls a race: a burned-out front-runner and a closer is a story; five is a list. */
+const MAX_STYLE_CALLS = 3;
+/** An expression this low and a front-runner is barely one (GDD_V3 §5.2: 0.35 "runs like a stalker"). */
+const FLAT_DAY = 0.5;
 const SPEED_WINDOW = 10;
 
 /** Place of every runner at a tick, by distance. Index-aligned with `result.entries`. */
@@ -312,8 +377,8 @@ export function buildCommentary(ctx: CommentaryContext): CommentaryLine[] {
     return (b - a) / (SPEED_WINDOW * tickSeconds);
   };
 
-  const fades: CommentaryLine[] = [];
-  const closers: CommentaryLine[] = [];
+  const fades: { i: number; line: CommentaryLine }[] = [];
+  const closers: { i: number; line: CommentaryLine }[] = [];
   for (let i = 0; i < n; i++) {
     const id = entries[i]!.dogId;
     const finish = result.finishTicks[id] ?? lastTick;
@@ -336,13 +401,14 @@ export function buildCommentary(ctx: CommentaryContext): CommentaryLine[] {
       if (fadeDone) continue;
       const v = speedAt(i, k);
       if (v < peak * 0.87 && place[i]! - bestEarly >= 2 && bestEarly <= 4) {
-        fades.push(
-          say('fade', secs(k), `${result.race}:${id}`, {
+        fades.push({
+          i,
+          line: say('fade', secs(k), `${result.race}:${id}`, {
             ...base,
             dog: entries[i]!.name,
             trap: entries[i]!.trap,
           }),
-        );
+        });
         fadeDone = true;
       }
     }
@@ -357,17 +423,29 @@ export function buildCommentary(ctx: CommentaryContext): CommentaryLine[] {
     }
     const gained = midPlace - finalPlace;
     if (finalPlace > 0 && ((gained >= 2 && finalPlace <= 3) || (gained >= 3 && finalPlace <= 4))) {
-      closers.push(
-        say('lateRun', Math.max(0, secs(finish) - 3.4), `${result.race}:${id}`, {
+      closers.push({
+        i,
+        line: say('lateRun', Math.max(0, secs(finish) - 3.4), `${result.race}:${id}`, {
           ...base,
           dog: entries[i]!.name,
           trap: entries[i]!.trap,
         }),
-      );
+      });
     }
   }
-  fades.sort((a, b) => a.t - b.t);
-  out.push(...fades.slice(0, MAX_FADES), ...closers);
+
+  // --- The style and the day (GDD_V3 §7.5) ---
+  const styled = styleCalls(ctx, samples, base);
+  const called = new Set(styled.map((c) => c.i));
+  fades.sort((a, b) => a.line.t - b.line.t);
+  out.push(
+    ...fades
+      .filter((f) => !called.has(f.i))
+      .slice(0, MAX_FADES)
+      .map((f) => f.line),
+    ...closers.filter((c) => !called.has(c.i)).map((c) => c.line),
+    ...styled.map((c) => c.line),
+  );
 
   // --- The line ---
   const winner = result.order[0];
@@ -406,6 +484,87 @@ export function buildCommentary(ctx: CommentaryContext): CommentaryLine[] {
     kept.push(line);
   }
   return kept;
+}
+
+/**
+ * The calls that name a style: a front-runner that burned out, one left alone in front, a closer
+ * that got there, a closer that did not, and a front-runner that never went forward that day.
+ * Read off the tick log and `result.runs` — no re-simulation, no dice.
+ */
+function styleCalls(
+  ctx: CommentaryContext,
+  samples: readonly { k: number; place: number[] }[],
+  base: Slots,
+): { i: number; line: CommentaryLine }[] {
+  const { result, tickSeconds, distance } = ctx;
+  const runs = result.runs ?? [];
+  if (!runs.length) return [];
+  const entries = result.entries;
+  const n = entries.length;
+  const ticks = result.ticks;
+  const secs = (tick: number) => tick * tickSeconds;
+  const styleOf = (i: number): StyleId | undefined => runs[i]?.style;
+  const leaderAt = (k: number) => Math.max(...(ticks[k] ?? [0]));
+  // The first sample at which the leader is a third and two thirds of the way round.
+  const at = (frac: number) => samples.find((x) => leaderAt(x.k) >= distance * frac);
+  const early = at(1 / 3);
+  const late = at(2 / 3);
+  if (!early || !late) return [];
+  const out: { i: number; line: CommentaryLine }[] = [];
+  const key = (kind: string, i: number) => `${result.race}:${kind}:${entries[i]!.dogId}`;
+  const slots = (i: number, gap?: number): Slots => ({
+    ...base,
+    dog: entries[i]!.name,
+    trap: entries[i]!.trap,
+    gap: gap === undefined ? undefined : gap.toFixed(1),
+  });
+  for (let i = 0; i < n; i++) {
+    const style = styleOf(i);
+    const expression = runs[i]?.expression ?? 1;
+    const finalPlace = result.order.indexOf(entries[i]!.dogId) + 1;
+    const earlyPlace = early.place[i]!;
+    const latePlace = late.place[i]!;
+    const finish = secs(result.finishTicks[entries[i]!.dogId] ?? ticks.length - 1);
+    if (style === 'frontRunner') {
+      if (earlyPlace <= 3 && finalPlace >= earlyPlace + 3) {
+        out.push({ i, line: say('burnedOut', secs(late.k), key('burn', i), slots(i)) });
+      } else if (earlyPlace === 1 && latePlace === 1 && finalPlace === 1) {
+        const row = ticks[late.k] ?? [];
+        const second = late.place.indexOf(2);
+        const gap = (row[i] ?? 0) - (row[second] ?? 0);
+        if (gap >= 1.5)
+          out.push({ i, line: say('aloneInFront', secs(late.k), key('alone', i), slots(i, gap)) });
+      } else if (earlyPlace <= 2 && finalPlace <= 3) {
+        out.push({
+          i,
+          line: say('fromTheFront', Math.max(0, finish - 2.8), key('held', i), slots(i)),
+        });
+      } else if (expression <= FLAT_DAY && earlyPlace >= 4) {
+        out.push({ i, line: say('flatDay', secs(early.k), key('flat', i), slots(i)) });
+      }
+    } else if (style === 'stalker') {
+      // Sat in behind the leaders early, in the frame at the line: the stalker's race, by the book.
+      if (earlyPlace >= 2 && earlyPlace <= 4 && finalPlace <= 2) {
+        out.push({ i, line: say('stalked', Math.max(0, finish - 2.6), key('stalk', i), slots(i)) });
+      }
+    } else if (style === 'closer') {
+      if (earlyPlace >= 5 && finalPlace <= 3) {
+        out.push({ i, line: say('closerGot', Math.max(0, finish - 2.4), key('got', i), slots(i)) });
+      } else if (
+        earlyPlace >= 5 &&
+        finalPlace >= 4 &&
+        finalPlace <= 6 &&
+        earlyPlace - finalPlace >= 2
+      ) {
+        out.push({
+          i,
+          line: say('closerShort', Math.max(0, finish - 1.6), key('short', i), slots(i)),
+        });
+      }
+    }
+  }
+  out.sort((a, b) => a.line.t - b.line.t);
+  return out.slice(0, MAX_STYLE_CALLS);
 }
 
 /** The line that should be showing at `t`. */

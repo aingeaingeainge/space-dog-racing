@@ -1,6 +1,13 @@
-import { formatBones, planetOf, type GameState, type Player, type RaceResult } from '@sdr/engine';
+import {
+  formatBones,
+  planetOf,
+  STYLE_BY_ID,
+  type GameState,
+  type Player,
+  type RaceResult,
+} from '@sdr/engine';
 import { Panel } from '../components/Panel';
-import { Badge, Delta, StableName, Traits } from '../components/ui';
+import { Badge, Delta, StableName, StyleTag, Traits } from '../components/ui';
 import { NeonButton } from '../components/NeonButton';
 import { BettingSlip, type SlipRow } from '../components/BettingSlip';
 import { OwnerFace } from '../components/Owner';
@@ -19,6 +26,7 @@ function RaceTable({ s, r, meId }: { s: GameState; r: RaceResult; meId: string }
             <th>Dog</th>
             <th>Stable</th>
             <th className="num">Rating</th>
+            <th>Ran as</th>
             <th>Traits</th>
             <th className="num">Δ</th>
             <th className="num">Odds</th>
@@ -33,6 +41,17 @@ function RaceTable({ s, r, meId }: { s: GameState; r: RaceResult; meId: string }
             const owner = playerById(s, e.local ? null : e.ownerId);
             const pay = r.payouts.find((p) => p.dogId === dogId);
             const injury = r.injuries[dogId];
+            // How it ran (GDD_V3 §5.2): public now it has raced, and the day's expression in words.
+            const run = r.runs?.[r.entries.indexOf(e)];
+            const day = !run
+              ? ''
+              : run.style === 'stalker'
+                ? ''
+                : run.expression >= 1.1
+                  ? 'all out'
+                  : run.expression <= 0.5
+                    ? 'barely'
+                    : '';
             return (
               <tr key={dogId} className={e.ownerId === meId ? 'me' : i > 2 ? 'dim' : ''}>
                 <td>{i + 1}</td>
@@ -49,6 +68,10 @@ function RaceTable({ s, r, meId }: { s: GameState; r: RaceResult; meId: string }
                   )}
                 </td>
                 <td className="num">{e.rating}</td>
+                <td>
+                  {run ? <StyleTag style={run.style} /> : null}
+                  {day ? <span className="muted"> {day}</span> : null}
+                </td>
                 <td className="wrap">
                   <Traits ids={s.dogs[dogId]?.traits ?? []} />
                 </td>
@@ -105,6 +128,8 @@ export function Results({ s, me }: { s: GameState; me: Player }) {
         )}
       </Panel>
 
+      <Revealed s={s} />
+
       <BetsSettled s={s} me={me} />
 
       {s.races.map((r) => {
@@ -121,6 +146,33 @@ export function Results({ s, me }: { s: GameState; me: Player }) {
         );
       })}
     </div>
+  );
+}
+
+/**
+ * GDD_V3 §5.4: the styles this weekend made public — every stable dog that ran for the first time,
+ * and any the elimination gave away. Written out once here and on the dog card from now on, so
+ * nobody at the table needs a pen.
+ */
+function Revealed({ s }: { s: GameState }) {
+  if (!s.races) return null;
+  const firstTime = new Map<string, string>();
+  for (const r of s.races)
+    r.entries.forEach((e, i) => {
+      if (!e.local && e.style === null && r.runs?.[i]) firstTime.set(e.dogId, e.name);
+    });
+  if (!firstTime.size) return null;
+  const lines = [...firstTime.keys()].map((id) => {
+    const d = s.dogs[id]!;
+    return `${d.name} is a ${STYLE_BY_ID[d.style].name.toLowerCase()}`;
+  });
+  return (
+    <Panel
+      title="New on the card"
+      sub="styles the table has now seen — on every dog card from here on"
+    >
+      <p className="flush">{lines.join(' · ')}.</p>
+    </Panel>
   );
 }
 

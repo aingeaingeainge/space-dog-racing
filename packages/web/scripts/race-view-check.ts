@@ -23,11 +23,30 @@ import {
   type Action,
   type RaceResult,
 } from '@sdr/engine';
-import { buildCommentary } from '../src/race-view/commentary';
+import { buildCommentary, type CommentaryKind } from '../src/race-view/commentary';
 import { sampleAt } from '../src/race-view/renderer';
 import { trackBlurb, trackFor } from '../src/race-view/tracks';
 
 const SAMPLES = 240;
+
+/**
+ * GDD_V3 §7.5's calls that name a style, tallied — the commentary is the only part of Phase C that
+ * cannot be measured by the harness, so this counts how often it actually says the thing.
+ */
+const STYLE_KINDS: readonly CommentaryKind[] = [
+  'burnedOut',
+  'aloneInFront',
+  'closerGot',
+  'closerShort',
+  'flatDay',
+  'fromTheFront',
+  'stalked',
+];
+const styleTally = new Map<CommentaryKind, number>(STYLE_KINDS.map((k) => [k, 0]));
+/** A stable dog's first race, and whether the commentary named how it runs in it (§5.4). */
+let firstRaces = 0;
+let firstRacesNamed = 0;
+const seenDogs = new Set<string>();
 
 function checkRace(result: RaceResult): void {
   const where = `week ${result.week} ${result.race} at ${result.planetId}`;
@@ -113,7 +132,7 @@ function playSeason(seed: number): { races: number; lines: number; photos: numbe
         races++;
         if (r.photoFinish) photos++;
         const track = trackFor(r.planetId);
-        lines += buildCommentary({
+        const calls = buildCommentary({
           result: r,
           tickSeconds: balance.raceTickSeconds,
           distance: track.distance,
@@ -121,7 +140,16 @@ function playSeason(seed: number): { races: number; lines: number; photos: numbe
           planetName: planetOf(r.planetId).name,
           trackBlurb: trackBlurb(r.planetId),
           endTime: (r.ticks.length - 1) * balance.raceTickSeconds,
-        }).length;
+        });
+        lines += calls.length;
+        const styleCalls = calls.filter((c) => STYLE_KINDS.includes(c.kind));
+        for (const c of styleCalls) styleTally.set(c.kind, (styleTally.get(c.kind) ?? 0) + 1);
+        for (const e of r.entries) {
+          if (e.local || seenDogs.has(`${seed}:${e.dogId}`)) continue;
+          seenDogs.add(`${seed}:${e.dogId}`);
+          firstRaces++;
+          if (styleCalls.some((c) => c.text.includes(e.name))) firstRacesNamed++;
+        }
       }
     }
     const who = waitingOn(state);
@@ -159,6 +187,9 @@ console.log(
   failures
     ? `\n${failures} season(s) failed`
     : `\n${races} races, ${(lines / races).toFixed(1)} calls each, ${photos} photo finishes. ` +
-        `Every one replays the same way twice and shows the finish the engine recorded.`,
+        `Every one replays the same way twice and shows the finish the engine recorded.\n` +
+        `Style calls (GDD_V3 §7.5): ${STYLE_KINDS.map((k) => `${k} ${styleTally.get(k)}`).join(' · ')}\n` +
+        `A stable dog's first race named its style out loud in ${firstRacesNamed} of ${firstRaces} ` +
+        `(${((100 * firstRacesNamed) / Math.max(1, firstRaces)).toFixed(0)}%) — the rest are on the card anyway.`,
 );
 process.exit(failures ? 1 : 0);
