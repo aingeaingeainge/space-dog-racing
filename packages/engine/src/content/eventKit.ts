@@ -10,6 +10,7 @@
 import { balance } from './balance';
 import { good } from './goods';
 import { STYLE_BY_ID } from './styles';
+import { CONDITION_BY_ID } from './conditions';
 import { type IdGen } from '../economy/dogs';
 import { cargoTotal, recordPurchase } from '../economy/goods';
 import { clamp, type Rng } from '../rng';
@@ -188,3 +189,27 @@ export const rollDog = (
 
 /** Every good in the hold, cheapest first. */
 export const heldGoods = (p: Player): GoodId[] => GOOD_IDS.filter((id) => p.cargo[id] > 0);
+
+/**
+ * A race-day tip (Phase D1 item 6): pick one of this weekend's conditions this stable has not been
+ * told, on any stable's dog — its own included, because the owner does not know either. Null if
+ * there is nothing left to tell, so the card is put back.
+ */
+export const rollTip = (ctx: { s: GameState; p: Player; rng: Rng }): EventParams | null => {
+  const open = ctx.s.conditions
+    .map((c, i) => ({ c, i }))
+    .filter(({ c }) => !c.tipped.includes(ctx.p.id) && ctx.s.dogs[c.dogId]);
+  return open.length ? { tip: ctx.rng.pick(open).i } : null;
+};
+
+/** Tell this stable the condition its card rolled, and only this stable. */
+export const giveTip = (ctx: EventCtx): void => {
+  const c = ctx.s.conditions[Number(ctx.params.tip)];
+  const d = c && ctx.s.dogs[c.dogId];
+  if (!c || !d) return;
+  if (!c.tipped.includes(ctx.p.id)) c.tipped.push(ctx.p.id);
+  ctx.p.stats.tips++;
+  const owner = ctx.s.players.find((x) => x.id === d.ownerId);
+  const whose = owner?.id === ctx.p.id ? 'your own' : `${owner?.name ?? 'somebody'}’s`;
+  ctx.log(`The whisper: ${d.name} — ${whose} dog — ${CONDITION_BY_ID[c.condition].tip}.`);
+};

@@ -34,7 +34,7 @@
   "bookEdgeStalkerStandard": 0,
   "bookEdgeStalkerStaying": 0,
   "conditionBuzzingChance": 0.08,
-  "conditionBuzzingSpeed": 8,
+  "conditionBuzzingSpeed": 5,
   "conditionKnockChance": 0.06,
   "conditionKnockFitness": -30,
   "conditionOffFeedChance": 0.06,

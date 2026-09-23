@@ -14,6 +14,7 @@ import {
   thisWeeksCard,
 } from '../state';
 import { feedsFor, GOODS, good, STAPLE_ID, type Good } from '../content/goods';
+import { tipsFor } from '../content/conditions';
 import { expectedPrice, planFeeding } from '../economy/food';
 import { cargoTotal, HOLD_CAP } from '../economy/goods';
 import {
@@ -26,6 +27,7 @@ import {
   type Id,
   type Planet,
   type Player,
+  type RaceEntry,
   type RaceTypeId,
   type StatKey,
   type WeekState,
@@ -723,7 +725,39 @@ export interface BetOptions {
   cap?: number;
 }
 
-/** Small bets on the favourites (GDD §14 Normal). */
+/**
+ * The runner a tip says to be on in this field, if any (Phase D1 item 6): a dog this stable has been
+ * told is buzzing. Best priced first, if it somehow holds two.
+ */
+export function tippedToBack(
+  s: GameState,
+  playerId: Id,
+  entries: readonly RaceEntry[],
+): RaceEntry | undefined {
+  const tips = tipsFor(s, playerId);
+  return [...entries]
+    .filter((e) => tips.get(e.dogId)?.good === true)
+    .sort((a, b) => b.odds - a.odds)[0];
+}
+
+/** Whether this stable has been told this dog will run below itself on race day. */
+export function tippedAgainst(s: GameState, playerId: Id, dogId: Id): boolean {
+  return tipsFor(s, playerId).get(dogId)?.good === false;
+}
+
+/** Own dogs a tip says will run below themselves this weekend: rest them (Race or Rest, §4.2). */
+export function tippedToRest(s: GameState, playerId: Id): Set<Id> {
+  const out = new Set<Id>();
+  for (const [id, row] of tipsFor(s, playerId))
+    if (!row.good && s.dogs[id]?.ownerId === playerId) out.add(id);
+  return out;
+}
+
+/**
+ * Small bets on the favourites (GDD §14 Normal) — **and on a tip** (Phase D1 item 6). A stable told a
+ * runner is buzzing backs it, win, at its usual stake whatever the price; one told the favourite has a
+ * knock stays out of that race.
+ */
 export function betFavourites(plan: Plan, opts: BetOptions = {}): void {
   const { s, playerId, out } = plan;
   if (!s.fields) return;
@@ -731,8 +765,10 @@ export function betFavourites(plan: Plan, opts: BetOptions = {}): void {
   const fraction = opts.fraction ?? balance.aiBetFraction;
   const cap = opts.cap ?? 500;
   for (const { race, entries } of s.fields) {
-    const fav = [...entries].sort((a, b) => b.winProb - a.winProb)[0];
-    if (!fav || fav.winProb < minProb) continue;
+    const tip = tippedToBack(s, playerId, entries);
+    const fav = tip ?? [...entries].sort((a, b) => b.winProb - a.winProb)[0];
+    if (!fav || (!tip && fav.winProb < minProb)) continue;
+    if (tippedAgainst(s, playerId, fav.dogId)) continue;
     const stake = Math.floor(Math.min(plan.cash * fraction, cap));
     if (stake < 50) continue;
     out.push({ t: 'PlaceBet', playerId, race, dogId: fav.dogId, kind: 'win', stake });

@@ -16,6 +16,9 @@ import {
   setStates,
   startPlan,
   stateHold,
+  tippedAgainst,
+  tippedToBack,
+  tippedToRest,
   tradeFoodPlan,
   weeksToMajor,
   type Assignment,
@@ -103,7 +106,8 @@ function declareForThisWeek(plan: Plan): Assignment {
   // The state policy decides what is offered to the card at all: anything too tired to run, and
   // anything whose week is worth more in the yard than on the track (GDD §5.7).
   const reserve = stateHold(plan, HARD_STATES);
-  const hold = new Set<Id>();
+  // A tip on our own dog is a Race-or-Rest decision, as it is for Normal (Phase D1 item 6).
+  const hold = tippedToRest(s, playerId);
   // A Major next weekend: sit the best dog out of anything that would leave it short of fit
   // when it matters. Under §5.7 that is a live worry rather than the formality it was in v1 —
   // a race costs 25 and a rest returns 30, so one hard weekend really does cost the next.
@@ -290,6 +294,9 @@ function placeBets(plan: Plan): void {
   for (const { race, entries: field } of s.fields) {
     let pick: { dogId: Id; kind: 'win' | 'place' } | null = null;
     let fraction = balance.aiBetFraction;
+    // A tip, bet exactly as Normal bets one (Phase D1 item 6): Hard gets nothing new in D1 beyond it.
+    const tip = tippedToBack(s, playerId, field);
+    if (tip) pick = { dogId: tip.dogId, kind: 'win' };
     /** The price we took the edge at, so the stake can be sized against it. */
     let pickOdds = 0;
 
@@ -297,7 +304,7 @@ function placeBets(plan: Plan): void {
     // Both markets get checked: on the same edge a place bet pays less and lands far more
     // often, and a stable trying to be top of the table at week 13 would rather grind.
     let bestEdge = EDGE_REQUIRED;
-    for (let i = 0; i < field.length; i++) {
+    for (let i = 0; i < field.length && !tip; i++) {
       const e = field[i]!;
       if (!mine.has(e.dogId)) continue;
       const d = s.dogs[e.dogId];
@@ -340,6 +347,7 @@ function placeBets(plan: Plan): void {
       fraction = balance.aiBetFraction;
     }
 
+    if (tippedAgainst(s, playerId, pick.dogId)) continue;
     // The flat ceiling as well as the fractional one, now that §20 Q7 has put one in.
     const cap = maxStakeFor(s, { ...p, cash: plan.cash });
     const stake = Math.floor(Math.min(plan.cash * fraction, cap));

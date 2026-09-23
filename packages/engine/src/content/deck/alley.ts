@@ -22,6 +22,8 @@ import {
   rollDog,
   spend,
   statBy,
+  giveTip,
+  rollTip,
   type EventCard,
   type EventChoice,
 } from '../eventKit';
@@ -389,5 +391,53 @@ export const ALLEY: readonly EventCard[] = [
       const pos = (ctx.s.planet.goods[g].buy - gd.floor) / (gd.ceiling - gd.floor);
       return pos >= 0.4 ? 0 : 1;
     },
+  },
+
+  // ---- Race-day tips (Phase D1 item 6): true, private, and never priced by the book. ----
+  {
+    id: 'kennelBoy',
+    name: 'A kennel-boy for hire',
+    text: 'A kennel-boy from a rival stable waits by the bins. For the right money he will tell you what really goes on in his yard — or anybody else’s.',
+    weight: 8,
+    kind: 'choice',
+    category: 'alley',
+    roll: rollTip,
+    choices: [
+      {
+        label: 'Pay him (−250)',
+        apply: (ctx) => {
+          if (spend(ctx, 250)) giveTip(ctx);
+        },
+      },
+      {
+        label: 'Send him back to his bins',
+        apply: (ctx) => ctx.log('You send the kennel-boy away.'),
+      },
+    ],
+    aiChoice: (ctx) => (ctx.p.cash > 1000 ? 0 : 1),
+  },
+  {
+    id: 'bookiesRunner',
+    name: 'The bookie’s runner',
+    text: 'The bookie’s runner hears everything the bookie hears, and the bookie hears everything. He is underpaid and he knows it.',
+    weight: 7,
+    kind: 'choice',
+    category: 'alley',
+    planets: ['neonSnout', 'collarPrime', 'portSlobber'],
+    planetBoost: 2,
+    roll: rollTip,
+    choices: [
+      {
+        label: 'Slip him 150',
+        apply: (ctx) => {
+          if (spend(ctx, 150)) giveTip(ctx);
+        },
+      },
+      {
+        label: 'Stay out of it',
+        apply: (ctx) => ctx.log('You stay out of the bookie’s business.'),
+      },
+    ],
+    aiChoice: (ctx) => (ctx.p.cash > 600 ? 0 : 1),
   },
 ];

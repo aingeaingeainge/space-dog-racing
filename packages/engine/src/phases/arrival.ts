@@ -5,6 +5,25 @@ import { cargoTotal, HOLD_CAP } from '../economy/goods';
 import { currentPlanet, emptyDeclarations, log, type Ctx } from '../state';
 import { clamp } from '../rng';
 import { seedExplore } from './explore';
+import { CONDITIONS } from '../content/conditions';
+
+/** One draw per stable dog against the condition table (Phase D1 item 6). */
+function drawConditions(ctx: Ctx): void {
+  const { s, rng } = ctx;
+  s.conditions = [];
+  for (const p of s.players) {
+    for (const id of p.dogIds) {
+      let u = rng.next();
+      for (const row of CONDITIONS) {
+        if (u < row.chance) {
+          s.conditions.push({ dogId: id, condition: row.id, tipped: [] });
+          break;
+        }
+        u -= row.chance;
+      }
+    }
+  }
+}
 
 /** GDD §4.2 step 1: arrive, roll the planet, decide turn order. */
 export function runArrival(ctx: Ctx): void {
@@ -86,6 +105,10 @@ export function runArrival(ctx: Ctx): void {
     }
   }
 
+  // Race-day conditions (Phase D1 item 6), before anybody explores: one draw per stable dog, in
+  // seating order, whatever it lands on — so the stream never depends on what was drawn, and the
+  // conditions exist before any tip can be about them.
+  drawConditions(ctx);
   // GDD_V3 §2.3 step 2: Explore, in turn order, each stable on its own stream (decision D1).
   seedExplore(ctx);
   s.phase = 'explore';

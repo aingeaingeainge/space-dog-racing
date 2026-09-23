@@ -1,6 +1,7 @@
 import { balance } from '../content/balance';
 import { good } from '../content/goods';
 import { publicStyle, STYLE_BY_ID } from '../content/styles';
+import { CONDITION_BY_ID, conditionOf } from '../content/conditions';
 import { HEADLINE_TYPE_ID, raceType } from '../content/raceTypes';
 import { pow10 } from '../determinism';
 import { createLocalDog } from '../economy/dogs';
@@ -104,17 +105,21 @@ export function lockDeclarations(ctx: Ctx): void {
  * rival and the whole betting market go on reading `fitness`. That divergence is not a bug to be
  * tidied up later — it is the crook's road, and the only reason betting is a road at all (§2.1).
  */
-function runnerFrom(d: Dog, trap: number): Runner {
+function runnerFrom(s: GameState, d: Dog, trap: number): Runner {
+  // A race-day condition (Phase D1 item 6) lands on the runner here and nowhere else: the stored
+  // dog, every screen and the book all go on reading it as it was.
+  const c = conditionOf(s, d.id);
+  const row = c ? CONDITION_BY_ID[c.condition] : null;
   return {
     id: d.id,
     trap,
     speed: d.speed,
     accel: d.accel,
     stamina: d.stamina,
-    fitness: Math.max(0, d.fitness),
+    fitness: clamp(d.fitness + (row?.fitness ?? 0), 0, 100),
     form: d.form,
     traits: d.traits,
-    speedBonus: d.raceBonus,
+    speedBonus: d.raceBonus + (row?.speed ?? 0),
     style: d.style,
   };
 }
@@ -208,7 +213,7 @@ export function runRaces(ctx: Ctx): void {
 
   for (const { race, entries: field } of s.fields) {
     const dogs = field.map((e) => dog(s, e.dogId));
-    const runners = field.map((e, i) => runnerFrom(dogs[i]!, e.trap));
+    const runners = field.map((e, i) => runnerFrom(s, dogs[i]!, e.trap));
     const sim = simulateRace(runners, { track: planet.track, major: entry.major }, fork(ctx.rng));
     const purse = purseFor(s, race);
     const result: RaceResult = {

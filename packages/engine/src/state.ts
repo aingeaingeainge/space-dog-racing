@@ -326,6 +326,7 @@ export function createSeason(setup: SeasonSetup): GameState {
     races: null,
     pendingEvent: null,
     explore: null,
+    conditions: [],
     bets: [],
     results: [],
     eventLog: [],
@@ -374,6 +375,7 @@ export function createSeason(setup: SeasonSetup): GameState {
         dogsTaken: 0,
         liesTold: 0,
         liesCaught: 0,
+        tips: 0,
       },
     };
     if (ps.kind === 'ai') {

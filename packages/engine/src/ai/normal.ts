@@ -8,6 +8,7 @@ import {
   racingDogs,
   setStates,
   stateHold,
+  tippedToRest,
   startPlan,
   tradeFoodPlan,
 } from './shared';
@@ -46,7 +47,11 @@ export function decideNormal(s: GameState, playerId: Id): Action[] {
 
   if (s.phase === 'planetPre' || s.phase === 'planetPost') {
     if (s.phase === 'planetPre') {
-      const assignment = declareBest(plan, { reserve: stateHold(plan, NORMAL_STATES) });
+      // A tip that one of our own dogs will run below itself is a Race-or-Rest decision (D1 item 6).
+      const assignment = declareBest(plan, {
+        reserve: stateHold(plan, NORMAL_STATES),
+        hold: tippedToRest(s, playerId),
+      });
       setStates(plan, racingDogs(assignment), { diets: true });
       // Dinner first, so a trading leg bought below it is never what the dogs eat (GDD_V3 §6.3's
       // cheapest-aboard fallback feeds the staple before anything dearer).

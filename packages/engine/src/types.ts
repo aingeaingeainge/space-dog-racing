@@ -384,6 +384,8 @@ export interface PlayerSeasonStats {
   /** Offers where the seller lied, and how many of those this stable took — and so found out. */
   liesTold: number;
   liesCaught: number;
+  /** Race-day tips this stable was given (Phase D1 item 6). */
+  tips: number;
 }
 
 /**
@@ -538,6 +540,21 @@ export interface ExploreState {
   taken: Id[];
 }
 
+/** A race-day condition's row id (`content/conditions.ts`). */
+export type ConditionId = 'knock' | 'offFeed' | 'buzzing';
+
+/**
+ * A hidden condition on a stable dog this weekend (Phase D1 item 6): drawn at arrival, applied to
+ * the runner on race day, never priced by the book, and known only to the stables a tip has told —
+ * **not to the owner**, unless the owner was tipped too.
+ */
+export interface RaceDayCondition {
+  dogId: Id;
+  condition: ConditionId;
+  /** The stables that have been told. */
+  tipped: Id[];
+}
+
 export interface LogLine {
   week: number;
   phase: Phase;
@@ -585,6 +602,8 @@ export interface GameState {
   pendingEvent: PendingEvent | null;
   /** This week's Explore; null before the first arrival. */
   explore: ExploreState | null;
+  /** This weekend's race-day conditions (Phase D1 item 6). Drawn at arrival; cleared at the jump. */
+  conditions: RaceDayCondition[];
   bets: Bet[];
   results: RaceResult[]; // all past races (tick logs pruned)
   eventLog: LogLine[];

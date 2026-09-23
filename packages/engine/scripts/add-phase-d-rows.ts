@@ -103,7 +103,7 @@ ROWS.push(
   {
     section: COND_SECTION,
     label: 'Condition: buzzing, speed on race day (stat points)',
-    value: 8,
+    value: 5,
     note: 'Like the lucky bone, but nobody knows unless tipped — the owner included',
   },
 );

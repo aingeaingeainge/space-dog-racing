@@ -16,6 +16,8 @@ import {
   rollDog,
   spend,
   statBy,
+  giveTip,
+  rollTip,
   type EventCard,
 } from '../eventKit';
 import { weakestStat } from '../../economy/dogValue';
@@ -229,5 +231,69 @@ export const BAR: readonly EventCard[] = [
       },
     ],
     aiChoice: () => 0,
+  },
+
+  // ---- Race-day tips (Phase D1 item 6): true, private, and never priced by the book. ----
+  {
+    id: 'stableLad',
+    name: 'A stable lad who talks too much',
+    text: 'A lad from one of the big kennels is drinking alone and wants company. He knows every dog on the planet and he cannot keep his mouth shut. A drink or two and he will tell you something the bookie does not know.',
+    weight: 9,
+    kind: 'choice',
+    category: 'bar',
+    roll: rollTip,
+    choices: [
+      {
+        label: 'Buy him a drink (−100)',
+        apply: (ctx) => {
+          if (spend(ctx, 100)) giveTip(ctx);
+        },
+      },
+      { label: 'Leave him be', apply: (ctx) => ctx.log('You leave the lad to his drink.') },
+    ],
+    aiChoice: (ctx) => (ctx.p.cash > 400 ? 0 : 1),
+  },
+  {
+    id: 'offDutyVet',
+    name: 'The track vet, off duty',
+    text: 'The track vet is three brandies into her night off. She has had her hands on every dog on this card this week. Buy her the fourth.',
+    weight: 7,
+    kind: 'choice',
+    category: 'bar',
+    planets: ['collarPrime', 'cosmodrome', 'oldWembley'],
+    planetBoost: 2,
+    roll: rollTip,
+    choices: [
+      {
+        label: 'Buy the brandy (−200)',
+        apply: (ctx) => {
+          if (spend(ctx, 200)) giveTip(ctx);
+        },
+      },
+      {
+        label: 'Let her drink in peace',
+        apply: (ctx) => ctx.log('You let the vet drink in peace.'),
+      },
+    ],
+    aiChoice: (ctx) => (ctx.p.cash > 800 ? 0 : 1),
+  },
+  {
+    id: 'feedMerchant',
+    name: 'The feed merchant',
+    text: 'The feed merchant delivers to every kennel on the planet, and he notices whose bowls come back full. He trades gossip for custom.',
+    weight: 6,
+    kind: 'choice',
+    category: 'bar',
+    roll: rollTip,
+    choices: [
+      {
+        label: 'Buy a crate’s worth of gossip (−80)',
+        apply: (ctx) => {
+          if (spend(ctx, 80)) giveTip(ctx);
+        },
+      },
+      { label: 'Not today', apply: (ctx) => ctx.log('The feed merchant goes back to his cart.') },
+    ],
+    aiChoice: (ctx) => (ctx.p.cash > 320 ? 0 : 1),
   },
 ];
