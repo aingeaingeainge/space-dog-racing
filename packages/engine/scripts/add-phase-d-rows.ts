@@ -48,8 +48,8 @@ const ROWS: NewRow[] = [
   {
     section: OFFER_SECTION,
     label: 'Dog offer: rating, mean',
-    value: 50,
-    note: "Where an offered dog's stats centre. A dealt dog rates 50, so the average offer is a sideways move and the gamble is the spread",
+    value: 44,
+    note: "Where an offered dog's stats centre. A dealt dog rates 50, so the average offer is a step down and the gamble is the spread and the patter. 50 at first; 44 in Phase D1, because at 50 the Pound alone lifted mean end worth about 2,000 and out of its 25-40k band",
   },
   {
     section: OFFER_SECTION,

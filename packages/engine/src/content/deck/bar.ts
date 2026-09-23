@@ -160,17 +160,17 @@ export const BAR: readonly EventCard[] = [
   {
     id: 'journalist',
     name: 'The racing rag',
-    text: 'A reporter from The Daily Muzzle wants a quote about your stable for the weekend edition. She pays 300 for a good one. The last owner who gave her a good one got torn apart when his dogs lost.',
+    text: 'A reporter from The Daily Muzzle wants a quote about your stable for the weekend edition. She pays 200 for a good one. The last owner who gave her a good one got torn apart when his dogs lost.',
     weight: 4,
     kind: 'choice',
     category: 'bar',
     choices: [
       {
-        label: 'Give her a headline (+300)',
+        label: 'Give her a headline (+200)',
         apply: (ctx) => {
-          earn(ctx, 300);
+          earn(ctx, 200);
           for (const d of ownDogs(ctx.s, ctx.p)) formBy(d, -1);
-          ctx.log('"We will win everything." +300. The dogs feel the pressure (−1 form each).');
+          ctx.log('"We will win everything." +200. The dogs feel the pressure (−1 form each).');
         },
       },
       {

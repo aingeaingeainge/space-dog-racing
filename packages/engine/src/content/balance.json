@@ -50,7 +50,7 @@
   "dogOfferClaimHonest": 10,
   "dogOfferClaimLie": 12,
   "dogOfferLieRate": 0.35,
-  "dogOfferRatingMean": 50,
+  "dogOfferRatingMean": 44,
   "dogOfferRatingSd": 7,
   "dogStatSd": 8,
   "eloScale": 15,

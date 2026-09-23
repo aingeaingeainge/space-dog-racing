@@ -132,20 +132,20 @@ export const STRIP: readonly EventCard[] = [
   {
     id: 'calendarShoot',
     name: 'The calendar',
-    text: 'A glossy wants your dogs for the Dogs of the Circuit calendar. 400, a morning under hot lights, and a stylist with strong opinions about ears.',
+    text: 'A glossy wants your dogs for the Dogs of the Circuit calendar. 300, a morning under hot lights, and a stylist with strong opinions about ears.',
     weight: 4,
     kind: 'choice',
     category: 'strip',
     choices: [
       {
-        label: 'Say cheese (+400)',
+        label: 'Say cheese (+300)',
         apply: (ctx) => {
-          earn(ctx, 400);
+          earn(ctx, 300);
           const best = [...ownDogs(ctx.s, ctx.p)].sort((a, b) => b.rating - a.rating)[0];
           if (best) formBy(best, 2);
           for (const d of ownDogs(ctx.s, ctx.p)) fit(d, -3);
           ctx.log(
-            `+400. ${best?.name ?? 'Your best dog'} is Mr October and knows it (+2 form); the rest are tired of the lights (−3 fitness each).`,
+            `+300. ${best?.name ?? 'Your best dog'} is Mr October and knows it (+2 form); the rest are tired of the lights (−3 fitness each).`,
           );
         },
       },

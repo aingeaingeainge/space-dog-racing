@@ -26,8 +26,8 @@ import { hash01, ownDogs } from './shared';
 export const DOOR_BASE: Record<DoorCategory, number> = {
   pound: 1,
   bar: 1,
-  alley: 0.9,
-  strip: 1,
+  alley: 1,
+  strip: 1.15,
   track: 1,
 };
 
@@ -35,14 +35,14 @@ export function doorWeights(s: GameState, playerId: Id): Record<DoorCategory, nu
   const p = player(s, playerId);
   const dogs = ownDogs(s, p);
   const w = { ...DOOR_BASE };
-  if (dogs.some((d) => d.injuryWeeks > 0)) w.pound += 1.2;
-  if (dogs.some((d) => d.age >= 6 || d.rating < balance.startDogRating - 5)) w.pound += 0.8;
-  if (p.cash > 3000) w.bar += 0.5;
-  if (cargoTotal(p.cargo) > 20) w.bar += 0.4;
-  if (p.cash < 1500) w.strip += 0.8;
-  if (dogs.some((d) => !d.styleKnown)) w.track += 0.6;
+  if (dogs.some((d) => d.injuryWeeks > 0)) w.pound += 0.6;
+  if (dogs.some((d) => d.age >= 6 || d.rating < balance.startDogRating - 5)) w.pound += 0.3;
+  if (cargoTotal(p.cargo) > 20) w.bar += 0.2;
+  if (p.cash > 3000) w.alley += 0.2;
+  if (p.cash < 1500) w.strip += 0.4;
+  if (dogs.some((d) => !d.styleKnown)) w.track += 0.3;
   const fit = dogs.reduce((a, d) => a + d.fitness, 0) / Math.max(1, dogs.length);
-  if (fit < 70) w.track += 0.4;
+  if (fit < 70) w.track += 0.2;
   return w;
 }
 
@@ -54,7 +54,7 @@ export function pickDoor(s: GameState, playerId: Id, weigh = true): number {
   let bestScore = -1;
   doors.forEach((d, i) => {
     const h = hash01(s.seed, s.week, playerId, 'door', i);
-    const score = w ? w[d.category] * (0.4 + h) : h;
+    const score = w ? w[d.category] * (0.25 + h) : h;
     if (score > bestScore) {
       bestScore = score;
       best = i;
