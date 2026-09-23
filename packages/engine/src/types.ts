@@ -213,6 +213,11 @@ export interface RunningStyle {
   /** × the fade penalty once the dog is fading. Scaled likewise. */
   fadeMult: number;
   /**
+   * Whether two of these at the head of the field make the pace hot (GDD_V3 §5.3, decision C12).
+   * A row, not a branch: the rule counts runners whose style says so and never asks for a name.
+   */
+  lightsPace: boolean;
+  /**
    * What the bookie adds to a dog's rating for this style, by trip, **once the style is public**
    * (GDD_V3 §5.6). Rating points. The book sees the style and the track; it does not see the
    * field — which other styles are in the race with it — and that is deliberate.
@@ -384,7 +389,11 @@ export interface RaceEntry {
 
 export interface RaceEvent {
   tick: number;
-  kind: 'bump' | 'leadChange' | 'finish';
+  /**
+   * `hotPace` is GDD_V3 §5.3's hot pace lighting: the first tick two front-runners are taking each
+   * other on at the head of the field (`dogId` and `otherId`). Once a race at most.
+   */
+  kind: 'bump' | 'leadChange' | 'finish' | 'hotPace';
   dogId: Id;
   otherId?: Id;
 }
@@ -425,6 +434,11 @@ export interface RunNote {
   style: StyleId;
   /** The day's style expression, U(0.30, 1.30) (§5.2), 2 dp. */
   expression: number;
+  /**
+   * How much of the hot-pace window (§5.3) it ran in a hot lead group: 0 never, 1 the whole window,
+   * 2 dp. Its fade point moved `hotPaceFadeCost ×` this many metres earlier.
+   */
+  hot: number;
 }
 
 export interface PendingEvent {

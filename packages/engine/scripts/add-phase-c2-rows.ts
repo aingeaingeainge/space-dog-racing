@@ -46,19 +46,19 @@ const ROWS: NewRow[] = [
   {
     section: HOT_SECTION,
     label: 'Hot pace: front-runners within this of each other at the head (metres)',
-    value: 2,
+    value: 4,
     note: 'Two or more runners whose style lights the pace, both this close to the leader (so to each other), make the pace hot. One alone never does',
   },
   {
     section: HOT_SECTION,
     label: 'Hot pace: the lead group, within this of the leader (metres)',
-    value: 4,
+    value: 6,
     note: 'While the pace is hot, every runner this close to the leader pays — front-runners and the stalkers sitting on them alike. A dog further back pays nothing',
   },
   {
     section: HOT_SECTION,
     label: 'Hot pace: fade point cost for a whole window in a hot lead group (metres)',
-    value: 30,
+    value: 90,
     note: 'Pro rata to the ground a dog covers in the lead group while the pace is hot. Metres, like the fade point itself (A7)',
   },
   {
@@ -70,6 +70,28 @@ const ROWS: NewRow[] = [
   { section: HOT_SECTION, label: 'Stalker: lights the pace (1 = yes)', value: 0 },
   { section: HOT_SECTION, label: 'Closer: lights the pace (1 = yes)', value: 0 },
 ];
+
+// ---- Decision C13: the style curve re-balanced under the hot pace (Jesse's call, option A). ----
+// With the hot pace on, most fields (79% of real races have 2+ front-runners) burn their leaders, so a
+// front-runner lost ~3 points across the calendar. Its own fade is eased and the closer's late edge
+// trimmed until the calendar is even again; the curve's shape — burst and fade, slow away and home
+// late — is unchanged. Sections are Phase C's, so these rows update in place.
+const STYLE_SECTION =
+  'Running styles (GDD_V3 §5.1–5.2 — a redistribution of the same energy, not a bonus)';
+ROWS.push(
+  {
+    section: STYLE_SECTION,
+    label: 'Front-runner: fade start shift',
+    value: -0.05,
+    note: 'In the same units as the fade point itself; negative is earlier. −0.07 at v3c; eased at v3c2 (C13) because the hot pace now burns front-runners that go together',
+  },
+  {
+    section: STYLE_SECTION,
+    label: 'Closer: fade start shift',
+    value: 0.04,
+    note: '+0.06 at v3c; trimmed at v3c2 (C13) because the hot pace now hands the closer the wins crowded front-runners lose',
+  },
+);
 
 const REMOVE: { label: string; why: string }[] = [];
 

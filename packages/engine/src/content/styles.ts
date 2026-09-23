@@ -5,8 +5,8 @@ import { STYLE_IDS } from '../types';
 /**
  * GDD_V3 §5.1's three running styles, one row each, every number a spreadsheet cell.
  *
- * ⚠️ **A style is a row.** `simulateRace` reads `earlySpeed`, `fadeShift` and `fadeMult`
- * and never asks which style it is looking at, so a fourth style is a row here and four cells in the
+ * ⚠️ **A style is a row.** `simulateRace` reads `earlySpeed`, `fadeShift`, `fadeMult` and
+ * `lightsPace` and never asks which style it is looking at, so a fourth style is a row here and four cells in the
  * sheet. If adding one ever needs a branch, stop.
  */
 export const STYLES: readonly RunningStyle[] = [
@@ -16,6 +16,7 @@ export const STYLES: readonly RunningStyle[] = [
     earlySpeed: balance.styleFrontRunnerSpeed,
     fadeShift: balance.styleFrontRunnerFade,
     fadeMult: balance.styleFrontRunnerFadeMult,
+    lightsPace: balance.styleFrontRunnerLightsPace === 1,
     bookEdge: {
       sprint: balance.bookEdgeFrontRunnerSprint,
       standard: balance.bookEdgeFrontRunnerStandard,
@@ -29,6 +30,7 @@ export const STYLES: readonly RunningStyle[] = [
     earlySpeed: balance.styleStalkerSpeed,
     fadeShift: balance.styleStalkerFade,
     fadeMult: balance.styleStalkerFadeMult,
+    lightsPace: balance.styleStalkerLightsPace === 1,
     bookEdge: {
       sprint: balance.bookEdgeStalkerSprint,
       standard: balance.bookEdgeStalkerStandard,
@@ -42,6 +44,7 @@ export const STYLES: readonly RunningStyle[] = [
     earlySpeed: balance.styleCloserSpeed,
     fadeShift: balance.styleCloserFade,
     fadeMult: balance.styleCloserFadeMult,
+    lightsPace: balance.styleCloserLightsPace === 1,
     bookEdge: {
       sprint: balance.bookEdgeCloserSprint,
       standard: balance.bookEdgeCloserStandard,

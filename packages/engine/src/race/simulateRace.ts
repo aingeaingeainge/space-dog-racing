@@ -197,11 +197,54 @@ export function simulateRace(runners: readonly Runner[], ctx: RaceContext, rng: 
       (balance.raceFadeBase + (balance.raceFadeStamina * r.stamina) / 100 + styleFade[i]!);
   }
 
+  // The hot pace (GDD_V3 §5.3, V14, decision C12) — the contest rule's replacement. Styles alone are
+  // independent, so the interaction is written. While the leader is inside the window and **two or
+  // more** runners whose style lights the pace are within `hotPaceContestMetres` of the leader (so of
+  // each other), the pace is hot; and while it is hot, **every** runner within `hotPaceGroupMetres`
+  // of the leader — front-runners and the stalkers sitting on them alike — pays with a fade point
+  // moved earlier, pro rata to the ground it covers in that group. A lone front-runner never lights
+  // it; a closer, slow away by its own curve, is mostly out of the group and pays nothing — so the
+  // leaders come back to *it*, not only to each other. Read off positions at the start of each tick,
+  // like the bend clash, and it draws nothing from the rng, so the stream cannot shift with it.
+  const lightsPace = runners.map((r) => STYLE_BY_ID[r.style ?? 'stalker'].lightsPace);
+  const hotWindow = balance.hotPaceWindow * distance;
+  const inHotGroup: boolean[] = new Array(n).fill(false);
+  const hotMetres = new Float64Array(n);
+  let lit = false;
+
   ticks.push(Array.from(pos, (p) => Math.round(p * 100) / 100));
   let leader = -1;
   let t = 0;
   while (order.length < n && t < balance.raceMaxTicks) {
     t++;
+    // Is the pace hot this tick, and who is in the lead group? Positions as the last tick left them.
+    inHotGroup.fill(false);
+    if (order.length === 0) {
+      let head = 0;
+      for (let i = 0; i < n; i++) if (pos[i]! > head) head = pos[i]!;
+      if (head < hotWindow) {
+        let first = -1;
+        let second = -1;
+        for (let i = 0; i < n; i++) {
+          if (!lightsPace[i] || pos[i]! < head - balance.hotPaceContestMetres) continue;
+          if (first < 0) first = i;
+          else if (second < 0) second = i;
+        }
+        if (second >= 0) {
+          for (let i = 0; i < n; i++)
+            if (pos[i]! >= head - balance.hotPaceGroupMetres) inHotGroup[i] = true;
+          if (!lit) {
+            lit = true;
+            events.push({
+              tick: t,
+              kind: 'hotPace',
+              dogId: runners[first]!.id,
+              otherId: runners[second]!.id,
+            });
+          }
+        }
+      }
+    }
     for (let i = 0; i < n; i++) {
       if (finished[i]) continue;
       const r = runners[i]!;
@@ -224,18 +267,21 @@ export function simulateRace(runners: readonly Runner[], ctx: RaceContext, rng: 
       // fraction of the distance, which made the fade window proportionally identical at 350 m and
       // 600 m, so stamina was worth exactly as much on a sprint as on a staying trip. Now a sprint
       // barely finds a dog out and a staying trip taxes it for the last third.
-      if (pos[i]! > fadeStart[i]!) {
+      // A hot pace moves the fade point earlier by what this dog has paid so far (§5.3).
+      const fadeAt = fadeStart[i]! - (balance.hotPaceFadeCost * hotMetres[i]!) / hotWindow;
+      if (pos[i]! > fadeAt) {
         top *=
           1 -
           balance.raceFadePenalty *
             fadeMult[i]! *
-            Math.min(1, (pos[i]! - fadeStart[i]!) / balance.raceFadeLengthMetres);
+            Math.min(1, (pos[i]! - fadeAt) / balance.raceFadeLengthMetres);
       }
       if (bumpedUntil[i]! > t) top *= 1 - balance.raceBumpPenalty;
       let acc = balance.raceAccelBase + (balance.raceAccelCoef * r.accel) / 100;
       if (track.slippery) acc *= 0.85 + (0.3 * r.accel) / 100; // Glassfall: acceleration matters more
       vel[i] = Math.min(top, vel[i]! + acc * dt) + rng.gauss(0, balance.raceTickNoiseSd);
       if (vel[i]! < 0) vel[i] = 0;
+      if (inHotGroup[i]) hotMetres[i] = hotMetres[i]! + vel[i]! * dt;
       pos[i] = pos[i]! + vel[i]! * dt;
     }
 
@@ -316,6 +362,7 @@ export function simulateRace(runners: readonly Runner[], ctx: RaceContext, rng: 
     runs: runners.map((r, i) => ({
       style: r.style ?? 'stalker',
       expression: Math.round(expression[i]! * 100) / 100,
+      hot: Math.round((hotMetres[i]! / hotWindow) * 100) / 100,
     })),
   };
 }
