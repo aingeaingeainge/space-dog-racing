@@ -13,6 +13,7 @@
  * Not part of `npm test` (which is the engine's own suite), the same as season-check.ts.
  */
 import {
+  aiChoiceFor,
   balance,
   createSeason,
   drive,
@@ -160,8 +161,16 @@ function playSeason(seed: number): { races: number; lines: number; photos: numbe
     }
     const who = waitingOn(state);
     if (!who) break;
+    // v3 Phase D1: a week opens on Explore (GDD_V3 §9.1) — the human opens the first door and
+    // answers the card as the Normal AI would.
     if (state.pendingEvent)
-      reduceMut(state, { t: 'ResolveEvent', playerId: state.pendingEvent.playerId, choice: 0 });
+      reduceMut(state, {
+        t: 'ResolveEvent',
+        playerId: state.pendingEvent.playerId,
+        choice: aiChoiceFor(state, state.pendingEvent.playerId),
+      });
+    else if (state.phase === 'explore')
+      reduceMut(state, { t: 'ChooseDoor', playerId: who, door: 0 });
     else reduceMut(state, { t: 'EndPhase', playerId: who });
     drive(state, log);
   }
