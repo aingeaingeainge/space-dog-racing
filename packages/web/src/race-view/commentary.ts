@@ -30,6 +30,8 @@ export type CommentaryKind =
   | 'flatDay'
   | 'fromTheFront'
   | 'stalked'
+  | 'hotPace'
+  | 'piecesPicked'
   | 'marker'
   | 'photo'
   | 'win';
@@ -156,6 +158,19 @@ const TEMPLATES: Record<CommentaryKind, readonly string[]> = {
     'The stalker {dog} tracked them round and has picked its moment.',
     '{dog} has been sitting just off the pace — and here it comes, right on cue.',
   ],
+  // ---- GDD_V3 §5.3: the hot pace, and the closer who picks up the pieces ----
+  hotPace: [
+    '{dog} and {other} are taking each other on up front — this pace is too hot to last.',
+    'Two front-runners and neither will give an inch: {dog} and {other}, cutting each other’s throats.',
+    '{dog} will not let {other} go, and they are burning each other up out there.',
+    'A proper duel for the lead between {dog} and {other} — somebody is going to pay for this.',
+  ],
+  piecesPicked: [
+    'They cut each other up in front and the closer {dog} picks up the pieces!',
+    'The front-runners went too hard, and {dog} has come from last to collect.',
+    '{dog} sat out the duel at the back and walks past the wreckage — the closer’s day.',
+    'That is what a hot pace does: the leaders are cooked and {dog} comes home over the top.',
+  ],
   flatDay: [
     '{dog} never went forward today — a front-runner running like a stalker.',
     'No early dash from {dog} this time; not its day for making the running.',
@@ -203,6 +218,8 @@ const PRIORITY: Record<CommentaryKind, number> = {
   flatDay: 5,
   fromTheFront: 5,
   stalked: 5,
+  piecesPicked: 5,
+  hotPace: 4,
   fade: 4,
   lateRun: 4,
   leadChange: 3,
@@ -329,6 +346,15 @@ export function buildCommentary(ctx: CommentaryContext): CommentaryLine[] {
           ...base,
           dog: nameOf(ev.dogId),
           trap: trapOf(ev.dogId),
+        }),
+      );
+    } else if (ev.kind === 'hotPace') {
+      // Called when it lights (§5.3): two front-runners at the head, and the lead group paying.
+      out.push(
+        say('hotPace', Math.max(BREAK_CALL_AT + 1.2, secs(ev.tick)), `${result.race}:hot`, {
+          ...base,
+          dog: nameOf(ev.dogId),
+          other: ev.otherId ? nameOf(ev.otherId) : 'the other front-runner',
         }),
       );
     } else if (ev.kind === 'bump') {
@@ -511,6 +537,8 @@ function styleCalls(
   const late = at(2 / 3);
   if (!early || !late) return [];
   const out: { i: number; line: CommentaryLine }[] = [];
+  // Whether the pace was hot (§5.3). A closer who gets there after one picked up the pieces.
+  const hot = result.events.some((e) => e.kind === 'hotPace');
   const key = (kind: string, i: number) => `${result.race}:${kind}:${entries[i]!.dogId}`;
   const slots = (i: number, gap?: number): Slots => ({
     ...base,
@@ -549,7 +577,8 @@ function styleCalls(
       }
     } else if (style === 'closer') {
       if (earlyPlace >= 5 && finalPlace <= 3) {
-        out.push({ i, line: say('closerGot', Math.max(0, finish - 2.4), key('got', i), slots(i)) });
+        const kind = hot ? 'piecesPicked' : 'closerGot';
+        out.push({ i, line: say(kind, Math.max(0, finish - 2.4), key('got', i), slots(i)) });
       } else if (
         earlyPlace >= 5 &&
         finalPlace >= 4 &&

@@ -41,10 +41,14 @@ const STYLE_KINDS: readonly CommentaryKind[] = [
   'flatDay',
   'fromTheFront',
   'stalked',
+  'piecesPicked',
 ];
 const styleTally = new Map<CommentaryKind, number>(STYLE_KINDS.map((k) => [k, 0]));
 /** A stable dog's first race, and whether the commentary named how it runs in it (§5.4). */
 let firstRaces = 0;
+/** Races whose pace went hot (§5.3), and how many of them the commentary called out loud. */
+let hotRaces = 0;
+let hotCalled = 0;
 let firstRacesNamed = 0;
 const seenDogs = new Set<string>();
 
@@ -142,6 +146,8 @@ function playSeason(seed: number): { races: number; lines: number; photos: numbe
           endTime: (r.ticks.length - 1) * balance.raceTickSeconds,
         });
         lines += calls.length;
+        if (r.events.some((e) => e.kind === 'hotPace')) hotRaces++;
+        if (calls.some((c) => c.kind === 'hotPace')) hotCalled++;
         const styleCalls = calls.filter((c) => STYLE_KINDS.includes(c.kind));
         for (const c of styleCalls) styleTally.set(c.kind, (styleTally.get(c.kind) ?? 0) + 1);
         for (const e of r.entries) {
@@ -190,6 +196,7 @@ console.log(
         `Every one replays the same way twice and shows the finish the engine recorded.\n` +
         `Style calls (GDD_V3 §7.5): ${STYLE_KINDS.map((k) => `${k} ${styleTally.get(k)}`).join(' · ')}\n` +
         `A stable dog's first race named its style out loud in ${firstRacesNamed} of ${firstRaces} ` +
-        `(${((100 * firstRacesNamed) / Math.max(1, firstRaces)).toFixed(0)}%) — the rest are on the card anyway.`,
+        `(${((100 * firstRacesNamed) / Math.max(1, firstRaces)).toFixed(0)}%) — the rest are on the card anyway.\n` +
+        `The hot pace (GDD_V3 §5.3) lit in ${hotRaces} of ${races} races and was called in ${hotCalled}.`,
 );
 process.exit(failures ? 1 : 0);

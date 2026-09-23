@@ -9,6 +9,7 @@
  *   npm run harness -- --hardAblation    # §14: which of Hard's own decisions earns its head-to-head
  *   npm run harness -- --styles --seasons 200   # GDD_V3 §5 / §11: running styles, the kill switch,
  *                                        # the variance decomposition, the blind-lone-closer return
+ *   npm run harness -- --styles --hotGrid   # Phase C2: the hot pace's lights / group / cost sweep (slow)
  *
  * The standard printout carries **BUILD_PLAN_V3 Phase B's market rows** — food as a share of gross,
  * the cash-bound → hold-bound crossover week, the p99 best trading leg against mean end worth, the
@@ -33,7 +34,7 @@
 import { balance } from '../src/content/balance';
 import { GOODS, good } from '../src/content/goods';
 import { createDog, fitRating } from '../src/economy/dogs';
-import { dogValue } from '../src/economy/dogValue';
+import { baseRating, dogValue } from '../src/economy/dogValue';
 import { netWorth } from '../src/economy/netWorth';
 import { planFeeding } from '../src/economy/food';
 import { cargoTotal, HOLD_CAP } from '../src/economy/goods';
@@ -85,6 +86,8 @@ interface Args {
   hardAblation: boolean;
   /** GDD_V3 §5, §11 and BUILD_PLAN_V3 Phase C: everything running styles are measured by. */
   styles: boolean;
+  /** With --styles: sweep the hot pace's three cells (Phase C2), 6,000 races a cell. Slow. */
+  hotGrid: boolean;
   quiet: boolean;
 }
 
@@ -99,6 +102,7 @@ function parseArgs(argv: string[]): Args {
     leadConversion: false,
     hardAblation: false,
     styles: false,
+    hotGrid: false,
     quiet: false,
   };
   for (let i = 0; i < argv.length; i++) {
@@ -116,6 +120,7 @@ function parseArgs(argv: string[]): Args {
     else if (a === '--leadConversion' || a === '--lead') args.leadConversion = true;
     else if (a === '--hardAblation') args.hardAblation = true;
     else if (a === '--styles') args.styles = true;
+    else if (a === '--hotGrid') args.hotGrid = true;
     else if (a === '--quiet') args.quiet = true;
     else throw new Error(`Unknown flag ${a}. See the usage block at the top of this file.`);
   }
@@ -1632,7 +1637,11 @@ const TRIPS: { label: string; track: Track; weight: number }[] = [
 ];
 
 /** Eight rating-50 dogs off the game's own dog maker, with the styles given. */
-function equalField(rng: Rng, nextId: (p: string) => string, styles: readonly StyleId[]): Runner[] {
+export function equalField(
+  rng: Rng,
+  nextId: (p: string) => string,
+  styles: readonly StyleId[],
+): Runner[] {
   const field: Runner[] = styles.map((style) => {
     const d = fitRating(
       createDog({ quality: 50, age: 3, owner: 'local', traits: [] }, rng, nextId),
@@ -1656,7 +1665,7 @@ function equalField(rng: Rng, nextId: (p: string) => string, styles: readonly St
 }
 
 /** A field as it actually ran in a played season, with everything the book and the sim saw. */
-interface HarvestedRace {
+export interface HarvestedRace {
   track: Track;
   major: boolean;
   runners: Runner[];
@@ -1670,9 +1679,11 @@ interface HarvestedRace {
   leadChanges: number;
   margin: number;
   photo: boolean;
+  /** Whether the pace went hot (GDD_V3 §5.3). */
+  hot: boolean;
 }
 
-function harvest(seasons: number, seed: number): HarvestedRace[] {
+export function harvest(seasons: number, seed: number): HarvestedRace[] {
   const out: HarvestedRace[] = [];
   for (let k = 0; k < seasons; k++) {
     const s = createSeason({
@@ -1685,8 +1696,8 @@ function harvest(seasons: number, seed: number): HarvestedRace[] {
     });
     let guard = 0;
     while (!isSeasonOver(s) && guard++ < 200_000) {
-      let pending: Omit<HarvestedRace, 'order' | 'leadChanges' | 'margin' | 'photo'>[] | null =
-        null;
+      let pending:
+        Omit<HarvestedRace, 'order' | 'leadChanges' | 'margin' | 'photo' | 'hot'>[] | null = null;
       if (s.phase === 'race' && s.fields) {
         const track = currentPlanet(s).track;
         const major = calendarEntry(s).major;
@@ -1729,12 +1740,112 @@ function harvest(seasons: number, seed: number): HarvestedRace[] {
             leadChanges: r.events.filter((e) => e.kind === 'leadChange').length,
             margin: r.margin,
             photo: r.photoFinish,
+            hot: r.events.some((e) => e.kind === 'hotPace'),
           }),
         );
       }
     }
   }
   return out;
+}
+
+/**
+ * The kill switch's fields (§5.3): a rating-50 closer, k front-runners, the rest stalkers, 480 m.
+ * Returns, for k = 1, 2, 3, the closer's win rate, a front-runner's (per runner) and the share of
+ * races whose pace went hot. The same rng seed for every k and every setting, so a sweep is paired.
+ */
+function killSwitch(n: number): { closer: number; frontRunner: number; hot: number }[] {
+  return [1, 2, 3].map((k) => {
+    const rng = mulberry32(4242);
+    let c = 0;
+    const nextId = (p: string) => `${p}${c++}`;
+    let closer = 0;
+    let front = 0;
+    let hot = 0;
+    const track = TRIPS[1]!.track;
+    for (let i = 0; i < n; i++) {
+      const styles: StyleId[] = Array.from({ length: 8 }, (_, m) =>
+        m === 0 ? 'closer' : m <= k ? 'frontRunner' : 'stalker',
+      );
+      const field = equalField(rng, nextId, styles);
+      const res = simulateRace(field, { track, major: false }, mulberry32(rng.int(0, 2 ** 31)));
+      const w = field.find((r) => r.id === res.order[0])!.style;
+      if (w === 'closer') closer++;
+      if (w === 'frontRunner') front++;
+      if (res.events.some((e) => e.kind === 'hotPace')) hot++;
+    }
+    return { closer: closer / n, frontRunner: front / (n * k), hot: hot / n };
+  });
+}
+
+/** Row 1's calendar, as one number: how far apart the three styles are (§5.1). */
+function calendarSpread(n: number, seed = 1): number[] {
+  const calendar: Record<StyleId, number> = { frontRunner: 0, stalker: 0, closer: 0 };
+  let weights = 0;
+  for (const { track, weight } of TRIPS) {
+    if (!weight) continue;
+    const rng = mulberry32(seed * 7919 + 99);
+    let c = 0;
+    const nextId = (p: string) => `${p}${c++}`;
+    const wins: Record<StyleId, number> = { frontRunner: 0, stalker: 0, closer: 0 };
+    const runs: Record<StyleId, number> = { frontRunner: 0, stalker: 0, closer: 0 };
+    for (let i = 0; i < n; i++) {
+      const field = equalField(
+        rng,
+        nextId,
+        Array.from({ length: 8 }, (_, k) => STYLE_IDS[(k + i) % 3]!),
+      );
+      const res = simulateRace(field, { track, major: false }, mulberry32(rng.int(0, 2 ** 31)));
+      for (const r of field) runs[r.style!]++;
+      wins[field.find((r) => r.id === res.order[0])!.style!]++;
+    }
+    for (const id of STYLE_IDS) calendar[id] += (wins[id] / runs[id]) * weight;
+    weights += weight;
+  }
+  return STYLE_IDS.map((id) => calendar[id] / weights);
+}
+
+/**
+ * `--styles --hotGrid` — the Phase C2 sweep over the hot pace's three cells, printed whole, as Phase
+ * C's contest-rule sweep was. Each cell: the kill switch and the calendar. The style curve is the
+ * sheet's; the re-balance that the built setting needed (C13) is in the sheet, not here.
+ */
+export function runHotGrid(n = 6000): string {
+  const b = balance as unknown as Record<string, number>;
+  const saved = [b.hotPaceContestMetres!, b.hotPaceGroupMetres!, b.hotPaceFadeCost!];
+  const lines = [
+    `The hot pace swept (Phase C2): lights at / lead group / cost → closer's win % with 1, 2, 3 front-runners; ${n} races a cell`,
+    '   lights  group   cost    closer 1 / 2 / 3 FR       gap    calendar FR / ST / CL    spread',
+  ];
+  const f = (x: number) => (x * 100).toFixed(1).padStart(5);
+  const cells: [number, number, number][] = [[saved[0]!, saved[1]!, 0]];
+  for (const c of [2, 4, 6])
+    for (const g of [4, 6, 8]) for (const cost of [30, 60, 90, 120, 180]) cells.push([c, g, cost]);
+  for (const [c, g, cost] of cells) {
+    b.hotPaceContestMetres = c;
+    b.hotPaceGroupMetres = g;
+    b.hotPaceFadeCost = cost;
+    const ks = killSwitch(n);
+    const cal = calendarSpread(n);
+    const gap = (ks[2]!.closer - ks[0]!.closer) * 100;
+    lines.push(
+      `   ${String(c).padStart(4)} m ${String(g).padStart(4)} m ${String(cost).padStart(5)} m   ${f(ks[0]!.closer)} ${f(ks[1]!.closer)} ${f(ks[2]!.closer)}   ${(gap >= 0 ? '+' : '') + gap.toFixed(1)}`.padEnd(
+        62,
+      ) + `${cal.map(f).join(' ')}    ${((Math.max(...cal) - Math.min(...cal)) * 100).toFixed(1)}`,
+    );
+  }
+  [b.hotPaceContestMetres, b.hotPaceGroupMetres, b.hotPaceFadeCost] = saved as [
+    number,
+    number,
+    number,
+  ];
+  lines.push(
+    `   Built: ${saved[0]} / ${saved[1]} / ${saved[2]} with the style curve re-balanced (C13, C14). Sane = calendar spread ≤ 1.5, a lone`,
+  );
+  lines.push(
+    '   front-runner no worse off than v3c, and the cost a burned front-runner pays no larger than its own fade.',
+  );
+  return lines.join('\n');
 }
 
 export function runStyles(seasons = 200, seed = 1, n = 6000): string {
@@ -1806,43 +1917,29 @@ export function runStyles(seasons = 200, seed = 1, n = 6000): string {
   }
   lines.push('');
 
-  // --- 3. The kill switch (§5.3, V14). ---
+  // --- 3. The kill switch (§5.3, V14), with the hot pace on (Phase C2, decisions C12–C13). ---
   lines.push(
-    "3. The kill switch (§5.3, V14): a rating-50 closer's win % against seven equal dogs, k front-runners, the rest stalkers, 480 m",
+    "3. The hot pace (§5.3, V14): a rating-50 closer's win % against seven equal dogs, k front-runners, the rest stalkers, 480 m",
   );
-  const k3: number[] = [];
-  for (const k of [1, 2, 3]) {
-    const rng = mulberry32(4242);
-    let c = 0;
-    const nextId = (p: string) => `${p}${c++}`;
-    let wins = 0;
-    const track = TRIPS[1]!.track;
-    for (let i = 0; i < n; i++) {
-      const styles: StyleId[] = Array.from({ length: 8 }, (_, m) =>
-        m === 0 ? 'closer' : m <= k ? 'frontRunner' : 'stalker',
-      );
-      const field = equalField(rng, nextId, styles);
-      const hero = field.find((r) => r.style === 'closer')!.id;
-      if (
-        simulateRace(field, { track, major: false }, mulberry32(rng.int(0, 2 ** 31))).order[0] ===
-        hero
-      )
-        wins++;
-    }
-    k3.push(wins / n);
-  }
-  const gap = (k3[2]! - k3[0]!) * 100;
+  const ks = killSwitch(n);
+  const gap = (ks[2]!.closer - ks[0]!.closer) * 100;
   lines.push(
-    `   1 front-runner ${p1(k3[0]!)}   2 front-runners ${p1(k3[1]!)}   3 front-runners ${p1(k3[2]!)}   gap ${gap >= 0 ? '+' : ''}${gap.toFixed(1)} points`,
+    `   closer    1 front-runner ${p1(ks[0]!.closer)}   2 front-runners ${p1(ks[1]!.closer)}   3 front-runners ${p1(ks[2]!.closer)}   gap ${gap >= 0 ? '+' : ''}${gap.toFixed(1)} points`,
   );
   lines.push(
-    '   ⚠️ The contest rule is CUT (decision C3): it read +0.7 against a 4-point floor at 67aa702 and was',
+    `   a front-runner with 0 / 1 / 2 other front-runners  ${p1(ks[0]!.frontRunner)}   ${p1(ks[1]!.frontRunner)}   ${p1(ks[2]!.frontRunner)}   (v3c, no rule: 14.2 / 13.7 / 13.2)`,
   );
   lines.push(
-    '   deleted at the next commit, as V14 requires. This row now measures styles alone — the field-shape',
+    `   the pace went hot in ${p1(ks[1]!.hot)}% of the 2-front-runner fields and ${p1(ks[2]!.hot)}% of the 3`,
   );
   lines.push(
-    '   effect the simulation produces with no rule written for it. Target ≥ 4 points: MISSED, by design.',
+    `   Floor: +2 points, Jesse's call (C13) — ${gap >= 2 ? 'MET' : '⚠️ MISSED'}. The prompt's +4 was not reachable while the calendar stays`,
+  );
+  lines.push(
+    '   even: most real fields hold two or more front-runners, so the rule can only move wins between a lone',
+  );
+  lines.push(
+    '   front-runner and a crowded one, and a closer collects about two points of it. `--hotGrid` has the sweep.',
   );
   lines.push('');
 
@@ -1947,17 +2044,48 @@ export function runStyles(seasons = 200, seed = 1, n = 6000): string {
   );
   lines.push('');
 
-  // 6. Watching: lead changes, margins, photos.
+  // 6. Watching: lead changes, margins, photos, and the hot pace (Phase C2, §14 Q10–Q11).
   const lc = races.reduce((a, r) => a + r.leadChanges, 0) / races.length;
-  const ms = races.map((r) => r.margin).sort((a, b) => a - b);
+  const med = (xs: number[]) => {
+    const t = [...xs].sort((a, b) => a - b);
+    return t.length ? t[Math.floor(t.length / 2)]! : NaN;
+  };
+  const ms = races.map((r) => r.margin);
+  const share = (f: (r: HarvestedRace) => boolean) => races.filter(f).length / races.length;
+  const photo = share((r) => r.photo);
+  const m = med(ms);
+  const topTwo = (r: HarvestedRace) => {
+    const rt = r.runners.map((x) => baseRating(x)).sort((a, b) => b - a);
+    return rt[0]! - rt[1]!;
+  };
+  const byGap = [
+    ['within 3', (g: number) => g <= 3],
+    ['3–8', (g: number) => g > 3 && g < 8],
+    ['8 or more', (g: number) => g >= 8],
+  ] as const;
   lines.push('6. Is a race worth watching');
   lines.push(
     `   lead changes per race ${lc.toFixed(2)} (target ≥ 1.0: ${lc >= 1 ? 'MET' : 'MISSED'})` +
-      ` · winning margin median ${ms[Math.floor(ms.length / 2)]!.toFixed(1)} m, mean ${(ms.reduce((a, b) => a + b, 0) / ms.length).toFixed(1)} m` +
-      ` · photo finishes ${pct(races.filter((r) => r.photo).length / races.length)}`,
+      ` · the pace went hot in ${pct(share((r) => r.hot))} of races`,
   );
   lines.push(
-    '   v3b, for the record: median margin 7.3 m, photos 2.2%, lead changes 2.36 (decision C5 on why A7 widened it).',
+    `   winning margin median ${m.toFixed(1)} m (target 4–7: ${m >= 4 && m <= 7 ? 'MET' : 'MISSED'}), mean ${mean(ms).toFixed(1)} m` +
+      ` · photo finishes ${pct(photo)} (target ≥ 3%: ${photo >= 0.03 ? 'MET' : 'MISSED'}) · under 2 m ${pct(share((r) => r.margin < 2))}`,
+  );
+  lines.push(
+    '   median margin by the gap between the two best-rated runners: ' +
+      byGap
+        .map(([label, f]) => {
+          const xs = races.filter((r) => f(topTwo(r))).map((r) => r.margin);
+          return `${label} ${med(xs).toFixed(1)} m (${xs.length})`;
+        })
+        .join(' · '),
+  );
+  lines.push(
+    '   For the record: v3b 7.3 m and 2.2%; v3c 10.6 m and 1.8% (A7). The run-in (C14) is the dial: every',
+  );
+  lines.push(
+    '   dog slows alike over the last metres, so a time gap stays a time gap and shows fewer metres.',
   );
   return lines.join('\n');
 }
@@ -1967,6 +2095,7 @@ function main() {
   if (args.calibrate) console.log(runCalibration());
   else if (args.stats) console.log(runStatLeverage());
   else if (args.autoplan) console.log(runAutoplan(args.seasons));
+  else if (args.styles && args.hotGrid) console.log(runHotGrid());
   else if (args.styles) console.log(runStyles(args.seasons === 50 ? 200 : args.seasons, args.seed));
   else if (args.hardAblation)
     console.log(runHardAblation(args.seasons === 50 ? 600 : args.seasons, args.seed));
