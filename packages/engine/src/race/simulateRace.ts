@@ -276,6 +276,15 @@ export function simulateRace(runners: readonly Runner[], ctx: RaceContext, rng: 
             fadeMult[i]! *
             Math.min(1, (pos[i]! - fadeAt) / balance.raceFadeLengthMetres);
       }
+      // The run-in (§7.2, §14 Q11, decision C14): over the last `raceRunInMetres` every runner slows
+      // by the same fraction at the same point on the track, reaching `raceRunInPenalty` at the line.
+      // ⚠️ **Not a catch-up rule.** It reads where *this* dog is, never where the others are, so a
+      // leader is not pulled back to anybody: every dog loses the same share of its speed over the
+      // same ground, a time gap stays the same time gap, and only the metres it shows at the line
+      // shrink. It is what the fade in fractions did to the whole field before A7 made it metres.
+      const runIn = pos[i]! - (distance - balance.raceRunInMetres);
+      if (runIn > 0)
+        top *= 1 - balance.raceRunInPenalty * Math.min(1, runIn / balance.raceRunInMetres);
       if (bumpedUntil[i]! > t) top *= 1 - balance.raceBumpPenalty;
       let acc = balance.raceAccelBase + (balance.raceAccelCoef * r.accel) / 100;
       if (track.slippery) acc *= 0.85 + (0.3 * r.accel) / 100; // Glassfall: acceleration matters more

@@ -88,8 +88,26 @@ ROWS.push(
   {
     section: STYLE_SECTION,
     label: 'Closer: fade start shift',
-    value: 0.04,
-    note: '+0.06 at v3c; trimmed at v3c2 (C13) because the hot pace now hands the closer the wins crowded front-runners lose',
+    value: 0.035,
+    note: '+0.06 at v3c; trimmed at v3c2 to +0.04 (C13) because the hot pace now hands the closer the wins crowded front-runners lose, and to +0.035 (C14) because the run-in favours whoever is quickest over the last metres',
+  },
+);
+
+// ---- GDD_V3 §14 Q11: closer finishes. The whole field tires into the line (decision C14). ----
+const RUNIN_SECTION =
+  'The run-in (GDD_V3 §7.2, §14 Q11 — the whole field tires into the line; nobody is pulled back)';
+ROWS.push(
+  {
+    section: RUNIN_SECTION,
+    label: 'Race: the run-in, the last metres of every trip (metres)',
+    value: 15,
+    note: 'Over these last metres every runner slows by the same fraction at the same point on the track, reaching the loss below at the line. Keyed to where a dog is, never to where the others are',
+  },
+  {
+    section: RUNIN_SECTION,
+    label: 'Race: speed lost at the line in the run-in',
+    value: 0.5,
+    note: 'What the fade in fractions (v3b) did to the whole field before A7 made the fade metres: a time gap stays a time gap, and the metres it shows at the line shrink with the speed',
   },
 );
 

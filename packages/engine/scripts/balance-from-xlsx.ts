@@ -199,6 +199,9 @@ const LABELS: Record<string, string> = {
   'Front-runner: lights the pace (1 = yes)': 'styleFrontRunnerLightsPace',
   'Stalker: lights the pace (1 = yes)': 'styleStalkerLightsPace',
   'Closer: lights the pace (1 = yes)': 'styleCloserLightsPace',
+  // Phase C2, §14 Q11: the run-in. The whole field tires into the line, by position, alike.
+  'Race: the run-in, the last metres of every trip (metres)': 'raceRunInMetres',
+  'Race: speed lost at the line in the run-in': 'raceRunInPenalty',
 };
 
 const wb = XLSX.read(readFileSync(xlsxPath));
