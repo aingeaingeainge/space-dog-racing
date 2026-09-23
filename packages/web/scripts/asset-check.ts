@@ -3,13 +3,14 @@
  *
  *   npm run asset-check              (from the repo root)
  *   npm run asset-check -- --all     every entry, not just the interesting ones
- *   npm run asset-check -- --prune   delete the .svg stand-in of anything that now has a .webp
+ *   npm run asset-check -- --prune   delete the stand-in of anything that now has finished art
  *
  * Reads `scripts/assets.ts`, the same list `make-placeholders.ts` writes and
  * `asset-list.ts` publishes, so this cannot drift from the contract. For every entry it
- * answers: is it here as finished `.webp`, still a `.svg` stand-in, or missing altogether;
- * if it is here, what size is it really (parsed out of the WebP header, not trusted from the
- * filename) and does that match the spec; what does it weigh and is that inside its cap.
+ * answers: is it here as finished art (a painted `.webp` or a vector `.svg`), still a
+ * `.placeholder.svg` stand-in, or missing altogether; if it is here, what size is it really
+ * (parsed out of the WebP header or the root `<svg>` tag, not trusted from the filename) and
+ * does that match the spec; what does it weigh and is that inside its cap.
  *
  * The WebP header is parsed here rather than by a library on purpose: the audit must not add a
  * dependency, because `package-lock.json` staying untouched is what keeps Cloudflare's
@@ -38,7 +39,30 @@ interface WebpInfo {
   w: number;
   h: number;
   alpha: boolean;
-  kind: 'lossy' | 'lossless' | 'extended';
+  kind: 'lossy' | 'lossless' | 'extended' | 'svg';
+}
+
+/**
+ * The size a vector file declares on its root tag. `width`/`height` win because that is what
+ * an <img> and a canvas draw at; a bare `viewBox` is the fallback. SVG is always see-through
+ * wherever nothing is painted, so it always counts as having alpha.
+ */
+function readSvg(text: string): WebpInfo | null {
+  const tag = /<svg\b[^>]*>/i.exec(text)?.[0];
+  if (!tag) return null;
+  const attr = (n: string) => new RegExp(`\\s${n}="([^"]*)"`, 'i').exec(tag)?.[1];
+  let w = Number.parseFloat(attr('width') ?? '');
+  let h = Number.parseFloat(attr('height') ?? '');
+  if (!(w > 0 && h > 0)) {
+    const vb = (attr('viewBox') ?? '')
+      .trim()
+      .split(/[\s,]+/)
+      .map(Number);
+    if (vb.length !== 4) return null;
+    w = vb[2]!;
+    h = vb[3]!;
+  }
+  return { w: Math.round(w), h: Math.round(h), alpha: true, kind: 'svg' };
 }
 
 /**
@@ -105,13 +129,15 @@ function readWebp(buf: Buffer): WebpInfo | null {
 
 // ---------------------------------------------------------------- one entry
 
-type StateName = 'webp' | 'placeholder' | 'missing';
+type StateName = 'finished' | 'placeholder' | 'missing';
 
 interface Row {
   spec: AssetSpec;
   state: StateName;
   bytes: number;
-  /** Bytes of the .svg stand-in, present or not. */
+  /** The finished file's name under assets/, when there is one. */
+  file: string;
+  /** Bytes of the .placeholder.svg stand-in, present or not. */
   standInBytes: number;
   info: WebpInfo | null;
   problems: string[];
@@ -130,17 +156,18 @@ function fmtMb(bytes: number): string {
 }
 
 function inspect(spec: AssetSpec): Row {
-  const webp = join(ROOT, `${spec.stem}.webp`);
-  const svg = join(ROOT, `${spec.stem}.svg`);
-  const hasWebp = existsSync(webp);
-  const hasSvg = existsSync(svg);
-  const standInBytes = hasSvg ? statSync(svg).size : 0;
+  const standIn = join(ROOT, `${spec.stem}.placeholder.svg`);
+  const hasStandIn = existsSync(standIn);
+  const standInBytes = hasStandIn ? statSync(standIn).size : 0;
   const problems: string[] = [];
 
-  if (!hasWebp) {
+  // Painted first, then vector — the same order lib/assets.ts resolves in.
+  const file = [`${spec.stem}.webp`, `${spec.stem}.svg`].find((f) => existsSync(join(ROOT, f)));
+  if (!file) {
     return {
       spec,
-      state: hasSvg ? 'placeholder' : 'missing',
+      state: hasStandIn ? 'placeholder' : 'missing',
+      file: `${spec.stem}.webp`,
       bytes: 0,
       standInBytes,
       info: null,
@@ -148,11 +175,13 @@ function inspect(spec: AssetSpec): Row {
     };
   }
 
-  const bytes = statSync(webp).size;
-  const buf = readFileSync(webp);
-  const info = readWebp(buf);
+  const path = join(ROOT, file);
+  const bytes = statSync(path).size;
+  const buf = readFileSync(path);
+  const isSvg = file.endsWith('.svg');
+  const info = isSvg ? readSvg(buf.toString('utf8')) : readWebp(buf);
 
-  if (!info) problems.push('not a readable WebP');
+  if (!info) problems.push(isSvg ? 'no size on its <svg> tag' : 'not a readable WebP');
   else {
     if (info.w !== spec.w || info.h !== spec.h)
       problems.push(`is ${info.w}×${info.h}, spec says ${spec.w}×${spec.h}`);
@@ -160,14 +189,14 @@ function inspect(spec: AssetSpec): Row {
   }
   if (kb(bytes) > spec.capKb) problems.push(`${fmtKb(bytes)} is over its ${spec.capKb} kB cap`);
 
-  return { spec, state: 'webp', bytes, standInBytes, info, problems };
+  return { spec, state: 'finished', file, bytes, standInBytes, info, problems };
 }
 
 // ---------------------------------------------------------------- the run
 
 const groups = GROUPS.map((g) => ({ group: g, rows: g.assets.map(inspect) }));
 const rows = groups.flatMap((g) => g.rows);
-const present = rows.filter((r) => r.state === 'webp');
+const present = rows.filter((r) => r.state === 'finished');
 const placeholders = rows.filter((r) => r.state === 'placeholder');
 const missing = rows.filter((r) => r.state === 'missing');
 const broken = rows.filter((r) => r.problems.length);
@@ -179,13 +208,13 @@ console.log('');
 console.log('Asset check — packages/web/src/assets against scripts/assets.ts');
 console.log('');
 console.log(
-  `${pad('Group', 22)}${num('files', 6)}${num('webp', 6)}${num('stand', 6)}${num('gone', 6)}` +
+  `${pad('Group', 22)}${num('files', 6)}${num('done', 6)}${num('stand', 6)}${num('gone', 6)}` +
     `${num('on disk', 11)}${num('target', 10)}${num('cap', 10)}`,
 );
 console.log('─'.repeat(77));
 
 for (const { group, rows: gr } of groups) {
-  const w = gr.filter((r) => r.state === 'webp');
+  const w = gr.filter((r) => r.state === 'finished');
   const p = gr.filter((r) => r.state === 'placeholder');
   const m = gr.filter((r) => r.state === 'missing');
   const onDisk = w.reduce((n, r) => n + r.bytes, 0);
@@ -217,11 +246,11 @@ if (listed.length) {
   console.log('Finished art on disk');
   console.log('');
   for (const r of listed) {
-    const dims = r.info ? `${r.info.w}×${r.info.h}` : r.state === 'webp' ? '?' : '—';
-    const size = r.state === 'webp' ? fmtKb(r.bytes) : r.state;
-    const head = `  ${pad(`${r.spec.stem}.webp`, 42)}${num(dims, 11)}${num(size, 11)}`;
+    const dims = r.info ? `${r.info.w}×${r.info.h}` : r.state === 'finished' ? '?' : '—';
+    const size = r.state === 'finished' ? fmtKb(r.bytes) : r.state;
+    const head = `  ${pad(r.file, 42)}${num(dims, 11)}${num(size, 11)}`;
     const capNote =
-      r.state === 'webp'
+      r.state === 'finished'
         ? `  ${num(`cap ${r.spec.capKb} kB`, 12)}  ${
             kb(r.bytes) <= r.spec.targetKb
               ? 'inside target'
@@ -240,7 +269,7 @@ if (broken.length) {
   console.log(
     `${broken.length} file${broken.length === 1 ? '' : 's'} the contract disagrees with:`,
   );
-  for (const r of broken) console.log(`  ${r.spec.stem}.webp — ${r.problems.join('; ')}`);
+  for (const r of broken) console.log(`  ${r.file} — ${r.problems.join('; ')}`);
   console.log('');
 }
 
@@ -252,7 +281,7 @@ function weightOf(pred: (r: Row) => boolean): { real: number; standIn: number; m
   let standIn = 0;
   let miss = 0;
   for (const r of rows.filter(pred)) {
-    if (r.state === 'webp') real += r.bytes;
+    if (r.state === 'finished') real += r.bytes;
     else if (r.state === 'placeholder') standIn += r.standInBytes;
     else miss++;
   }
@@ -263,7 +292,7 @@ function weightOf(pred: (r: Row) => boolean): { real: number; standIn: number; m
 function meanOf(groupId: string): number {
   const gr = rows.filter((r) => r.spec.group === groupId);
   if (!gr.length) return 0;
-  const total = gr.reduce((n, r) => n + (r.state === 'webp' ? r.bytes : r.standInBytes), 0);
+  const total = gr.reduce((n, r) => n + (r.state === 'finished' ? r.bytes : r.standInBytes), 0);
   return total / gr.length;
 }
 
@@ -302,7 +331,10 @@ const sizeOfGroup = (id: string): number => {
 const dogKit = sizeOfGroup('bodies') + sizeOfGroup('accessories');
 const runKit = sizeOfGroup('run');
 const uiKit = sizeOfGroup('ui');
-const everything = rows.reduce((n, r) => n + (r.state === 'webp' ? r.bytes : r.standInBytes), 0);
+const everything = rows.reduce(
+  (n, r) => n + (r.state === 'finished' ? r.bytes : r.standInBytes),
+  0,
+);
 
 const bundle = bundleJs + bundleCss;
 const firstPaint = bundle + fonts + backdrop + uiKit;
@@ -344,15 +376,15 @@ console.log('');
 
 const prunable = present.filter((r) => r.standInBytes > 0);
 if (PRUNE) {
-  for (const r of prunable) unlinkSync(join(ROOT, `${r.spec.stem}.svg`));
+  for (const r of prunable) unlinkSync(join(ROOT, `${r.spec.stem}.placeholder.svg`));
   console.log(
     prunable.length
       ? `Deleted ${prunable.length} stand-in${prunable.length === 1 ? '' : 's'} that finished art has replaced.`
-      : 'No stand-ins to delete — every .webp already stands alone.',
+      : 'No stand-ins to delete — every finished file already stands alone.',
   );
 } else if (prunable.length) {
   console.log(
-    `${prunable.length} .svg stand-in${prunable.length === 1 ? '' : 's'} ` +
+    `${prunable.length} .placeholder.svg stand-in${prunable.length === 1 ? '' : 's'} ` +
       `${prunable.length === 1 ? 'is' : 'are'} sitting beside finished art and doing nothing. ` +
       `npm run asset-check -- --prune removes ${prunable.length === 1 ? 'it' : 'them'}.`,
   );

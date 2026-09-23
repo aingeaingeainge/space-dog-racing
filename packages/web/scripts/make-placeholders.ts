@@ -4,18 +4,19 @@
  *   npm run placeholders          (from the repo root)
  *
  * The convention, which is what keeps "obviously unfinished" honest without a manifest to
- * maintain: **a placeholder is a .svg, finished art is a .webp.** lib/assets.ts prefers the
- * .webp, so dropping the real file in takes over immediately and every component that is still
- * showing an .svg stamps PLACEHOLDER on it by itself. Delete the .svg afterwards or leave it;
- * nothing changes either way.
+ * maintain: **a placeholder is `<stem>.placeholder.svg`; finished art is `<stem>.webp` (painted)
+ * or `<stem>.svg` (hand-drawn vector).** lib/assets.ts prefers finished art, so dropping the real
+ * file in takes over immediately and every component that is still showing a stand-in stamps
+ * PLACEHOLDER on it by itself. Delete the stand-in afterwards or leave it; nothing changes
+ * either way.
  *
  * SVG rather than PNG on purpose: a few hundred bytes each instead of a few kilobytes, crisp
  * text at any size, drawable to a canvas like any other image, and no encoder to depend on.
  * The whole set of 149 comes to well under 100 kB, so the placeholders never distort what the
  * real art will cost.
  *
- * Re-running is safe: it only ever writes .svg files, and it never touches a .webp. A slot that
- * already holds finished art is skipped outright rather than given a stand-in it does not need
+ * Re-running is safe: it only ever writes `.placeholder.svg` files, and it never touches a
+ * `.webp` or a finished `.svg`. A slot that already holds finished art is skipped outright rather than given a stand-in it does not need
  * — `npm run asset-check -- --prune` deletes those, and this must not put them back.
  */
 import { mkdirSync, writeFileSync, existsSync } from 'node:fs';
@@ -52,7 +53,7 @@ function svgFor(a: AssetSpec): string {
   lines.push({ t: clip(a.label, Math.floor(w / (big * 0.62))), size: big, fill: a1, weight: 700 });
   if (!small && !short) {
     lines.push({ t: clip(a.what, perLine), size: mid, fill: '#cfc9de', weight: 400 });
-    lines.push({ t: `${a.stem}.webp`, size: mid, fill: '#8f8aa3', weight: 400 });
+    lines.push({ t: `${a.stem}.webp / .svg`, size: mid, fill: '#8f8aa3', weight: 400 });
     lines.push({
       t: `${w} × ${h} · ${a.targetKb} kB target`,
       size: mid,
@@ -114,9 +115,9 @@ let written = 0;
 let skipped = 0;
 let bytes = 0;
 for (const a of ASSETS) {
-  const target = join(ROOT, `${a.stem}.svg`);
-  const finished = join(ROOT, `${a.stem}.webp`);
-  if (existsSync(finished)) {
+  const target = join(ROOT, `${a.stem}.placeholder.svg`);
+  const finished = [`${a.stem}.webp`, `${a.stem}.svg`].map((f) => join(ROOT, f));
+  if (finished.some((f) => existsSync(f))) {
     skipped++;
     continue;
   }
@@ -133,5 +134,5 @@ console.log(
 );
 if (skipped)
   console.log(
-    `${skipped} slot${skipped === 1 ? '' : 's'} skipped — finished .webp art is already there.`,
+    `${skipped} slot${skipped === 1 ? '' : 's'} skipped — finished art is already there.`,
   );

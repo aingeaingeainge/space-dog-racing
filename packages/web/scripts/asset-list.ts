@@ -32,7 +32,7 @@ function assetHeading(a: AssetSpec): string {
   }
   extras.push(`seeds ${a.seeds}`);
   return (
-    `#### ${a.label} — \`src/assets/${a.stem}.webp\`\n\n` +
+    `#### ${a.label} — \`src/assets/${a.stem}.webp\` (or \`.svg\`)\n\n` +
     `${extras.join(' · ')}\n\n` +
     '```text\n' +
     `${a.prompt}\n` +
@@ -69,19 +69,23 @@ push();
 push('## How dropping art in works');
 push();
 push(
-  '1. Generate the image to the size in its entry and save it as **WebP** at exactly the path ' +
-    'given, under `packages/web/src/assets/`.',
+  '1. Make the image to the size in its entry and save it at exactly the path given, under ' +
+    '`packages/web/src/assets/` — as **WebP** if it is painted, or as **SVG** (same stem, ' +
+    '`.svg`, with `width`/`height` on the root tag set to the entry size) if it is drawn in ' +
+    'vector.',
 );
 push(
   '2. That is all. Vite picks it up through a glob, fingerprints it into `dist/assets/`, and ' +
     'the game uses it on the next build. No code change, no import to add, no list to update.',
 );
 push(
-  '3. **Placeholders are `.svg`, finished art is `.webp`.** `npm run placeholders` writes a ' +
-    'labelled stand-in for every entry below. The resolver in `src/lib/assets.ts` prefers the ' +
-    '`.webp`, so the moment yours lands it takes over — and every component that is still ' +
-    'showing an `.svg` stamps PLACEHOLDER on itself, which disappears by itself when you ' +
-    'replace it. Delete the `.svg` afterwards or leave it; nothing changes either way.',
+  '3. **Placeholders are `.placeholder.svg`; finished art is `.webp` or `.svg`.** ' +
+    '`npm run placeholders` writes a labelled stand-in for every entry below. The resolver in ' +
+    '`src/lib/assets.ts` prefers `.webp`, then `.svg`, then the stand-in, so the moment yours ' +
+    'lands it takes over — and every component that is still showing a stand-in stamps ' +
+    'PLACEHOLDER on itself, which disappears by itself when you replace it. Delete the ' +
+    '`.placeholder.svg` afterwards (`npm run asset-check -- --prune`) or leave it; nothing ' +
+    'changes either way.',
 );
 push(
   '4. Nothing is ever missing enough to break a screen. A hub with no backdrop still paints its ' +

@@ -8,10 +8,12 @@ import type { Id } from '@sdr/engine';
  * hand-written path that a rename could silently break.
  *
  * The placeholder convention, which is what makes "obviously unfinished" work without a
- * manifest to maintain: **placeholders are `.svg`, finished art is `.webp`.** The resolver
- * prefers `.webp`, so dropping the real file in takes over immediately, and anything still
- * showing an `.svg` is stamped PLACEHOLDER by whichever component drew it. Delete the `.svg`
- * once the `.webp` is in and nothing changes. See design/ASSET_LIST.md.
+ * manifest to maintain: **a placeholder is `<stem>.placeholder.svg`; finished art is
+ * `<stem>.webp` (painted) or `<stem>.svg` (hand-drawn vector).** The resolver prefers `.webp`,
+ * then `.svg`, then the stand-in, so dropping either kind of real file in takes over
+ * immediately, and anything still showing a `.placeholder.svg` is stamped PLACEHOLDER by
+ * whichever component drew it. Delete the stand-in once the real file is in and nothing
+ * changes. See design/ASSET_LIST.md.
  */
 
 type UrlMap = Record<string, string>;
@@ -52,12 +54,17 @@ export interface Art {
   placeholder: boolean;
 }
 
-/** Finished art wins over a placeholder; nothing at all is null, and the caller draws chrome. */
+/**
+ * Finished art wins over a placeholder — painted `.webp` first, then vector `.svg` — and
+ * nothing at all is null, so the caller draws chrome.
+ */
 function resolve(map: UrlMap, stem: string): Art | null {
   const webp = map[`${stem}.webp`];
   if (webp) return { url: webp, placeholder: false };
   const svg = map[`${stem}.svg`];
-  if (svg) return { url: svg, placeholder: true };
+  if (svg) return { url: svg, placeholder: false };
+  const standIn = map[`${stem}.placeholder.svg`];
+  if (standIn) return { url: standIn, placeholder: true };
   return null;
 }
 
