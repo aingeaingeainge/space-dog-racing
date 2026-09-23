@@ -1,4 +1,5 @@
 import { balance } from '../content/balance';
+import { planetOf } from '../content/planets';
 import { emptyPlanetState } from '../economy/dogs';
 import { rollGoodPrices } from '../economy/food';
 import { cargoTotal, HOLD_CAP } from '../economy/goods';
@@ -38,8 +39,20 @@ export function runArrival(ctx: Ctx): void {
   // and with them every rng draw they made — which is why this commit's golden season diverges
   // from v2e's at week 1 rather than at the first purchase.
   const ps = emptyPlanetState(planet.id);
-  ps.goods = rollGoodPrices(planet, rng);
+  // ⚠️ **Rolled a week early since Phase D1** (GDD_V3 §9.4): a Bar card sells next week's band
+  // position, so next week's prices have to exist now. Week 1 rolls its own and week 2's; every later
+  // week rolls one — the next — and posts the one it was handed. The fog is who may *read* them.
+  const next = s.calendar[s.week];
+  ps.goods =
+    s.nextPlanet && s.nextPlanet.planetId === planet.id
+      ? s.nextPlanet.goods
+      : rollGoodPrices(planet, rng);
   s.planet = ps;
+  if (next) {
+    const ahead = emptyPlanetState(next.planetId);
+    ahead.goods = rollGoodPrices(planetOf(next.planetId), rng);
+    s.nextPlanet = ahead;
+  } else s.nextPlanet = null;
   s.declarations = emptyDeclarations();
   s.locked = false;
   s.fields = null;

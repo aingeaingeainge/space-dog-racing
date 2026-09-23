@@ -326,6 +326,7 @@ export function createSeason(setup: SeasonSetup): GameState {
     races: null,
     pendingEvent: null,
     explore: null,
+    nextPlanet: null,
     conditions: [],
     bets: [],
     results: [],
@@ -365,6 +366,7 @@ export function createSeason(setup: SeasonSetup): GameState {
       },
       sponsorWeeks: 0,
       dealtGone: [],
+      intel: { week: 0, goods: [] },
       stats: {
         prizeIncome: 0,
         tradeIncome: 0,

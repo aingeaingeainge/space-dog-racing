@@ -577,7 +577,17 @@ function sell(plan: Plan, id: GoodId, units: number): void {
  */
 function expectedSellNext(plan: Plan, id: GoodId): number | null {
   const next = planetAhead(plan.s, 1);
-  return next ? expectedPrice(next, id) * (1 - balance.foodSpread) : null;
+  if (!next) return null;
+  // A Bar tip (GDD_V3 §9.4): this stable was told next week's price for this good, so it trades on
+  // the number rather than the map. Nobody without the tip reads `nextPlanet`.
+  const known = intelPrice(plan.s, plan.p, id);
+  return known ?? expectedPrice(next, id) * (1 - balance.foodSpread);
+}
+
+/** Next week's sell price for a good, if a Bar card told this stable; otherwise null (the fog). */
+export function intelPrice(s: GameState, p: Player, id: GoodId): number | null {
+  if (p.intel.week !== s.week + 1 || !p.intel.goods.includes(id) || !s.nextPlanet) return null;
+  return s.nextPlanet.goods[id].sell;
 }
 
 /**

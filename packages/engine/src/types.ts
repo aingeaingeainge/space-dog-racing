@@ -367,6 +367,11 @@ export interface Player {
    * elimination sound once a stable no longer holds the three it was dealt (decision C4's caveat).
    */
   dealtGone: (StyleId | null)[];
+  /**
+   * What a Bar card told this stable about next week's shelf (GDD_V3 §9.4): the goods whose price at
+   * `week` it knows. Stale once `week` has passed.
+   */
+  intel: { week: number; goods: GoodId[] };
   fanClubDogId?: Id;
   stats: PlayerSeasonStats;
 }
@@ -602,6 +607,12 @@ export interface GameState {
   pendingEvent: PendingEvent | null;
   /** This week's Explore; null before the first arrival. */
   explore: ExploreState | null;
+  /**
+   * Next week's market, rolled a week early (GDD_V3 §9.4, Phase D1 item 5) so that a Bar card has
+   * something true to sell. **It is the fog**: nothing reads it but a stable holding `intel` for it,
+   * and next week's arrival posts exactly this. Null past the Grand Final.
+   */
+  nextPlanet: PlanetState | null;
   /** This weekend's race-day conditions (Phase D1 item 6). Drawn at arrival; cleared at the jump. */
   conditions: RaceDayCondition[];
   bets: Bet[];

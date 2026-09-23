@@ -213,3 +213,40 @@ export const giveTip = (ctx: EventCtx): void => {
   const whose = owner?.id === ctx.p.id ? 'your own' : `${owner?.name ?? 'somebody'}’s`;
   ctx.log(`The whisper: ${d.name} — ${whose} dog — ${CONDITION_BY_ID[c.condition].tip}.`);
 };
+
+/**
+ * Next week's shelf (GDD_V3 §9.4): tell this stable where these goods will sit in their band at next
+ * week's planet, and what they will sell for. It is the only way through the fog, and it is true.
+ */
+export const giveIntel = (ctx: EventCtx, goods: readonly GoodId[]): void => {
+  const next = ctx.s.nextPlanet;
+  if (!next) return;
+  const week = ctx.s.week + 1;
+  const known = ctx.p.intel.week === week ? ctx.p.intel.goods : [];
+  ctx.p.intel = { week, goods: GOOD_IDS.filter((id) => known.includes(id) || goods.includes(id)) };
+  const where = (pos: number) =>
+    pos < 0.25
+      ? 'cheap'
+      : pos < 0.45
+        ? 'below the middle'
+        : pos <= 0.55
+          ? 'middling'
+          : pos <= 0.75
+            ? 'above the middle'
+            : 'dear';
+  const said = goods.map((id) => {
+    const g = good(id);
+    const m = next.goods[id];
+    const pos = (m.buy - g.floor) / (g.ceiling - g.floor);
+    return `${g.label} ${where(pos)} (${Math.round(pos * 100)}% up its band, sells at ${m.sell})`;
+  });
+  ctx.log(`Next week's shelf: ${said.join('; ')}.`);
+};
+
+/** Pick `n` goods with the stable's own stream, cheapest first in the answer. */
+export const rollGoods = (rng: Rng, n: number): string =>
+  rng
+    .shuffle([...GOOD_IDS])
+    .slice(0, n)
+    .sort((a, b) => GOOD_IDS.indexOf(a) - GOOD_IDS.indexOf(b))
+    .join(',');

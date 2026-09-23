@@ -16,12 +16,14 @@ import {
   rollDog,
   spend,
   statBy,
+  giveIntel,
   giveTip,
+  rollGoods,
   rollTip,
   type EventCard,
 } from '../eventKit';
 import { weakestStat } from '../../economy/dogValue';
-import type { Dog } from '../../types';
+import { GOOD_IDS, type Dog, type GoodId } from '../../types';
 
 export const BAR: readonly EventCard[] = [
   {
@@ -295,5 +297,65 @@ export const BAR: readonly EventCard[] = [
       { label: 'Not today', apply: (ctx) => ctx.log('The feed merchant goes back to his cart.') },
     ],
     aiChoice: (ctx) => (ctx.p.cash > 320 ? 0 : 1),
+  },
+
+  // ---- Next week's shelf (GDD_V3 §9.4, Phase D1 item 5): the only way through the fog. ----
+  {
+    id: 'freightClerk',
+    name: 'The freight clerk',
+    text: 'A freight clerk has next week’s price sheets for the planet you are flying to — every good, every shelf. He will read them to you for 300. He will not write them down.',
+    weight: 5,
+    kind: 'choice',
+    category: 'bar',
+    roll: (ctx) => (ctx.s.nextPlanet ? {} : null),
+    choices: [
+      {
+        label: 'Pay him to read (−300)',
+        apply: (ctx) => {
+          if (spend(ctx, 300)) giveIntel(ctx, GOOD_IDS);
+        },
+      },
+      { label: 'You like surprises', apply: (ctx) => ctx.log('The clerk folds his sheets away.') },
+    ],
+    // Worth it to a stable with money to trade: that is who the next shelf matters to.
+    aiChoice: (ctx) => (ctx.p.cash > 3000 ? 0 : 1),
+  },
+  {
+    id: 'dockers',
+    name: 'Dockers on their break',
+    text: 'Two dockers are arguing about what next week’s planet is paying for food. They have both just come from there. They do not mind you listening if you buy the round.',
+    weight: 5,
+    kind: 'choice',
+    category: 'bar',
+    roll: (ctx) => (ctx.s.nextPlanet ? { goods: rollGoods(ctx.rng, 2) } : null),
+    choices: [
+      {
+        label: 'Buy the round (−60)',
+        apply: (ctx) => {
+          if (spend(ctx, 60)) giveIntel(ctx, String(ctx.params.goods).split(',') as GoodId[]);
+        },
+      },
+      { label: 'Drink up and go', apply: (ctx) => ctx.log('You leave the dockers to it.') },
+    ],
+    aiChoice: (ctx) => (ctx.p.cash > 500 ? 0 : 1),
+  },
+  {
+    id: 'commodityMan',
+    name: 'A man with a price board',
+    text: 'A commodities man in a velvet jacket has a little chalk board of next week’s prices. He will rub out all but three and let you look. 150.',
+    weight: 4,
+    kind: 'choice',
+    category: 'bar',
+    roll: (ctx) => (ctx.s.nextPlanet ? { goods: rollGoods(ctx.rng, 3) } : null),
+    choices: [
+      {
+        label: 'Look at the board (−150)',
+        apply: (ctx) => {
+          if (spend(ctx, 150)) giveIntel(ctx, String(ctx.params.goods).split(',') as GoodId[]);
+        },
+      },
+      { label: 'Walk on', apply: (ctx) => ctx.log('He rubs out the board.') },
+    ],
+    aiChoice: (ctx) => (ctx.p.cash > 1500 ? 0 : 1),
   },
 ];
