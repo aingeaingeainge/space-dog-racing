@@ -325,7 +325,7 @@ export function createSeason(setup: SeasonSetup): GameState {
     fields: null,
     races: null,
     pendingEvent: null,
-    eventQueue: [],
+    explore: null,
     bets: [],
     results: [],
     eventLog: [],
@@ -359,6 +359,7 @@ export function createSeason(setup: SeasonSetup): GameState {
       paid: emptyCargo(),
       flags: {
         arriveFirstNextWeek: false,
+        arriveLastNextWeek: false,
         tipOff: false,
       },
       sponsorWeeks: 0,

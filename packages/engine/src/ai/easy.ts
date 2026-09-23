@@ -1,3 +1,4 @@
+import { exploreStep } from './explore';
 import { eligible, player, thisWeeksCard } from '../state';
 import type { Action, GameState, Id } from '../types';
 import { STAPLE_ID } from '../content/goods';
@@ -33,7 +34,9 @@ const EASY_REST_BELOW = 40;
  */
 export function decideEasy(s: GameState, playerId: Id): Action[] {
   const p = player(s, playerId);
-  if (s.pendingEvent?.playerId === playerId) return [{ t: 'ResolveEvent', playerId, choice: 0 }];
+  // Explore (GDD_V3 §9.1): open a door, answer the card. Easy picks by the hash alone.
+  const explore = exploreStep(s, playerId, false);
+  if (explore) return explore;
   if (s.activePlayer !== playerId) return [];
 
   const plan = startPlan(s, playerId);

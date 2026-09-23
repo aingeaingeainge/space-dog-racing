@@ -656,7 +656,7 @@ export function playSeason(
   let shelfWeek = 0;
   while (!isSeasonOver(s) && guard++ < 200_000) {
     // The shelf as the planet posts it: the first look at a new week, before anybody has traded.
-    if (shelfWeek !== s.week && (s.phase === 'events' || s.phase === 'planetPre')) {
+    if (shelfWeek !== s.week && (s.phase === 'explore' || s.phase === 'planetPre')) {
       shelfWeek = s.week;
       for (const g of GOODS) {
         const list = sample.shelfAtArrival.get(g.id) ?? [];

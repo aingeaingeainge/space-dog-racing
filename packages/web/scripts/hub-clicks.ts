@@ -26,6 +26,7 @@
  * "worth a walk" answers, so the player has to actually spend for the number to mean anything.
  */
 import {
+  aiChoiceFor,
   balance,
   cargoTotal,
   HOLD_CAP,
@@ -191,8 +192,15 @@ function playSeason(seed: number, tally: Tally): void {
       ui.passAck = me.id;
       continue;
     }
+    if (state.phase === 'explore' && !state.pendingEvent && state.activePlayer === me.id) {
+      const applied = applyActions(state, [{ t: 'ChooseDoor', playerId: me.id, door: 0 }]);
+      state = applied.state;
+      log.push(...applied.added);
+      continue;
+    }
     if (state.pendingEvent && state.pendingEvent.playerId === me.id) {
-      const applied = applyActions(state, [{ t: 'ResolveEvent', playerId: me.id, choice: 0 }]);
+      const choice = aiChoiceFor(state, me.id);
+      const applied = applyActions(state, [{ t: 'ResolveEvent', playerId: me.id, choice }]);
       state = applied.state;
       log.push(...applied.added);
       continue;

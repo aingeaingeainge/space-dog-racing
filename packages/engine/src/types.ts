@@ -131,7 +131,7 @@ export type AiAgent = Difficulty;
 
 export type Phase =
   | 'arrival' // system: roll turn order, planet stock and food prices
-  | 'events' // each player draws one event; choice events pause for that player
+  | 'explore' // in turn order, each stable picks one of the planet's three doors (GDD_V3 §9.1)
   | 'planetPre' // in turn order: market, kennels, race office (declarations)
   | 'betting' // declarations are locked and public; in turn order players may bet
   | 'race' // system: simulate the card in order; pay purses; settle bets
@@ -165,6 +165,37 @@ export interface PlanetSpecial {
   piratesLikely?: boolean; // The Drift
 }
 
+/**
+ * GDD_V3 §9.1's five places a stable can poke around: where everything unpredictable comes from.
+ *
+ * - **pound** — dogs: offers, strays, a vet who shortens a layoff;
+ * - **bar** — people and talk: price tips, race-day whispers, rumours;
+ * - **alley** — trouble: stolen food, shakedowns, whispers bought rather than overheard;
+ * - **strip** — money and food: sponsors, card games, fines, free crates;
+ * - **track** — racing: trials, gallops, a private match.
+ *
+ * Canonical order: the order a harness table prints and a screen legends them.
+ */
+export type DoorCategory = 'pound' | 'bar' | 'alley' | 'strip' | 'track';
+export const DOOR_CATEGORIES: readonly DoorCategory[] = [
+  'pound',
+  'bar',
+  'alley',
+  'strip',
+  'track',
+] as const;
+
+/**
+ * One of a planet's three Explore doors (GDD_V3 §9.1, §12): a name in the planet's own voice, the
+ * category behind it, and one line under the name. Holy Bark's Back Alley is not "the Back Alley",
+ * it is the Confessional. **A door is a row**, and what it opens onto is its category's deck.
+ */
+export interface ExploreDoor {
+  name: string;
+  category: DoorCategory;
+  blurb: string;
+}
+
 export interface Planet {
   id: Id;
   name: string;
@@ -185,6 +216,12 @@ export interface Planet {
   foodBand: Record<GoodId, number>;
   special: PlanetSpecial;
   accents: [string, string];
+  /**
+   * The three places a stable can poke around here (GDD_V3 §9.1, §12) — **where planet character
+   * lives in v3**, now the market variation, the ship shop and the staff hall are gone. Three
+   * different categories, never two of one.
+   */
+  exploreDoors: [ExploreDoor, ExploreDoor, ExploreDoor];
 }
 
 export type TraitId =
@@ -313,6 +350,8 @@ export interface Player {
   paid: Cargo;
   flags: {
     arriveFirstNextWeek: boolean;
+    /** A fried navicomp (the Solar flare card): lands last next week, whatever the score. */
+    arriveLastNextWeek: boolean;
     tipOff: boolean; // a local runner is not trying this week
   };
   sponsorWeeks: number; // Glorbo's Meat Paste: dogs eat double
@@ -447,6 +486,36 @@ export interface PendingEvent {
   /** Data rolled when the card was drawn (which dog, how much) so the choice is well defined. */
   params: Record<string, number | string>;
   choices: string[];
+  /** Which of the planet's three doors it came from (GDD_V3 §9.1). */
+  door: number;
+  /**
+   * The stable's own Explore stream, as it stood after the card was rolled. The choice's effect
+   * continues it, so what a stable picks never touches the draws anybody else gets (decision D1).
+   */
+  rng: number;
+}
+
+/**
+ * This weekend's Explore (GDD_V3 §9.1).
+ *
+ * ⚠️ **Every stable explores on its own stream, seeded at arrival** (decision D1). One draw from the
+ * game's stream per stable, made at arrival in seating order before anybody has picked, so the
+ * main stream never depends on which door anybody opens, what the card behind it was, or what they
+ * chose — and a stable's own draws never depend on anybody else's door.
+ */
+export interface ExploreState {
+  /** Each stable's Explore stream seed for the week. */
+  seeds: Record<Id, number>;
+  /** The door each stable opened (0–2), once it has. */
+  picks: Record<Id, number>;
+  /** What was behind it, once drawn: the card id, or '' if the door was empty. */
+  cards: Record<Id, Id>;
+  /**
+   * Cards that are one of a kind on a planet-week (a particular dog in the Pound) and have been
+   * drawn. Contention is resolved in turn order: the first stable through the door gets it and the
+   * next draws something else (§2.3 step 2).
+   */
+  taken: Id[];
 }
 
 export interface LogLine {
@@ -494,7 +563,8 @@ export interface GameState {
   fields: RaceField[] | null;
   races: RaceResult[] | null;
   pendingEvent: PendingEvent | null;
-  eventQueue: Id[]; // players still to draw an event this week
+  /** This week's Explore; null before the first arrival. */
+  explore: ExploreState | null;
   bets: Bet[];
   results: RaceResult[]; // all past races (tick logs pruned)
   eventLog: LogLine[];
@@ -534,6 +604,8 @@ export type Action =
    * save file and the replay protocol.
    */
   | { t: 'SetDogState'; playerId: Id; dogId: Id; state: WeekState; diet?: Diet }
+  /** Open one of the planet's three doors (GDD_V3 §9.1). Once a weekend, in turn order. */
+  | { t: 'ChooseDoor'; playerId: Id; door: number }
   | { t: 'ResolveEvent'; playerId: Id; choice: number }
   | { t: 'EndPhase'; playerId: Id }
   | { t: 'AdvancePhase' }; // system

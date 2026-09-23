@@ -271,6 +271,7 @@ function playSeason(seed: number, toggles?: SeasonSetup['toggles']) {
     TradeFood: 0,
     SetDogState: 0,
     ResolveEvent: 0,
+    ChooseDoor: 0,
   };
   const screens: Record<string, number> = {};
 
@@ -321,7 +322,11 @@ function playSeason(seed: number, toggles?: SeasonSetup['toggles']) {
       continue;
     }
     let actions: Action[];
-    if (state.pendingEvent && state.pendingEvent.playerId === me.id) {
+    if (state.phase === 'explore' && !state.pendingEvent && state.activePlayer === me.id) {
+      // GDD_V3 §9.1: a door a week, walked round all three so every category gets opened.
+      actions = [{ t: 'ChooseDoor', playerId: me.id, door: state.week % 3 }];
+      bump(tally, 'ChooseDoor');
+    } else if (state.pendingEvent && state.pendingEvent.playerId === me.id) {
       actions = [
         {
           t: 'ResolveEvent',

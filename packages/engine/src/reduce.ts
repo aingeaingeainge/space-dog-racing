@@ -1,7 +1,7 @@
 import { settleHold } from './economy/goods';
 import { runArrival } from './phases/arrival';
 import { runEndTurn } from './phases/endTurn';
-import { resolveEvent } from './phases/events';
+import { chooseDoor, resolveEvent } from './phases/explore';
 import { declare, placeBet, setDogState, tradeFood } from './phases/planet';
 import { lockDeclarations, runRaces } from './phases/raceDay';
 import { endPhaseFor } from './phases/turn';
@@ -44,12 +44,16 @@ export function reduceMut(s: GameState, action: Action): GameState {
       break;
     case 'EndPhase': {
       if (s.pendingEvent) throw new ActionError('Resolve your event first', action);
+      if (s.phase === 'explore') throw new ActionError('Pick a door first', action);
       if (s.activePlayer !== action.playerId)
         throw new ActionError(`It is not ${action.playerId}'s turn`, action);
       player(s, action.playerId);
       endPhaseFor(s, action.playerId);
       break;
     }
+    case 'ChooseDoor':
+      chooseDoor(ctx, action);
+      break;
     case 'ResolveEvent':
       resolveEvent(ctx, action.playerId, action.choice);
       break;

@@ -22,7 +22,7 @@ import {
 
 export const PHASE_LABEL: Record<Phase, string> = {
   arrival: 'Arrival',
-  events: 'Events',
+  explore: 'Explore',
   planetPre: 'Planet — before the races',
   betting: 'Declarations locked',
   race: 'Race day',
@@ -34,7 +34,7 @@ export const PHASE_LABEL: Record<Phase, string> = {
 /** GDD §4.2 in order, for the phase strip on the hub. */
 export const PHASE_ORDER: Phase[] = [
   'arrival',
-  'events',
+  'explore',
   'planetPre',
   'betting',
   'race',

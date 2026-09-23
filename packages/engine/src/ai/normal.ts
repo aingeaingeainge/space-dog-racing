@@ -1,3 +1,4 @@
+import { exploreStep } from './explore';
 import { player } from '../state';
 import type { Action, GameState, Id } from '../types';
 import {
@@ -36,7 +37,9 @@ const NORMAL_STATES = { raceAbove: 65 } as const;
  */
 export function decideNormal(s: GameState, playerId: Id): Action[] {
   player(s, playerId);
-  if (s.pendingEvent?.playerId === playerId) return [{ t: 'ResolveEvent', playerId, choice: 0 }];
+  // Explore (GDD_V3 §9.1): open a door, answer the card.
+  const explore = exploreStep(s, playerId);
+  if (explore) return explore;
   if (s.activePlayer !== playerId) return [];
 
   const plan = startPlan(s, playerId);

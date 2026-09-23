@@ -1,3 +1,4 @@
+import { exploreStep } from './explore';
 import { balance } from '../content/balance';
 import { decimalOdds, placeProbabilities, styleEdge, winProbabilities } from '../race/odds';
 import { publicStyle } from '../content/styles';
@@ -58,7 +59,9 @@ const HARD_STATES: StateOptions = { raceAbove: 58 };
  */
 export function decideHard(s: GameState, playerId: Id): Action[] {
   player(s, playerId);
-  if (s.pendingEvent?.playerId === playerId) return [{ t: 'ResolveEvent', playerId, choice: 0 }];
+  // Explore (GDD_V3 §9.1): open a door, answer the card.
+  const explore = exploreStep(s, playerId);
+  if (explore) return explore;
   if (s.activePlayer !== playerId) return [];
 
   const plan = startPlan(s, playerId);

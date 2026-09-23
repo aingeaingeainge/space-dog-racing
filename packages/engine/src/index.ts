@@ -21,5 +21,7 @@ export {
 export { feedsFor, GOODS, GOOD_BY_ID, good, STAPLE_ID, type Good } from './content/goods';
 export { TRAITS, TRAIT_BY_ID } from './content/traits';
 export { publicStyle, STYLES, STYLE_BY_ID } from './content/styles';
-export { EVENTS, EVENT_BY_ID } from './content/events';
+export { EVENTS, EVENT_BY_ID, type EventCard } from './content/events';
+export { aiChoiceFor, deckFor } from './phases/explore';
+export { doorWeights, pickDoor } from './ai/explore';
 export * from './content/names';

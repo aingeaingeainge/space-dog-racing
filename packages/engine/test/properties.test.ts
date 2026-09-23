@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  aiChoiceFor,
   balance,
   createSeason,
   decide,
@@ -195,6 +196,21 @@ function playChecked(seed: number, players: number): GameState {
   return s;
 }
 
+/**
+ * Walk a one-human season through this week's Explore (GDD_V3 §9.1, v3 Phase D1): open the first
+ * door and answer whatever is behind it as a Normal AI would. It replaced the arrival draw's
+ * `while (s.pendingEvent) ResolveEvent(0)`, which could now mean "swap your first dog".
+ */
+function explorePast(s: GameState): void {
+  let guard = 0;
+  while ((s.phase === 'explore' || s.pendingEvent) && guard++ < 20) {
+    const who = s.pendingEvent?.playerId ?? s.activePlayer!;
+    if (s.pendingEvent)
+      reduceMut(s, { t: 'ResolveEvent', playerId: who, choice: aiChoiceFor(s, who) });
+    else reduceMut(s, { t: 'ChooseDoor', playerId: who, door: 0 });
+  }
+}
+
 describe('engine invariants', () => {
   it('hold after every action across 12 seasons of 3–8 stables', () => {
     for (let seed = 100; seed < 112; seed++) playChecked(seed, 3 + (seed % 6));
@@ -214,14 +230,16 @@ describe('engine invariants', () => {
     expect(() =>
       reduceMut(s, { t: 'HireStaff', playerId: 'p1', staffId: 'nope' } as unknown as Action),
     ).toThrow(/different version/);
-    reduceMut(s, { t: 'AdvancePhase' }); // arrival + events; p1 is human so the season waits
-    expect(['events', 'planetPre']).toContain(s.phase);
+    reduceMut(s, { t: 'AdvancePhase' }); // arrival + Explore; p1 is human so the season waits
+    // v3 Phase D1: the arrival draw is gone and Explore waits for a door (GDD_V3 §9.1).
+    expect(['explore', 'planetPre']).toContain(s.phase);
+    expect(() => reduceMut(s, { t: 'EndPhase', playerId: s.activePlayer ?? 'p1' })).toThrow();
   });
 
   it('never lets a purchase take cash below zero', () => {
     const s = createSeason({ seed: 3, players: [{ name: 'A', kind: 'human' }] });
     reduceMut(s, { t: 'AdvancePhase' });
-    while (s.pendingEvent) reduceMut(s, { t: 'ResolveEvent', playerId: 'p1', choice: 0 });
+    explorePast(s);
     const p = player(s, 'p1');
     expect(() =>
       reduceMut(s, { t: 'TradeFood', playerId: 'p1', good: STAPLE_ID, units: 1000 }),
@@ -274,7 +292,7 @@ describe('engine invariants', () => {
     const toJump = (sellTheHold: boolean) => {
       const s = createSeason({ seed: 7, players: [{ name: 'A', kind: 'human' }] });
       reduceMut(s, { t: 'AdvancePhase' });
-      while (s.pendingEvent) reduceMut(s, { t: 'ResolveEvent', playerId: 'p1', choice: 0 });
+      explorePast(s);
       const p = player(s, 'p1');
       for (const id of GOOD_IDS) {
         if (sellTheHold && p.cargo[id] > 0)

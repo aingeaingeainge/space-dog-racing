@@ -7,7 +7,7 @@ import { cargoTotal, emptyHold, recordPurchase, spoilCargo, HOLD_CAP } from '../
 import { describeTaste } from '../economy/food';
 import { winProbAgainst } from '../race/odds';
 import { clamp, type Rng } from '../rng';
-import type { Dog, GameState, GoodId, Id, Planet, Player, StatKey } from '../types';
+import type { DoorCategory, Dog, GameState, GoodId, Id, Planet, Player, StatKey } from '../types';
 import { GOOD_IDS, STAT_KEYS } from '../types';
 
 export type EventParams = Record<string, number | string>;
@@ -31,7 +31,15 @@ export interface EventCard {
   id: Id;
   name: string;
   text: string;
+  /** Relative weight inside its category's deck (GDD_V3 §9.1). */
   weight: number;
+  /** Which door it lives behind (GDD_V3 §9.1). Every card is behind exactly one kind of door. */
+  category: DoorCategory;
+  /**
+   * One of a kind on a planet-week — a particular dog in a particular pen. Once a stable has drawn
+   * it, nobody later in the turn order can (§2.3 step 2's contention, resolved in turn order).
+   */
+  unique?: boolean;
   /** 'flavour' | 'choice' | 'swing' — swings are excluded by the Casual events toggle. */
   kind: 'flavour' | 'choice' | 'swing';
   /** Planet ids where this card is more likely; the weight is multiplied by `planetBoost`. */
@@ -40,6 +48,12 @@ export interface EventCard {
   /** Return rolled parameters, or null if the card cannot apply to this player right now. */
   roll?: (ctx: Omit<EventCtx, 'params' | 'log'>) => EventParams | null;
   choices: EventChoice[];
+  /**
+   * What the buttons say for this stable, when that depends on the stable — a Pound card that asks
+   * which of your dogs to let go names them. Defaults to each choice's `label`; must return one label
+   * per choice, in order.
+   */
+  labels?: (ctx: EventCtx) => string[];
   /** Which choice a Normal AI takes (default 0). */
   aiChoice?: (ctx: EventCtx) => number;
 }
@@ -86,6 +100,7 @@ export const EVENTS: readonly EventCard[] = [
     text: 'Customs officers with very shiny boots take an interest in your cargo.',
     weight: 5,
     kind: 'choice',
+    category: 'alley',
     roll: (ctx) => (crates(ctx) > 0 ? { cargo: crates(ctx) } : null),
     choices: [
       {
@@ -113,6 +128,7 @@ export const EVENTS: readonly EventCard[] = [
     text: "Glorbo's Meat Paste offers 1,500 Bones if your dogs wear the logo — and eat the paste — for two weeks.",
     weight: 4,
     kind: 'choice',
+    category: 'strip',
     choices: [
       {
         label: 'Take the money (+1,500; dogs eat double for 2 weeks)',
@@ -131,6 +147,7 @@ export const EVENTS: readonly EventCard[] = [
     text: 'A rattling cough goes round the kennels.',
     weight: 6,
     kind: 'flavour',
+    category: 'pound',
     roll: (ctx) => {
       const d = randomDog(ctx);
       return d ? { dogId: d.id } : null;
@@ -153,19 +170,34 @@ export const EVENTS: readonly EventCard[] = [
   {
     id: 'solarFlare',
     name: 'Solar flare',
-    text: 'A solar flare scrambles every ship’s approach. Turn order is rerolled.',
+    text: 'A flare sweeps the paddock while you are out on the gallops, and it fries your navicomp. A tech in the stands says he can fix it for 300.',
     weight: 3,
-    kind: 'flavour',
+    kind: 'choice',
+    category: 'track',
+    // ⚠️ **It used to reshuffle the whole table's turn order on arrival**, which was harmless while
+    // every stable drew its card in a queue. Explore walks the turn order itself, so a shuffle in the
+    // middle of it would skip or repeat a stable. The flare now fries one ship: this stable lands
+    // last next week unless it pays (Phase D1).
     choices: [
       {
-        label: 'Hold on',
+        label: 'Pay the tech (−300)',
         apply: (ctx) => {
-          ctx.rng.shuffle(ctx.s.turnOrder);
-          for (const id of ctx.s.turnOrder) ctx.s.turnOrderReason[id] = 'solar flare';
-          ctx.log('Turn order rerolled by a solar flare.');
+          ctx.p.cash -= 300;
+          ctx.p.stats.costs += 300;
+          ctx.log('The tech fixes the navicomp with a hairpin (−300).');
+        },
+      },
+      {
+        label: 'Fly on it anyway (land last next week)',
+        apply: (ctx) => {
+          ctx.p.flags.arriveLastNextWeek = true;
+          ctx.log('The navicomp limps. You will land last next week.');
         },
       },
     ],
+    // Last in the turn order is first look at the declarations board (§7.3), and it costs nothing
+    // but the shelf. A stable with a hold to sell pays; one travelling light keeps the money.
+    aiChoice: (ctx) => (crates(ctx) > 15 && ctx.p.cash > 1500 ? 0 : 1),
   },
   {
     id: 'tipOff',
@@ -173,6 +205,7 @@ export const EVENTS: readonly EventCard[] = [
     text: 'A whisper in the saloon: one of the local dogs is "not trying" this week.',
     weight: 4,
     kind: 'flavour',
+    category: 'bar',
     choices: [
       {
         label: 'Interesting',
@@ -189,6 +222,7 @@ export const EVENTS: readonly EventCard[] = [
     text: 'A bumper harvest: Grey Mash is half price here until you leave.',
     weight: 4,
     kind: 'flavour',
+    category: 'strip',
     choices: [
       {
         label: 'Stock up',
@@ -208,6 +242,7 @@ export const EVENTS: readonly EventCard[] = [
     text: 'The Grey Mash freighter never arrived. Prices double here until you leave.',
     weight: 4,
     kind: 'flavour',
+    category: 'strip',
     choices: [
       {
         label: 'Typical',
@@ -224,6 +259,7 @@ export const EVENTS: readonly EventCard[] = [
     text: 'One of your winners has a fan club. They send 200 a week while the wins keep coming.',
     weight: 3,
     kind: 'flavour',
+    category: 'strip',
     roll: (ctx) => {
       const d = ownDogs(ctx.s, ctx.p).find((x) => x.wins >= 3);
       return d && !ctx.p.fanClubDogId ? { dogId: d.id } : null;
@@ -244,6 +280,7 @@ export const EVENTS: readonly EventCard[] = [
     text: 'Kibble pirates match your course. Hand over half the hold, or fight.',
     weight: 3,
     kind: 'swing',
+    category: 'alley',
     planets: ['drift'],
     planetBoost: 3,
     roll: (ctx) => (crates(ctx) > 0 ? {} : null),
@@ -275,6 +312,7 @@ export const EVENTS: readonly EventCard[] = [
     text: 'Your navigator finds a wormhole. You will arrive first next week regardless.',
     weight: 3,
     kind: 'flavour',
+    category: 'bar',
     choices: [
       {
         label: 'Punch it',
@@ -291,6 +329,7 @@ export const EVENTS: readonly EventCard[] = [
     text: 'The locals run an exhibition race with a 400 purse. Your least-raced dog can have a go — no rating change.',
     weight: 3,
     kind: 'flavour',
+    category: 'track',
     roll: (ctx) => {
       const d = ownDogs(ctx.s, ctx.p)
         .filter((x) => x.injuryWeeks === 0)
@@ -320,6 +359,7 @@ export const EVENTS: readonly EventCard[] = [
     text: 'Space fleas in the bedding. Every dog −5 fitness.',
     weight: 5,
     kind: 'flavour',
+    category: 'pound',
     choices: [
       {
         label: 'Scratch',
@@ -336,6 +376,7 @@ export const EVENTS: readonly EventCard[] = [
     text: 'A racing rag runs a flattering profile of your stable. A sponsor sends 500.',
     weight: 5,
     kind: 'flavour',
+    category: 'strip',
     choices: [
       {
         label: 'Frame it',
@@ -352,6 +393,7 @@ export const EVENTS: readonly EventCard[] = [
     text: 'The hold got warm. A quarter of your food has gone green.',
     weight: 4,
     kind: 'flavour',
+    category: 'alley',
     roll: (ctx) => (crates(ctx) > 0 ? {} : null),
     choices: [
       {
@@ -369,6 +411,7 @@ export const EVENTS: readonly EventCard[] = [
     text: 'Five crates of Grey Mash drift past your airlock. Nobody is looking.',
     weight: 4,
     kind: 'flavour',
+    category: 'alley',
     roll: (ctx) => (crates(ctx) + 5 <= HOLD_CAP ? {} : null),
     choices: [
       {
@@ -387,6 +430,7 @@ export const EVENTS: readonly EventCard[] = [
     text: 'The spaceport lost your kennel gear. Replacing it costs 300.',
     weight: 5,
     kind: 'flavour',
+    category: 'strip',
     choices: [
       {
         label: 'Sigh',
@@ -404,6 +448,7 @@ export const EVENTS: readonly EventCard[] = [
     text: 'An anonymous fan pays for a week at a fancy training camp.',
     weight: 4,
     kind: 'flavour',
+    category: 'track',
     roll: (ctx) => {
       const d = randomDog(ctx);
       return d ? { dogId: d.id, stat: ctx.rng.pick(STAT_KEYS) } : null;
@@ -427,6 +472,7 @@ export const EVENTS: readonly EventCard[] = [
     text: 'One of your dogs has been bouncing off the walls all week.',
     weight: 4,
     kind: 'flavour',
+    category: 'track',
     roll: (ctx) => {
       const d = randomDog(ctx);
       return d ? { dogId: d.id } : null;
@@ -449,6 +495,7 @@ export const EVENTS: readonly EventCard[] = [
     text: 'Monks of the Good Boy bless your kennel. Every dog +10 fitness.',
     weight: 2,
     kind: 'flavour',
+    category: 'pound',
     planets: ['holyBark'],
     planetBoost: 6,
     choices: [
@@ -467,6 +514,7 @@ export const EVENTS: readonly EventCard[] = [
     text: 'Over-excited fans "borrow" one of your dogs for a party. It comes back dizzy — unless you send a taxi (400).',
     weight: 3,
     kind: 'choice',
+    category: 'strip',
     roll: (ctx) => {
       const d = randomDog(ctx);
       return d ? { dogId: d.id } : null;
@@ -498,6 +546,7 @@ export const EVENTS: readonly EventCard[] = [
     text: 'A dog digs up a suspiciously glowing bone. It seems… faster.',
     weight: 4,
     kind: 'flavour',
+    category: 'pound',
     roll: (ctx) => {
       const d = randomDog(ctx);
       return d ? { dogId: d.id } : null;
@@ -520,6 +569,7 @@ export const EVENTS: readonly EventCard[] = [
     text: 'The casino comps you a suite and a stack of chips for being a "valued guest".',
     weight: 2,
     kind: 'flavour',
+    category: 'strip',
     planets: ['neonSnout', 'collarPrime'],
     planetBoost: 6,
     choices: [
@@ -538,6 +588,7 @@ export const EVENTS: readonly EventCard[] = [
     text: 'A dust storm keeps everyone indoors coughing. Every dog −5 fitness.',
     weight: 1,
     kind: 'flavour',
+    category: 'track',
     planets: ['sunbleach', 'rustgut'],
     planetBoost: 8,
     choices: [
@@ -556,6 +607,7 @@ export const EVENTS: readonly EventCard[] = [
     text: 'Nothing happens. The dogs sleep. It is lovely.',
     weight: 6,
     kind: 'flavour',
+    category: 'bar',
     choices: [{ label: 'Enjoy it', apply: (ctx) => ctx.log('A quiet week.') }],
   },
 
@@ -580,6 +632,7 @@ export const EVENTS: readonly EventCard[] = [
     text: 'A freighter navigator is telling the whole bar where the circuit goes after next week. He will tell you properly for a drink or two.',
     weight: 4,
     kind: 'choice',
+    category: 'bar',
     // Only while there is a week past the free horizon left to sell.
     //
     // ⚠️ **The price and the reach are the card's own now (BUILD_PLAN_V3 §2.1).** They were
@@ -623,6 +676,7 @@ export const EVENTS: readonly EventCard[] = [
     text: 'A customs clerk has the freight manifests for the run after next. He is not supposed to show anyone. He would like 200 Bones.',
     weight: 4,
     kind: 'choice',
+    category: 'bar',
     roll: (ctx) => {
       const entry = ctx.s.calendar[ctx.s.week + 1];
       if (!entry) return null;

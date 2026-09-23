@@ -4,7 +4,7 @@ import { rollGoodPrices } from '../economy/food';
 import { cargoTotal, HOLD_CAP } from '../economy/goods';
 import { currentPlanet, emptyDeclarations, log, type Ctx } from '../state';
 import { clamp } from '../rng';
-import { drawEvents } from './events';
+import { seedExplore } from './explore';
 
 /** GDD §4.2 step 1: arrive, roll the planet, decide turn order. */
 export function runArrival(ctx: Ctx): void {
@@ -57,14 +57,18 @@ export function runArrival(ctx: Ctx): void {
       score += 1000 * div;
       reason = 'wormhole shortcut — first, whatever the score';
       p.flags.arriveFirstNextWeek = false;
+    } else if (p.flags.arriveLastNextWeek) {
+      score -= 1000 * div;
+      reason = 'a fried navicomp — last, whatever the score';
     }
+    p.flags.arriveLastNextWeek = false;
     return { id: p.id, score, crates, reason };
   });
   scored.sort((a, b) => b.score - a.score || a.crates - b.crates);
   if (planet.special.turnOrderReversed) {
     scored.reverse();
     for (const x of scored)
-      if (!x.reason.startsWith('wormhole'))
+      if (!x.reason.startsWith('wormhole') && !x.reason.startsWith('a fried'))
         x.reason = `the black hole drags the heaviest in first — ${x.reason}`;
   }
   s.turnOrder = scored.map((x) => x.id);
@@ -82,8 +86,9 @@ export function runArrival(ctx: Ctx): void {
     }
   }
 
-  s.phase = 'events';
-  s.eventQueue = [...s.turnOrder];
-  s.activePlayer = null;
-  drawEvents(ctx);
+  // GDD_V3 §2.3 step 2: Explore, in turn order, each stable on its own stream (decision D1).
+  seedExplore(ctx);
+  s.phase = 'explore';
+  s.pendingEvent = null;
+  s.activePlayer = s.turnOrder[0] ?? null;
 }

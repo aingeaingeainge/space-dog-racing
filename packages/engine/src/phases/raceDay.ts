@@ -32,7 +32,10 @@ export function lockDeclarations(ctx: Ctx): void {
   const fields: RaceField[] = [];
   const margin = bettingMargin(s);
   const tipsters = s.players.filter((p) => p.flags.tipOff);
-  const lazyRace = tipsters.length ? rng.pick(card) : null;
+  // ⚠️ **Drawn every week, whether or not anybody was tipped (decision D1).** The Tip-off card lives
+  // behind a Bar door now, so whether anybody holds it depends on which doors were opened — and the
+  // game's stream must not. The draws are made regardless and only *applied* for a tipster.
+  const lazyRace = rng.pick(card);
 
   for (const race of card) {
     const runners: Dog[] = [];
@@ -50,9 +53,11 @@ export function lockDeclarations(ctx: Ctx): void {
       const locals = runners.filter((d) => d.ownerId === 'local');
       if (locals.length) {
         const lazy = rng.pick(locals);
-        lazy.fitness = 40;
-        for (const p of tipsters)
-          log(s, `Tip-off: ${lazy.name} in the ${raceType(race).label} is not trying.`, p.id);
+        if (tipsters.length) {
+          lazy.fitness = 40;
+          for (const p of tipsters)
+            log(s, `Tip-off: ${lazy.name} in the ${raceType(race).label} is not trying.`, p.id);
+        }
       }
     }
 
