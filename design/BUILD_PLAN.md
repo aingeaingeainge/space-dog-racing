@@ -11,7 +11,7 @@
 > the table its acceptance row is about.
 >
 > Canonical copy: `design/BUILD_PLAN.md` in the `space-dog-racing` repo. A copy in a claude.ai
-> Project is a **mirror**, last synced 16 September 2026. See `design/CANON.md`.
+> Project is a **mirror**, last synced 24 September 2026. See `design/CANON.md`.
 
 Companion to `GDD.md`. This is the *how*: architecture, repo layout, milestones, acceptance criteria, and a ready-to-paste prompt for each milestone to hand to Claude Opus (or whichever model builds it).
 

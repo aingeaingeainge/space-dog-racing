@@ -10,7 +10,7 @@
 > the trap-draw findings, the reasons a wage for the Fixer failed — and GDD_V3 cites them by name.
 >
 > Canonical copy: `design/GDD.md` in the `space-dog-racing` repo. A copy in a claude.ai Project is
-> a **mirror**, last synced 16 September 2026. See `design/CANON.md`.
+> a **mirror**, last synced 24 September 2026. See `design/CANON.md`.
 
 **Working title:** Space Dog Racing
 **Version:** 0.7 — 14 September 2026 (v1 shipped at tag `m4`; v2 Phase A at `v2a`, Phase B at `v2b`, Phase C at `v2c`, Phase D at `v2d`, Phase E at `v2e`)

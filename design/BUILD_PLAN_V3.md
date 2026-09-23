@@ -3,7 +3,7 @@
 > **Status: CURRENT.** Build from this document.
 >
 > Canonical copy: `design/BUILD_PLAN_V3.md` in the `space-dog-racing` repo. A copy in a claude.ai
-> Project is a **mirror**, last synced 16 September 2026 — edit the repo, never the mirror. See
+> Project is a **mirror**, last synced 24 September 2026 — edit the repo, never the mirror. See
 > `design/CANON.md`.
 >
 > Supersedes `design/BUILD_PLAN.md` from §6 onward. **That document's §§1–5 — architecture, tech

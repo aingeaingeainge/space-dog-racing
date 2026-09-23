@@ -3,7 +3,7 @@
 > **Status: CURRENT.** Build from this document.
 >
 > Canonical copy: `design/GDD_V3.md` in the `space-dog-racing` repo. A copy in a claude.ai Project
-> is a **mirror**, last synced 16 September 2026 — edit the repo, never the mirror. See `design/CANON.md`.
+> is a **mirror**, last synced 24 September 2026 — edit the repo, never the mirror. See `design/CANON.md`.
 >
 > Supersedes `design/GDD.md` (v2, shipped at tag `v2e`), which is kept as historical reference and
 > is cited by name throughout this document.
@@ -902,12 +902,15 @@ All 18 planets survive as data. What changes is which fields do work:
    against a crowded front would have to be about closers — or the kill switch's floor is wrong for
    an eight-dog field, where one runner can only ever collect a fraction of what the others lose.
    *`v3c2`: the hot pace (C12) is that rule, and the floor was wrong. With the calendar held even,
-   an eight-dog field gives the closer about two points (C13).*
+   an eight-dog field gives the closer about two points (C13). Jesse's `v3c2` playtest: he saw a hot pace
+   and the closer come through, and it changed his entries — his closer went into the crowded race.*
 11. **Are the races too processional?** The median winning margin is 10.6 m (v3b 7.3 m) and a photo
    finish comes up in 1.8% of races, because the fade in metres (C5) no longer drags the field back
    together at the line. Nothing measures it against a target; the race view is where to judge it.
    *`v3c2`: Jesse said yes, too spread out. The run-in (C14) gives a median of 6.3 m and 3.5% photo
-   finishes. Whether the last metres look like braking is the question to watch.*
+   finishes. Whether the last metres look like braking is the question to watch. Jesse's `v3c2` playtest:
+   finishes feel "a little" closer, and he did not notice the run-in at all — so it does not read as
+   braking. Nothing felt worse than `v3c`.*
 
 ---
 
