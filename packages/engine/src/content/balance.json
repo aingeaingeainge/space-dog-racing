@@ -93,7 +93,7 @@
   "majorWeek": 5,
   "maxStakeFraction": 0.5,
   "oddsFloor": 0.005,
-  "oddsScale": 18.75,
+  "oddsScale": 19,
   "planetBiasMax": 1.55,
   "planetBiasMin": 0.45,
   "priceDrawClamp": 0.02,

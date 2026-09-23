@@ -31,7 +31,7 @@
   "localRatingMajorBonus": 5,
   "localRatingSd": 5,
   "dogStatSd": 8,
-  "oddsScale": 18.75,
+  "oddsScale": 19,
   "oddsFloor": 0.005,
   "foodSpread": 0.1,
   "arrivalBase": 20,
