@@ -191,6 +191,14 @@ const LABELS: Record<string, string> = {
   'Book: Closer on a sprint (rating points)': 'bookEdgeCloserSprint',
   'Book: Closer on a standard trip (rating points)': 'bookEdgeCloserStandard',
   'Book: Closer on a staying trip (rating points)': 'bookEdgeCloserStaying',
+  // Phase C2, GDD_V3 §5.3: the hot pace. Two front-runners at the head light it; the lead group pays.
+  'Hot pace: window (fraction of the trip)': 'hotPaceWindow',
+  'Hot pace: front-runners within this of each other at the head (metres)': 'hotPaceContestMetres',
+  'Hot pace: the lead group, within this of the leader (metres)': 'hotPaceGroupMetres',
+  'Hot pace: fade point cost for a whole window in a hot lead group (metres)': 'hotPaceFadeCost',
+  'Front-runner: lights the pace (1 = yes)': 'styleFrontRunnerLightsPace',
+  'Stalker: lights the pace (1 = yes)': 'styleStalkerLightsPace',
+  'Closer: lights the pace (1 = yes)': 'styleCloserLightsPace',
 };
 
 const wb = XLSX.read(readFileSync(xlsxPath));
