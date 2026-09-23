@@ -48,8 +48,8 @@ const ROWS: NewRow[] = [
   {
     section: OFFER_SECTION,
     label: 'Dog offer: rating, mean',
-    value: 44,
-    note: "Where an offered dog's stats centre. A dealt dog rates 50, so the average offer is a step down and the gamble is the spread and the patter. 50 at first; 44 in Phase D1, because at 50 the Pound alone lifted mean end worth about 2,000 and out of its 25-40k band",
+    value: 42,
+    note: "Where an offered dog's stats centre. A dealt dog rates 50, so the average offer is a step down and the gamble is the spread and the patter. 50 at first; 44 in Phase D1, and then 42, because at 50 the Pound alone lifted mean end worth about 2,000 and out of its 25-40k band, and at 44 it sat on the 40k line",
   },
   {
     section: OFFER_SECTION,
@@ -103,8 +103,8 @@ ROWS.push(
   {
     section: COND_SECTION,
     label: 'Condition: buzzing, speed on race day (stat points)',
-    value: 5,
-    note: 'Like the lucky bone, but nobody knows unless tipped — the owner included',
+    value: 3,
+    note: 'Like the lucky bone, but nobody knows unless tipped — the owner included. 8 read +53% a Bone backed, 5 read +33% and 4 +32% at 800 seasons (the standard error is about 4 points); 3 is the setting',
   },
 );
 
