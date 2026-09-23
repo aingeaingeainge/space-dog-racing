@@ -1223,9 +1223,13 @@ ul.notes li::before {
 .hub-stage {
   position: relative;
   margin-bottom: 14px;
+  /* Always exactly 16:9 and always the full width of the page. The hotspots are placed in percent
+     of this box and the backdrops are drawn around those same percentages, so the box must never
+     change shape on a desktop: a max-height here would narrow it on a wide window (the ratio hands
+     the cap on to the width) and leave it short of every panel below it. */
+  width: 100%;
   aspect-ratio: 16 / 9;
   min-height: 300px;
-  max-height: 62vh;
   border: 3px solid var(--ink);
   border-radius: 5px;
   overflow: hidden;
@@ -1246,6 +1250,11 @@ ul.notes li::before {
   background-image:
     repeating-linear-gradient(-45deg, rgba(0, 0, 0, 0.16) 0 12px, transparent 12px 24px),
     radial-gradient(120% 100% at 50% 110%, rgba(0, 0, 0, 0.72), transparent 60%);
+}
+/* Finished art brings its own grime, so the hazard hatching comes off it; the vignette stays to
+   keep the hotspots readable. The hatching is only there to dress an empty or stand-in stage. */
+.hub-stage.art::before {
+  background-image: radial-gradient(120% 100% at 50% 110%, rgba(0, 0, 0, 0.5), transparent 60%);
 }
 .hub-backdrop {
   position: absolute;

@@ -9,9 +9,10 @@ import type { Id } from '@sdr/engine';
  * fades in on top whenever it finishes loading. A planet with no image at all is therefore
  * still a legible screen, and a missing file is never a blank one.
  *
- * While the file on disk is still the generated stand-in (a .svg, per lib/assets.ts) the stage
- * stamps PLACEHOLDER in the corner, and that stamp disappears by itself the moment the .webp
- * lands beside it.
+ * While the file on disk is still the generated stand-in (a .placeholder.svg, per lib/assets.ts)
+ * the stage stamps PLACEHOLDER in the corner, and that stamp disappears by itself the moment the
+ * finished .webp or .svg lands beside it. Once finished art has loaded the stage also drops its
+ * hazard hatching (`.art`), which is there to dress an empty stage, not to sit over a painting.
  *
  * The fade is tracked by URL rather than by a bare boolean, because the stage does not remount
  * between planets: with a boolean, week 2 would show week 1's decoded backdrop at full strength
@@ -34,7 +35,7 @@ export function HubStage({
   const loaded = !!art && loadedUrl === art.url;
 
   return (
-    <div className="hub-stage">
+    <div className={`hub-stage${loaded && !art.placeholder ? ' art' : ''}`}>
       {art ? (
         <img
           key={art.url}
