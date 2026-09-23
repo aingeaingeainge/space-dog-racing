@@ -36,8 +36,8 @@ import type { EventChoice, EventCtx } from '../eventKit';
 import type { StatKey } from '../../types';
 
 /**
- * A Pound card that offers a dog (GDD_V3 §9.2). Four buttons: take it and let one of your three go
- * (each named), or walk away. It is one decision — whether, and for whom — and the dog is **one of a
+ * A Pound card that offers a dog (GDD_V3 §9.2). Four buttons: walk away, or take it and let one of
+ * your three go (each named). It is one decision — whether, and for whom — and the dog is **one of a
  * kind on the planet-week** (`unique`): the first stable through the door in turn order gets the
  * offer, and anybody after draws something else (§2.3's contention).
  */
@@ -82,29 +82,30 @@ function offerCard(
       return params;
     },
     detail: (ctx) => describeOffer(ctx.params),
+    // "Walk away" first, so the card's default (Enter, the highlighted button) never swaps a dog.
     labels: (ctx) => [
+      'Walk away',
       ...[0, 1, 2].map((i) => {
         const d = ctx.s.dogs[ctx.p.dogIds[i] ?? ''];
         return d ? `Take it — let ${d.name} go` : '—';
       }),
-      'Walk away',
     ],
     choices: [
-      swap(0),
-      swap(1),
-      swap(2),
       {
         label: 'Walk away',
         apply: (ctx) => ctx.log(`You leave ${ctx.params.offerName} where it is.`),
       },
+      swap(0),
+      swap(1),
+      swap(2),
     ],
     // Normal: take the offer when what it can see — the shown stat as the dog's level, the patter at
     // this seller's honesty — is worth a clear margin more than its cheapest dog, and let that one go.
     aiChoice: (ctx) => {
       const worst = cheapestDog(ctx.s, ctx.p);
-      if (!worst) return 3;
+      if (!worst) return 0;
       const est = estimateOffer(ctx.params, opts.lieMult);
-      return est > dogValue(worst) * OFFER_MARGIN ? ctx.p.dogIds.indexOf(worst.id) : 3;
+      return est > dogValue(worst) * OFFER_MARGIN ? 1 + ctx.p.dogIds.indexOf(worst.id) : 0;
     },
   };
 }
