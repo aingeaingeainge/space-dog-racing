@@ -202,6 +202,23 @@ const LABELS: Record<string, string> = {
   // Phase C2, §14 Q11: the run-in. The whole field tires into the line, by position, alike.
   'Race: the run-in, the last metres of every trip (metres)': 'raceRunInMetres',
   'Race: speed lost at the line in the run-in': 'raceRunInPenalty',
+  // Phase D1, GDD_V3 §9.2: a dog offered in the Pound — age, one stat, and patter that can lie.
+  'Dog offer: the seller lies, chance': 'dogOfferLieRate',
+  'Dog offer: rating, mean': 'dogOfferRatingMean',
+  'Dog offer: rating, sd': 'dogOfferRatingSd',
+  'Dog offer: youngest age': 'dogOfferAgeMin',
+  'Dog offer: oldest age': 'dogOfferAgeMax',
+  'Dog offer: the claimed stat, when honest (points above the level)': 'dogOfferClaimHonest',
+  'Dog offer: the claimed stat, when lying (points below the level)': 'dogOfferClaimLie',
+  // Phase D1 item 6: race-day conditions, drawn at arrival and never priced by the book.
+  'Condition: a knock, chance per stable dog per weekend': 'conditionKnockChance',
+  'Condition: a knock, fitness on race day': 'conditionKnockFitness',
+  'Condition: off its feed, chance per stable dog per weekend': 'conditionOffFeedChance',
+  'Condition: off its feed, fitness on race day': 'conditionOffFeedFitness',
+  'Condition: buzzing, chance per stable dog per weekend': 'conditionBuzzingChance',
+  'Condition: buzzing, speed on race day (stat points)': 'conditionBuzzingSpeed',
+  // GDD_V3 §4.4: the free local runner.
+  'Local runner: a dog counts as fit at this fitness or above': 'localRunnerFitAt',
 };
 
 const wb = XLSX.read(readFileSync(xlsxPath));
