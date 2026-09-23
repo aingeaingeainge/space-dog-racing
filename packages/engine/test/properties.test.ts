@@ -23,6 +23,8 @@ import {
   STYLE_IDS,
   type Action,
   type GameState,
+  mulberry32,
+  simulateRace,
 } from '../src/index';
 
 /** Invariants that must hold after every single action (BUILD_PLAN §7). */
@@ -76,7 +78,10 @@ function checkInvariants(s: GameState): void {
       assert(WEEK_STATES.includes(d!.weekState), `weekState ${d!.weekState} is not one of three`);
       // ⚠️ v3 Phase B: `trainStat` is replaced by the sticky diet (GDD_V3 §6.3), so the invariant
       // that the pointer names something real is re-pointed at the field that replaced it.
-      assert(['named', 'best', 'worst'].includes(d!.diet.kind), `diet ${d!.diet.kind} is not a diet`);
+      assert(
+        ['named', 'best', 'worst'].includes(d!.diet.kind),
+        `diet ${d!.diet.kind} is not a diet`,
+      );
       if (d!.diet.kind === 'named')
         assert(GOOD_IDS.includes(d!.diet.good), `diet names ${d!.diet.good}, which is not a good`);
       assert(d!.lastMeal === null || GOOD_IDS.includes(d!.lastMeal), `lastMeal ${d!.lastMeal}`);
@@ -108,7 +113,10 @@ function checkInvariants(s: GameState): void {
     const card = thisWeeksCard();
     assert(card.length === 3, `week ${w}'s card has ${card.length} races`);
     assert(new Set(card).size === 3, `week ${w}'s card runs a race twice`);
-    assert(card[card.length - 1] === HEADLINE_TYPE_ID, `week ${w} does not end on the headline race`);
+    assert(
+      card[card.length - 1] === HEADLINE_TYPE_ID,
+      `week ${w} does not end on the headline race`,
+    );
   }
 
   // A dog is never declared in two races, is declared only into a race being run this weekend,
@@ -358,4 +366,91 @@ describe('running styles (GDD_V3 §5.4, §5.5)', () => {
       expect(isSeasonOver(s)).toBe(true);
     }
   }, 60_000);
+});
+
+describe('the hot pace and the run-in (GDD_V3 §5.3, §14 Q11; Phase C2)', () => {
+  const track = { distance: 480, length: 'standard', bends: 'medium', hazard: 1 } as const;
+  const field = (styles: readonly (typeof STYLE_IDS)[number][]) =>
+    styles.map((style, i) => ({
+      id: `d${i}`,
+      trap: i + 1,
+      speed: 50,
+      accel: 50,
+      stamina: 50,
+      fitness: 75,
+      form: 0,
+      traits: [],
+      style,
+    }));
+  const b = balance as unknown as Record<string, number>;
+
+  it('never touches the rng, never lights with one front-runner, and burns only when lit', () => {
+    const lone = field([
+      'frontRunner',
+      'stalker',
+      'stalker',
+      'stalker',
+      'closer',
+      'closer',
+      'stalker',
+      'stalker',
+    ]);
+    const crowd = field([
+      'frontRunner',
+      'frontRunner',
+      'frontRunner',
+      'stalker',
+      'closer',
+      'stalker',
+      'stalker',
+      'stalker',
+    ]);
+    const saved = b.hotPaceFadeCost!;
+    for (let seed = 1; seed <= 40; seed++) {
+      const rngA = mulberry32(seed);
+      const rngB = mulberry32(seed);
+      // A lone front-runner: the rule never lights, so any cost at all gives the identical race.
+      b.hotPaceFadeCost = 0;
+      const a = simulateRace(lone, { track, major: false }, rngA);
+      b.hotPaceFadeCost = 500;
+      const c = simulateRace(lone, { track, major: false }, rngB);
+      b.hotPaceFadeCost = saved;
+      expect(c.ticks).toEqual(a.ticks);
+      expect(a.events.some((e) => e.kind === 'hotPace')).toBe(false);
+      expect(a.runs.every((r) => r.hot === 0)).toBe(true);
+      // And the rule draws nothing: the rng is left at the same point whatever it did to the race.
+      expect(rngA.next()).toBe(rngB.next());
+      // A crowded front lights it, at most once, and only runners in the lead group pay.
+      const h = simulateRace(crowd, { track, major: false }, mulberry32(seed));
+      const lit = h.events.filter((e) => e.kind === 'hotPace');
+      expect(lit.length).toBeLessThanOrEqual(1);
+      if (!lit.length) expect(h.runs.every((r) => r.hot === 0)).toBe(true);
+    }
+  });
+
+  it('slows every runner alike in the run-in, so it never reorders a field of equal dogs', () => {
+    const eq = field([
+      'stalker',
+      'stalker',
+      'stalker',
+      'stalker',
+      'stalker',
+      'stalker',
+      'stalker',
+      'stalker',
+    ]);
+    const saved = b.raceRunInPenalty!;
+    for (let seed = 1; seed <= 20; seed++) {
+      b.raceRunInPenalty = 0;
+      const off = simulateRace(eq, { track, major: false }, mulberry32(seed));
+      b.raceRunInPenalty = saved;
+      const on = simulateRace(eq, { track, major: false }, mulberry32(seed));
+      // Same ground, same draws: identical up to the run-in, and the finish can only be closer.
+      const upTo = off.ticks.findIndex(
+        (row) => Math.max(...row) > track.distance - b.raceRunInMetres!,
+      );
+      expect(on.ticks.slice(0, upTo)).toEqual(off.ticks.slice(0, upTo));
+      expect(on.margin).toBeLessThanOrEqual(off.margin + 1e-9);
+    }
+  });
 });
