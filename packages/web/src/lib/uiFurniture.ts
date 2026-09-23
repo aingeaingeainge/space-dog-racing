@@ -26,7 +26,12 @@ export function applyFurniture(): void {
   const root = document.documentElement;
   for (const id of TEXTURES) {
     const art = uiArt(id);
-    if (art && !art.placeholder) root.style.setProperty(`--art-${id}`, `url(${art.url})`);
+    if (art && !art.placeholder) {
+      root.style.setProperty(`--art-${id}`, `url(${art.url})`);
+      // A class as well, for the one piece that changes the shape of its box rather than just
+      // painting it: the logo plate (app.css, `.has-art-logo .centre h1`).
+      root.classList.add(`has-art-${id}`);
+    }
   }
 }
 
