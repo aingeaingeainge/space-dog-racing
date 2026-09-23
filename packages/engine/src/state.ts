@@ -26,6 +26,11 @@ import type {
 import { ActionError, RACE_TYPE_IDS, STYLE_IDS } from './types';
 
 /**
+ * 8 for v3 Phase C2: the race model changed underneath every tick log again — the hot pace (§5.3)
+ * and the run-in (§14 Q11) — and `RunNote` carries `hot`, a race event can be `hotPace`. A v3c log
+ * replays into a different season (every race, and so every purse and every bet, comes out
+ * differently), so it must not replay.
+ *
  * 7 for v3 Phase C: a dog carries a running `style` and whether the table knows it (`styleKnown`,
  * GDD_V3 §5.1, §5.4); a posted field entry carries the style the table knows, a race result carries
  * how each runner ran (`runs`), and the race model changed underneath every tick log. A v3b log
@@ -63,7 +68,7 @@ import { ActionError, RACE_TYPE_IDS, STYLE_IDS } from './types';
  * The web save is seed + log (store/persist.ts), which is why SAVE_VERSION moves with it and an
  * old save fails soft to the title screen rather than replaying into a different game.
  */
-export const STATE_VERSION = 7;
+export const STATE_VERSION = 8;
 /**
  * The Major weekends. **One, at week 5 (GDD_V3 §2.1)**, where v2 had three.
  *

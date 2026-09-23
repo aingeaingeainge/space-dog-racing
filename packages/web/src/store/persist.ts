@@ -28,6 +28,10 @@ export interface SaveBlob {
 }
 
 /**
+ * 7 for v3 Phase C2. The dogs are dealt the same way, but every race runs differently — the hot
+ * pace (GDD_V3 §5.3) and the run-in (§14 Q11) — so a v3c log is a different season here: its
+ * purses, its cash and so its bets all come out differently. This check keeps it off the board.
+ *
  * 6 for v3 Phase C. The dogs are dealt by a different rule (an equal rating and one of each running
  * style) and the race model is different under every race, so a v3b log means a different season
  * here. In practice it fails fast — three v3b logs replayed at v3c all stopped within the first ten
@@ -52,7 +56,7 @@ export interface SaveBlob {
  * player on the title screen with a new season rather than half a season that no longer means
  * what it meant.
  */
-export const SAVE_VERSION = 6;
+export const SAVE_VERSION = 7;
 const KEY = 'sdr.save.v1';
 
 export function writeSave(blob: SaveBlob): void {
