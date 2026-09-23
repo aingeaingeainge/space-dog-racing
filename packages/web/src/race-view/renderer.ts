@@ -217,6 +217,43 @@ export function createRenderer(canvas: HTMLCanvasElement, opts: RendererOptions)
    * the geometry in tracks.ts, so nothing here has to line up with a spline — the image is
    * simply made to cover the track's bounds with a margin, and the ribbon is drawn on top.
    */
+  /**
+   * An image drawn once onto a canvas of its own natural size, and that canvas kept.
+   *
+   * A finished ground or surface may be an .svg (lib/assets.ts), and a browser redraws an SVG
+   * image from its vector source whenever it is drawn at a new scale — which the camera does
+   * every frame. Flattening it once turns the per-frame cost back into a plain bitmap blit, the
+   * same as a .webp, and costs nothing that matters for a .webp.
+   */
+  function flatten(
+    img: HTMLImageElement,
+    slot: { from: HTMLImageElement | null; canvas: HTMLCanvasElement | null },
+  ): CanvasImageSource {
+    if (slot.from !== img) {
+      slot.from = img;
+      slot.canvas = null;
+      if (typeof document !== 'undefined') {
+        const c = document.createElement('canvas');
+        c.width = img.naturalWidth;
+        c.height = img.naturalHeight;
+        const g = c.getContext('2d');
+        if (g) {
+          g.drawImage(img, 0, 0);
+          slot.canvas = c;
+        }
+      }
+    }
+    return slot.canvas ?? img;
+  }
+  const groundFlat = {
+    from: null as HTMLImageElement | null,
+    canvas: null as HTMLCanvasElement | null,
+  };
+  const surfaceFlat = {
+    from: null as HTMLImageElement | null,
+    canvas: null as HTMLCanvasElement | null,
+  };
+
   function drawGround(): void {
     const img = opts.groundFor?.() ?? null;
     if (!img) return;
@@ -230,7 +267,13 @@ export function createRenderer(canvas: HTMLCanvasElement, opts: RendererOptions)
     const w = b.w + m * 2;
     const h = b.h + m * 2;
     const k = Math.max(w / iw, h / ih);
-    ctx!.drawImage(img, x + (w - iw * k) / 2, y + (h - ih * k) / 2, iw * k, ih * k);
+    ctx!.drawImage(
+      flatten(img, groundFlat),
+      x + (w - iw * k) / 2,
+      y + (h - ih * k) / 2,
+      iw * k,
+      ih * k,
+    );
   }
 
   let surfacePattern: CanvasPattern | null = null;
@@ -242,7 +285,7 @@ export function createRenderer(canvas: HTMLCanvasElement, opts: RendererOptions)
     if (!img || !img.naturalWidth) return pal.surface;
     if (img !== patternFrom) {
       patternFrom = img;
-      const made = ctx!.createPattern(img, 'repeat');
+      const made = ctx!.createPattern(flatten(img, surfaceFlat), 'repeat');
       if (made && typeof DOMMatrix !== 'undefined') {
         // The pattern is in user space, which here is metres — scale a 512 px tile down to 9 m.
         const k = SURFACE_TILE_METRES / img.naturalWidth;
