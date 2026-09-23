@@ -10,6 +10,8 @@
  *   npm run harness -- --styles --seasons 200   # GDD_V3 §5 / §11: running styles, the kill switch,
  *                                        # the variance decomposition, the blind-lone-closer return
  *   npm run harness -- --styles --hotGrid   # Phase C2: the hot pace's lights / group / cost sweep (slow)
+ *   npm run harness -- --explore --seasons 400   # Phase D1: doors, the deck's outcomes, dog offers,
+ *                                        # lies, the race-day tip rows and the Bar's shelf
  *
  * The standard printout carries **BUILD_PLAN_V3 Phase B's market rows** — food as a share of gross,
  * the cash-bound → hold-bound crossover week, the p99 best trading leg against mean end worth, the
@@ -49,6 +51,8 @@ import {
   thisWeeksCard,
 } from '../src/state';
 import { STYLE_BY_ID } from '../src/content/styles';
+import { CONDITION_BY_ID } from '../src/content/conditions';
+import { EVENTS, EVENT_BY_ID } from '../src/content/events';
 import { decide } from '../src/ai';
 import { HARD_KNOBS } from '../src/ai/hard';
 import { hash01 } from '../src/ai/shared';
@@ -57,9 +61,11 @@ import { simulateRace, type Runner } from '../src/race/simulateRace';
 import { winProbabilities } from '../src/race/odds';
 import { HEADLINE_TYPE_ID, raceType } from '../src/content/raceTypes';
 import {
+  DOOR_CATEGORIES,
   RACE_TYPE_IDS,
   STYLE_IDS,
   type Action,
+  type DoorCategory,
   type AiAgent,
   type Dog,
   type GameState,
@@ -88,6 +94,8 @@ interface Args {
   styles: boolean;
   /** With --styles: sweep the hot pace's three cells (Phase C2), 6,000 races a cell. Slow. */
   hotGrid: boolean;
+  /** Phase D1: the doors, the deck, the Pound, the tips and the Bar's shelf. */
+  explore: boolean;
   quiet: boolean;
 }
 
@@ -103,6 +111,7 @@ function parseArgs(argv: string[]): Args {
     hardAblation: false,
     styles: false,
     hotGrid: false,
+    explore: false,
     quiet: false,
   };
   for (let i = 0; i < argv.length; i++) {
@@ -121,6 +130,7 @@ function parseArgs(argv: string[]): Args {
     else if (a === '--hardAblation') args.hardAblation = true;
     else if (a === '--styles') args.styles = true;
     else if (a === '--hotGrid') args.hotGrid = true;
+    else if (a === '--explore') args.explore = true;
     else if (a === '--quiet') args.quiet = true;
     else throw new Error(`Unknown flag ${a}. See the usage block at the top of this file.`);
   }
@@ -2090,12 +2100,309 @@ export function runStyles(seasons = 200, seed = 1, n = 6000): string {
   return lines.join('\n');
 }
 
+// ---------------------------------------------------------------------------------------------
+// --explore (Phase D1 item 10): the deck, the doors, the Pound's dogs, the tips and the Bar's shelf.
+// ---------------------------------------------------------------------------------------------
+
+/** What one card did: how often it came up, and the Bone value of what it did at once. */
+interface CardTally {
+  n: number;
+  bones: number[];
+}
+
+/**
+ * One all-Normal season for --explore. `poundSeat`, if given, is a stable that opens the Pound
+ * whenever the planet has one — "a stable that wants a dog" (Phase D1 item 4's row).
+ */
+function exploreSeason(
+  seed: number,
+  out: {
+    doors: Map<DoorCategory, number>;
+    cards: Map<Id, CardTally>;
+    seen: Map<Id, Set<Id>>;
+    bets: Map<string, { n: number; ret: number }>;
+    tipBets: { n: number; stake: number; ret: number };
+    legs: { intel: number[]; plain: number[] };
+    contention: { blocked: number };
+  },
+  poundSeat?: Id,
+): GameState {
+  const s = createSeason({
+    seed,
+    players: Array.from({ length: 6 }, () => ({
+      name: '',
+      kind: 'ai' as const,
+      difficulty: 'normal' as const,
+    })),
+  });
+  const addBet = (k: string, won: boolean, odds: number) => {
+    const a = out.bets.get(k) ?? { n: 0, ret: 0 };
+    a.n++;
+    if (won) a.ret += odds;
+    out.bets.set(k, a);
+  };
+  let guard = 0;
+  while (!isSeasonOver(s) && guard++ < 200_000) {
+    if (needsAdvance(s)) {
+      let pending: { dogId: Id; odds: number; local: boolean }[][] | null = null;
+      let conds: Map<Id, string> | null = null;
+      if (s.phase === 'race' && s.fields) {
+        pending = s.fields.map((f) =>
+          f.entries.map((e) => ({ dogId: e.dogId, odds: e.odds, local: e.local })),
+        );
+        conds = new Map(s.conditions.map((c) => [c.dogId, c.condition]));
+        for (const b of s.bets) {
+          if (b.week !== s.week || b.settled) continue;
+          const c = s.conditions.find((x) => x.dogId === b.dogId);
+          if (c?.condition === 'buzzing' && c.tipped.includes(b.playerId)) {
+            out.tipBets.n++;
+            out.tipBets.stake += b.stake;
+          }
+        }
+      }
+      const before = s.week;
+      reduceMut(s, { t: 'AdvancePhase' });
+      if (pending && s.races && s.week === before) {
+        s.races.forEach((r, i) =>
+          pending![i]!.forEach((e) => {
+            const won = r.order[0] === e.dogId;
+            addBet('every runner (the house margin)', won, e.odds);
+            if (e.local) return;
+            addBet('every stable dog, blind (no tip)', won, e.odds);
+            const c = conds!.get(e.dogId);
+            if (c)
+              addBet(`a stable dog that is ${CONDITION_BY_ID[c as 'knock'].name}`, won, e.odds);
+            else addBet('a stable dog with no condition', won, e.odds);
+          }),
+        );
+        for (const b of s.bets) {
+          if (b.week !== s.week || !b.settled) continue;
+          const c = s.conditions.find((x) => x.dogId === b.dogId);
+          if (c?.condition === 'buzzing' && c.tipped.includes(b.playerId))
+            out.tipBets.ret += b.settled.payout;
+        }
+      }
+      continue;
+    }
+    const who = s.pendingEvent?.playerId ?? s.activePlayer!;
+    const p = player(s, who);
+    let actions = decide(s, who, p.difficulty);
+    if (s.phase === 'explore' && who === poundSeat && !s.pendingEvent) {
+      const i = currentPlanet(s).exploreDoors.findIndex((d) => d.category === 'pound');
+      if (i >= 0) actions = [{ t: 'ChooseDoor', playerId: who, door: i }];
+    }
+    for (const a of actions) {
+      if (a.t === 'ChooseDoor') {
+        const cat = currentPlanet(s).exploreDoors[a.door]!.category;
+        bumpMap(out.doors, cat);
+        const worth = netWorth(s, p);
+        const taken = s.explore!.taken.length;
+        reduceMut(s, a);
+        const id = s.explore!.cards[who] ?? '';
+        if (id) {
+          const t = out.cards.get(id) ?? { n: 0, bones: [] };
+          t.n++;
+          t.bones.push(netWorth(s, p) - worth);
+          out.cards.set(id, t);
+          let seen = out.seen.get(who);
+          if (!seen) out.seen.set(who, (seen = new Set()));
+          seen.add(id);
+        }
+        void taken;
+        continue;
+      }
+      if (a.t === 'TradeFood' && a.units < 0) {
+        const crates = -a.units;
+        const leg = crates * (s.planet.goods[a.good].sell - p.paid[a.good]);
+        (p.intel.week === s.week && p.intel.goods.includes(a.good)
+          ? out.legs.intel
+          : out.legs.plain
+        ).push(leg);
+      }
+      reduceMut(s, a);
+    }
+  }
+  return s;
+}
+
+export function runExplore(seasons = 400, seed = 1): string {
+  const lines: string[] = [];
+  const out = {
+    doors: new Map<DoorCategory, number>(),
+    cards: new Map<Id, CardTally>(),
+    seen: new Map<Id, Set<Id>>(),
+    bets: new Map<string, { n: number; ret: number }>(),
+    tipBets: { n: 0, stake: 0, ret: 0 },
+    legs: { intel: [] as number[], plain: [] as number[] },
+    contention: { blocked: 0 },
+  };
+  let stables = 0;
+  let offers = 0;
+  let taken = 0;
+  let lies = 0;
+  let caught = 0;
+  let tips = 0;
+  let betIncome = 0;
+  const seatSeen: Set<Id>[][] = [];
+  const tableSeen: Set<Id>[] = [];
+  for (let k = 0; k < seasons; k++) {
+    out.seen = new Map();
+    const s = exploreSeason(seed + k, out);
+    seatSeen.push(s.players.map((p) => out.seen.get(p.id) ?? new Set()));
+    tableSeen.push(new Set([...out.seen.values()].flatMap((x) => [...x])));
+    for (const p of s.players) {
+      stables++;
+      offers += p.stats.dogOffers;
+      taken += p.stats.dogsTaken;
+      lies += p.stats.liesTold;
+      caught += p.stats.liesCaught;
+      tips += p.stats.tips;
+      betIncome += p.stats.betIncome;
+    }
+  }
+  const wanting = { offers: 0, n: 0 };
+  for (let k = 0; k < Math.min(seasons, 300); k++) {
+    const s = exploreSeason(
+      seed + 10_000 + k,
+      {
+        ...out,
+        cards: new Map(),
+        seen: new Map(),
+        bets: new Map(),
+        doors: new Map(),
+        tipBets: { n: 0, stake: 0, ret: 0 },
+        legs: { intel: [], plain: [] },
+      },
+      'p1',
+    );
+    wanting.offers += player(s, 'p1').stats.dogOffers;
+    wanting.n++;
+  }
+
+  lines.push(
+    `Explore (GDD_V3 §9, Phase D1) — ${seasons} seasons, six Normal stables, seeds ${seed}…${seed + seasons - 1}`,
+  );
+  lines.push('');
+  const totalDoors = [...out.doors.values()].reduce((a, b) => a + b, 0);
+  lines.push('Doors opened, by category (target: none below 12%)');
+  const shares = DOOR_CATEGORIES.map((c) => (out.doors.get(c) ?? 0) / Math.max(1, totalDoors));
+  lines.push(
+    '  ' +
+      DOOR_CATEGORIES.map((c, i) => `${c} ${pct(shares[i]!)}`).join(' · ') +
+      `   — ${Math.min(...shares) >= 0.12 ? 'MET' : 'MISSED'}`,
+  );
+  lines.push('');
+
+  const byCat = new Map<DoorCategory, number[]>();
+  const rows = [...out.cards.entries()].map(([id, t]) => {
+    const card = EVENT_BY_ID[id]!;
+    const all = byCat.get(card.category) ?? [];
+    all.push(...t.bones);
+    byCat.set(card.category, all);
+    const sorted = [...t.bones].sort((a, b) => a - b);
+    return {
+      id,
+      cat: card.category,
+      n: t.n,
+      mean: mean(t.bones),
+      lo: quantile(sorted, 0.1),
+      hi: quantile(sorted, 0.9),
+    };
+  });
+  lines.push(
+    'Event outcome spread — the Bone value of what a card did at once (net worth after − before)',
+  );
+  lines.push(
+    '  It misses what shows up later (a stat point, fitness, a tip): read it as the cash and the kennel.',
+  );
+  lines.push(
+    '  ' +
+      DOOR_CATEGORIES.map((c) => `${c} ${fmt(mean(byCat.get(c) ?? []))}`).join(' · ') +
+      '  (mean a draw)',
+  );
+  lines.push('  card                    door     drawn   mean      p10      p90');
+  rows.sort((a, b) => (a.cat < b.cat ? -1 : a.cat > b.cat ? 1 : b.mean - a.mean));
+  for (const r of rows)
+    lines.push(
+      `  ${r.id.padEnd(22)} ${r.cat.padEnd(6)} ${String(r.n).padStart(7)} ${fmt(r.mean).padStart(7)} ${fmt(r.lo).padStart(8)} ${fmt(r.hi).padStart(8)}`,
+    );
+  const never = EVENTS.filter((e) => !out.cards.has(e.id)).map((e) => e.id);
+  lines.push(
+    `  cards never drawn: ${never.length ? never.join(', ') : 'none'} (of ${EVENTS.length})`,
+  );
+  lines.push('');
+
+  lines.push('Dogs in the Pound (GDD_V3 §9.2)');
+  lines.push(
+    `  offers a stable-season ${(offers / stables).toFixed(2)} · taken ${(taken / stables).toFixed(2)} (${pct(taken / Math.max(1, offers))} of offers)`,
+  );
+  lines.push(
+    `  a stable that wants a dog (opens the Pound whenever there is one): ${(wanting.offers / Math.max(1, wanting.n)).toFixed(2)} swings a season — target ≥ 2: ${wanting.offers / Math.max(1, wanting.n) >= 2 ? 'MET' : 'MISSED'}`,
+  );
+  lines.push(
+    `  lies told ${pct(lies / Math.max(1, offers))} of offers · caught (the dog was taken, its stat bars are public) ${pct(caught / Math.max(1, lies))} of lies · dodged ${pct(1 - caught / Math.max(1, lies))}`,
+  );
+  lines.push('');
+
+  lines.push(
+    'Race-day tips (Phase D1 item 6) — back every runner a rule picks, 1 Bone, to win at the posted price',
+  );
+  for (const [label, v] of [...out.bets.entries()].sort()) {
+    const ret = v.n ? v.ret / v.n - 1 : 0;
+    lines.push(
+      `  ${label.padEnd(44)} ${String(v.n).padStart(7)} bets   return per Bone ${ret >= 0 ? '+' : ''}${(ret * 100).toFixed(1)}%`,
+    );
+  }
+  const tipRet = out.tipBets.stake ? out.tipBets.ret / out.tipBets.stake - 1 : 0;
+  lines.push(
+    `  the tipped buzzing bets Normal actually placed: ${out.tipBets.n}, returning ${tipRet >= 0 ? '+' : ''}${(tipRet * 100).toFixed(1)}% a Bone staked`,
+  );
+  lines.push(
+    `  targets: a buzzing dog +10–30% · a stable dog blind ≤ +2% · the house margin −12 to −15% · tips a stable-season ${(tips / stables).toFixed(2)} · betting income ${fmt(betIncome / stables)} a stable-season`,
+  );
+  lines.push('');
+
+  lines.push(
+    "The Bar's shelf (GDD_V3 §9.4) — a trading leg per sale, with next week's price known or not",
+  );
+  const li = out.legs.intel;
+  const lp = out.legs.plain;
+  lines.push(
+    `  sales on a tip ${li.length} (${pct(li.length / Math.max(1, li.length + lp.length))} of sales), mean leg ${fmt(mean(li))} · without ${lp.length}, mean ${fmt(mean(lp))}`,
+  );
+  lines.push("  Phase B's rows (p99 leg, food share, crossover) are in the standard printout.");
+  lines.push('');
+
+  // Two consecutive seasons share no more than a third of their events (BUILD_PLAN_V3 Phase D).
+  const share = (a: Set<Id>, b: Set<Id>) => {
+    if (!a.size) return 0;
+    let n = 0;
+    for (const x of a) if (b.has(x)) n++;
+    return n / a.size;
+  };
+  const seat: number[] = [];
+  const table: number[] = [];
+  for (let k = 0; k + 1 < seatSeen.length; k++) {
+    seatSeen[k]!.forEach((a, i) => seat.push(share(a, seatSeen[k + 1]![i]!)));
+    table.push(share(tableSeen[k]!, tableSeen[k + 1]!));
+  }
+  lines.push(
+    'Two consecutive seasons — the share of one season’s cards that turn up again in the next',
+  );
+  lines.push(
+    `  one seat (what a player sees) ${pct(mean(seat))} — target ≤ 33%: ${mean(seat) <= 1 / 3 ? 'MET' : 'MISSED'} · the whole table ${pct(mean(table))} (six seats draw 60 cards from ${EVENTS.length})`,
+  );
+  return lines.join('\n');
+}
+
 function main() {
   const args = parseArgs(process.argv.slice(2));
   if (args.calibrate) console.log(runCalibration());
   else if (args.stats) console.log(runStatLeverage());
   else if (args.autoplan) console.log(runAutoplan(args.seasons));
   else if (args.styles && args.hotGrid) console.log(runHotGrid());
+  else if (args.explore)
+    console.log(runExplore(args.seasons === 50 ? 400 : args.seasons, args.seed));
   else if (args.styles) console.log(runStyles(args.seasons === 50 ? 200 : args.seasons, args.seed));
   else if (args.hardAblation)
     console.log(runHardAblation(args.seasons === 50 ? 600 : args.seasons, args.seed));

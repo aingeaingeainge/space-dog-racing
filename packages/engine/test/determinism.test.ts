@@ -150,3 +150,62 @@ describe('the book prices a public style, and its inputs stay integers far from 
     expect(worst).toBeGreaterThan(1000);
   });
 });
+
+/*
+ * v3 Phase D1 — additions only; nothing above this line was edited.
+ */
+describe("Explore never moves the game's stream (decision D1)", () => {
+  /**
+   * Every stable explores on its own stream, seeded at arrival. So whatever door a stable opens,
+   * whatever is behind it and whatever it chooses, the game's stream at the end of Explore is the
+   * same, and so is every other stable's draw — only a one-of-a-kind card can pass between stables,
+   * and that is contention, not the stream. Two copies of week 1, one human seat opening a
+   * different door in each, compared at the moment Explore hands over to the market.
+   */
+  it('gives the same game stream, seeds and rival cards whichever door a stable opens', async () => {
+    const { createSeason, reduceMut, decide, needsAdvance, player, aiChoiceFor } =
+      await import('../src/index');
+    const toMarket = (door: number) => {
+      const s = createSeason({
+        seed: 2026,
+        players: [
+          { name: 'Human', kind: 'human' },
+          ...Array.from({ length: 5 }, () => ({
+            name: '',
+            kind: 'ai' as const,
+            difficulty: 'normal' as const,
+          })),
+        ],
+      });
+      let guard = 0;
+      while (s.phase !== 'planetPre' && guard++ < 1000) {
+        if (needsAdvance(s)) {
+          reduceMut(s, { t: 'AdvancePhase' });
+          continue;
+        }
+        const who = s.pendingEvent?.playerId ?? s.activePlayer!;
+        if (player(s, who).kind === 'human') {
+          if (s.pendingEvent)
+            reduceMut(s, { t: 'ResolveEvent', playerId: who, choice: aiChoiceFor(s, who) });
+          else reduceMut(s, { t: 'ChooseDoor', playerId: who, door });
+        } else for (const a of decide(s, who, 'normal')) reduceMut(s, a);
+      }
+      return s;
+    };
+    const runs = [0, 1, 2].map(toMarket);
+    for (const s of runs.slice(1)) {
+      expect(s.rng).toBe(runs[0]!.rng);
+      expect(s.explore!.seeds).toEqual(runs[0]!.explore!.seeds);
+      expect(s.conditions.map((c) => [c.dogId, c.condition])).toEqual(
+        runs[0]!.conditions.map((c) => [c.dogId, c.condition]),
+      );
+    }
+    // The human opened three different doors; a rival's card changes only if the human took a
+    // one-of-a-kind card first, which the test allows for rather than hides.
+    for (const id of ['p2', 'p3', 'p4', 'p5', 'p6']) {
+      const cards = runs.map((s) => s.explore!.cards[id]);
+      const humanTookUnique = runs.some((s) => s.explore!.taken.length > 0);
+      if (!humanTookUnique) expect(new Set(cards).size).toBe(1);
+    }
+  });
+});

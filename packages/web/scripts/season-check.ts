@@ -412,6 +412,20 @@ for (const seed of toRun) {
         throw new Error(`sold the hold in week ${HUNGRY_WEEK} and no dog went hungry`);
       walked.hungry += hungry;
       if (human.dogIds.length === 0) throw new Error('the human stable lost every dog');
+      // ⚠️ Phase D1's acceptance rows (BUILD_PLAN_V3 Phase D): a season is not walked unless Explore
+      // was — every stable opened a door, the Pound offered a dog, and somebody was tipped. Staff
+      // and sabotage get their rows in D2.
+      const picks = log.filter((a) => a.t === 'ChooseDoor').length;
+      const offers = state.players.reduce((n, p) => n + p.stats.dogOffers, 0);
+      const tips = state.players.reduce((n, p) => n + p.stats.tips, 0);
+      console.log(`  explore: ${picks} doors opened, ${offers} dog offers, ${tips} tips`);
+      if (picks === 0) throw new Error('nobody opened a door');
+      if (picks !== state.players.length * state.week)
+        throw new Error(
+          `${picks} doors opened in ${state.week} weeks of ${state.players.length} stables`,
+        );
+      if (offers === 0) throw new Error('the season produced no dog offers');
+      if (tips === 0) throw new Error('the season produced no tips');
     } catch (e) {
       failures++;
       console.error(`seed ${seed} (${label}) FAILED: ${(e as Error).message}`);

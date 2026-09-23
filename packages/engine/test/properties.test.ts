@@ -472,3 +472,101 @@ describe('the hot pace and the run-in (GDD_V3 §5.3, §14 Q11; Phase C2)', () =>
     }
   });
 });
+
+/*
+ * v3 Phase D1 — additions only; nothing above this line was edited.
+ */
+describe('Explore, the Pound, the tips and the local runner (GDD_V3 §4.4, §9; Phase D1)', () => {
+  /** What must hold after every action once Explore exists, over whole seasons of Normal stables. */
+  function checkD1(s: GameState): void {
+    for (const p of s.players) {
+      // A lent runner is nobody's asset: never in the kennel, and only this weekend's.
+      for (const id of p.dogIds) assert(!s.dogs[id]!.loan, `${id} is a loaner in ${p.id}'s kennel`);
+      if (p.loanerId) {
+        const d = s.dogs[p.loanerId];
+        assert(d?.loan && d.ownerId === p.id, `${p.id}'s loaner ${p.loanerId} is not a loan`);
+      }
+      assert(p.dogIds.length === balance.startDogs, `${p.id} holds ${p.dogIds.length} dogs`);
+      assert(
+        p.dealtGone.length + p.dogIds.filter((id) => s.dogs[id]!.dealt).length === 3,
+        `${p.id}'s dealt three do not add up`,
+      );
+      assert(p.stats.liesCaught <= p.stats.liesTold, 'more lies caught than told');
+      assert(p.stats.dogsTaken <= p.stats.dogOffers, 'more dogs taken than offered');
+    }
+    for (const d of Object.values(s.dogs))
+      if (d.loan)
+        assert(
+          s.players.some((p) => p.loanerId === d.id),
+          `stray loaner ${d.id}`,
+        );
+    for (const c of s.conditions) {
+      for (const pid of c.tipped)
+        assert(
+          s.players.some((p) => p.id === pid),
+          `tip to ${pid}`,
+        );
+      assert(new Set(c.tipped).size === c.tipped.length, 'a stable tipped twice about one dog');
+    }
+    if (s.phase === 'explore') assert(s.activePlayer !== null || s.pendingEvent, 'Explore stalled');
+    if (s.explore && s.phase !== 'explore' && s.phase !== 'arrival')
+      for (const p of s.players)
+        assert(s.explore.picks[p.id] !== undefined, `${p.id} never opened a door`);
+  }
+
+  it('hold after every action across 12 seasons of 3–8 stables', () => {
+    for (let seed = 300; seed < 312; seed++) {
+      const s = createSeason({
+        seed,
+        players: Array.from({ length: 3 + (seed % 6) }, () => ({
+          name: '',
+          kind: 'ai' as const,
+          difficulty: 'normal' as const,
+        })),
+      });
+      let guard = 0;
+      while (!isSeasonOver(s) && guard++ < 50_000) {
+        const who = s.pendingEvent?.playerId ?? s.activePlayer!;
+        const actions: Action[] = needsAdvance(s)
+          ? [{ t: 'AdvancePhase' }]
+          : decide(s, who, player(s, who).difficulty);
+        for (const a of actions) {
+          reduceMut(s, a);
+          checkInvariants(s);
+          checkD1(s);
+        }
+      }
+      expect(isSeasonOver(s)).toBe(true);
+    }
+  }, 60_000);
+
+  it('refuses a second door, a door out of turn, and a loaner outside the Bronze Dash', () => {
+    const s = createSeason({
+      seed: 11,
+      players: [
+        { name: 'A', kind: 'human' },
+        { name: 'B', kind: 'human' },
+      ],
+    });
+    reduceMut(s, { t: 'AdvancePhase' });
+    expect(s.phase).toBe('explore');
+    const first = s.activePlayer!;
+    const second = s.turnOrder.find((id) => id !== first)!;
+    expect(() => reduceMut(s, { t: 'ChooseDoor', playerId: second, door: 0 })).toThrow();
+    expect(() => reduceMut(s, { t: 'ChooseDoor', playerId: first, door: 3 })).toThrow();
+    reduceMut(s, { t: 'ChooseDoor', playerId: first, door: 1 });
+    if (s.pendingEvent)
+      reduceMut(s, { t: 'ResolveEvent', playerId: first, choice: aiChoiceFor(s, first) });
+    expect(() => reduceMut(s, { t: 'ChooseDoor', playerId: first, door: 0 })).toThrow();
+    // Lend the active stable a runner by hand and try it in the Gold Cup.
+    explorePast(s);
+    const p = player(s, s.activePlayer!);
+    const d = s.dogs[p.dogIds[0]!]!;
+    const lent = { ...d, id: 'dog_lent', loan: true as const, dealt: false };
+    s.dogs[lent.id] = lent;
+    p.loanerId = lent.id;
+    expect(() =>
+      reduceMut(s, { t: 'Declare', playerId: p.id, race: HEADLINE_TYPE_ID, dogId: lent.id }),
+    ).toThrow(/lent/);
+  });
+});

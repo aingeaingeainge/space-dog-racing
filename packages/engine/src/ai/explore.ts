@@ -15,11 +15,16 @@ import { hash01, ownDogs } from './shared';
  *
  * - **The Pound** when a dog is laid up (the vet) or the kennel has a dog worth replacing — old, or
  *   rated well under the dealt 50;
- * - **The Bar** with money to bet or a hold to price (tips on next week's shelf, whispers on race day);
- * - **The Back Alley** at a flat, slightly wary weight — trouble is where the stories are, and where
- *   the whispers are bought;
- * - **The Strip** when cash is short;
+ * - **The Bar** with a hold to price (next week's shelf);
+ * - **The Back Alley** with money to spend on a whisper;
+ * - **The Strip** when cash is short, and a little more often anyway, because it is on the fewest
+ *   planets (5.7 of a season's ten weeks, against 5.8–6.2 for the others);
  * - **The Track** while a dog's style is still unknown or the yard is tired.
+ *
+ * ⚠️ **The bonuses are small and the hash is large on purpose** (`weight × (0.25 + hash)`). Built
+ * first with bigger bonuses and `0.4 + hash`, Normal opened the Bar 38.9% of the time and the Back
+ * Alley 6.0% — a cash bonus that is true nearly every week is not a need, it is a constant — against
+ * §11's none-below-12% row.
  *
  * ⚠️ **Hard uses this unchanged in D1** — the prompt gives Hard no new Explore behaviour until D2.
  */
