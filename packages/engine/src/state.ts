@@ -363,12 +363,17 @@ export function createSeason(setup: SeasonSetup): GameState {
         tipOff: false,
       },
       sponsorWeeks: 0,
+      dealtGone: [],
       stats: {
         prizeIncome: 0,
         tradeIncome: 0,
         betIncome: 0,
         costs: 0,
         worthByWeek: [],
+        dogOffers: 0,
+        dogsTaken: 0,
+        liesTold: 0,
+        liesCaught: 0,
       },
     };
     if (ps.kind === 'ai') {

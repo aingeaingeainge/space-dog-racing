@@ -19,7 +19,7 @@ import {
   type Ctx,
 } from '../state';
 import { clamp, fork } from '../rng';
-import type { Dog, GameState, Id, RaceField, RaceResult } from '../types';
+import type { Dog, GameState, Id, RaceField, RaceResult, StyleId } from '../types';
 import { STYLE_IDS } from '../types';
 import { bettingOpen, startPlayerPhase } from './turn';
 
@@ -124,26 +124,39 @@ function runnerFrom(d: Dog, trap: number): Runner {
  *
  * Every stable dog that just ran is revealed. Then the elimination §5.5 promises — "a player who has
  * identified two knows the third" — is done by the engine rather than left to whoever brought a pen:
- * the deal is public (one of each), so once two of a stable's three are known, so is the third, and
- * it is known to everybody, because everybody can do the same subtraction.
+ * the deal is public (one of each), so once two of a stable's dealt three are known, so is the third,
+ * and it is known to everybody, because everybody can do the same subtraction.
  *
- * ⚠️ **The elimination is only sound while a stable holds exactly the three dogs it was dealt.** v3
- * Phase C has no way to acquire a dog, so that is always true; Phase D's §9.2 acquisition breaks it,
- * and this is the function it has to revisit.
+ * ⚠️ **Rewritten for Phase D1's acquisition (§9.2), which broke the old assumption (decision C4).**
+ * The elimination used to require a kennel of exactly three and read every dog in it. Once a stable
+ * can swap a dog, that is unsound twice over: an acquired dog is not part of the deal, so its style
+ * says nothing about the others; and a dealt dog that has left took one of the three styles with it.
+ * So it now reads only what the table can actually infer — the **dealt** dogs still held (`Dog.dealt`)
+ * and the styles of dealt dogs that left, as the table knew them when they went (`dealtGone`). If
+ * exactly one held dealt dog is still unknown and no dealt dog left unknown, the one style missing
+ * from the deal is its style. Anything less and nobody can say, so nobody is told.
  */
-function revealStyles(s: GameState, ran: readonly Dog[]): void {
+export function revealStyles(s: GameState, ran: readonly Dog[]): void {
   const reveal = (d: Dog, how: string) => {
     d.styleKnown = true;
     log(s, `${d.name} ${how} ${STYLE_BY_ID[d.style].name.toLowerCase()} — it is on the card now.`);
   };
   for (const d of ran) if (d.ownerId !== 'local' && !d.styleKnown) reveal(d, 'showed itself a');
   for (const p of s.players) {
-    const kennel = p.dogIds.map((id) => s.dogs[id]).filter((d): d is Dog => !!d);
-    if (kennel.length !== STYLE_IDS.length) continue;
-    const hidden = kennel.filter((d) => !d.styleKnown);
+    if (p.dealtGone.includes(null)) continue;
+    const dealt = p.dogIds.map((id) => s.dogs[id]).filter((d): d is Dog => !!d && d.dealt);
+    const hidden = dealt.filter((d) => !d.styleKnown);
     if (hidden.length !== 1) continue;
-    const known = new Set(kennel.filter((d) => d.styleKnown).map((d) => d.style));
-    if (known.size === STYLE_IDS.length - 1 && !known.has(hidden[0]!.style))
+    const known = [
+      ...dealt.filter((d) => d.styleKnown).map((d) => d.style),
+      ...p.dealtGone.filter((x): x is StyleId => x !== null),
+    ];
+    const missing = STYLE_IDS.filter((id) => !known.includes(id));
+    if (
+      known.length === STYLE_IDS.length - 1 &&
+      missing.length === 1 &&
+      missing[0] === hidden[0]!.style
+    )
       reveal(hidden[0]!, 'is, by elimination, the stable’s');
   }
 }

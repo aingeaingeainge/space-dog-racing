@@ -72,6 +72,7 @@ export function createDog(spec: DogSpec, rng: Rng, nextId: IdGen): Dog {
     // it races (§5.4).
     style: spec.style ?? rng.pick(STYLE_IDS),
     styleKnown: spec.owner === 'local',
+    dealt: false,
     injuryWeeks: 0,
     wins: 0,
     runs: 0,
@@ -177,6 +178,7 @@ export function createStartingDog(owner: Id, style: StyleId, rng: Rng, nextId: I
   dog.accel = stats.accel;
   dog.stamina = stats.stamina;
   dog.rating = baseRating(dog);
+  dog.dealt = true;
   if (dog.rating !== target) throw new Error(`Dealt a dog rated ${dog.rating}, not ${target}`);
   return dog;
 }

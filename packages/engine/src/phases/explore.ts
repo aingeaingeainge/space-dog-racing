@@ -2,6 +2,7 @@ import { EVENTS, EVENT_BY_ID, type EventCard, type EventCtx } from '../content/e
 import { currentPlanet, log, player, type Ctx } from '../state';
 import { mulberry32, type Rng } from '../rng';
 import { ActionError, type Action, type GameState, type Id } from '../types';
+import { revealStyles } from './raceDay';
 import { startPlayerPhase } from './turn';
 
 /**
@@ -70,8 +71,12 @@ export function deckFor(s: GameState, door: number): { cards: EventCard[]; weigh
 
 function applyChoice(ectx: EventCtx, card: EventCard, choice: number): void {
   const c = card.choices[choice] ?? card.choices[0]!;
-  ectx.log(`${card.name} — ${c.label}.`);
+  const label = card.labels ? (card.labels(ectx)[choice] ?? c.label) : c.label;
+  ectx.log(`${card.name} — ${label}.`);
   c.apply(ectx);
+  // A card can make a style public (a trial, a breeder, a rival's bragging); the §5.5 elimination
+  // follows from it at once rather than waiting for race day.
+  revealStyles(ectx.s, []);
 }
 
 /** What a card's labels read for this stable — a card may name the dogs it is about. */
@@ -119,6 +124,7 @@ export function chooseDoor(ctx: Ctx, action: Extract<Action, { t: 'ChooseDoor' }
       eventId: card.id,
       params,
       choices: choiceLabels(card, ectx),
+      ...(card.detail ? { detail: card.detail(ectx) } : {}),
       door,
       rng: rng.state(),
     };

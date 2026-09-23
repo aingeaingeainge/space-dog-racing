@@ -301,6 +301,12 @@ export interface Dog {
    * note-taking rewards whoever brought a pen. Locals are known from the start (the form guide).
    */
   styleKnown: boolean;
+  /**
+   * One of the three this stable was dealt (GDD_V3 §5.5). The table knows a dealt three is one of each
+   * style, so `revealStyles` can eliminate among them; a dog acquired by event (§9.2) is not part of
+   * that deal and is never inferred — it shows itself by racing, or at a trial.
+   */
+  dealt: boolean;
   injuryWeeks: number; // 0 = fit to race
   wins: number;
   runs: number;
@@ -355,6 +361,12 @@ export interface Player {
     tipOff: boolean; // a local runner is not trying this week
   };
   sponsorWeeks: number; // Glorbo's Meat Paste: dogs eat double
+  /**
+   * The styles of dealt dogs this stable has let go (GDD_V3 §9.2), as the table knew them when they
+   * left: the style if it was public, null if it was not. What `revealStyles` needs to keep the §5.5
+   * elimination sound once a stable no longer holds the three it was dealt (decision C4's caveat).
+   */
+  dealtGone: (StyleId | null)[];
   fanClubDogId?: Id;
   stats: PlayerSeasonStats;
 }
@@ -366,6 +378,12 @@ export interface PlayerSeasonStats {
   betIncome: number; // returns − stakes
   costs: number; // food bought for eating
   worthByWeek: number[];
+  /** Dogs offered to this stable in the Pound (GDD_V3 §9.2), and how many it took. */
+  dogOffers: number;
+  dogsTaken: number;
+  /** Offers where the seller lied, and how many of those this stable took — and so found out. */
+  liesTold: number;
+  liesCaught: number;
 }
 
 /**
@@ -488,6 +506,8 @@ export interface PendingEvent {
   choices: string[];
   /** Which of the planet's three doors it came from (GDD_V3 §9.1). */
   door: number;
+  /** What this stable is shown beyond the card's text — a dog offer's age, stat and patter. */
+  detail?: string;
   /**
    * The stable's own Explore stream, as it stood after the card was rolled. The choice's effect
    * continues it, so what a stable picks never touches the draws anybody else gets (decision D1).

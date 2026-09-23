@@ -60,6 +60,8 @@ export interface EventCard {
    * per choice, in order.
    */
   labels?: (ctx: EventCtx) => string[];
+  /** What the player is shown beyond `text`, rolled for them: a dog offer's age, stat and patter. */
+  detail?: (ctx: EventCtx) => string;
   /** Which choice a Normal AI takes (default 0). */
   aiChoice?: (ctx: EventCtx) => number;
 }

@@ -21,6 +21,96 @@ import {
   type EventCard,
 } from '../eventKit';
 import { weakestStat } from '../../economy/dogValue';
+import {
+  acceptOffer,
+  cheapestDog,
+  describeOffer,
+  estimateOffer,
+  PATTER,
+  rollOffer,
+  STAT_LABEL,
+  type OfferOptions,
+} from '../../economy/acquire';
+import { dogValue } from '../../economy/dogValue';
+import type { EventChoice, EventCtx } from '../eventKit';
+import type { StatKey } from '../../types';
+
+/**
+ * A Pound card that offers a dog (GDD_V3 §9.2). Four buttons: take it and let one of your three go
+ * (each named), or walk away. It is one decision — whether, and for whom — and the dog is **one of a
+ * kind on the planet-week** (`unique`): the first stable through the door in turn order gets the
+ * offer, and anybody after draws something else (§2.3's contention).
+ */
+function offerCard(
+  id: string,
+  name: string,
+  text: string,
+  weight: number,
+  opts: OfferOptions,
+  planets?: { ids: string[]; boost: number },
+): EventCard {
+  const swap = (slot: number): EventChoice => ({
+    label: `Take it — let your dog ${slot + 1} go`,
+    apply: (ctx: EventCtx) => {
+      const outId = ctx.p.dogIds[slot];
+      if (!outId) return;
+      const { joined, left } = acceptOffer(ctx.s, ctx.p, ctx.params, outId, ctx.nextId);
+      ctx.p.stats.dogsTaken++;
+      const claimed = String(ctx.params.claimed) as StatKey;
+      ctx.log(`${joined.name} joins the stable, style unknown. ${left.name} goes to the Pound.`);
+      if (Number(ctx.params.lie) === 1) {
+        ctx.p.stats.liesCaught++;
+        ctx.log(
+          `"${PATTER[claimed]}," he said. ${STAT_LABEL[claimed]} ${joined[claimed]}. He lied.`,
+        );
+      } else ctx.log(`He was telling the truth: ${STAT_LABEL[claimed]} ${joined[claimed]}.`);
+    },
+  });
+  return {
+    id,
+    name,
+    text,
+    weight,
+    kind: 'choice',
+    category: 'pound',
+    unique: true,
+    ...(planets ? { planets: planets.ids, planetBoost: planets.boost } : {}),
+    roll: (ctx) => {
+      const params = rollOffer(ctx.rng, opts);
+      ctx.p.stats.dogOffers++;
+      if (Number(params.lie) === 1) ctx.p.stats.liesTold++;
+      return params;
+    },
+    detail: (ctx) => describeOffer(ctx.params),
+    labels: (ctx) => [
+      ...[0, 1, 2].map((i) => {
+        const d = ctx.s.dogs[ctx.p.dogIds[i] ?? ''];
+        return d ? `Take it — let ${d.name} go` : '—';
+      }),
+      'Walk away',
+    ],
+    choices: [
+      swap(0),
+      swap(1),
+      swap(2),
+      {
+        label: 'Walk away',
+        apply: (ctx) => ctx.log(`You leave ${ctx.params.offerName} where it is.`),
+      },
+    ],
+    // Normal: take the offer when what it can see — the shown stat as the dog's level, the patter at
+    // this seller's honesty — is worth a clear margin more than its cheapest dog, and let that one go.
+    aiChoice: (ctx) => {
+      const worst = cheapestDog(ctx.s, ctx.p);
+      if (!worst) return 3;
+      const est = estimateOffer(ctx.params, opts.lieMult);
+      return est > dogValue(worst) * OFFER_MARGIN ? ctx.p.dogIds.indexOf(worst.id) : 3;
+    },
+  };
+}
+
+/** How much better than its cheapest dog an offer has to look before Normal takes it. */
+const OFFER_MARGIN = 1.1;
 
 export const POUND: readonly EventCard[] = [
   {
@@ -284,4 +374,53 @@ export const POUND: readonly EventCard[] = [
     aiChoice: (ctx) =>
       ownDogs(ctx.s, ctx.p).every((d) => d.fitness >= balance.fitnessScaleBelow + 25) ? 0 : 1,
   },
+
+  // ---- Dogs offered (GDD_V3 §9.2). One of a kind a planet-week; the seller's honesty is the card's. ----
+  offerCard(
+    'strayOffer',
+    'A stray nobody has claimed',
+    'A volunteer walks a lean, bright-eyed stray out of the back pens. Nobody has claimed it in a month. She has watched it run round the yard, and she tells you what she saw.',
+    10,
+    { lieMult: 0.5 },
+  ),
+  offerCard(
+    'runtOfTheLitter',
+    'The runt of the litter',
+    'A farmer in dungarees holds up a pup by the scruff. "Runt of the litter, but a goer." He wants it gone before his wife counts them again.',
+    7,
+    { lieMult: 1, ageMin: 1, ageMax: 2, levelShift: -3 },
+    { ids: ['kibbleton', 'mudhaven'], boost: 3 },
+  ),
+  offerCard(
+    'longCoatOffer',
+    'A man in a long coat',
+    'He opens the coat. There is a dog in it. "Won it in a card game. Papers? What papers?" He talks very fast about how it runs.',
+    9,
+    { lieMult: 1.8 },
+    { ids: ['drift', 'lagrangeLows', 'rustgut', 'sunbleach'], boost: 2 },
+  ),
+  offerCard(
+    'retiredRacer',
+    'Not quite finished',
+    'An old racer, grey round the muzzle, retired to the rescue home too soon — or so its handler says. Swap it for one of yours and it is yours.',
+    6,
+    { lieMult: 0.8, ageMin: 5, ageMax: 6, levelShift: 5 },
+    { ids: ['oldWembley'], boost: 3 },
+  ),
+  offerCard(
+    'monkRehome',
+    'The monks rehome a dog',
+    'A monk in a brown habit leads out a dog that has lived at the Almshouse since it was a pup. The monks do not lie. They will tell you exactly what it is.',
+    3,
+    { lieMult: 0 },
+    { ids: ['holyBark', 'ossuary'], boost: 6 },
+  ),
+  offerCard(
+    'batchDog',
+    'Batch 7, jar 12',
+    'A lab tech with a clipboard is clearing out the overstock: a clone grown for a client who never paid. The spec sheet is attached. The spec sheet is mostly right.',
+    3,
+    { lieMult: 0.5, ageMin: 1, ageMax: 3, levelShift: 2 },
+    { ids: ['vatgrown', 'tinkertown'], boost: 6 },
+  ),
 ];
