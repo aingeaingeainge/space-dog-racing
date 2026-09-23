@@ -307,6 +307,13 @@ export interface Dog {
    * that deal and is never inferred — it shows itself by racing, or at a trial.
    */
   dealt: boolean;
+  /**
+   * The free local runner (GDD_V3 §4.4): lent to a stable short of fit dogs for this weekend's Bronze
+   * Dash. It races in the stable's colours and the stable keeps the prize, but it is nobody's asset —
+   * never in `dogIds`, never in net worth or a rating table — and it is swept with the locals at the
+   * jump. Absent on every other dog.
+   */
+  loan?: true;
   injuryWeeks: number; // 0 = fit to race
   wins: number;
   runs: number;
@@ -372,6 +379,8 @@ export interface Player {
    * `week` it knows. Stale once `week` has passed.
    */
   intel: { week: number; goods: GoodId[] };
+  /** This weekend's free local runner (GDD_V3 §4.4), if the stable was lent one. */
+  loanerId?: Id;
   fanClubDogId?: Id;
   stats: PlayerSeasonStats;
 }

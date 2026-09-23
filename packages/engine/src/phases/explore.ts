@@ -1,5 +1,8 @@
 import { EVENTS, EVENT_BY_ID, type EventCard, type EventCtx } from '../content/events';
-import { currentPlanet, log, player, type Ctx } from '../state';
+import { balance } from '../content/balance';
+import { CARD, raceType } from '../content/raceTypes';
+import { createLocalDog } from '../economy/dogs';
+import { calendarEntry, currentPlanet, log, player, type Ctx } from '../state';
 import { mulberry32, type Rng } from '../rng';
 import { ActionError, type Action, type GameState, type Id } from '../types';
 import { revealStyles } from './raceDay';
@@ -190,5 +193,41 @@ function passOn(ctx: Ctx, playerId: Id): void {
     return;
   }
   s.activePlayer = null;
+  lendRunners(s, ctx);
   startPlayerPhase(s, 'planetPre');
 }
+
+/**
+ * GDD_V3 §4.4's guard against an injury feeling like being sent off: **a stable with fewer than three
+ * fit, uninjured dogs is lent a local for the Bronze Dash.** Decided once Explore is over, because a
+ * vet can shorten a layoff and a card can knock a dog about. Fit is `localRunnerFitAt` or above.
+ *
+ * ⚠️ Each loaner is drawn on its stable's own stream — a second stream off the Explore seed — so who
+ * is short of dogs this week, which Explore decides, never moves anybody else's draws (decision D1).
+ */
+function lendRunners(s: GameState, ctx: Ctx): void {
+  const major = calendarEntry(s).major;
+  for (const id of s.turnOrder) {
+    const p = player(s, id);
+    const fit = p.dogIds
+      .map((d) => s.dogs[d])
+      .filter((d) => d && d.injuryWeeks === 0 && d.fitness >= balance.localRunnerFitAt).length;
+    if (fit >= balance.startDogs) continue;
+    const rng = mulberry32(((s.explore?.seeds[id] ?? 0) + LOAN_STREAM) >>> 0);
+    const d = createLocalDog(LOAN_RACE, major, rng, ctx.nextId);
+    d.ownerId = p.id;
+    d.loan = true;
+    s.dogs[d.id] = d;
+    p.loanerId = d.id;
+    log(
+      s,
+      `${p.name} is short of fit dogs: the track lends ${d.name}, a local, for the ${raceType(LOAN_RACE).label}.`,
+      id,
+    );
+  }
+}
+
+/** The race a local runner is lent for (GDD_V3 §4.4): the cheapest on the card. */
+export const LOAN_RACE = CARD[0]!;
+/** Offsets the loaner's stream from the stable's Explore stream: any odd constant would do. */
+const LOAN_STREAM = 0x9e3779b9;

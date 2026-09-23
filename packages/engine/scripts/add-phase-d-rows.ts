@@ -113,8 +113,8 @@ const LOAN_SECTION = 'The free local runner (GDD_V3 §4.4 — a stable short of 
 ROWS.push({
   section: LOAN_SECTION,
   label: 'Local runner: a dog counts as fit at this fitness or above',
-  value: 50,
-  note: 'The injury-doubling line (§4.4). A stable with fewer than three uninjured dogs at or above it is lent a local for the Bronze Dash',
+  value: 30,
+  note: "A stable with fewer than three uninjured dogs at or above this is lent a local for the Bronze Dash (§4.4). Tried at 50, the injury-doubling line: Normal's race-rest rhythm puts a dog under 50 most weeks, so half of all weekends lent a runner (4.8 a stable-season) and it was a purse, not a guard. At 30: 1.2 a stable-season",
 });
 
 const REMOVE: { label: string; why: string }[] = [];

@@ -1,3 +1,4 @@
+import { LOAN_RACE } from './explore';
 import { raceType } from '../content/raceTypes';
 import { good } from '../content/goods';
 import { cargoTotal, HOLD_CAP, recordPurchase } from '../economy/goods';
@@ -65,6 +66,8 @@ export function declare(ctx: Ctx, action: Extract<Action, { t: 'Declare' }>): vo
   }
   const d = dog(s, action.dogId);
   if (d.ownerId !== p.id) fail('Not your dog', action);
+  if (d.loan && action.race !== LOAN_RACE)
+    fail(`${d.name} is lent for the ${raceType(LOAN_RACE).label} only`, action);
   if (!eligible(d, action.race)) {
     fail(
       d.injuryWeeks > 0
