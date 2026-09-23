@@ -3,7 +3,7 @@
 > **Status: CURRENT.** Build from this document.
 >
 > Canonical copy: `design/GDD_V3.md` in the `space-dog-racing` repo. A copy in a claude.ai Project
-> is a **mirror**, last synced 24 September 2026 — edit the repo, never the mirror. See `design/CANON.md`.
+> is a **mirror**, last synced 24 September 2026 (at `v3d1`) — edit the repo, never the mirror. See `design/CANON.md`.
 >
 > Supersedes `design/GDD.md` (v2, shipped at tag `v2e`), which is kept as historical reference and
 > is cited by name throughout this document.
@@ -270,6 +270,10 @@ of three for three weeks is a third of your stable for a third of a season. Two 
 with fewer than three fit dogs is offered a **free local runner** for the Bronze Dash (it races in
 your colours, you keep the prize, it is nobody's asset), and the injury explore door can shorten a
 layoff. If playtest says injuries still feel like being sent off, the base rate is the dial.
+
+*Built at `v3d1` (D6): the runner is lent after Explore to a stable with fewer than three uninjured
+dogs at 30+ fitness, 1.2 times a stable-season; the vet door is the Pound's "A vet who owes somebody
+a favour" (and a riskier one in the Back Alley).*
 
 ### 4.5 Traits
 
@@ -694,6 +698,12 @@ hall and the loan sharks that used to make eighteen planets feel different. What
 track, the food band, and **which three doors this planet offers** — so the doors must be named and
 flavoured per planet, not drawn generically.
 
+*Built at `v3d1` (D1, D5, D8): 54 named doors, three a planet, no planet with two of one kind; each
+category is on 5.7–6.2 of a season's ten weeks. The deck is 86 cards (Pound 19, Bar 19, Back Alley
+17, Strip 16, Track 15); Staff and sabotage (D2) take it past 90. All-Normal door share 17–23% per
+category. One seat's cards recur 13% from one season to the next. Every stable explores on its own
+stream seeded at arrival, so no door moves anybody else's draws.*
+
 ### 9.2 Acquiring a dog
 
 The rule Jesse asked for, with one amendment: **you see enough to price the gamble.**
@@ -706,6 +716,12 @@ Accepting means discarding one of your own dogs (you choose which) and paying no
 randomness has to arrive as something the player can evaluate. Age plus one stat plus patter that
 might be false is a gamble a player can reason about and get wrong on purpose — which is the version
 they will tell a story about afterwards.
+
+*Built at `v3d1` (D2, D5): six Pound cards offer a dog, one of a kind a planet-week. The patter lies
+at 0.35 × the seller's honesty (a monk never, a man in a long coat nearly two times in three); offers
+centre on rating 42, so the gamble is mostly a step down with a chance of a real dog. A stable that
+opens the Pound whenever there is one gets 2.9 swings a season. The acquired dog arrives
+style-unknown and outside the §5.5 elimination.*
 
 ### 9.3 Sabotage
 
@@ -738,6 +754,12 @@ The fog (§2.1) is kept, but there is no dossier to buy and no Tipster to hire. 
 you through **Bar events** and **staff bonuses**, and it has exactly one use: knowing whether next
 week's planet buys your Ambrosia high. That makes it easy to price for the first time in the
 project.
+
+*Built at `v3d1` (D3, D4): two kinds, both only through a door. **Next week's shelf** — three Bar
+cards sell the band position of two, three or all six goods, rolled a week early and read by nobody
+else. **Race-day tips** — five Bar and Back Alley cards tell one stable about a hidden knock, loss of
+appetite or buzz on a stable dog, which the book never prices: a tipped buzzing dog returns about
++20% a Bone, and this is the insider knowledge betting was missing.*
 
 ---
 
@@ -874,6 +896,15 @@ All 18 planets survive as data. What changes is which fields do work:
 | 2026-09-23 | **C14 — the run-in: over the last 15 m every runner slows alike, to half pace at the line; the closer's fade shift trimmed to +0.035** | §14 Q11. The margin is made inside the race, mostly by race-day luck, but luck is also what holds calibration (at 1.2 a rating-65 dog wins 79%). Tick noise does nothing to the margin, and a harder fade widens it. A margin in metres is a time gap multiplied by the speed at the line, and A7 took that speed from half pace to about 85%. So the whole field slows alike, by position only. That is not a catch-up rule: nobody gains time on anybody. Kept short because a long run-in favours stamina (at 40 m stamina passed accel). Median 10.3 → 6.3 m, photo finishes 2.2 → 3.5% |
 | 2026-09-23 | **C15 — `oddsScale` 18.75 → 19, on the real-field reading; least squares said 18 and was the wrong way** | C7 again. The probe (65 v seven 50s, 51.8%) fitted 18. Played through at 18, the house margin was −9.9% and a stable dog backed blind returned +2.8%; at 18.75 the figures were −11.8% and +1.4%; at 19, −12.6% and +0.6% (200 seasons) or −12.9% and +2.3% (800 seasons, within a standard error of the +2% line). 19 is the smallest step that puts both in band. `STATE_VERSION` 8 and `SAVE_VERSION` 7 moved in their own commit: a `v3c` log is a different season now |
 
+| 2026-09-24 | **D1 — Explore is simultaneous and played in turn order, and every stable explores on its own stream, seeded at arrival** | §2.3 step 2, §9.1. The arrival draw is gone; the 26 cards are re-homed behind the five doors. At arrival the game's stream draws one seed per stable, in seating order, and everything a door does — the card, its roll, the choice's effect — runs on that stable's stream, so no door and no choice moves the game's stream or another stable's draws (a determinism test opens all three doors and compares). Picks are private and contention is turn order, so resolving each door as it opens is the same game as collecting picks first, and passes a hotseat laptop once. The Tip-off's lazy local is drawn every week for the same reason; the Solar flare no longer reshuffles the table mid-Explore |
+| 2026-09-24 | **D2 — a dog offer shows age, one true stat and patter about another, which lies at 0.35 × the seller's own honesty; the §5.5 elimination reads only dealt dogs** | §9.2, V4. The talked-up stat is 10 above the dog's level when true and 12 below when a lie; a monk ×0, a man in a long coat ×1.8 — the seller is the thing a player reasons about. Walk away is the first button. An acquired dog is style-unknown and not dealt; `revealStyles` counts dealt dogs held plus dealt dogs gone (as known when they left), which is C4's caveat closed. Measured: 32% of offers lie; Normal took 28% of the lies, which is when a lie is caught (the stat bars are public) |
+| 2026-09-24 | **D3 — betting's insider knowledge is race-day conditions, drawn at arrival, applied to the runner, never priced, and told only by a tip** | Jesse's call after `v3c`. One draw per stable dog: a knock 6% (−30 fitness on race day), off its feed 6% (−15), buzzing 8% (+3 speed). Nobody knows, the owner included, until a Bar or Back Alley card tells one stable. Sized by `--styles` row 5's method at 800 seasons: a buzzing dog +20.1% a Bone, a stable dog blind −1.3%, the house margin −12.6% (buzzing +8 read +53%, +5 read +33%). A private style reveal was not built: C4 has no private knowing |
+| 2026-09-24 | **D4 — next week's market is rolled a week early and sold in the Bar** | §9.4. Arrival rolls next week's prices and posts them when the week comes; only a stable whose `intel` names a good may read it, and Normal trades on it. 1.8% of sales are made on a tip, at a mean leg of 461 against 296; Phase B's rows stay in band |
+| 2026-09-24 | **D5 — offered dogs centre on 42, not the dealt 50, and Normal's door is mostly a hash** | Measured, not designed. At 50 the Pound was a free upgrade for a stable that takes only the good ones — ~2,000 of mean end worth, out of its band; at 42 mean end worth is 39,710. Normal's first door rule leaned so hard on "cash > 3000" that it opened the Bar 39% and the Alley 6%; with small need bonuses and `weight × (0.25 + hash)` every category is 17–23% |
+| 2026-09-24 | **D6 — the free local runner goes to a stable with fewer than three uninjured dogs at 30+ fitness, for the Bronze Dash** | §4.4. Lent after Explore, drawn on the stable's own stream, nobody's asset (`Dog.loan`: never in the kennel, net worth or a rating table, not rolled for injury, swept at the jump). At the injury-doubling line of 50 it was lent 4.8 times a stable-season — a purse, not a guard; at 30, 1.2 |
+| 2026-09-24 | **D7 — `hub-clicks` counts Explore, and Results gains "Fly on"** | §10.1. The old count never included the arrival card. Explore is 1.75 presses a weekend (a door, and a choice on ~75% of cards); "Fly on" does back-to-the-planet and end-turn in one press when there is nothing left to do, saving 0.78. 11.3 against the 10.5 limit — **missed**, reported, and a candidate saving named in the D1 notes (Race/Rest is inert for an undeclared dog) |
+| 2026-09-24 | **D8 — "two consecutive seasons share ≤ a third of their events" is read per seat** | One seat's cards recur 13.3% season to season; the whole table's 53.8%, because six stables draw 60 cards from 86. The row asks whether a player's third play-through is samey, which is a seat's question; both numbers are printed |
+
 ---
 
 ## 14. Open questions ❓
@@ -885,15 +916,20 @@ All 18 planets survive as data. What changes is which fields do work:
 3. **Is one race enough to read a style?** §5.4 assumes yes, on the strength of the commentary. If
    it takes three, styles arrive too late to use in a ten-week season.
 4. **Is an injury too punishing with three dogs?** §4.4. The free local runner is the guard; the
-   base rate is the dial.
+   base rate is the dial. *`v3d1`: both guards are built (D6) — the runner, and a vet behind the
+   Pound and the Back Alley.*
 5. **Should the three races run in split view?** §7.5. Cuts watching time by two thirds at a cost
    in drama.
 6. **Does the Target mode produce a good ending or an anticlimax?** Somebody crossing the line on
    week 4 of season 2 may end the game before it has a shape.
 7. **Are 80 events enough for a fifth play-through?** §9.1. The deck is the whole content budget
-   now.
+   now. *`v3d1`: 86 before D2's staff and sabotage; a seat sees 13% of last season's cards again.*
 8. **Do 18 planets still feel distinct** when the only things that vary are the track, the food band
-   and the three doors? §12.
+   and the three doors? §12. *`v3d1`: the doors are named (54) and some cards lean on a planet; the
+   `v3d1` checklist asks it.*
+12. **Is Explore worth its clicks?** §10.1. It costs 1.75 presses a weekend and `hub-clicks` reads
+   11.3 against 10.5 (D7). Race/Rest is inert for an undeclared dog, so retiring the weekly "plan
+   the week" press would pay for it — a presentation change for Jesse to call.
 9. **Should the book price fitness and form?** §5.6 says yes, §1.1 says ratings and styles, and the
    code has only ever priced the rating (C6). Pricing fitness would close the edge a player who reads
    the card has over the book — the only one left since the Fixer went.
