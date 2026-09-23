@@ -5,6 +5,7 @@ import { Nav } from './components/Nav';
 import { PassTo } from './components/PassTo';
 import { TopBar } from './components/TopBar';
 import { Bookie } from './screens/Bookie';
+import { Explore } from './screens/Explore';
 import { GalaxyMap } from './screens/GalaxyMap';
 import { LockedField } from './screens/LockedField';
 import { Market } from './screens/Market';
@@ -104,7 +105,9 @@ export function App() {
           </div>
         ) : null}
 
-        {screen.kind === 'betting' ? (
+        {screen.kind === 'explore' ? (
+          <Explore s={s} me={me} />
+        ) : screen.kind === 'betting' ? (
           <Bookie s={s} me={me} />
         ) : (
           <>

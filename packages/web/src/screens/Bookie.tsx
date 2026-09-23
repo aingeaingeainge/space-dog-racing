@@ -13,6 +13,7 @@ import {
   type RaceTypeId,
 } from '@sdr/engine';
 import { FieldTable } from '../components/FieldTable';
+import { Whispers } from '../components/Whispers';
 import { Panel } from '../components/Panel';
 import { Notes } from '../components/ui';
 import { NeonButton } from '../components/NeonButton';
@@ -48,6 +49,7 @@ export function Bookie({ s, me }: { s: GameState; me: Player }) {
 
   return (
     <>
+      <Whispers s={s} me={me} where="the book prices the rating and the style, never this" />
       <Panel
         title="The bookie"
         sub={`${planet.name} · margin ${Math.round(margin * 100)}% · max stake ${Math.round(frac * 100)}% of cash`}

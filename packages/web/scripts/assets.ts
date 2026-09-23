@@ -338,6 +338,46 @@ const eventCards: AssetSpec[] = EVENTS.map((e, i) => ({
   seeds: `${5000 + i * 20}–${5019 + i * 20}`,
 }));
 
+// ---------------------------------------------------------------- explore doors
+
+/** What each of GDD_V3 §9.1's five doors looks like from the street, whatever planet it is on. */
+const DOOR_KIND: Record<string, string> = {
+  pound: 'the way into a dog pound or kennels — wire runs, bowls, a hand-painted paw sign',
+  bar: 'the entrance to a bar — a lit window, a door propped open, noise spilling out',
+  alley: 'the mouth of a back alley — bins, steam, a single bulb, somebody watching',
+  strip: 'a frontage on a lit commercial strip — awnings, lights, a crowd of hustlers',
+  track: 'the gate onto a practice track or paddock — rails, a stopwatch clock, sawdust',
+};
+
+/**
+ * GDD_V3 §9.1, §12: three doors a planet, **named and flavoured to it** — this is where planet
+ * identity lives in v3. One 3:4 illustration per door, keyed by planet and category, drawn on the
+ * Explore screen before a player picks.
+ */
+const doors: AssetSpec[] = PLANETS.flatMap((p, i) =>
+  p.exploreDoors.map((d, k) => ({
+    stem: `doors/${p.id}-${d.category}`,
+    group: 'doors',
+    w: 600,
+    h: 800,
+    alpha: false,
+    targetKb: 60,
+    capKb: 110,
+    label: d.name,
+    what: `${p.name} — ${d.category}: ${d.blurb.slice(0, 80)}`,
+    tier: 2 as Tier,
+    accents: accentsOf(p),
+    prompt:
+      `${STYLE}. ${d.name}, on ${p.name} (${p.vibe}): ${d.blurb} Seen from the street at dog ` +
+      `height: ${DOOR_KIND[d.category]}. It must read at a glance as this planet's version of ` +
+      `that place. ${colourClause(p)}. Portrait framing with the doorway centred and the top ` +
+      `quarter kept plain for a name plate. No text, no readable signs, no humans (aliens and ` +
+      `dogs only), 3:4.`,
+    negative: NEG_SCENE,
+    seeds: seedBand(i, 60 + k * 10),
+  })),
+);
+
 // ---------------------------------------------------------------- portraits
 
 const OWNER_BRIEFS = [
@@ -601,6 +641,17 @@ export const GROUPS: AssetGroup[] = [
       'One 8:5 illustration per event id in the engine deck. The id is the filename; add an ' +
       'event to content/events.ts and it wants a new file with that name.',
     assets: eventCards,
+  },
+  {
+    id: 'doors',
+    title: 'Explore doors',
+    tier: 2,
+    blurb:
+      'Three doors a planet (GDD_V3 §9.1, §12), 54 in all, keyed by planet and category — ' +
+      'Planet.exploreDoors in the engine. Each is that planet’s own Pound, Bar, Back Alley, Strip ' +
+      'or Track, and the name on the row is the name on the screen. Drawn on the Explore screen ' +
+      'before a player picks; the card behind the door uses the event art.',
+    assets: doors,
   },
   {
     id: 'portraits',

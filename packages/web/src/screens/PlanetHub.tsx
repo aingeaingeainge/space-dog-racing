@@ -7,6 +7,7 @@ import {
   planetOf,
   purseFor,
   thisWeeksCard,
+  EVENT_BY_ID,
   type GameState,
   type Player,
 } from '@sdr/engine';
@@ -17,7 +18,8 @@ import { NeonButton } from '../components/NeonButton';
 import { Signpost } from '../components/Signpost';
 import { TicketCard } from '../components/TicketCard';
 import { KV, Notes, StableName } from '../components/ui';
-import { uiArt } from '../lib/assets';
+import { eventArt, uiArt } from '../lib/assets';
+import { Whispers } from '../components/Whispers';
 import { specialText, trackText } from '../lib/planetText';
 import { hotspotsFor, HOTSPOT_VENUES, VENUE_ICON } from '../lib/hotspots';
 import { venues } from '../lib/venues';
@@ -106,6 +108,9 @@ export function PlanetHub({ s, me }: { s: GameState; me: Player }) {
           );
         })}
       </HubStage>
+
+      <BehindTheDoor s={s} me={me} />
+      <Whispers s={s} me={me} where="use them at the Race Office and the bookie" />
 
       <Signpost rules={rules}>
         <Notes
@@ -270,5 +275,45 @@ export function PlanetHub({ s, me }: { s: GameState; me: Player }) {
         </Panel>
       </div>
     </>
+  );
+}
+
+/**
+ * What was behind this stable's door this weekend (GDD_V3 §9.1), read back on the hub. A card
+ * without a choice resolves the moment the door opens, so this is where a player reads it — no
+ * modal, no extra click (§10.1).
+ */
+function BehindTheDoor({ s, me }: { s: GameState; me: Player }) {
+  const cardId = s.explore?.cards[me.id];
+  const door = s.explore?.picks[me.id];
+  if (cardId === undefined || door === undefined) return null;
+  const planet = planetOf(s.planet.planetId);
+  const card = cardId ? EVENT_BY_ID[cardId] : undefined;
+  const lines = s.eventLog.filter(
+    (l) => l.week === s.week && l.phase === 'explore' && l.playerId === me.id,
+  );
+  const art = card ? eventArt(card.id) : null;
+  return (
+    <Panel
+      title={card ? card.name : 'Nothing doing'}
+      sub={`behind ${planet.exploreDoors[door]?.name ?? 'the door'} this weekend`}
+    >
+      <div className="behind-door">
+        <div className="event-art">
+          {art ? <img src={art.url} alt="" decoding="async" /> : null}
+          {!art || art.placeholder ? (
+            <span className="ph">{art ? 'placeholder' : 'no art'}</span>
+          ) : null}
+        </div>
+        <div className="log">
+          {card ? <p className="muted">{card.text}</p> : null}
+          {lines.slice(1).map((l, i) => (
+            <p key={i} className="mine">
+              {l.text}
+            </p>
+          ))}
+        </div>
+      </div>
+    </Panel>
   );
 }

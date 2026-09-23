@@ -33,7 +33,16 @@ export function applyActions(base: GameState, actions: readonly Action[]): Appli
 }
 
 export type ScreenKind =
-  'seasonEnd' | 'noHuman' | 'bust' | 'fields' | 'race' | 'results' | 'pass' | 'betting' | 'planet';
+  | 'seasonEnd'
+  | 'noHuman'
+  | 'bust'
+  | 'fields'
+  | 'race'
+  | 'results'
+  | 'pass'
+  | 'explore'
+  | 'betting'
+  | 'planet';
 
 export interface ScreenUi {
   /** Week whose races the table has already watched run. */
@@ -78,6 +87,9 @@ export function screenFor(s: GameState, ui: ScreenUi): Screen {
   if (s.races && ui.racesWatchedWeek !== s.week) return { kind: 'race', me };
   if (s.races && ui.resultsSeenWeek !== s.week) return { kind: 'results', me };
   if (table.length > 1 && ui.passAck !== me.id) return { kind: 'pass', me };
+  // GDD_V3 §9.1: a new planet opens on its three doors. A card with a choice waits in EventModal
+  // over the hub, so the doors are only the screen while there is a door still to pick.
+  if (s.phase === 'explore' && !s.pendingEvent) return { kind: 'explore', me };
   if (s.phase === 'betting') return { kind: 'betting', me };
   return { kind: 'planet', me };
 }

@@ -25,12 +25,13 @@ Everything is loaded lazily and per planet, so the whole set is never fetched at
 | Race-view ground | 18 | 200 kB | 3.5 MB | 6.2 MB | 2 |
 | Racing surface tiles | 18 | 40 kB | 0.7 MB | 1.2 MB | 2 |
 | Dog run cycles | 12 | 45 kB | 0.5 MB | 0.9 MB | 2 |
-| Event cards | 26 | 70 kB | 1.8 MB | 3.3 MB | 3 |
+| Event cards | 86 | 70 kB | 5.9 MB | 10.9 MB | 3 |
+| Explore doors | 54 | 60 kB | 3.2 MB | 5.8 MB | 2 |
 | Character portraits | 19 | 50 kB | 0.9 MB | 1.7 MB | 3 |
 | UI furniture | 11 | 8/25/30/40 kB | 0.2 MB | 0.4 MB | 3 |
-| **All of it** | **142** | | **11.0 MB** | **20.0 MB** | |
+| **All of it** | **256** | | **18.3 MB** | **33.4 MB** | |
 
-**142 files, about 11.0 MB if you hit the targets and 20.0 MB if every one lands on its cap.** That is the whole library, not a download: no player ever fetches all of it, because backdrops, ground and surfaces are per planet and a season visits thirteen of eighteen.
+**256 files, about 18.3 MB if you hit the targets and 33.4 MB if every one lands on its cap.** That is the whole library, not a download: no player ever fetches all of it, because backdrops, ground and surfaces are per planet and a season visits thirteen of eighteen.
 
 Two levers if that total wants to come down:
 
@@ -861,9 +862,451 @@ photorealism, 3D render, photograph, text, letters, watermark, signature, humans
 1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. A horizontal 8-frame sprite sheet of a top-down running cycle for a shaggy tusked hound with a boar-like snout, seen from DIRECTLY ABOVE. Eight equal frames of 280×120 pixels in a single row, each frame one step of a gallop, the dog NOSE-RIGHT. THE DOG MUST FILL THE FRAME EDGE TO EDGE: nose within a few pixels of the right edge, tail reaching the left edge, the torso at least two thirds of the frame's height, and the legs touching the top and bottom edges at full stretch. No empty margin on any side. Neutral greys and whites only with chunky black outlines — the game tints and rotates this in code. Transparent background, no shadow, no ground, no text, frames identical in scale and centring so the cycle does not wobble.
 ```
 
+### Explore doors — 54 files, ~3.2 MB
+
+Three doors a planet (GDD_V3 §9.1, §12), 54 in all, keyed by planet and category — Planet.exploreDoors in the engine. Each is that planet’s own Pound, Bar, Back Alley, Strip or Track, and the name on the row is the name on the screen. Drawn on the Explore screen before a player picks; the card behind the door uses the event art.
+
+**Negative prompt for every file in this group:**
+
+```text
+photorealism, 3D render, photograph, text, letters, words, readable signage, watermark, signature, humans, human faces, gore, lens flare, depth-of-field blur, soft gradients, muddy colour, empty grey sky
+```
+
+#### The Imperial Paddock — `src/assets/doors/cosmodrome-track.webp` (or `.svg`)
+
+600×800 · WebP · target 60 kB, cap 110 kB · seeds 160–259
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. The Imperial Paddock, on Cosmodrome (Retro-futurist imperial capital; brass, banners, propaganda posters of dogs): Brass rails, a band, and a colonel with a stopwatch who takes your dog's time personally. Seen from the street at dog height: the gate onto a practice track or paddock — rails, a stopwatch clock, sawdust. It must read at a glance as this planet's version of that place. Colour scheme imperial gold #C9A227 and oxblood red #7A1F2B over base charcoal #1B1A22 and rust #6B3A22. Portrait framing with the doorway centred and the top quarter kept plain for a name plate. No text, no readable signs, no humans (aliens and dogs only), 3:4.
+```
+
+#### The Officers' Mess — `src/assets/doors/cosmodrome-bar.webp` (or `.svg`)
+
+600×800 · WebP · target 60 kB, cap 110 kB · seeds 170–269
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. The Officers' Mess, on Cosmodrome (Retro-futurist imperial capital; brass, banners, propaganda posters of dogs): Medals, port and gossip. Somebody here always knows which dog the Emperor fancies. Seen from the street at dog height: the entrance to a bar — a lit window, a door propped open, noise spilling out. It must read at a glance as this planet's version of that place. Colour scheme imperial gold #C9A227 and oxblood red #7A1F2B over base charcoal #1B1A22 and rust #6B3A22. Portrait framing with the doorway centred and the top quarter kept plain for a name plate. No text, no readable signs, no humans (aliens and dogs only), 3:4.
+```
+
+#### The Parade Ground — `src/assets/doors/cosmodrome-strip.webp` (or `.svg`)
+
+600×800 · WebP · target 60 kB, cap 110 kB · seeds 180–279
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. The Parade Ground, on Cosmodrome (Retro-futurist imperial capital; brass, banners, propaganda posters of dogs): Banners, bunting and sponsors queuing to be photographed next to a winner. Seen from the street at dog height: a frontage on a lit commercial strip — awnings, lights, a crowd of hustlers. It must read at a glance as this planet's version of that place. Colour scheme imperial gold #C9A227 and oxblood red #7A1F2B over base charcoal #1B1A22 and rust #6B3A22. Portrait framing with the doorway centred and the top quarter kept plain for a name plate. No text, no readable signs, no humans (aliens and dogs only), 3:4.
+```
+
+#### The Charnel Kennels — `src/assets/doors/ossuary-pound.webp` (or `.svg`)
+
+600×800 · WebP · target 60 kB, cap 110 kB · seeds 260–359
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. The Charnel Kennels, on Ossuary (Graveyard planet; racing in a cathedral of ribs): Dogs bred among the bones. They do not bark. They look at you. Seen from the street at dog height: the way into a dog pound or kennels — wire runs, bowls, a hand-painted paw sign. It must read at a glance as this planet's version of that place. Colour scheme bone white #E8E4D0 and deep violet #4B2E83 over base charcoal #1B1A22 and rust #6B3A22. Portrait framing with the doorway centred and the top quarter kept plain for a name plate. No text, no readable signs, no humans (aliens and dogs only), 3:4.
+```
+
+#### The Catacombs — `src/assets/doors/ossuary-alley.webp` (or `.svg`)
+
+600×800 · WebP · target 60 kB, cap 110 kB · seeds 270–369
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. The Catacombs, on Ossuary (Graveyard planet; racing in a cathedral of ribs): Tunnels under the track, lit by candles and bad intentions. Seen from the street at dog height: the mouth of a back alley — bins, steam, a single bulb, somebody watching. It must read at a glance as this planet's version of that place. Colour scheme bone white #E8E4D0 and deep violet #4B2E83 over base charcoal #1B1A22 and rust #6B3A22. Portrait framing with the doorway centred and the top quarter kept plain for a name plate. No text, no readable signs, no humans (aliens and dogs only), 3:4.
+```
+
+#### The Rib Vault — `src/assets/doors/ossuary-track.webp` (or `.svg`)
+
+600×800 · WebP · target 60 kB, cap 110 kB · seeds 280–379
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. The Rib Vault, on Ossuary (Graveyard planet; racing in a cathedral of ribs): A practice straight laid out down the spine of something enormous and long dead. Seen from the street at dog height: the gate onto a practice track or paddock — rails, a stopwatch clock, sawdust. It must read at a glance as this planet's version of that place. Colour scheme bone white #E8E4D0 and deep violet #4B2E83 over base charcoal #1B1A22 and rust #6B3A22. Portrait framing with the doorway centred and the top quarter kept plain for a name plate. No text, no readable signs, no humans (aliens and dogs only), 3:4.
+```
+
+#### The Event Horizon — `src/assets/doors/blackreach-bar.webp` (or `.svg`)
+
+600×800 · WebP · target 60 kB, cap 110 kB · seeds 360–459
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. The Event Horizon, on Blackreach (Deep-space station orbiting a black hole; time is weird): A bar on the lip of the black hole. Your drink arrives before you order it. Seen from the street at dog height: the entrance to a bar — a lit window, a door propped open, noise spilling out. It must read at a glance as this planet's version of that place. Colour scheme event-horizon cyan #3FD6E0 and near-black indigo #0B0B1A over base charcoal #1B1A22 and rust #6B3A22. Portrait framing with the doorway centred and the top quarter kept plain for a name plate. No text, no readable signs, no humans (aliens and dogs only), 3:4.
+```
+
+#### Airlock Nine — `src/assets/doors/blackreach-alley.webp` (or `.svg`)
+
+600×800 · WebP · target 60 kB, cap 110 kB · seeds 370–469
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Airlock Nine, on Blackreach (Deep-space station orbiting a black hole; time is weird): The station's back door. Things come in through it that were never on a manifest. Seen from the street at dog height: the mouth of a back alley — bins, steam, a single bulb, somebody watching. It must read at a glance as this planet's version of that place. Colour scheme event-horizon cyan #3FD6E0 and near-black indigo #0B0B1A over base charcoal #1B1A22 and rust #6B3A22. Portrait framing with the doorway centred and the top quarter kept plain for a name plate. No text, no readable signs, no humans (aliens and dogs only), 3:4.
+```
+
+#### The Time-Share — `src/assets/doors/blackreach-strip.webp` (or `.svg`)
+
+600×800 · WebP · target 60 kB, cap 110 kB · seeds 380–479
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. The Time-Share, on Blackreach (Deep-space station orbiting a black hole; time is weird): Salesmen offering tomorrow at today's prices. Some of them are you. Seen from the street at dog height: a frontage on a lit commercial strip — awnings, lights, a crowd of hustlers. It must read at a glance as this planet's version of that place. Colour scheme event-horizon cyan #3FD6E0 and near-black indigo #0B0B1A over base charcoal #1B1A22 and rust #6B3A22. Portrait framing with the doorway centred and the top quarter kept plain for a name plate. No text, no readable signs, no humans (aliens and dogs only), 3:4.
+```
+
+#### The Neon Mile — `src/assets/doors/collarPrime-strip.webp` (or `.svg`)
+
+600×800 · WebP · target 60 kB, cap 110 kB · seeds 460–559
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. The Neon Mile, on Collar Prime (Neon megacity; the sport's Vegas): Ten kilometres of lights, cash and people who want some of yours. Seen from the street at dog height: a frontage on a lit commercial strip — awnings, lights, a crowd of hustlers. It must read at a glance as this planet's version of that place. Colour scheme hot pink #F04E98 and electric cyan #3FD6E0 over base charcoal #1B1A22 and rust #6B3A22. Portrait framing with the doorway centred and the top quarter kept plain for a name plate. No text, no readable signs, no humans (aliens and dogs only), 3:4.
+```
+
+#### The High Roller Room — `src/assets/doors/collarPrime-bar.webp` (or `.svg`)
+
+600×800 · WebP · target 60 kB, cap 110 kB · seeds 470–569
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. The High Roller Room, on Collar Prime (Neon megacity; the sport's Vegas): The money that runs the sport drinks here. It talks, if you listen. Seen from the street at dog height: the entrance to a bar — a lit window, a door propped open, noise spilling out. It must read at a glance as this planet's version of that place. Colour scheme hot pink #F04E98 and electric cyan #3FD6E0 over base charcoal #1B1A22 and rust #6B3A22. Portrait framing with the doorway centred and the top quarter kept plain for a name plate. No text, no readable signs, no humans (aliens and dogs only), 3:4.
+```
+
+#### The Grand Final Paddock — `src/assets/doors/collarPrime-track.webp` (or `.svg`)
+
+600×800 · WebP · target 60 kB, cap 110 kB · seeds 480–579
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. The Grand Final Paddock, on Collar Prime (Neon megacity; the sport's Vegas): Where the best dogs in the galaxy are walked, watched and weighed. Seen from the street at dog height: the gate onto a practice track or paddock — rails, a stopwatch clock, sawdust. It must read at a glance as this planet's version of that place. Colour scheme hot pink #F04E98 and electric cyan #3FD6E0 over base charcoal #1B1A22 and rust #6B3A22. Portrait framing with the doorway centred and the top quarter kept plain for a name plate. No text, no readable signs, no humans (aliens and dogs only), 3:4.
+```
+
+#### The Barn Litter — `src/assets/doors/kibbleton-pound.webp` (or `.svg`)
+
+600×800 · WebP · target 60 kB, cap 110 kB · seeds 560–659
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. The Barn Litter, on Kibbleton Prime (Endless kibble farms; folksy): There is always a litter in a Kibbleton barn, and a farmer who wants it gone. Seen from the street at dog height: the way into a dog pound or kennels — wire runs, bowls, a hand-painted paw sign. It must read at a glance as this planet's version of that place. Colour scheme hazard yellow #F4C542 and crop green #7BB661 over base charcoal #1B1A22 and rust #6B3A22. Portrait framing with the doorway centred and the top quarter kept plain for a name plate. No text, no readable signs, no humans (aliens and dogs only), 3:4.
+```
+
+#### The Harvest Fair — `src/assets/doors/kibbleton-strip.webp` (or `.svg`)
+
+600×800 · WebP · target 60 kB, cap 110 kB · seeds 570–669
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. The Harvest Fair, on Kibbleton Prime (Endless kibble farms; folksy): Pie, prize marrows and a kibble-sack race the whole town bets on. Seen from the street at dog height: a frontage on a lit commercial strip — awnings, lights, a crowd of hustlers. It must read at a glance as this planet's version of that place. Colour scheme hazard yellow #F4C542 and crop green #7BB661 over base charcoal #1B1A22 and rust #6B3A22. Portrait framing with the doorway centred and the top quarter kept plain for a name plate. No text, no readable signs, no humans (aliens and dogs only), 3:4.
+```
+
+#### The Paddock Gallops — `src/assets/doors/kibbleton-track.webp` (or `.svg`)
+
+600×800 · WebP · target 60 kB, cap 110 kB · seeds 580–679
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. The Paddock Gallops, on Kibbleton Prime (Endless kibble farms; folksy): Soft ground, long grass and an old boy with a flag who used to train champions. Seen from the street at dog height: the gate onto a practice track or paddock — rails, a stopwatch clock, sawdust. It must read at a glance as this planet's version of that place. Colour scheme hazard yellow #F4C542 and crop green #7BB661 over base charcoal #1B1A22 and rust #6B3A22. Portrait framing with the doorway centred and the top quarter kept plain for a name plate. No text, no readable signs, no humans (aliens and dogs only), 3:4.
+```
+
+#### The Canary — `src/assets/doors/rustgut-bar.webp` (or `.svg`)
+
+600×800 · WebP · target 60 kB, cap 110 kB · seeds 660–759
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. The Canary, on Rustgut (Mining colony, orange dust, everyone coughing): The miners' bar. Everyone coughs, everyone talks, nobody leaves before the shift bell. Seen from the street at dog height: the entrance to a bar — a lit window, a door propped open, noise spilling out. It must read at a glance as this planet's version of that place. Colour scheme rust orange #D9531E and dirt brown #6B3A22 over base charcoal #1B1A22 and rust #6B3A22. Portrait framing with the doorway centred and the top quarter kept plain for a name plate. No text, no readable signs, no humans (aliens and dogs only), 3:4.
+```
+
+#### The Slag Heaps — `src/assets/doors/rustgut-alley.webp` (or `.svg`)
+
+600×800 · WebP · target 60 kB, cap 110 kB · seeds 670–769
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. The Slag Heaps, on Rustgut (Mining colony, orange dust, everyone coughing): Orange dust and people who would rather not be found. Things fall off ore trucks here. Seen from the street at dog height: the mouth of a back alley — bins, steam, a single bulb, somebody watching. It must read at a glance as this planet's version of that place. Colour scheme rust orange #D9531E and dirt brown #6B3A22 over base charcoal #1B1A22 and rust #6B3A22. Portrait framing with the doorway centred and the top quarter kept plain for a name plate. No text, no readable signs, no humans (aliens and dogs only), 3:4.
+```
+
+#### The Pit Pony Pens — `src/assets/doors/rustgut-pound.webp` (or `.svg`)
+
+600×800 · WebP · target 60 kB, cap 110 kB · seeds 680–779
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. The Pit Pony Pens, on Rustgut (Mining colony, orange dust, everyone coughing): Where the colony keeps its working dogs. Some of them can run. Seen from the street at dog height: the way into a dog pound or kennels — wire runs, bowls, a hand-painted paw sign. It must read at a glance as this planet's version of that place. Colour scheme rust orange #D9531E and dirt brown #6B3A22 over base charcoal #1B1A22 and rust #6B3A22. Portrait framing with the doorway centred and the top quarter kept plain for a name plate. No text, no readable signs, no humans (aliens and dogs only), 3:4.
+```
+
+#### The Casino Floor — `src/assets/doors/neonSnout-strip.webp` (or `.svg`)
+
+600×800 · WebP · target 60 kB, cap 110 kB · seeds 760–859
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. The Casino Floor, on Neon Snout (Casino moon): Chips, lights and a croupier with three hands. The house always wins; sometimes it pays. Seen from the street at dog height: a frontage on a lit commercial strip — awnings, lights, a crowd of hustlers. It must read at a glance as this planet's version of that place. Colour scheme casino pink #F04E98 and acid green #9BE84B over base charcoal #1B1A22 and rust #6B3A22. Portrait framing with the doorway centred and the top quarter kept plain for a name plate. No text, no readable signs, no humans (aliens and dogs only), 3:4.
+```
+
+#### The Sportsbook Lounge — `src/assets/doors/neonSnout-bar.webp` (or `.svg`)
+
+600×800 · WebP · target 60 kB, cap 110 kB · seeds 770–869
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. The Sportsbook Lounge, on Neon Snout (Casino moon): Every race on every screen, and tipsters on every stool. Seen from the street at dog height: the entrance to a bar — a lit window, a door propped open, noise spilling out. It must read at a glance as this planet's version of that place. Colour scheme casino pink #F04E98 and acid green #9BE84B over base charcoal #1B1A22 and rust #6B3A22. Portrait framing with the doorway centred and the top quarter kept plain for a name plate. No text, no readable signs, no humans (aliens and dogs only), 3:4.
+```
+
+#### The Loading Dock — `src/assets/doors/neonSnout-alley.webp` (or `.svg`)
+
+600×800 · WebP · target 60 kB, cap 110 kB · seeds 780–879
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. The Loading Dock, on Neon Snout (Casino moon): Behind the casino, where the chips go when nobody is counting. Seen from the street at dog height: the mouth of a back alley — bins, steam, a single bulb, somebody watching. It must read at a glance as this planet's version of that place. Colour scheme casino pink #F04E98 and acid green #9BE84B over base charcoal #1B1A22 and rust #6B3A22. Portrait framing with the doorway centred and the top quarter kept plain for a name plate. No text, no readable signs, no humans (aliens and dogs only), 3:4.
+```
+
+#### The Salvage Pound — `src/assets/doors/drift-pound.webp` (or `.svg`)
+
+600×800 · WebP · target 60 kB, cap 110 kB · seeds 860–959
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. The Salvage Pound, on The Drift (Orbital scrapyard): Strays, stowaways and dogs pulled out of wrecks. Sold as seen. Seen from the street at dog height: the way into a dog pound or kennels — wire runs, bowls, a hand-painted paw sign. It must read at a glance as this planet's version of that place. Colour scheme scrap grey #8C8C8C and warning yellow #F4C542 over base charcoal #1B1A22 and rust #6B3A22. Portrait framing with the doorway centred and the top quarter kept plain for a name plate. No text, no readable signs, no humans (aliens and dogs only), 3:4.
+```
+
+#### The Wreck Yard — `src/assets/doors/drift-alley.webp` (or `.svg`)
+
+600×800 · WebP · target 60 kB, cap 110 kB · seeds 870–969
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. The Wreck Yard, on The Drift (Orbital scrapyard): Acres of hulks and a scavenger behind every one. Watch your hold. Seen from the street at dog height: the mouth of a back alley — bins, steam, a single bulb, somebody watching. It must read at a glance as this planet's version of that place. Colour scheme scrap grey #8C8C8C and warning yellow #F4C542 over base charcoal #1B1A22 and rust #6B3A22. Portrait framing with the doorway centred and the top quarter kept plain for a name plate. No text, no readable signs, no humans (aliens and dogs only), 3:4.
+```
+
+#### The Swap Meet — `src/assets/doors/drift-strip.webp` (or `.svg`)
+
+600×800 · WebP · target 60 kB, cap 110 kB · seeds 880–979
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. The Swap Meet, on The Drift (Orbital scrapyard): Everything has a price and nothing has a receipt. Seen from the street at dog height: a frontage on a lit commercial strip — awnings, lights, a crowd of hustlers. It must read at a glance as this planet's version of that place. Colour scheme scrap grey #8C8C8C and warning yellow #F4C542 over base charcoal #1B1A22 and rust #6B3A22. Portrait framing with the doorway centred and the top quarter kept plain for a name plate. No text, no readable signs, no humans (aliens and dogs only), 3:4.
+```
+
+#### The Bog Gallops — `src/assets/doors/mudhaven-track.webp` (or `.svg`)
+
+600×800 · WebP · target 60 kB, cap 110 kB · seeds 960–1059
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. The Bog Gallops, on Mudhaven (Swamp world, fog, glowing insects): A track through the swamp. The dogs that love it really love it. Seen from the street at dog height: the gate onto a practice track or paddock — rails, a stopwatch clock, sawdust. It must read at a glance as this planet's version of that place. Colour scheme swamp green #5B7A2E and bioluminescent green #9BE84B over base charcoal #1B1A22 and rust #6B3A22. Portrait framing with the doorway centred and the top quarter kept plain for a name plate. No text, no readable signs, no humans (aliens and dogs only), 3:4.
+```
+
+#### The Stilt Kennels — `src/assets/doors/mudhaven-pound.webp` (or `.svg`)
+
+600×800 · WebP · target 60 kB, cap 110 kB · seeds 970–1069
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. The Stilt Kennels, on Mudhaven (Swamp world, fog, glowing insects): Kennels on legs above the mud, and a swamp witch who knows every dog in them. Seen from the street at dog height: the way into a dog pound or kennels — wire runs, bowls, a hand-painted paw sign. It must read at a glance as this planet's version of that place. Colour scheme swamp green #5B7A2E and bioluminescent green #9BE84B over base charcoal #1B1A22 and rust #6B3A22. Portrait framing with the doorway centred and the top quarter kept plain for a name plate. No text, no readable signs, no humans (aliens and dogs only), 3:4.
+```
+
+#### The Glowbug Tavern — `src/assets/doors/mudhaven-bar.webp` (or `.svg`)
+
+600×800 · WebP · target 60 kB, cap 110 kB · seeds 980–1079
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. The Glowbug Tavern, on Mudhaven (Swamp world, fog, glowing insects): Lit by insects, run by frogs. The gossip is slow and usually true. Seen from the street at dog height: the entrance to a bar — a lit window, a door propped open, noise spilling out. It must read at a glance as this planet's version of that place. Colour scheme swamp green #5B7A2E and bioluminescent green #9BE84B over base charcoal #1B1A22 and rust #6B3A22. Portrait framing with the doorway centred and the top quarter kept plain for a name plate. No text, no readable signs, no humans (aliens and dogs only), 3:4.
+```
+
+#### The Ice Rink — `src/assets/doors/glassfall-track.webp` (or `.svg`)
+
+600×800 · WebP · target 60 kB, cap 110 kB · seeds 1060–1159
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. The Ice Rink, on Glassfall (Ice planet, aurora): Practise on the glass and your dog learns to stop falling over. Mostly. Seen from the street at dog height: the gate onto a practice track or paddock — rails, a stopwatch clock, sawdust. It must read at a glance as this planet's version of that place. Colour scheme ice blue #A8E6FF and aurora violet #7B4BD6 over base charcoal #1B1A22 and rust #6B3A22. Portrait framing with the doorway centred and the top quarter kept plain for a name plate. No text, no readable signs, no humans (aliens and dogs only), 3:4.
+```
+
+#### The Aurora Lodge — `src/assets/doors/glassfall-bar.webp` (or `.svg`)
+
+600×800 · WebP · target 60 kB, cap 110 kB · seeds 1070–1169
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. The Aurora Lodge, on Glassfall (Ice planet, aurora): Wool jumpers, hot grog and punters who have been snowed in with the form book for a month. Seen from the street at dog height: the entrance to a bar — a lit window, a door propped open, noise spilling out. It must read at a glance as this planet's version of that place. Colour scheme ice blue #A8E6FF and aurora violet #7B4BD6 over base charcoal #1B1A22 and rust #6B3A22. Portrait framing with the doorway centred and the top quarter kept plain for a name plate. No text, no readable signs, no humans (aliens and dogs only), 3:4.
+```
+
+#### The Snow Kennels — `src/assets/doors/glassfall-pound.webp` (or `.svg`)
+
+600×800 · WebP · target 60 kB, cap 110 kB · seeds 1080–1179
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. The Snow Kennels, on Glassfall (Ice planet, aurora): Big-footed dogs bred for the ice, and a musher who needs to lose one. Seen from the street at dog height: the way into a dog pound or kennels — wire runs, bowls, a hand-painted paw sign. It must read at a glance as this planet's version of that place. Colour scheme ice blue #A8E6FF and aurora violet #7B4BD6 over base charcoal #1B1A22 and rust #6B3A22. Portrait framing with the doorway centred and the top quarter kept plain for a name plate. No text, no readable signs, no humans (aliens and dogs only), 3:4.
+```
+
+#### Customs Shed 9 — `src/assets/doors/portSlobber-alley.webp` (or `.svg`)
+
+600×800 · WebP · target 60 kB, cap 110 kB · seeds 1160–1259
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Customs Shed 9, on Port Slobber (Sleazy spaceport): Where confiscated goods go to be un-confiscated. Seen from the street at dog height: the mouth of a back alley — bins, steam, a single bulb, somebody watching. It must read at a glance as this planet's version of that place. Colour scheme sodium yellow #F4C542 and bruise purple #3A2A5C over base charcoal #1B1A22 and rust #6B3A22. Portrait framing with the doorway centred and the top quarter kept plain for a name plate. No text, no readable signs, no humans (aliens and dogs only), 3:4.
+```
+
+#### The Drool & Anchor — `src/assets/doors/portSlobber-bar.webp` (or `.svg`)
+
+600×800 · WebP · target 60 kB, cap 110 kB · seeds 1170–1269
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. The Drool & Anchor, on Port Slobber (Sleazy spaceport): A dockers' pub. Every freighter crew in the sector drinks here, and every one of them talks. Seen from the street at dog height: the entrance to a bar — a lit window, a door propped open, noise spilling out. It must read at a glance as this planet's version of that place. Colour scheme sodium yellow #F4C542 and bruise purple #3A2A5C over base charcoal #1B1A22 and rust #6B3A22. Portrait framing with the doorway centred and the top quarter kept plain for a name plate. No text, no readable signs, no humans (aliens and dogs only), 3:4.
+```
+
+#### The Duty-Free — `src/assets/doors/portSlobber-strip.webp` (or `.svg`)
+
+600×800 · WebP · target 60 kB, cap 110 kB · seeds 1180–1279
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. The Duty-Free, on Port Slobber (Sleazy spaceport): Cheap booze, cheap food, cheap sponsors. Mind the tax on the way out. Seen from the street at dog height: a frontage on a lit commercial strip — awnings, lights, a crowd of hustlers. It must read at a glance as this planet's version of that place. Colour scheme sodium yellow #F4C542 and bruise purple #3A2A5C over base charcoal #1B1A22 and rust #6B3A22. Portrait framing with the doorway centred and the top quarter kept plain for a name plate. No text, no readable signs, no humans (aliens and dogs only), 3:4.
+```
+
+#### The Clone Nursery — `src/assets/doors/vatgrown-pound.webp` (or `.svg`)
+
+600×800 · WebP · target 60 kB, cap 110 kB · seeds 1260–1359
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. The Clone Nursery, on Vatgrown (Bio-lab; clone pups in jars): Pups in jars, labelled by batch. The lab is overstocked and not fussy about paperwork. Seen from the street at dog height: the way into a dog pound or kennels — wire runs, bowls, a hand-painted paw sign. It must read at a glance as this planet's version of that place. Colour scheme culture green #9BE84B and lab cyan #3FD6E0 over base charcoal #1B1A22 and rust #6B3A22. Portrait framing with the doorway centred and the top quarter kept plain for a name plate. No text, no readable signs, no humans (aliens and dogs only), 3:4.
+```
+
+#### The Test Treadmills — `src/assets/doors/vatgrown-track.webp` (or `.svg`)
+
+600×800 · WebP · target 60 kB, cap 110 kB · seeds 1270–1369
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. The Test Treadmills, on Vatgrown (Bio-lab; clone pups in jars): Sensors, wires and a lab tech who will tell you exactly how your dog runs. Seen from the street at dog height: the gate onto a practice track or paddock — rails, a stopwatch clock, sawdust. It must read at a glance as this planet's version of that place. Colour scheme culture green #9BE84B and lab cyan #3FD6E0 over base charcoal #1B1A22 and rust #6B3A22. Portrait framing with the doorway centred and the top quarter kept plain for a name plate. No text, no readable signs, no humans (aliens and dogs only), 3:4.
+```
+
+#### The Surplus Auction — `src/assets/doors/vatgrown-strip.webp` (or `.svg`)
+
+600×800 · WebP · target 60 kB, cap 110 kB · seeds 1280–1379
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. The Surplus Auction, on Vatgrown (Bio-lab; clone pups in jars): Whatever the lab grew too much of this week, going cheap. Seen from the street at dog height: a frontage on a lit commercial strip — awnings, lights, a crowd of hustlers. It must read at a glance as this planet's version of that place. Colour scheme culture green #9BE84B and lab cyan #3FD6E0 over base charcoal #1B1A22 and rust #6B3A22. Portrait framing with the doorway centred and the top quarter kept plain for a name plate. No text, no readable signs, no humans (aliens and dogs only), 3:4.
+```
+
+#### The Twin Towers Paddock — `src/assets/doors/oldWembley-track.webp` (or `.svg`)
+
+600×800 · WebP · target 60 kB, cap 110 kB · seeds 1360–1459
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. The Twin Towers Paddock, on Old Wembley (Nostalgia dome rebuilding Earth tracks): A rebuilt Earth paddock, sawdust and all. The old-timers will watch your dog work. Seen from the street at dog height: the gate onto a practice track or paddock — rails, a stopwatch clock, sawdust. It must read at a glance as this planet's version of that place. Colour scheme turf green #2E8B57 and chalk white #F4F4F4 over base charcoal #1B1A22 and rust #6B3A22. Portrait framing with the doorway centred and the top quarter kept plain for a name plate. No text, no readable signs, no humans (aliens and dogs only), 3:4.
+```
+
+#### The Old Stand Bar — `src/assets/doors/oldWembley-bar.webp` (or `.svg`)
+
+600×800 · WebP · target 60 kB, cap 110 kB · seeds 1370–1469
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. The Old Stand Bar, on Old Wembley (Nostalgia dome rebuilding Earth tracks): Photographs of dogs that died centuries ago, and men who can name every one. Seen from the street at dog height: the entrance to a bar — a lit window, a door propped open, noise spilling out. It must read at a glance as this planet's version of that place. Colour scheme turf green #2E8B57 and chalk white #F4F4F4 over base charcoal #1B1A22 and rust #6B3A22. Portrait framing with the doorway centred and the top quarter kept plain for a name plate. No text, no readable signs, no humans (aliens and dogs only), 3:4.
+```
+
+#### The Rescue Home — `src/assets/doors/oldWembley-pound.webp` (or `.svg`)
+
+600×800 · WebP · target 60 kB, cap 110 kB · seeds 1380–1479
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. The Rescue Home, on Old Wembley (Nostalgia dome rebuilding Earth tracks): A charity for retired racers. Some of them are not quite finished. Seen from the street at dog height: the way into a dog pound or kennels — wire runs, bowls, a hand-painted paw sign. It must read at a glance as this planet's version of that place. Colour scheme turf green #2E8B57 and chalk white #F4F4F4 over base charcoal #1B1A22 and rust #6B3A22. Portrait framing with the doorway centred and the top quarter kept plain for a name plate. No text, no readable signs, no humans (aliens and dogs only), 3:4.
+```
+
+#### The Whisper Stalls — `src/assets/doors/hushmarket-alley.webp` (or `.svg`)
+
+600×800 · WebP · target 60 kB, cap 110 kB · seeds 1460–1559
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. The Whisper Stalls, on Hushmarket (Black-market bazaar): Nothing is sold out loud. Everything is for sale. Seen from the street at dog height: the mouth of a back alley — bins, steam, a single bulb, somebody watching. It must read at a glance as this planet's version of that place. Colour scheme maroon #7A1F2B and lamp yellow #F4C542 over base charcoal #1B1A22 and rust #6B3A22. Portrait framing with the doorway centred and the top quarter kept plain for a name plate. No text, no readable signs, no humans (aliens and dogs only), 3:4.
+```
+
+#### The Bazaar — `src/assets/doors/hushmarket-strip.webp` (or `.svg`)
+
+600×800 · WebP · target 60 kB, cap 110 kB · seeds 1470–1569
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. The Bazaar, on Hushmarket (Black-market bazaar): Spices, silks and Ambrosia straight off the boat, if you can haggle. Seen from the street at dog height: a frontage on a lit commercial strip — awnings, lights, a crowd of hustlers. It must read at a glance as this planet's version of that place. Colour scheme maroon #7A1F2B and lamp yellow #F4C542 over base charcoal #1B1A22 and rust #6B3A22. Portrait framing with the doorway centred and the top quarter kept plain for a name plate. No text, no readable signs, no humans (aliens and dogs only), 3:4.
+```
+
+#### The Fence's Parlour — `src/assets/doors/hushmarket-bar.webp` (or `.svg`)
+
+600×800 · WebP · target 60 kB, cap 110 kB · seeds 1480–1579
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. The Fence's Parlour, on Hushmarket (Black-market bazaar): Tea, cakes and a very polite woman who knows where every crate in the sector is going. Seen from the street at dog height: the entrance to a bar — a lit window, a door propped open, noise spilling out. It must read at a glance as this planet's version of that place. Colour scheme maroon #7A1F2B and lamp yellow #F4C542 over base charcoal #1B1A22 and rust #6B3A22. Portrait framing with the doorway centred and the top quarter kept plain for a name plate. No text, no readable signs, no humans (aliens and dogs only), 3:4.
+```
+
+#### The Dune Run — `src/assets/doors/sunbleach-track.webp` (or `.svg`)
+
+600×800 · WebP · target 60 kB, cap 110 kB · seeds 1560–1659
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. The Dune Run, on Sunbleach (Desert, twin suns): Twin suns and deep sand. A dog that trains here is fit, or dead. Seen from the street at dog height: the gate onto a practice track or paddock — rails, a stopwatch clock, sawdust. It must read at a glance as this planet's version of that place. Colour scheme sand orange #F7B267 and twin-sun yellow #F4C542 over base charcoal #1B1A22 and rust #6B3A22. Portrait framing with the doorway centred and the top quarter kept plain for a name plate. No text, no readable signs, no humans (aliens and dogs only), 3:4.
+```
+
+#### The Oasis Pound — `src/assets/doors/sunbleach-pound.webp` (or `.svg`)
+
+600×800 · WebP · target 60 kB, cap 110 kB · seeds 1570–1669
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. The Oasis Pound, on Sunbleach (Desert, twin suns): Where the desert's strays come for water, and the caravans sell what they found. Seen from the street at dog height: the way into a dog pound or kennels — wire runs, bowls, a hand-painted paw sign. It must read at a glance as this planet's version of that place. Colour scheme sand orange #F7B267 and twin-sun yellow #F4C542 over base charcoal #1B1A22 and rust #6B3A22. Portrait framing with the doorway centred and the top quarter kept plain for a name plate. No text, no readable signs, no humans (aliens and dogs only), 3:4.
+```
+
+#### The Shade Tents — `src/assets/doors/sunbleach-alley.webp` (or `.svg`)
+
+600×800 · WebP · target 60 kB, cap 110 kB · seeds 1580–1679
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. The Shade Tents, on Sunbleach (Desert, twin suns): Out of the suns, out of sight. Business is done lying down. Seen from the street at dog height: the mouth of a back alley — bins, steam, a single bulb, somebody watching. It must read at a glance as this planet's version of that place. Colour scheme sand orange #F7B267 and twin-sun yellow #F4C542 over base charcoal #1B1A22 and rust #6B3A22. Portrait framing with the doorway centred and the top quarter kept plain for a name plate. No text, no readable signs, no humans (aliens and dogs only), 3:4.
+```
+
+#### The Dyno Shop — `src/assets/doors/tinkertown-track.webp` (or `.svg`)
+
+600×800 · WebP · target 60 kB, cap 110 kB · seeds 1660–1759
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. The Dyno Shop, on Tinkertown (Robot-run workshop planet): Robots will put your dog on rollers and print you a graph. They are never wrong about the graph. Seen from the street at dog height: the gate onto a practice track or paddock — rails, a stopwatch clock, sawdust. It must read at a glance as this planet's version of that place. Colour scheme coolant cyan #3FD6E0 and copper #B87333 over base charcoal #1B1A22 and rust #6B3A22. Portrait framing with the doorway centred and the top quarter kept plain for a name plate. No text, no readable signs, no humans (aliens and dogs only), 3:4.
+```
+
+#### The Parts Exchange — `src/assets/doors/tinkertown-strip.webp` (or `.svg`)
+
+600×800 · WebP · target 60 kB, cap 110 kB · seeds 1670–1769
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. The Parts Exchange, on Tinkertown (Robot-run workshop planet): Robots trading bolts for food they cannot eat. They drive a hard bargain anyway. Seen from the street at dog height: a frontage on a lit commercial strip — awnings, lights, a crowd of hustlers. It must read at a glance as this planet's version of that place. Colour scheme coolant cyan #3FD6E0 and copper #B87333 over base charcoal #1B1A22 and rust #6B3A22. Portrait framing with the doorway centred and the top quarter kept plain for a name plate. No text, no readable signs, no humans (aliens and dogs only), 3:4.
+```
+
+#### The Scrap Chute — `src/assets/doors/tinkertown-alley.webp` (or `.svg`)
+
+600×800 · WebP · target 60 kB, cap 110 kB · seeds 1680–1779
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. The Scrap Chute, on Tinkertown (Robot-run workshop planet): Everything the robots throw away comes down here, and so do the people who want it. Seen from the street at dog height: the mouth of a back alley — bins, steam, a single bulb, somebody watching. It must read at a glance as this planet's version of that place. Colour scheme coolant cyan #3FD6E0 and copper #B87333 over base charcoal #1B1A22 and rust #6B3A22. Portrait framing with the doorway centred and the top quarter kept plain for a name plate. No text, no readable signs, no humans (aliens and dogs only), 3:4.
+```
+
+#### The Almshouse — `src/assets/doors/holyBark-pound.webp` (or `.svg`)
+
+600×800 · WebP · target 60 kB, cap 110 kB · seeds 1760–1859
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. The Almshouse, on Holy Bark (Monastery world; monks who worship the Good Boy): The monks take in every stray on the planet, and bless the ones they rehome. Seen from the street at dog height: the way into a dog pound or kennels — wire runs, bowls, a hand-painted paw sign. It must read at a glance as this planet's version of that place. Colour scheme linen white #F4F4F4 and brass gold #C9A227 over base charcoal #1B1A22 and rust #6B3A22. Portrait framing with the doorway centred and the top quarter kept plain for a name plate. No text, no readable signs, no humans (aliens and dogs only), 3:4.
+```
+
+#### The Confessional — `src/assets/doors/holyBark-alley.webp` (or `.svg`)
+
+600×800 · WebP · target 60 kB, cap 110 kB · seeds 1770–1869
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. The Confessional, on Holy Bark (Monastery world; monks who worship the Good Boy): The monks hear everything. For a donation, so can you. Seen from the street at dog height: the mouth of a back alley — bins, steam, a single bulb, somebody watching. It must read at a glance as this planet's version of that place. Colour scheme linen white #F4F4F4 and brass gold #C9A227 over base charcoal #1B1A22 and rust #6B3A22. Portrait framing with the doorway centred and the top quarter kept plain for a name plate. No text, no readable signs, no humans (aliens and dogs only), 3:4.
+```
+
+#### The Cloister Walk — `src/assets/doors/holyBark-track.webp` (or `.svg`)
+
+600×800 · WebP · target 60 kB, cap 110 kB · seeds 1780–1879
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. The Cloister Walk, on Holy Bark (Monastery world; monks who worship the Good Boy): A quiet stone track round the abbey garden. The Good Boy watches. Seen from the street at dog height: the gate onto a practice track or paddock — rails, a stopwatch clock, sawdust. It must read at a glance as this planet's version of that place. Colour scheme linen white #F4F4F4 and brass gold #C9A227 over base charcoal #1B1A22 and rust #6B3A22. Portrait framing with the doorway centred and the top quarter kept plain for a name plate. No text, no readable signs, no humans (aliens and dogs only), 3:4.
+```
+
+#### The Under-Deck — `src/assets/doors/lagrangeLows-alley.webp` (or `.svg`)
+
+600×800 · WebP · target 60 kB, cap 110 kB · seeds 1860–1959
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. The Under-Deck, on Lagrange Lows (Floating slum station): Below the waterline of a station with no water. The rent is paid in favours. Seen from the street at dog height: the mouth of a back alley — bins, steam, a single bulb, somebody watching. It must read at a glance as this planet's version of that place. Colour scheme sickly green #9BE84B and soot black #1B1A22 over base charcoal #1B1A22 and rust #6B3A22. Portrait framing with the doorway centred and the top quarter kept plain for a name plate. No text, no readable signs, no humans (aliens and dogs only), 3:4.
+```
+
+#### The Drip Bar — `src/assets/doors/lagrangeLows-bar.webp` (or `.svg`)
+
+600×800 · WebP · target 60 kB, cap 110 kB · seeds 1870–1969
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. The Drip Bar, on Lagrange Lows (Floating slum station): Condensation falls in your glass. So do rumours. Seen from the street at dog height: the entrance to a bar — a lit window, a door propped open, noise spilling out. It must read at a glance as this planet's version of that place. Colour scheme sickly green #9BE84B and soot black #1B1A22 over base charcoal #1B1A22 and rust #6B3A22. Portrait framing with the doorway centred and the top quarter kept plain for a name plate. No text, no readable signs, no humans (aliens and dogs only), 3:4.
+```
+
+#### The Stray Shelter — `src/assets/doors/lagrangeLows-pound.webp` (or `.svg`)
+
+600×800 · WebP · target 60 kB, cap 110 kB · seeds 1880–1979
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. The Stray Shelter, on Lagrange Lows (Floating slum station): A volunteer, a hosepipe and forty dogs nobody wanted. Yet. Seen from the street at dog height: the way into a dog pound or kennels — wire runs, bowls, a hand-painted paw sign. It must read at a glance as this planet's version of that place. Colour scheme sickly green #9BE84B and soot black #1B1A22 over base charcoal #1B1A22 and rust #6B3A22. Portrait framing with the doorway centred and the top quarter kept plain for a name plate. No text, no readable signs, no humans (aliens and dogs only), 3:4.
+```
+
 ## Tier 3
 
-### Event cards — 26 files, ~1.8 MB
+### Event cards — 86 files, ~5.9 MB
 
 One 8:5 illustration per event id in the engine deck. The id is the filename; add an event to content/events.ts and it wants a new file with that name.
 
@@ -902,7 +1345,7 @@ photorealism, 3D render, photograph, text, letters, words, readable signage, wat
 800×500 · WebP · target 70 kB, cap 130 kB · seeds 5060–5079
 
 ```text
-1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: Solar flare. A solar flare scrambles every ship’s approach. Turn order is rerolled. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: Solar flare. A flare sweeps the paddock while you are out on the gallops, and it fries your navicomp. A tech in the stands says he can fix it for 300. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
 ```
 
 #### Tip-off — `src/assets/events/tipOff.webp` (or `.svg`)
@@ -1079,6 +1522,486 @@ photorealism, 3D render, photograph, text, letters, words, readable signage, wat
 
 ```text
 1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: A clerk with a manifest. A customs clerk has the freight manifests for the run after next. He is not supposed to show anyone. He would like 200 Bones. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
+```
+
+#### A vet who owes somebody a favour — `src/assets/events/vetLayoff.webp` (or `.svg`)
+
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 5520–5539
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: A vet who owes somebody a favour. The pound vet has a surgery out the back and a waiting room full of strays. She looks at your laid-up dog and says she can have it running sooner — for a price. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
+```
+
+#### A stray follows you home — `src/assets/events/strayNight.webp` (or `.svg`)
+
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 5540–5559
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: A stray follows you home. A scruffy stray trots after you all the way back to the ship and sits at the ramp looking hopeful. Your dogs seem to like it. It also seems to be itching. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
+```
+
+#### The kennel hand — `src/assets/events/kennelHand.webp` (or `.svg`)
+
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 5560–5579
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: The kennel hand. A pound volunteer with forty dogs to walk offers to take yours out with them. Big park, long run, a hosepipe at the end. 150 Bones for the lot. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
+```
+
+#### An old breeder — `src/assets/events/breederEye.webp` (or `.svg`)
+
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 5580–5599
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: An old breeder. A woman who has bred racers for sixty years watches your dogs play in the yard. "That one," she says, pointing. "I know exactly how that one runs." She would tell you for a drink. She would also tell the whole bar. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
+```
+
+#### The pound dog show — `src/assets/events/dogShow.webp` (or `.svg`)
+
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 5600–5619
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: The pound dog show. The pound is holding its annual show — Best in Show, Waggiest Tail, Dog Most Likely to Bite a Judge. 100 to enter, 600 to the winner, and a rosette. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
+```
+
+#### Slipped the lead — `src/assets/events/escapedDog.webp` (or `.svg`)
+
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 5620–5639
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: Slipped the lead. One of your dogs slips its lead at the pound gate and vanishes into the stray pens. The dog-catcher says he can have it back in an hour for 250. Or you can go in after it yourself. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
+```
+
+#### The pound nutritionist — `src/assets/events/nutritionist.webp` (or `.svg`)
+
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 5640–5659
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: The pound nutritionist. A thin man in a lab coat feeds four hundred strays a day on almost nothing. He says he can fix what is wrong with one of your dogs in a week. 350 Bones. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
+```
+
+#### Worms — `src/assets/events/worms.webp` (or `.svg`)
+
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 5660–5679
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: Worms. The pound vet takes one look at one of your dogs and reaches for the rubber gloves. Tablets are 200. Or you could wait and see. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
+```
+
+#### Volunteer day — `src/assets/events/shelterDay.webp` (or `.svg`)
+
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 5680–5699
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: Volunteer day. The shelter is short-handed and the strays need walking. It would cost you the afternoon, and your dogs would have to come too. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
+```
+
+#### A stray nobody has claimed — `src/assets/events/strayOffer.webp` (or `.svg`)
+
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 5700–5719
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: A stray nobody has claimed. A volunteer walks a lean, bright-eyed stray out of the back pens. Nobody has claimed it in a month. She has watched it run round the yard, and she tells you what she saw. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
+```
+
+#### The runt of the litter — `src/assets/events/runtOfTheLitter.webp` (or `.svg`)
+
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 5720–5739
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: The runt of the litter. A farmer in dungarees holds up a pup by the scruff. "Runt of the litter, but a goer." He wants it gone before his wife counts them again. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
+```
+
+#### A man in a long coat — `src/assets/events/longCoatOffer.webp` (or `.svg`)
+
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 5740–5759
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: A man in a long coat. He opens the coat. There is a dog in it. "Won it in a card game. Papers? What papers?" He talks very fast about how it runs. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
+```
+
+#### Not quite finished — `src/assets/events/retiredRacer.webp` (or `.svg`)
+
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 5760–5779
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: Not quite finished. An old racer, grey round the muzzle, retired to the rescue home too soon — or so its handler says. Swap it for one of yours and it is yours. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
+```
+
+#### The monks rehome a dog — `src/assets/events/monkRehome.webp` (or `.svg`)
+
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 5780–5799
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: The monks rehome a dog. A monk in a brown habit leads out a dog that has lived at the Almshouse since it was a pup. The monks do not lie. They will tell you exactly what it is. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
+```
+
+#### Batch 7, jar 12 — `src/assets/events/batchDog.webp` (or `.svg`)
+
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 5800–5819
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: Batch 7, jar 12. A lab tech with a clipboard is clearing out the overstock: a clone grown for a client who never paid. The spec sheet is attached. The spec sheet is mostly right. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
+```
+
+#### A rival running his mouth — `src/assets/events/rivalBrag.webp` (or `.svg`)
+
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 5820–5839
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: A rival running his mouth. A rival owner is three drinks in and telling everyone how his new dog will run on Sunday. One more round and he will say exactly how. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
+```
+
+#### Arm-wrestling a miner — `src/assets/events/armWrestle.webp` (or `.svg`)
+
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 5840–5859
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: Arm-wrestling a miner. A miner the size of a cargo pod slams his elbow on the bar. "Three hundred says you cannot move it." The bar goes quiet. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
+```
+
+#### The old trainer — `src/assets/events/oldTrainer.webp` (or `.svg`)
+
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 5860–5879
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: The old trainer. An old trainer who once won the Cosmodrome Classic is nursing a warm beer. Buy him another and he will tell you what is wrong with one of your dogs. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
+```
+
+#### Bar fight — `src/assets/events/barFight.webp` (or `.svg`)
+
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 5880–5899
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: Bar fight. Somebody calls somebody else’s dog a mongrel and the furniture starts moving. The barman is under the bar, waving at you to help. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
+```
+
+#### Liar's dice — `src/assets/events/liarsDice.webp` (or `.svg`)
+
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 5900–5919
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: Liar's dice. Three spacers with no teeth between them are playing liar’s dice for real money. There is an empty stool. The minimum is 500. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
+```
+
+#### The racing rag — `src/assets/events/journalist.webp` (or `.svg`)
+
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 5920–5939
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: The racing rag. A reporter from The Daily Muzzle wants a quote about your stable for the weekend edition. She pays 200 for a good one. The last owner who gave her a good one got torn apart when his dogs lost. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
+```
+
+#### A pilot with a chart — `src/assets/events/pilotShortcut.webp` (or `.svg`)
+
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 5940–5959
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: A pilot with a chart. A pilot with one eye and a very old star chart says there is a way into next week’s system that nobody else uses. 250 Bones and you will be first down. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
+```
+
+#### Somebody else’s tab — `src/assets/events/barTab.webp` (or `.svg`)
+
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 5960–5979
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: Somebody else’s tab. You wake up in a booth with a bar tab in your hand. It is not your tab. The barman is quite sure it is. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
+```
+
+#### A stable lad who talks too much — `src/assets/events/stableLad.webp` (or `.svg`)
+
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 5980–5999
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: A stable lad who talks too much. A lad from one of the big kennels is drinking alone and wants company. He knows every dog on the planet and he cannot keep his mouth shut. A drink or two and he will tell you something the bookie does not know. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
+```
+
+#### The track vet, off duty — `src/assets/events/offDutyVet.webp` (or `.svg`)
+
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 6000–6019
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: The track vet, off duty. The track vet is three brandies into her night off. She has had her hands on every dog on this card this week. Buy her the fourth. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
+```
+
+#### The feed merchant — `src/assets/events/feedMerchant.webp` (or `.svg`)
+
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 6020–6039
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: The feed merchant. The feed merchant delivers to every kennel on the planet, and he notices whose bowls come back full. He trades gossip for custom. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
+```
+
+#### The freight clerk — `src/assets/events/freightClerk.webp` (or `.svg`)
+
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 6040–6059
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: The freight clerk. A freight clerk has next week’s price sheets for the planet you are flying to — every good, every shelf. He will read them to you for 300. He will not write them down. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
+```
+
+#### Dockers on their break — `src/assets/events/dockers.webp` (or `.svg`)
+
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 6060–6079
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: Dockers on their break. Two dockers are arguing about what next week’s planet is paying for food. They have both just come from there. They do not mind you listening if you buy the round. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
+```
+
+#### A man with a price board — `src/assets/events/commodityMan.webp` (or `.svg`)
+
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 6080–6099
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: A man with a price board. A commodities man in a velvet jacket has a little chalk board of next week’s prices. He will rub out all but three and let you look. 150. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
+```
+
+#### Off the back of a freighter — `src/assets/events/stolenFood.webp` (or `.svg`)
+
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 6100–6119
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: Off the back of a freighter. A man in a long coat opens it to show you crates, not watches. Good food, he says, at sixty per cent of the shelf price. Cash. Now. Do not ask where it came from. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
+```
+
+#### Jumped — `src/assets/events/mugging.webp` (or `.svg`)
+
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 6120–6139
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: Jumped. Two of them, one with a pipe. "Wallet." Your dogs are back at the ship. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
+```
+
+#### A vet with no licence — `src/assets/events/backstreetVet.webp` (or `.svg`)
+
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 6140–6159
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: A vet with no licence. He was struck off on three planets. He also once put a dog back together that four vets had given up on. He will look at your laid-up dog for 250. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
+```
+
+#### The chemist — `src/assets/events/chemistPill.webp` (or `.svg`)
+
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 6160–6179
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: The chemist. A chemist with yellow fingers holds out a pill. "One of these on Sunday morning and your dog will run through a wall." 300. Some dogs, he admits, try to run through the wall. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
+```
+
+#### A good rate — `src/assets/events/counterfeitBones.webp` (or `.svg`)
+
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 6180–6199
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: A good rate. A woman will change your Bones for newer Bones at two for one. Only five hundred. She shows you one: it looks real. It feels real. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
+```
+
+#### Light fingers — `src/assets/events/pickpocket.webp` (or `.svg`)
+
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 6200–6219
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: Light fingers. Somebody bumps into you, apologises beautifully, and is gone. So is your purse. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
+```
+
+#### A sealed crate — `src/assets/events/sealedCrate.webp` (or `.svg`)
+
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 6220–6239
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: A sealed crate. A man needs a crate carried to the next planet. It is sealed, it is heavy, it hums. 500 now. Do not open it and do not declare it. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
+```
+
+#### Down the wet alley — `src/assets/events/alleySprint.webp` (or `.svg`)
+
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 6240–6259
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: Down the wet alley. A local runs a sprint down the length of the alley on Saturday nights, 500 a side, no stewards, no rules, a bin at the finish. His dog has never lost. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
+```
+
+#### Nice kennel — `src/assets/events/protection.webp` (or `.svg`)
+
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 6260–6279
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: Nice kennel. "Nice kennel. Nice dogs. Be a shame if the door came open in the night." He wants 250 a week. He means this week. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
+```
+
+#### The alley cat — `src/assets/events/alleyCat.webp` (or `.svg`)
+
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 6280–6299
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: The alley cat. The biggest cat anybody has ever seen sits on a wall and looks at your dogs. Your dogs look back. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
+```
+
+#### The fence — `src/assets/events/fence.webp` (or `.svg`)
+
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 6300–6319
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: The fence. A fence who deals in "surplus" will take food off you at over the odds — no paperwork, no questions. Twenty per cent over the shelf, for up to ten crates of one thing. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
+```
+
+#### A kennel-boy for hire — `src/assets/events/kennelBoy.webp` (or `.svg`)
+
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 6320–6339
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: A kennel-boy for hire. A kennel-boy from a rival stable waits by the bins. For the right money he will tell you what really goes on in his yard — or anybody else’s. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
+```
+
+#### The bookie’s runner — `src/assets/events/bookiesRunner.webp` (or `.svg`)
+
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 6340–6359
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: The bookie’s runner. The bookie’s runner hears everything the bookie hears, and the bookie hears everything. He is underpaid and he knows it. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
+```
+
+#### Find the lady — `src/assets/events/threeCardMonte.webp` (or `.svg`)
+
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 6360–6379
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: Find the lady. Three cards on an upturned crate and a man with very fast hands. "Find the lady, double your money." A tourist just won. The tourist looks a lot like him. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
+```
+
+#### Sponsor: Zapp! Energy — `src/assets/events/zappSponsor.webp` (or `.svg`)
+
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 6380–6399
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: Sponsor: Zapp! Energy. Zapp! Energy ("It Makes You Go") will pay 900 to have your dogs photographed drinking it. They will have to actually drink it. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
+```
+
+#### Clamped — `src/assets/events/clamped.webp` (or `.svg`)
+
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 6400–6419
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: Clamped. You come back to the ship to find a clamp on the landing gear and a note: 300 to release. You were parked in a loading bay. There is no sign saying so. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
+```
+
+#### The Big Bone slot machine — `src/assets/events/slotMachine.webp` (or `.svg`)
+
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 6420–6439
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: The Big Bone slot machine. A slot machine the size of a shuttle, flashing a jackpot of 1,500. A pull is 100. It has not paid out since the old sheriff died. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
+```
+
+#### The calendar — `src/assets/events/calendarShoot.webp` (or `.svg`)
+
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 6440–6459
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: The calendar. A glossy wants your dogs for the Dogs of the Circuit calendar. 300, a morning under hot lights, and a stylist with strong opinions about ears. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
+```
+
+#### Free samples — `src/assets/events/freeSamples.webp` (or `.svg`)
+
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 6460–6479
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: Free samples. A food brand is handing out samples on the Strip. If you have a hold, they will fill a corner of it with Scrapmeat and call it marketing. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
+```
+
+#### A caterer in a hurry — `src/assets/events/caterer.webp` (or `.svg`)
+
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 6480–6499
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: A caterer in a hurry. A wedding caterer has three hundred guests and no Grey Mash — do not ask what kind of wedding. She will pay double the shelf for ten crates, right now. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
+```
+
+#### The Strip tax man — `src/assets/events/taxMan.webp` (or `.svg`)
+
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 6500–6519
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: The Strip tax man. A man with a ledger says there is a Strip levy on visiting stables: five per cent of what you are carrying. There is also, he says quietly, a cash discount. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
+```
+
+#### A timed trial — `src/assets/events/trialRun.webp` (or `.svg`)
+
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 6520–6539
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: A timed trial. The track is open for trials this morning. Put a dog in the boxes, run it round alone against the clock, and see how it likes to race. The rail is lined with clockers taking notes. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
+```
+
+#### Hill gallops — `src/assets/events/hillGallops.webp` (or `.svg`)
+
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 6540–6559
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: Hill gallops. There is a hill behind the track that the old trainers swear by. Up it, down it, up it again. It builds a dog. It also flattens one for a week. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
+```
+
+#### A private match — `src/assets/events/privateMatch.webp` (or `.svg`)
+
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 6560–6579
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: A private match. A local owner with a good dog and a bad temper wants a match race after the gallops: your fittest against his, one lap, 700 a side, no bookies. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
+```
+
+#### Starting-gate school — `src/assets/events/gateSchool.webp` (or `.svg`)
+
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 6580–6599
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: Starting-gate school. An old starter runs a school for dogs that miss the break. A week of bells, flaps and treats. 300. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
+```
+
+#### The hydro pool — `src/assets/events/hydroPool.webp` (or `.svg`)
+
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 6600–6619
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: The hydro pool. The track has a heated pool for tired legs. An hour in it for every dog, 250. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
+```
+
+#### A schooling race — `src/assets/events/schoolingRace.webp` (or `.svg`)
+
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 6620–6639
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: A schooling race. The track is running an unofficial schooling race for dogs that need a run. No purse, no rating, just the experience. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
+```
+
+#### The sprint coach — `src/assets/events/sprintCoach.webp` (or `.svg`)
+
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 6640–6659
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: The sprint coach. A sprint coach with a whistle and a stopwatch says he can find a dog another yard of pace in a week. 400, and he is not cheap because he is good. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
+```
+
+#### The telemetry treadmill — `src/assets/events/treadmill.webp` (or `.svg`)
+
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 6660–6679
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: The telemetry treadmill. A technician will put one of your dogs on a sensor treadmill and print out exactly how it runs. The print-out goes on the public board. That is the law here. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
+```
+
+#### Bog gallops — `src/assets/events/bogGallops.webp` (or `.svg`)
+
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 6680–6699
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: Bog gallops. The swamp trainers gallop their dogs through knee-deep mud. It builds legs like tree trunks. It also builds swamp fever. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
+```
+
+#### Work on the ice — `src/assets/events/iceWork.webp` (or `.svg`)
+
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 6700–6719
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: Work on the ice. Glassfall trainers teach their dogs to corner on sheet ice. A dog that can hold a bend on ice can hold one anywhere. Some of them learn by falling over. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
 ```
 
 ### Character portraits — 19 files, ~0.9 MB

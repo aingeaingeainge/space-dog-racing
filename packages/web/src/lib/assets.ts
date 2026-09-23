@@ -30,6 +30,12 @@ const events = import.meta.glob('../assets/events/*.{webp,svg}', {
   import: 'default',
 }) as UrlMap;
 
+const doors = import.meta.glob('../assets/doors/*.{webp,svg}', {
+  eager: true,
+  query: '?url',
+  import: 'default',
+}) as UrlMap;
+
 const portraits = import.meta.glob('../assets/portraits/*.{webp,svg}', {
   eager: true,
   query: '?url',
@@ -86,6 +92,11 @@ export function planetSurface(planetId: Id): Art | null {
 /** 800×500 event card illustration, keyed by the engine's event id. */
 export function eventArt(eventId: string): Art | null {
   return resolve(events, `../assets/events/${eventId}`);
+}
+
+/** 600×800 Explore door (GDD_V3 §9.1), keyed by planet and the door's category. */
+export function doorArt(planetId: Id, category: string): Art | null {
+  return resolve(doors, `../assets/doors/${planetId}-${category}`);
 }
 
 /** 512×512 character portrait: an AI stable owner, a hireable, or Fat Tony. */

@@ -150,11 +150,14 @@ function Row({
         title={
           r.nextSell === null
             ? 'The last stop of the season'
-            : `Next stop usually pays about ${r.nextSell} a crate`
+            : r.nextKnown
+              ? `A Bar tip: next stop pays ${r.nextSell} a crate next week`
+              : `Next stop usually pays about ${r.nextSell} a crate`
         }
       >
         <b>{r.buy}</b>
         <div className="muted small">sells {r.sell}</div>
+        {r.nextKnown ? <div className="small up">next week sells {r.nextSell}</div> : null}
       </td>
       <td>
         <div className="range">

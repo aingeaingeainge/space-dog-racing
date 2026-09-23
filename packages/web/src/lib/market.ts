@@ -12,6 +12,7 @@
 import {
   balance,
   expectedPrice,
+  intelPrice,
   GOODS,
   planetOf,
   type GameState,
@@ -53,6 +54,8 @@ export interface MarketRow {
   word: 'cheap' | 'fair' | 'dear';
   /** What next week's planet is expected to pay for a crate, after the spread. Null at the Final. */
   nextSell: number | null;
+  /** True when `nextSell` is next week's actual price, from a Bar tip (GDD_V3 §9.4). */
+  nextKnown: boolean;
 }
 
 /** The six rows of §6.2's table, cheapest good first. */
@@ -70,7 +73,10 @@ export function marketRows(s: GameState, me: Player): MarketRow[] {
       sell: m.sell,
       pos,
       word: priceWord(pos),
-      nextSell: next ? Math.round(expectedPrice(next, g.id) * (1 - balance.foodSpread)) : null,
+      nextSell:
+        intelPrice(s, me, g.id) ??
+        (next ? Math.round(expectedPrice(next, g.id) * (1 - balance.foodSpread)) : null),
+      nextKnown: intelPrice(s, me, g.id) !== null,
     };
   });
 }

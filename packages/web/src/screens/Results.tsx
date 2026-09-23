@@ -93,7 +93,17 @@ function RaceTable({ s, r, meId }: { s: GameState; r: RaceResult; meId: string }
 /** GDD §15.9 without the canvas: who won, what it paid, what it did to the ratings. */
 export function Results({ s, me }: { s: GameState; me: Player }) {
   const ackResults = useGame((g) => g.ackResults);
-  useKeys({ Enter: ackResults, ' ': ackResults });
+  const dispatch = useGame((g) => g.dispatch);
+  // Phase D1 (§10.1's click budget): "Back to the planet" then "End turn" is two presses for a
+  // player with nothing left to do here — and after the races, most weeks, there is nothing. One
+  // press does both. The hub is still one press away for anyone who wants to sell.
+  const canFly = s.phase === 'planetPost' && s.activePlayer === me.id;
+  const next = s.calendar[s.week];
+  const flyOn = () => {
+    ackResults();
+    dispatch({ t: 'EndPhase', playerId: me.id });
+  };
+  useKeys({ Enter: ackResults, ' ': ackResults, f: canFly ? flyOn : undefined });
   if (!s.races) return null;
   const planet = planetOf(s.planet.planetId);
   const mine = s.races.flatMap((r) =>
@@ -107,9 +117,16 @@ export function Results({ s, me }: { s: GameState; me: Player }) {
         title={`Week ${s.week} results — ${planet.name}`}
         sub="prize money paid, ratings updated"
         actions={
-          <NeonButton variant="primary" onClick={ackResults} title="key: Enter">
-            Back to the planet
-          </NeonButton>
+          <>
+            <NeonButton variant="primary" onClick={ackResults} title="key: Enter">
+              Back to the planet
+            </NeonButton>
+            {canFly ? (
+              <NeonButton onClick={flyOn} title="key: F — ends your turn here">
+                {next ? `Fly on to ${planetOf(next.planetId).name}` : 'End the season'}
+              </NeonButton>
+            ) : null}
+          </>
         }
       >
         {mine.length ? (

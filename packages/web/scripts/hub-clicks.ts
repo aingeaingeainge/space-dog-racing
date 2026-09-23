@@ -141,6 +141,10 @@ interface Tally {
   before: number;
   after: number;
   weekends: number;
+  /** GDD_V3 §9.1: a door a weekend, and a second press when the card behind it has a choice. */
+  explore: number;
+  /** Weekends the results screen's "Fly on" took "back to the planet" and "end turn" as one press. */
+  flyOn: number;
 }
 
 function playSeason(seed: number, tally: Tally): void {
@@ -193,12 +197,15 @@ function playSeason(seed: number, tally: Tally): void {
       continue;
     }
     if (state.phase === 'explore' && !state.pendingEvent && state.activePlayer === me.id) {
+      // One press on a door; the card behind it costs a second only if it has a choice to make.
+      tally.explore++;
       const applied = applyActions(state, [{ t: 'ChooseDoor', playerId: me.id, door: 0 }]);
       state = applied.state;
       log.push(...applied.added);
       continue;
     }
     if (state.pendingEvent && state.pendingEvent.playerId === me.id) {
+      tally.explore++;
       const choice = aiChoiceFor(state, me.id);
       const applied = applyActions(state, [{ t: 'ResolveEvent', playerId: me.id, choice }]);
       state = applied.state;
@@ -226,7 +233,16 @@ function playSeason(seed: number, tally: Tally): void {
     }
     tally.phases++;
 
-    const applied = applyActions(state, planetTurn(state, me));
+    const turn = planetTurn(state, me);
+    // After the races with nothing to buy and nothing worth a walk: Results' "Fly on" is one press
+    // where "back to the planet" and "end turn" were two.
+    if (
+      state.phase === 'planetPost' &&
+      turn.length === 1 &&
+      !HOTSPOT_VENUES.some((id) => open.get(id)?.open && status[id].worth)
+    )
+      tally.flyOn++;
+    const applied = applyActions(state, turn);
     state = applied.state;
     log.push(...applied.added);
   }
@@ -234,12 +250,19 @@ function playSeason(seed: number, tally: Tally): void {
 }
 
 const n = Number(process.argv[2]) || 20;
-const tally: Tally = { phases: 0, before: 0, after: 0, weekends: 0 };
+const tally: Tally = { phases: 0, before: 0, after: 0, weekends: 0, explore: 0, flyOn: 0 };
 for (let i = 0; i < n; i++) playSeason(1000 + i * 37, tally);
 
 const weekends = tally.weekends;
-const before = tally.before / weekends + FIXED_PER_WEEKEND;
-const after = tally.after / weekends + FIXED_PER_WEEKEND;
+// ⚠️ **Phase D1 adds two lines to this sum and says so.** Explore costs a press on a door every
+// weekend and a second when the card has a choice — the arrival card it replaced cost that second
+// press too, and this script never counted it, so the old 10.5 was light by about a quarter of a
+// click. And the results screen's "Fly on" makes "back to the planet" + "end turn" one press on a
+// weekend with nothing to do after the races. Both are counted from the walk, not assumed.
+const explorePresses = tally.explore / weekends;
+const flyOnSaved = tally.flyOn / weekends;
+const before = tally.before / weekends + FIXED_PER_WEEKEND + explorePresses;
+const after = tally.after / weekends + FIXED_PER_WEEKEND + explorePresses - flyOnSaved;
 const seasonBefore = before * balance.weeks;
 const seasonAfter = after * balance.weeks;
 
@@ -247,15 +270,19 @@ console.log(`${n} seasons, ${weekends} weekends, ${tally.phases} planet phases.\
 console.log(`Venue visits a weekend`);
 console.log(`  before — every open venue, both phases : ${(tally.before / weekends).toFixed(1)}`);
 console.log(`  after  — only the ones with stock      : ${(tally.after / weekends).toFixed(1)}`);
-console.log(`\nClicks a weekend (venues + ${FIXED_PER_WEEKEND} fixed)`);
+console.log(
+  `Explore a weekend: ${explorePresses.toFixed(2)} presses (a door, and a choice when the card has one)`,
+);
+console.log(`"Fly on" from the results: ${flyOnSaved.toFixed(2)} presses saved a weekend`);
+console.log(`\nClicks a weekend (venues + ${FIXED_PER_WEEKEND} fixed + Explore − Fly on)`);
 console.log(`  before : ${before.toFixed(1)}`);
 console.log(`  after  : ${after.toFixed(1)}   (${(100 * (1 - after / before)).toFixed(0)}% fewer)`);
 console.log(
   `  budget (BUILD_PLAN_V3 Phase A): ≤ 10 — ${after <= 10 ? 'MET' : `MISSED by ${(after - 10).toFixed(1)}`}`,
 );
 console.log(
-  `  of which decisions : ${(after - FIXED_NAVIGATION).toFixed(1)}   ` +
-    `(navigation : ${FIXED_NAVIGATION}.0 — track, races, back, end turn)`,
+  `  of which decisions : ${(after - FIXED_NAVIGATION + flyOnSaved).toFixed(1)}   ` +
+    `(navigation : ${(FIXED_NAVIGATION - flyOnSaved).toFixed(1)} — track, races, back, end turn, less Fly on)`,
 );
 console.log(`\nClicks a ${balance.weeks}-week season`);
 console.log(`  before : ${Math.round(seasonBefore)}`);

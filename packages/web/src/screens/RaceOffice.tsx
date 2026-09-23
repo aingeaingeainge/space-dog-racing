@@ -1,6 +1,7 @@
 import {
   balance,
   formatBones,
+  LOAN_RACE,
   planetOf,
   publicStyle,
   purseFor,
@@ -14,6 +15,7 @@ import {
   type StyleId,
 } from '@sdr/engine';
 import { DogThumb } from '../components/DogCard';
+import { Whispers } from '../components/Whispers';
 import { Panel } from '../components/Panel';
 import { TicketCard } from '../components/TicketCard';
 import { Badge, Notes, StableName, StyleTag, Traits } from '../components/ui';
@@ -136,6 +138,8 @@ export function RaceOffice({ s, me }: { s: GameState; me: Player }) {
   const trip = planet.track.length;
 
   const card = thisWeeksCard();
+  // GDD_V3 §4.4: a stable short of fit dogs is lent a local for the Bronze Dash, free.
+  const loaner = me.loanerId ? s.dogs[me.loanerId] : undefined;
   const declare = (race: RaceTypeId, dogId: string) =>
     dispatch({ t: 'Declare', playerId: me.id, race, dogId: dogId || null });
 
@@ -184,7 +188,16 @@ export function RaceOffice({ s, me }: { s: GameState; me: Player }) {
           ]}
         />
         <WeekLedger s={s} me={me} dogs={dogs} />
+        {loaner ? (
+          <p className="event-detail">
+            You are short of fit dogs, so the track lends you <b>{loaner.name}</b> (rated{' '}
+            {loaner.rating}, a {STYLE_BY_ID[loaner.style].name.toLowerCase()}) for the{' '}
+            {raceLabel(LOAN_RACE)}. It runs in your colours and you keep the prize; it goes back at
+            the end of the weekend and is nobody&apos;s asset.
+          </p>
+        ) : null}
       </Panel>
+      <Whispers s={s} me={me} where="a knock on your own dog is a reason to rest it" />
 
       <div className="grid3">
         {card.map((race) => {
@@ -225,6 +238,11 @@ export function RaceOffice({ s, me }: { s: GameState; me: Player }) {
                   onChange={(e) => declare(race, e.target.value)}
                 >
                   <option value="">— no runner —</option>
+                  {loaner && race === LOAN_RACE ? (
+                    <option value={loaner.id}>
+                      {loaner.name} · {loaner.rating} · the lent local runner
+                    </option>
+                  ) : null}
                   {dogs.map((d) => {
                     const bad = ineligibleReason(d, race);
                     const other = declaredRace(s, me.id, d.id);

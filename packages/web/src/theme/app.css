@@ -2210,3 +2210,110 @@ table.market .loss {
 table.market tr.held td:first-child {
   box-shadow: inset 3px 0 0 var(--accent-1);
 }
+
+/* ---------------------------------------------------------------- Explore (GDD_V3 §9.1, Phase D1) */
+.doors {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin: 4px 0 12px;
+}
+@media (max-width: 720px) {
+  .doors {
+    grid-template-columns: 1fr;
+  }
+}
+.door {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: left;
+  padding: 0 0 12px;
+  border: 2px solid var(--ink);
+  border-radius: 4px;
+  background: linear-gradient(180deg, rgba(27, 26, 34, 0.9), rgba(12, 11, 17, 0.95));
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  overflow: hidden;
+  box-shadow: inset 0 -5px 0 -2px var(--accent-1-line);
+  transition:
+    transform 0.12s ease,
+    box-shadow 0.12s ease;
+}
+.door:hover,
+.door:focus-visible {
+  transform: translateY(-3px);
+  box-shadow:
+    inset 0 -5px 0 -2px var(--accent-1-line),
+    0 0 14px var(--accent-1-glow);
+  outline: none;
+}
+.door > span:not(.door-art) {
+  padding: 0 12px;
+}
+.door-art {
+  position: relative;
+  aspect-ratio: 3 / 4;
+  max-height: 260px;
+  margin-bottom: 6px;
+  border-bottom: 2px solid var(--ink);
+  background:
+    repeating-linear-gradient(-45deg, rgba(244, 197, 66, 0.1) 0 10px, transparent 10px 20px),
+    linear-gradient(160deg, var(--accent-2-deep), var(--ink));
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+.door-art img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.door-art .ph {
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--hazard);
+  border: 1px dashed var(--hazard);
+  padding: 4px 10px;
+  border-radius: 2px;
+  background: rgba(12, 11, 17, 0.6);
+}
+.door-name {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--accent-1-text);
+}
+.door-kind {
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--hazard);
+}
+.door-blurb {
+  font-size: 13px;
+}
+.door-offers {
+  font-size: 12px;
+}
+.event-detail {
+  border-left: 3px solid var(--hazard);
+  padding: 4px 10px;
+  margin: 6px 0 10px;
+}
+.behind-door {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: 12px;
+  align-items: start;
+}
+.behind-door .event-art {
+  margin: 0;
+  border: 2px solid var(--ink);
+}
+.whispers li {
+  margin: 2px 0;
+}

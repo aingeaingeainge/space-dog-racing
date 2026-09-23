@@ -1,4 +1,4 @@
-import { EVENT_BY_ID, type GameState } from '@sdr/engine';
+import { EVENT_BY_ID, planetOf, type GameState } from '@sdr/engine';
 import { Modal } from './ui';
 import { NeonButton } from './NeonButton';
 import { eventArt } from '../lib/assets';
@@ -33,9 +33,15 @@ export function EventModal({ s }: { s: GameState }) {
   if (!card) return null;
 
   const art = eventArt(pending.eventId);
+  // GDD_V3 §9.1: every card is behind a door now, and the door is part of the story.
+  const door = planetOf(s.planet.planetId).exploreDoors[pending.door];
 
   return (
-    <Modal kind="event" title={card.name} sub={who ? `${who.name} — week ${s.week}` : undefined}>
+    <Modal
+      kind="event"
+      title={card.name}
+      sub={who ? `${who.name} — ${door ? `${door.name}, ` : ''}week ${s.week}` : undefined}
+    >
       <div className="event-art">
         {art ? <img src={art.url} alt="" decoding="async" /> : null}
         {!art || art.placeholder ? (
@@ -43,6 +49,7 @@ export function EventModal({ s }: { s: GameState }) {
         ) : null}
       </div>
       <p>{card.text}</p>
+      {pending.detail ? <p className="event-detail">{pending.detail}</p> : null}
       <div className="row">
         {pending.choices.map((label, i) => (
           <NeonButton
