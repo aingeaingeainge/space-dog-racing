@@ -321,6 +321,10 @@ closer ×0.97 early / +0.06 / ×1.0; "early" is the first third of the trip; shi
 600 m reference trip (C5). Across the calendar the three read 12.9 / 12.0 / 12.6; what is left is the
 trip — a front-runner wins 18% of sprints and 6.5% of staying trips, a closer 8% and 19%.
 
+*At `v3c2` (C13, C14): the front-runner's fade shift is −0.05 and the closer's +0.035, re-balanced
+so that the calendar stays even under the hot pace and the run-in. The shape is unchanged. Across
+the calendar the styles read 11.8 / 12.7 / 13.0.*
+
 ### 5.2 Day-to-day variance — where Jesse's ±30% goes
 
 Every race, each dog draws a **style expression** multiplier, `U(0.30, 1.30)` ⚖️, that scales *how
@@ -339,6 +343,16 @@ none of the damage — the area under the curve is constant.
 > ⚠️ **Cut at `v3c` (C3), as V14 required.** Built alone (`67aa702`), measured, and deleted at the
 > next commit: a closer's gap between one front-runner and three read **+0.7 points** against a 4-point
 > floor, and no setting in the sweep reached 4. The section is kept as the record of what was tried.
+>
+> ✅ **Replaced at `v3c2` by the hot pace (C12, C13).** While the leader is inside the first third
+> and **two or more** front-runners are within 4 m of the leader, the pace is hot. While it is hot,
+> **every** runner within 6 m of the leader has its fade point moved earlier, up to 90 m for a whole
+> window, charged by the ground it covers in that group. It needs two front-runners, so a lone one is
+> never burned. A closer, slow away, is mostly out of the group. The closer's gap (1 front-runner
+> against 3) reads **+2.3 points**, against a **+2 floor Jesse set** once the sweep showed that no
+> setting could reach +4 with the calendar even: 79% of real races already carry two front-runners.
+> A lone front-runner wins 15.8% (was 14.2%) and one with two rivals 11.7% (was 13.2%). The paragraphs
+> below describe the `v3c` rule.
 
 Styles on their own are independent: three front-runners would each run their own curve, fade at
 their own points, and a closer would beat them by exactly as much as it beats one. **The
@@ -411,6 +425,11 @@ points — and never the field. It does not price fitness or form, and never has
 and styles"; this section's "fitness, form" was not built — ❓ Q9). Backing the lone closer blind
 returns −17% a Bone. With the contest rule cut there is almost no field-shape effect to price: a
 closer wins 13.1% against one front-runner and 12.8% against three.*
+
+*At `v3c2` the hot pace gives the field shape something to read: a lone closer against three or
+more front-runners returns +2.2% a Bone at the posted price, against −12.9% for the average runner.
+Backed blind, every lone closer returns −2.7%. So the overlay pays a player who reads the board, and
+it is not free money. `oddsScale` is 19 (C15).*
 
 ---
 
@@ -550,6 +569,12 @@ Unchanged from v2 in shape and constants, with three amendments:
 
 *At `v3c`: amendment 3 was built, measured and cut (C3); the fade point became metres rather than a
 fraction of the trip (A7, C5).*
+
+*At `v3c2`: amendment 3 is the hot pace (§5.3, C12). A fourth amendment is **the run-in** (C14):
+over the last 15 m every runner slows by the same fraction at the same point on the track, reaching
+50% at the line. It reads where a dog is and never where the others are, so it pulls nobody back.
+A time gap stays the same time gap, and it shows as fewer metres at the line. Median winning margin
+6.3 m, photo finishes 3.5%.*
 
 Everything else — `raceBaseSpeed` 13.75, `raceSpeedCoef` 4.5, `raceFadePenalty` 0.50, the bend
 model, the tick log, the renderer replay contract — carries over. **These constants were fitted over
@@ -757,7 +782,8 @@ v2's harness survives and most of its measures still mean something. New and cha
 | Decisions per weekend per player | ≤ 10 | §10.1 |
 | Races entered per weekend, per stable | 1.8–2.4 of 3 | §4.2's fitness arithmetic; the card is built for it |
 | Races per dog per season | 5–7 | §4.2, 10 weeks |
-| A closer's win rate, 1 front-runner in the field vs 3 | ≥ 4 points better | §5.3 — **if this misses, cut the contest rule** · *`v3c`: +0.7, cut (C3)* |
+| A closer's win rate, 1 front-runner in the field vs 3 | ≥ 4 points better · **≥ 2 since `v3c2` (C13)** | §5.3 — **if this misses, cut the contest rule** · *`v3c`: +0.7, cut (C3)* · *`v3c2`: the hot pace, +2.3 against the +2 floor Jesse set* |
+| Winning margin, median / photo finishes | 4–7 m / ≥ 3% | §14 Q11 · *`v3c2`: 6.3 m / 3.5% (v3c 10.6 m / 1.8%)* |
 | Style expression's share of race variance | below fitness's, above form's | §5.2 — the ±30% must not swamp the stats |
 | Field-shape betting overlay, backing the lone closer blind | below the 15% margin | §5.6 — an edge for a player who reads, not free money |
 | Mean end worth, all-Normal, one season | 25–40k | roughly v2's band on a 10-week season |
@@ -843,6 +869,10 @@ All 18 planets survive as data. What changes is which fields do work:
 | 2026-09-23 | **C9 — the day's expression is drawn in its own per-runner loop after the break, before the first tick; a probe may pin it** | §5.2 asks for a fixed point. Eight draws a race, always (short fields are filled with locals), so the stream never shifts with the number of stables. `Runner.expression` lets the harness hold it still for the variance decomposition; the draw is still made, and nothing in the game sets it |
 | 2026-09-23 | **C10 — the Race Office board is public in turn order; v2's "a human's pick is hidden until the lock" is reversed** | V16. v2 hid picks so hotseat was not a peeking contest; V16 makes seeing the field the thing going last buys, and turn order already stops anybody seeing a pick that has not been made |
 | 2026-09-23 | **C11 — Hard's field-shape read is not built: with C3 there is nothing in the field for it to read** | Jesse's call was "give Hard the field-shape read and report what it is worth, as a measurement". Measured without building it: a closer wins 13.1% against one front-runner and 12.8% against three, and backing the lone closer in a field of three or more front-runners returns −19%. The read is worth nothing because the effect is not in the simulation. Hard beats Normal 51.5% (v3b 47.5%, band 63–68%) on the changes every agent got |
+| 2026-09-23 | **C12 — the contest rule returns as the hot pace: two front-runners at the head light it, and everyone in the lead group pays** | Jesse, after `v3c`: "want it back". The `v3c` rule failed twice. It burned a lone front-runner on the stalkers beside it, and it shared a burned front-runner's wins across the whole field. So the hot pace takes **two** pace-lighting styles within 4 m of the leader, inside the first third, to light. Then every runner within 6 m of the leader pays a fade point moved earlier, 90 m for a whole window, charged by the ground it covers in that group. A closer is mostly out of the group, so the leaders come back to it. The rule reads positions, makes no rng draw, and is driven by one style cell (`lights the pace`). A `hotPace` event marks it lighting |
+| 2026-09-23 | **C13 — ⚠️ the kill switch's floor is +2, not +4; the style curve is re-balanced to keep the calendar even (Jesse's call, option A)** | Swept over 45 cells at 6,000 races each. Settings that reach +4 (e.g. 4 / 6 / 120: +4.4) leave the three styles 5.6 points apart across the calendar, because 79% of real races hold two or more front-runners, so burning a crowd burns the style. Re-balanced to even, the rule only moves wins between a lone front-runner and a crowded one, and the closer collects about two points. Reaching +4 while even needs the front-runner's own fade removed (−0.01, paying 65 m against a 5 m fade), and that is still 2.1 apart. Built: 4 m / 6 m / 90 m, front-runner fade −0.07 → −0.05, closer +0.06 → +0.04. Gap +2.2, spread 1.0, a lone front-runner 16.1% (was 14.2%) |
+| 2026-09-23 | **C14 — the run-in: over the last 15 m every runner slows alike, to half pace at the line; the closer's fade shift trimmed to +0.035** | §14 Q11. The margin is made inside the race, mostly by race-day luck, but luck is also what holds calibration (at 1.2 a rating-65 dog wins 79%). Tick noise does nothing to the margin, and a harder fade widens it. A margin in metres is a time gap multiplied by the speed at the line, and A7 took that speed from half pace to about 85%. So the whole field slows alike, by position only. That is not a catch-up rule: nobody gains time on anybody. Kept short because a long run-in favours stamina (at 40 m stamina passed accel). Median 10.3 → 6.3 m, photo finishes 2.2 → 3.5% |
+| 2026-09-23 | **C15 — `oddsScale` 18.75 → 19, on the real-field reading; least squares said 18 and was the wrong way** | C7 again. The probe (65 v seven 50s, 51.8%) fitted 18. Played through at 18, the house margin was −9.9% and a stable dog backed blind returned +2.8%; at 18.75 the figures were −11.8% and +1.4%; at 19, −12.6% and +0.6% (200 seasons) or −12.9% and +2.3% (800 seasons, within a standard error of the +2% line). 19 is the smallest step that puts both in band. `STATE_VERSION` 8 and `SAVE_VERSION` 7 moved in their own commit: a `v3c` log is a different season now |
 
 ---
 
@@ -871,9 +901,13 @@ All 18 planets survive as data. What changes is which fields do work:
    barely matters and §7.3's board is read for the *trip*, not the field. A rule that paid closers
    against a crowded front would have to be about closers — or the kill switch's floor is wrong for
    an eight-dog field, where one runner can only ever collect a fraction of what the others lose.
+   *`v3c2`: the hot pace (C12) is that rule, and the floor was wrong. With the calendar held even,
+   an eight-dog field gives the closer about two points (C13).*
 11. **Are the races too processional?** The median winning margin is 10.6 m (v3b 7.3 m) and a photo
    finish comes up in 1.8% of races, because the fade in metres (C5) no longer drags the field back
    together at the line. Nothing measures it against a target; the race view is where to judge it.
+   *`v3c2`: Jesse said yes, too spread out. The run-in (C14) gives a median of 6.3 m and 3.5% photo
+   finishes. Whether the last metres look like braking is the question to watch.*
 
 ---
 

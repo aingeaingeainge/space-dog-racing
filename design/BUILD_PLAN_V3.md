@@ -255,6 +255,36 @@ precedent for why.
 
 ---
 
+### Phase C2 — the race, retuned (1 session) → `v3c2`
+
+> **Built and tagged `v3c2` (23 September 2026).** See `claude/V3_PHASE_C2_NOTES.md` and
+> `claude/V3_PHASE_C2_PROMPT.md`. This phase was not in the original plan. It is Jesse's call after
+> playing `v3c`: he wanted the contest rule back, and the races were too strung out.
+
+Two jobs:
+
+1. **The hot pace (GDD_V3 §5.3, C12, C13).** It replaces the contest rule. Two front-runners at the
+   head light it, and every runner in the lead group pays with an earlier fade. The kill switch's
+   floor moved from +4 to **+2 at Jesse's call**, once the sweep showed that +4 could not be reached
+   with the calendar even. Built: +2.3. Two numbers on the style curve were re-balanced.
+2. **Closer finishes (§14 Q11, C14).** A run-in slows every runner alike over the last 15 m, to half
+   pace at the line. Median margin 10.6 → 6.3 m, photo finishes 1.8% → 3.5%.
+
+The race model moved under the book, so `oddsScale` went 18.75 → 19 on the real-field reading (C15).
+Stat leverage still orders (24.1 / 17.3 / 17.1 at 480 m), calibration reads 51.8%, and the market
+rows did not move.
+
+| Measure | Target | `v3c2` |
+|---|---|---|
+| Closer's gap, 3 front-runners vs 1 | ≥ 4, or Jesse's floor | **+2.3** against **+2** |
+| Lone front-runner vs `v3c` | not worse off | 15.8% (14.2%) |
+| Style no-advantage, calendar | within 1.5 | 1.2 |
+| Winning margin, median / photos | 4–7 m / ≥ 3% | 6.3 m / 3.5% |
+| Real-field house margin / stable dog | −12 to −15% / ≤ +2% | −12.9% / +2.3% (within a standard error) |
+
+**What Phase D inherits:** Hard has a field to read now (a lone front-runner +1.6 points, a closer
+in a crowd +2.3), but it does not read it yet. Accel over stamina at 480 m is only 0.2 points.
+
 ### Phase D — Explore and the deck (2 sessions) → `v3d`
 
 **Goal:** the screen that carries v3's entire content budget.
