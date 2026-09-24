@@ -3,7 +3,7 @@
 > **Status: CURRENT.** Build from this document.
 >
 > Canonical copy: `design/GDD_V3.md` in the `space-dog-racing` repo. A copy in a claude.ai Project
-> is a **mirror**, last synced 25 September 2026 (at `v3e2`) — edit the repo, never the mirror. See `design/CANON.md`.
+> is a **mirror**, last synced 25 September 2026 (at `v3f1`) — edit the repo, never the mirror. See `design/CANON.md`.
 >
 > Supersedes `design/GDD.md` (v2, shipped at tag `v2e`), which is kept as historical reference and
 > is cited by name throughout this document.
@@ -853,6 +853,9 @@ Down from eleven to seven. The Docks and the Saloon are gone entirely.
    costs each dog in fitness.
 8. **Bookie** → **Race view** → **Results**.
 9. **Leaderboard** (always available) and **Season / Game end**.
+
+*(Phase F1: a human stable has a face too — one of eight, keyed by its saddle-cloth colour, the
+colour worn at the neck or on the head. UI only; the engine knows nothing of it.)*
 
 ### 10.1 The click budget
 

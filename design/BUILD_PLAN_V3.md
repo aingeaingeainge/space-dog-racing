@@ -3,7 +3,7 @@
 > **Status: CURRENT.** Build from this document.
 >
 > Canonical copy: `design/BUILD_PLAN_V3.md` in the `space-dog-racing` repo. A copy in a claude.ai
-> Project is a **mirror**, last synced 25 September 2026 (at `v3e2`) — edit the repo, never the mirror. See
+> Project is a **mirror**, last synced 25 September 2026 (at `v3f1`) — edit the repo, never the mirror. See
 > `design/CANON.md`.
 >
 > Supersedes `design/BUILD_PLAN.md` from §6 onward. **That document's §§1–5 — architecture, tech
@@ -397,6 +397,42 @@ in a crowd +2.3), but it does not read it yet. Accel over stamina at 480 m is on
 | Target mode produces a finish worth watching | 🎲 |
 | Seed + action log reproduces a whole multi-season game, on Node 20, 22 and 24 | ✅ |
 | `npm test` green, `npm run build` → `packages/web/dist` | ✅ |
+
+---
+
+### Phase F — the look (art sessions) → `v3f`
+
+> **Status: F1 BUILT, tagged `v3f1` (25 September 2026); the 67 event cards are to come.** F1 drew,
+> as SVG, the 54 Explore doors (one silhouette per category, dressed per planet), the 22 trainer
+> portraits, and eight faces for the human stables keyed by saddle-cloth colour; fixed the Explore
+> screen's layout for 3:4 doors; pruned the v2 portraits and the stand-ins beside finished art; and
+> moved CI to current actions on a pinned runner (`claude/V3_PHASE_F1_NOTES.md`).
+>
+> | Measure | Target | `v3f1` |
+> |---|---|---|
+> | Explore doors finished | 54 / 54, under cap | 54 / 54, 11–42 kB (target 60) ✅ |
+> | Staff portraits finished | 22 / 22 | 22 / 22, under 9 kB each ✅ |
+> | A human stable has a face on the podium and the game-end screen | ✅, by saddle-cloth colour | `human-01`…`08`, `lib/owners.ts` ✅ |
+> | `asset-check` | 0 missing; only event cards left as stand-ins; nothing over cap | 221 finished, 67 stand-ins (all event cards), 0 missing ✅ |
+> | Neither golden moves; no engine change | ✅ | `8dc05e06…` / `dc357422…` unmoved; `packages/engine` untouched ✅ |
+> | `npm test`, lint, `season-check`, `npm run build` | ✅ | 47 green; clean; passes; ✅ |
+> | CI on current actions, runner pinned | ✅ | `checkout@v7`, `setup-node@v7`, `ubuntu-24.04` (runs on Jesse's push) |
+> | 🎲 The doors read as their category, each planet's set feels like that planet, the trainers look like what they do, the human faces feel like yours | 🎲 | **outstanding** — the `v3f1` checklist in the F1 notes |
+
+**Goal:** every screen a player sees each weekend looks finished.
+
+**Deliverables**
+
+1. **F1** — the Explore doors, the trainer portraits, faces for human stables, the prune.
+2. **F2** — the event cards (67 still stand-ins), in an order Jesse picks.
+
+**Accept when**
+
+| Measure | Target |
+|---|---|
+| `asset-check` | 0 stand-ins, 0 missing, nothing over cap |
+| Neither golden moves | ✅ — art is data the engine never reads |
+| Checked where each piece is seen, desktop and phone | ✅ |
 
 ---
 
