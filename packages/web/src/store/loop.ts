@@ -32,6 +32,17 @@ export function applyActions(base: GameState, actions: readonly Action[]): Appli
   return { state, added };
 }
 
+/**
+ * The UI's name for this weekend, for its "already watched / already read" marks (GDD_V3 §2.1).
+ *
+ * ⚠️ **Week numbers repeat once a game runs past one season**, so a mark that said "week 3 watched"
+ * would swallow season two's week 3. In season 1 this is the week itself — a one-season game and
+ * its saves read exactly as they always did — and from season 2 it is `100 × (season − 1) + week`.
+ */
+export function weekKey(s: Pick<GameState, 'season' | 'week'>): number {
+  return (s.season - 1) * 100 + s.week;
+}
+
 export type ScreenKind =
   | 'seasonEnd'
   | 'noHuman'
@@ -83,9 +94,10 @@ export function screenFor(s: GameState, ui: ScreenUi): Screen {
   // Races are public: the whole table watches them run, then reads the results, before the
   // laptop moves on to anybody's private business. On a weekend with no bookie the locked card
   // comes first, because otherwise nothing ever shows it.
-  if (s.races && !bookieOpen(s) && ui.fieldsSeenWeek !== s.week) return { kind: 'fields', me };
-  if (s.races && ui.racesWatchedWeek !== s.week) return { kind: 'race', me };
-  if (s.races && ui.resultsSeenWeek !== s.week) return { kind: 'results', me };
+  const wk = weekKey(s);
+  if (s.races && !bookieOpen(s) && ui.fieldsSeenWeek !== wk) return { kind: 'fields', me };
+  if (s.races && ui.racesWatchedWeek !== wk) return { kind: 'race', me };
+  if (s.races && ui.resultsSeenWeek !== wk) return { kind: 'results', me };
   if (table.length > 1 && ui.passAck !== me.id) return { kind: 'pass', me };
   // GDD_V3 §9.1: a new planet opens on its three doors. A card with a choice waits in EventModal
   // over the hub, so the doors are only the screen while there is a door still to pick.

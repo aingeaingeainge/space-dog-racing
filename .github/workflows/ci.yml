@@ -5,11 +5,18 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      # BUILD_PLAN_V3 Phase E: seed + action log reproduces a whole multi-season game on Node 20
+      # (Cloudflare Pages), 22 and 24. The golden digests are the check: one engine drifting fails
+      # its own leg of the matrix.
+      matrix:
+        node-version: [20, 22, 24]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: ${{ matrix.node-version }}
           cache: npm
       - run: npm ci
       - run: npm test

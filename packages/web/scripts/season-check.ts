@@ -32,7 +32,7 @@ import {
   type Diet,
   type GoodId,
 } from '@sdr/engine';
-import { applyActions, screenFor, type ScreenUi } from '../src/store/loop';
+import { applyActions, screenFor, weekKey, type ScreenUi } from '../src/store/loop';
 
 const HUMAN = 'p1';
 
@@ -305,16 +305,16 @@ function playSeason(seed: number, toggles?: SeasonSetup['toggles']) {
     if (screen.kind === 'race') {
       // The race view: the table watches the three logs replay. Watching changes nothing, so
       // the headless walk acknowledges it exactly as pressing skip three times would.
-      ui.racesWatchedWeek = state.week;
+      ui.racesWatchedWeek = weekKey(state);
       continue;
     }
     if (screen.kind === 'results') {
-      ui.resultsSeenWeek = state.week;
+      ui.resultsSeenWeek = weekKey(state);
       continue;
     }
     if (screen.kind === 'fields') {
       // A weekend with no bookie: the locked card is read, then the races run.
-      ui.fieldsSeenWeek = state.week;
+      ui.fieldsSeenWeek = weekKey(state);
       continue;
     }
     if (screen.kind === 'bust') {

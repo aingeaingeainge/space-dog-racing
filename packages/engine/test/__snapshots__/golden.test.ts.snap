@@ -1,5 +1,251 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
+exports[`golden game (seed 42, 6 Normal AIs, two seasons) > matches the golden digest 1`] = `
+{
+  "actions": 1330,
+  "hires": 1,
+  "players": [
+    {
+      "dogs": [
+        "Steaming of Shimmer:49:3:1/12",
+        "Mustache the Smoked:50:5:1/7",
+        "Yapping Pickle:50:4:3/13",
+      ],
+      "id": "p1",
+      "staff": [
+        "sixeyes",
+        "vell",
+      ],
+      "worth": {
+        "cargo": 0,
+        "cash": 39601,
+        "dogs": 14532,
+        "total": 54133,
+      },
+    },
+    {
+      "dogs": [
+        "Gentle Slate:52:5:1/13",
+        "Cousin Drifter:59:3:3/14",
+        "Kevin:56:4:3/13",
+      ],
+      "id": "p2",
+      "staff": [
+        "sarge",
+        "tick",
+      ],
+      "worth": {
+        "cargo": 48,
+        "cash": 52192,
+        "dogs": 18389,
+        "total": 70629,
+      },
+    },
+    {
+      "dogs": [
+        "Mister of Cannonball:50:5:2/12",
+        "Crispy Bandit:56:3:1/13",
+        "Quiet of Rocket:58:4:3/13",
+      ],
+      "id": "p3",
+      "staff": [
+        "glass",
+        "ruin",
+      ],
+      "worth": {
+        "cargo": 24,
+        "cash": 56765,
+        "dogs": 17765,
+        "total": 74554,
+      },
+    },
+    {
+      "dogs": [
+        "Final Chalice:58:4:5/13",
+        "Nebular of Peril:52:5:4/13",
+        "Notorious Sideburn:62:4:4/13",
+      ],
+      "id": "p4",
+      "staff": [
+        "gristle",
+        "grubb",
+      ],
+      "worth": {
+        "cargo": 24,
+        "cash": 51918,
+        "dogs": 18286,
+        "total": 70228,
+      },
+    },
+    {
+      "dogs": [
+        "Mild Peril:54:3:1/13",
+        "Fearless Burp:46:5:0/6",
+        "Lukewarm Torpedo:53:4:3/12",
+      ],
+      "id": "p5",
+      "staff": [
+        "ondine",
+        "lucky",
+      ],
+      "worth": {
+        "cargo": 48,
+        "cash": 43694,
+        "dogs": 15694,
+        "total": 59436,
+      },
+    },
+    {
+      "dogs": [
+        "Airlock Whiplash:50:4:2/15",
+        "Madam of Saucer:50:5:0/13",
+        "Sudden Jumble:50:5:0/14",
+      ],
+      "id": "p6",
+      "staff": [
+        "anselm",
+        "brack",
+      ],
+      "worth": {
+        "cargo": 96,
+        "cash": 25635,
+        "dogs": 12685,
+        "total": 38416,
+      },
+    },
+  ],
+  "retirements": 1,
+  "rng": 3766127723,
+  "seasons": [
+    {
+      "calendar": [
+        "holyBark",
+        "vatgrown",
+        "kibbleton",
+        "hushmarket",
+        "blackreach",
+        "mudhaven",
+        "rustgut",
+        "drift",
+        "portSlobber",
+        "collarPrime",
+      ],
+      "goldCups": {
+        "p1": 1,
+        "p2": 0,
+        "p3": 0,
+        "p4": 0,
+        "p5": 0,
+        "p6": 0,
+      },
+      "season": 1,
+      "standings": [
+        {
+          "netWorth": 49984,
+          "playerId": "p2",
+        },
+        {
+          "netWorth": 46607,
+          "playerId": "p3",
+        },
+        {
+          "netWorth": 45265,
+          "playerId": "p5",
+        },
+        {
+          "netWorth": 44126,
+          "playerId": "p1",
+        },
+        {
+          "netWorth": 35375,
+          "playerId": "p6",
+        },
+        {
+          "netWorth": 34151,
+          "playerId": "p4",
+        },
+      ],
+    },
+    {
+      "calendar": [
+        "glassfall",
+        "kibbleton",
+        "portSlobber",
+        "holyBark",
+        "cosmodrome",
+        "lagrangeLows",
+        "tinkertown",
+        "sunbleach",
+        "oldWembley",
+        "collarPrime",
+      ],
+      "goldCups": {
+        "p1": 0,
+        "p2": 0,
+        "p3": 1,
+        "p4": 3,
+        "p5": 1,
+        "p6": 0,
+      },
+      "season": 2,
+      "standings": [
+        {
+          "netWorth": 74554,
+          "playerId": "p3",
+        },
+        {
+          "netWorth": 70629,
+          "playerId": "p2",
+        },
+        {
+          "netWorth": 70228,
+          "playerId": "p4",
+        },
+        {
+          "netWorth": 59436,
+          "playerId": "p5",
+        },
+        {
+          "netWorth": 54133,
+          "playerId": "p1",
+        },
+        {
+          "netWorth": 38416,
+          "playerId": "p6",
+        },
+      ],
+    },
+  ],
+  "standings": [
+    {
+      "netWorth": 74554,
+      "playerId": "p3",
+    },
+    {
+      "netWorth": 70629,
+      "playerId": "p2",
+    },
+    {
+      "netWorth": 70228,
+      "playerId": "p4",
+    },
+    {
+      "netWorth": 59436,
+      "playerId": "p5",
+    },
+    {
+      "netWorth": 54133,
+      "playerId": "p1",
+    },
+    {
+      "netWorth": 38416,
+      "playerId": "p6",
+    },
+  ],
+  "stateHash": "e932ca8b8b444f7f060c6244ca572ad6601dc75506ac56c2ccf78fd3318212e9",
+}
+`;
+
 exports[`golden season (seed 42, 6 Normal AIs) > matches the golden digest 1`] = `
 {
   "actions": 679,

@@ -28,7 +28,9 @@ export const PHASE_LABEL: Record<Phase, string> = {
   race: 'Race day',
   planetPost: 'Planet — after the races',
   endTurn: 'Jumping to the next planet',
-  seasonEnd: 'Season over',
+  offSeason: 'The off-season',
+  newSeason: 'A new season',
+  seasonEnd: 'Game over',
 };
 
 /** GDD §4.2 in order, for the phase strip on the hub. */

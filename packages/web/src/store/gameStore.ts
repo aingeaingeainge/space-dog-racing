@@ -10,7 +10,7 @@ import {
   type SeasonSetup,
 } from '@sdr/engine';
 import { clearSave, readSave, writeSave, SAVE_VERSION, type SaveUi } from './persist';
-import { applyActions } from './loop';
+import { applyActions, weekKey } from './loop';
 
 /** Where the human is looking during their own phase. Never part of game state. */
 export type View = 'hub' | 'stable' | 'market' | 'office' | 'map';
@@ -148,7 +148,7 @@ export const useGame = create<GameStore>((set, get) => {
         // save does not say they were watched, fail soft to the results rather than replaying
         // three races the table may already have seen.
         const watched = state.races
-          ? Math.max(blob.ui?.racesWatchedWeek ?? 0, state.week)
+          ? Math.max(blob.ui?.racesWatchedWeek ?? 0, weekKey(state))
           : (blob.ui?.racesWatchedWeek ?? 0);
         const speed: RaceSpeed = blob.ui?.raceSpeed === 1 ? 1 : 2;
         set({
@@ -223,19 +223,22 @@ export const useGame = create<GameStore>((set, get) => {
     },
 
     ackRaces: () => {
-      const week = get().state?.week ?? 0;
+      const st = get().state;
+      const week = st ? weekKey(st) : 0;
       set({ racesWatchedWeek: week });
       save({ racesWatchedWeek: week });
     },
 
     ackResults: () => {
-      const week = get().state?.week ?? 0;
+      const st = get().state;
+      const week = st ? weekKey(st) : 0;
       set({ resultsSeenWeek: week });
       save({ resultsSeenWeek: week });
     },
 
     ackFields: () => {
-      const week = get().state?.week ?? 0;
+      const st = get().state;
+      const week = st ? weekKey(st) : 0;
       set({ fieldsSeenWeek: week });
       save({ fieldsSeenWeek: week });
     },

@@ -43,7 +43,7 @@ import {
   type Player,
   type SeasonSetup,
 } from '@sdr/engine';
-import { applyActions, screenFor, type ScreenUi } from '../src/store/loop';
+import { applyActions, screenFor, weekKey, type ScreenUi } from '../src/store/loop';
 import { venues } from '../src/lib/venues';
 import { venueStatus } from '../src/lib/venueStatus';
 import { HOTSPOT_VENUES } from '../src/lib/hotspots';
@@ -177,15 +177,15 @@ function playSeason(seed: number, tally: Tally): void {
     if (screen.kind === 'noHuman') throw new Error(`seed ${seed}: lost the human stable`);
     const me = screen.me!;
     if (screen.kind === 'race') {
-      ui.racesWatchedWeek = state.week;
+      ui.racesWatchedWeek = weekKey(state);
       continue;
     }
     if (screen.kind === 'results') {
-      ui.resultsSeenWeek = state.week;
+      ui.resultsSeenWeek = weekKey(state);
       continue;
     }
     if (screen.kind === 'fields') {
-      ui.fieldsSeenWeek = state.week;
+      ui.fieldsSeenWeek = weekKey(state);
       continue;
     }
     if (screen.kind === 'bust') {
