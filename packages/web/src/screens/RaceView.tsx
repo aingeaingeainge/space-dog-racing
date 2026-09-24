@@ -83,6 +83,10 @@ function RaceReplay({
 }) {
   const speed = useGame((g) => g.raceSpeed);
   const setRaceSpeed = useGame((g) => g.setRaceSpeed);
+  // Phase E2 (Jesse's call): **one press skips every race left this weekend** to the results. Watching
+  // changes nothing in the engine, so this only marks the weekend's races watched — exactly what
+  // reaching the end of the last race does. The per-race Skip stays.
+  const skipRaceDay = useGame((g) => g.ackRaces);
   const race: RaceTypeId = result.race;
   const planet = planetOf(result.planetId);
 
@@ -265,7 +269,8 @@ function RaceReplay({
     function onKey(e: KeyboardEvent): void {
       if (e.key === '1') setRaceSpeed(1);
       else if (e.key === '2') setRaceSpeed(2);
-      else if (e.key === 's' || e.key === 'S') skipRef.current = true;
+      else if (e.key === 'S' && e.shiftKey) skipRaceDay();
+      else if (e.key === 's') skipRef.current = true;
       else if (e.key === ' ' || e.key === 'Enter') {
         e.preventDefault();
         if (stageRef.current === 'result') onDone();
@@ -275,7 +280,7 @@ function RaceReplay({
     }
     globalThis.addEventListener('keydown', onKey);
     return () => globalThis.removeEventListener('keydown', onKey);
-  }, [setRaceSpeed, onDone]);
+  }, [setRaceSpeed, onDone, skipRaceDay]);
 
   const mine = result.payouts.filter((p) => p.playerId === me.id);
   const purse = result.purse[0];
@@ -308,6 +313,14 @@ function RaceReplay({
             >
               {stage === 'result' ? 'Next ⏎' : 'Skip'}
             </NeonButton>
+            {index < count - 1 || stage !== 'result' ? (
+              <NeonButton
+                onClick={skipRaceDay}
+                title="Every race left this weekend, straight to the results (key: Shift+S)"
+              >
+                Skip the rest of race day
+              </NeonButton>
+            ) : null}
           </span>
         }
       >
