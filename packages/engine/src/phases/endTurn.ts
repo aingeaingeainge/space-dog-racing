@@ -4,15 +4,8 @@ import { planFeeding, type FeedPlan } from '../economy/food';
 import { netWorth } from '../economy/netWorth';
 import { weakestStat } from '../economy/dogValue';
 import { restBonus, staffBonus } from '../economy/staff';
-import { HEADLINE_TYPE_ID } from '../content/raceTypes';
-import {
-  emptyDeclarations,
-  log,
-  player,
-  ranThisWeek,
-  weeklyFitnessDelta,
-  type Ctx,
-} from '../state';
+import { finishSeason, targetCrossers } from './game';
+import { emptyDeclarations, log, ranThisWeek, weeklyFitnessDelta, type Ctx } from '../state';
 import { clamp } from '../rng';
 import { STAT_KEYS, type Dog, type GameState, type GoodId, type Player } from '../types';
 
@@ -209,34 +202,16 @@ export function runEndTurn(ctx: Ctx): void {
   s.locked = false;
 
   // ---- Jump ----
-  if (s.week >= balance.weeks) {
-    finishSeason(s);
+  //
+  // The season ends at week 10 — or, in a Target game, at the end of the first weekend anybody's net
+  // worth reaches the target (GDD_V3 §2.1). Either way `finishSeason` decides whether that is the
+  // game's end or a way into the next season.
+  if (s.week >= balance.weeks || targetCrossers(s).length > 0) {
+    finishSeason(ctx);
     return;
   }
   s.week++;
   s.planet.planetId = s.calendar[s.week - 1]!.planetId;
   s.phase = 'arrival';
   s.activePlayer = null;
-}
-
-/** GDD §4.3: net worth decides it; tie-break is most Open wins, then most Majors. */
-function finishSeason(s: GameState): void {
-  const wonOpen = (r: (typeof s.results)[number], pid: string) =>
-    r.race === HEADLINE_TYPE_ID && r.payouts.some((x) => x.place === 1 && x.playerId === pid);
-  const openWins = (pid: string) => s.results.filter((r) => wonOpen(r, pid)).length;
-  const majorsWon = (pid: string) =>
-    s.results.filter((r) => s.calendar[r.week - 1]?.major && wonOpen(r, pid)).length;
-  const standings = s.players
-    .map((p) => ({
-      playerId: p.id,
-      netWorth: netWorth(s, p),
-      open: openWins(p.id),
-      majors: majorsWon(p.id),
-    }))
-    .sort((a, b) => b.netWorth - a.netWorth || b.open - a.open || b.majors - a.majors);
-  s.finalStandings = standings.map(({ playerId, netWorth: nw }) => ({ playerId, netWorth: nw }));
-  s.phase = 'seasonEnd';
-  s.activePlayer = null;
-  const champ = player(s, standings[0]!.playerId);
-  log(s, `Season over: ${champ.name} wins with a stable worth ${standings[0]!.netWorth}.`);
 }

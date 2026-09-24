@@ -137,6 +137,13 @@ export type Phase =
   | 'race' // system: simulate the card in order; pay purses; settle bets
   | 'planetPost' // in turn order: buy food
   | 'endTurn' // system: weekly costs, training, recovery, jump to the next planet
+  | 'newSeason' // system: re-draw the circuit, reset prices and the season's stats (GDD_V3 §2.2 step 4)
+  /**
+   * ⚠️ **The game is over** — the last season has ended, or a Target was crossed (GDD_V3 §2.1). The
+   * name is v1's and is kept because every screen, script and test that asks "is it over?" asks it
+   * of this phase; in a multi-season game a season that is *not* the last one ends into the
+   * off-season instead, and never reaches here.
+   */
   | 'seasonEnd';
 
 /** Phases where the engine waits for the active player to act and then send EndPhase. */
@@ -629,6 +636,43 @@ export interface Toggles {
   casualEvents: boolean;
 }
 
+/**
+ * How long a game is (GDD_V3 §2.1), chosen at setup: **1 to 5 seasons**, or **Race to a Target** —
+ * play until a stable's net worth passes `worth` at the end of a weekend. A setup that names no
+ * length is one season, which is what every game before Phase E was.
+ */
+export type GameLength = { kind: 'seasons'; seasons: number } | { kind: 'target'; worth: number };
+
+/**
+ * One finished season, archived when it ends (GDD_V3 §2.2): what the table would want to look back
+ * on, and what a game's tie-break needs once the season's races are cleared. `stats` is each
+ * stable's `PlayerSeasonStats` as the season left them — the live copy is reset at the next season,
+ * and a game total is summed from these rather than stored twice.
+ */
+export interface SeasonRecord {
+  season: number;
+  /** Weekends it ran: ten, or fewer if a Target was crossed part-way through. */
+  weeks: number;
+  /** The circuit it ran, week by week. */
+  calendar: Id[];
+  /** Net worth at the season's last weekend, highest first, broken as §2.4. */
+  standings: { playerId: Id; netWorth: number }[];
+  stats: Record<Id, PlayerSeasonStats>;
+  /** Gold Cups and races won this season, per stable — §2.4's two tie-breaks. */
+  goldCups: Record<Id, number>;
+  raceWins: Record<Id, number>;
+}
+
+/** Why and when the game ended (GDD_V3 §2.1). */
+export interface GameOver {
+  /** The seasons ran out; a Target was crossed; or a Target game hit its season cap. */
+  reason: 'seasons' | 'target' | 'cap';
+  season: number;
+  week: number;
+  /** The stables at or past the Target when it was crossed — not necessarily the winner. */
+  crossers: Id[];
+}
+
 export interface GameState {
   version: number;
   seed: number;
@@ -678,7 +722,20 @@ export interface GameState {
   eventLog: LogLine[];
   toggles: Toggles;
   nextId: number;
+  /**
+   * The game's standings, once it is over (GDD_V3 §2.4): final net worth, highest first, broken on
+   * Gold Cups and then races won across the whole game. Null until then — a season that ends into
+   * the off-season is archived in `seasons`, not here.
+   */
   finalStandings: { playerId: Id; netWorth: number }[] | null;
+  /** Which season this is, from 1 (GDD_V3 §2.1). */
+  season: number;
+  /** How long this game is — fixed at setup. */
+  length: GameLength;
+  /** Every season that has finished, in order. */
+  seasons: SeasonRecord[];
+  /** Why the game ended, once it has; null while it is running. */
+  gameOver: GameOver | null;
 }
 
 export interface PlayerSetup {
@@ -692,6 +749,11 @@ export interface SeasonSetup {
   seed: number;
   players: PlayerSetup[];
   toggles?: Partial<Toggles>;
+  /**
+   * How long the game is (GDD_V3 §2.1). ⚠️ Optional, and absent means **one season** — so a setup
+   * written before Phase E, a v3d2 seed link or a harness call, still means exactly what it meant.
+   */
+  length?: GameLength;
 }
 
 export type Action =

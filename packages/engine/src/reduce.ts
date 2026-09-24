@@ -1,6 +1,7 @@
 import { settleHold } from './economy/goods';
 import { runArrival } from './phases/arrival';
 import { runEndTurn } from './phases/endTurn';
+import { startNextSeason } from './phases/game';
 import { chooseDoor, resolveEvent } from './phases/explore';
 import { chooseBox, declare, placeBet, setDogState, tradeFood } from './phases/planet';
 import { lockDeclarations, runRaces } from './phases/raceDay';
@@ -14,6 +15,7 @@ export function needsAdvance(s: GameState): boolean {
     case 'arrival':
     case 'race':
     case 'endTurn':
+    case 'newSeason':
       return true;
     case 'betting':
       return !s.locked;
@@ -22,6 +24,10 @@ export function needsAdvance(s: GameState): boolean {
   }
 }
 
+/**
+ * Is the **game** over (GDD_V3 §2.1)? The name is older than multi-season play: a season that is not
+ * the last ends into the next one and never answers yes here.
+ */
 export function isSeasonOver(s: GameState): boolean {
   return s.phase === 'seasonEnd';
 }
@@ -40,6 +46,7 @@ export function reduceMut(s: GameState, action: Action): GameState {
       if (s.phase === 'arrival') runArrival(ctx);
       else if (s.phase === 'betting') lockDeclarations(ctx);
       else if (s.phase === 'race') runRaces(ctx);
+      else if (s.phase === 'newSeason') startNextSeason(ctx);
       else runEndTurn(ctx);
       break;
     case 'EndPhase': {

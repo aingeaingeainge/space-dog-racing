@@ -15,11 +15,13 @@ import { mulberry32, type Rng } from './rng';
 import type {
   CalendarEntry,
   Dog,
+  GameLength,
   GameState,
   Id,
   Phase,
   Planet,
   Player,
+  PlayerSeasonStats,
   RaceTypeId,
   SeasonSetup,
   WeekStatus,
@@ -300,7 +302,7 @@ export function maxStakeFor(s: GameState, p: Player): number {
  * §2.1 that are unambiguous are the ones kept; the 9 is the number that has to give. **Flagged for
  * Jesse in the phase notes rather than settled here.**
  */
-function buildCalendar(rng: Rng): CalendarEntry[] {
+export function buildCalendar(rng: Rng): CalendarEntry[] {
   const majors = rng.shuffle(MAJOR_PLANET_IDS.filter((id) => id !== GRAND_FINAL_PLANET_ID));
   const regulars = rng.shuffle([...REGULAR_PLANET_IDS]).slice(0, balance.regularPlanets);
   const cal: CalendarEntry[] = [];
@@ -318,11 +320,60 @@ function buildCalendar(rng: Rng): CalendarEntry[] {
   return cal;
 }
 
+/** A stable's season stats at zero: at the deal, and again at the start of every later season. */
+export function emptySeasonStats(): PlayerSeasonStats {
+  return {
+    prizeIncome: 0,
+    tradeIncome: 0,
+    betIncome: 0,
+    costs: 0,
+    worthByWeek: [],
+    dogOffers: 0,
+    dogsTaken: 0,
+    liesTold: 0,
+    liesCaught: 0,
+    tips: 0,
+    commission: 0,
+    nobbles: 0,
+    nobblesLanded: 0,
+    caught: 0,
+    fines: 0,
+    nobbled: 0,
+    boxes: 0,
+    boxesUsed: 0,
+    staffOffers: 0,
+    staffHired: 0,
+  };
+}
+
+/**
+ * The game's length from a setup (GDD_V3 §2.1), checked. **No length is one season**, so a setup
+ * written before Phase E means what it always meant.
+ */
+export function gameLengthOf(setup: Pick<SeasonSetup, 'length'>): GameLength {
+  const len = setup.length ?? { kind: 'seasons', seasons: balance.gameSeasonsMin };
+  if (len.kind === 'seasons') {
+    if (
+      !Number.isInteger(len.seasons) ||
+      len.seasons < balance.gameSeasonsMin ||
+      len.seasons > balance.gameSeasonsMax
+    )
+      throw new Error(
+        `A game is ${balance.gameSeasonsMin} to ${balance.gameSeasonsMax} seasons, not ${len.seasons}`,
+      );
+    return { kind: 'seasons', seasons: len.seasons };
+  }
+  if (!Number.isInteger(len.worth) || len.worth <= 0)
+    throw new Error(`A target is a whole number of Bones above zero, not ${len.worth}`);
+  return { kind: 'target', worth: len.worth };
+}
+
 /** Build week-1 state (phase 'arrival', waiting for the first AdvancePhase). */
 export function createSeason(setup: SeasonSetup): GameState {
   if (setup.players.length < 1 || setup.players.length > 8) {
     throw new Error('A season needs 1–8 stables');
   }
+  const length = gameLengthOf(setup);
   const rng = mulberry32(setup.seed);
   const s: GameState = {
     version: STATE_VERSION,
@@ -358,6 +409,10 @@ export function createSeason(setup: SeasonSetup): GameState {
     },
     nextId: 1,
     finalStandings: null,
+    season: 1,
+    length,
+    seasons: [],
+    gameOver: null,
   };
   s.planet.planetId = s.calendar[0]!.planetId;
   const ctx: Ctx = { s, rng, nextId: (prefix) => `${prefix}_${(s.nextId++).toString(36)}` };
@@ -387,28 +442,7 @@ export function createSeason(setup: SeasonSetup): GameState {
       dealtGone: [],
       intel: { week: 0, goods: [] },
       staff: [],
-      stats: {
-        prizeIncome: 0,
-        tradeIncome: 0,
-        betIncome: 0,
-        costs: 0,
-        worthByWeek: [],
-        dogOffers: 0,
-        dogsTaken: 0,
-        liesTold: 0,
-        liesCaught: 0,
-        tips: 0,
-        commission: 0,
-        nobbles: 0,
-        nobblesLanded: 0,
-        caught: 0,
-        fines: 0,
-        nobbled: 0,
-        boxes: 0,
-        boxesUsed: 0,
-        staffOffers: 0,
-        staffHired: 0,
-      },
+      stats: emptySeasonStats(),
     };
     if (ps.kind === 'ai') {
       p.difficulty = ps.difficulty ?? 'normal';
