@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="Pops Varga"><defs><filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="6"/></filter><clipPath id="c1"><path d="M60 520C60 432 138.4 372 256 372C373.6 372 452 432 452 520Z"/></clipPath><clipPath id="c2"><path d="M164 224C164 96.6 348 96.6 348 224C348 292.6 357.2 322 256 322C154.8 322 164 292.6 164 224Z"/></clipPath></defs><path d="M60 520C60 432 138.4 372 256 372C373.6 372 452 432 452 520Z" fill="#8a4a3a"/>
+<path d="M256 362C393.2 372 472 432 472 520H344.2Z" fill="#000" opacity=".2" clip-path="url(#c1)"/>
+<path d="M60 520C60 432 138.4 372 256 372C373.6 372 452 432 452 520Z" fill="none" stroke="#15131b" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M170 400V520H342V400Z" fill="#3a5a8a" stroke="#15131b" stroke-width="7" stroke-linejoin="round" stroke-linecap="round"/>
+<rect x="206" y="420" width="100" height="50" rx="4" fill="#314c75" stroke="#15131b" stroke-width="5"/>
+<circle cx="180" cy="410" r="8" fill="#C9A227" stroke="#15131b" stroke-width="4"/>
+<circle cx="332" cy="410" r="8" fill="#C9A227" stroke="#15131b" stroke-width="4"/>
+<path d="M222 300L218 390H294L290 300Z" fill="#9ab0c8" stroke="#15131b" stroke-width="7" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M262.8 300L262.8 390H294L290 300Z" fill="#000" opacity=".18"/>
+<path d="M164 224C164 96.6 348 96.6 348 224C348 292.6 357.2 322 256 322C154.8 322 164 292.6 164 224Z" fill="#9ab0c8"/>
+<path d="M279.0 86.80000000000001C338.8 165.2 338.8 282.8 265.2 361.2H440V86.80000000000001Z" fill="#000" opacity=".2" clip-path="url(#c2)"/>
+<path d="M194.4 175a20.2 13.7 0 1 0 40.5 0a20.2 13.7 0 1 0 -40.5 0Z" fill="#fff" opacity=".22" clip-path="url(#c2)"/>
+<path d="M164 224C164 96.6 348 96.6 348 224C348 292.6 357.2 322 256 322C154.8 322 164 292.6 164 224Z" fill="none" stroke="#15131b" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M152 190Q160 106 256 104Q352 106 360 190Q300 168 256 168Q212 168 152 190Z" fill="#6a5a4a" stroke="#15131b" stroke-width="7" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M152 190Q256 200 380 182L372 206Q256 214 160 206Z" fill="#55483b" stroke="#15131b" stroke-width="6" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="222" cy="228" r="13" fill="#fff" stroke="#15131b" stroke-width="5"/>
+<circle cx="224" cy="228" r="5.9" fill="#15131b"/>
+<circle cx="226.3" cy="225.4" r="1.8" fill="#fff"/>
+<path d="M207 225.4A15 15 0 0 1 237 225.4Z" fill="#7b8da0" stroke="#15131b" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="290" cy="228" r="13" fill="#fff" stroke="#15131b" stroke-width="5"/>
+<circle cx="292" cy="228" r="5.9" fill="#15131b"/>
+<circle cx="294.3" cy="225.4" r="1.8" fill="#fff"/>
+<path d="M275 225.4A15 15 0 0 1 305 225.4Z" fill="#7b8da0" stroke="#15131b" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M198 204L244 210" stroke="#e8e4d8" stroke-width="12" stroke-linecap="round"/>
+<path d="M268 210L314 204" stroke="#e8e4d8" stroke-width="12" stroke-linecap="round"/>
+<ellipse cx="256" cy="260" rx="18" ry="16" fill="#7b8da0" stroke="#15131b" stroke-width="6"/>
+<path d="M200 288Q230 270 256 284Q282 270 312 288Q300 306 256 298Q212 306 200 288Z" fill="#e8e4d8" stroke="#15131b" stroke-width="6" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="196" cy="260" r="10" fill="#2a2a2a" opacity=".45"/>
+<circle cx="318" cy="300" r="8" fill="#2a2a2a" opacity=".45"/>
+<circle cx="240" cy="170" r="7" fill="#2a2a2a" opacity=".45"/>
+<path d="M104 467.8C104 434 156 434 156 467.8C156 486 104 486 104 467.8Z" fill="#3a3a3a" stroke="#15131b" stroke-width="6" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M122.2 444.4V462.6M136.5 444.4V462.6" fill="none" stroke="#15131b" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round"/>
+<rect x="110" y="380" width="16" height="70" rx="3" fill="#9aa0a8" stroke="#15131b" stroke-width="5"/>
+<path d="M100 386a18 18 0 1 1 36 0l-10 -4v12h-16v-12Z" fill="#9aa0a8" stroke="#15131b" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"/></svg>
