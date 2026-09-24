@@ -30,7 +30,14 @@ export function bendFactor(track: Track): number {
 
 /**
  * Win-rate points a dog gains by **choosing** its box rather than taking the draw it was given,
- * as a fraction — so 0.035 is three and a half points.
+ * as a fraction — so 0.021 is two points.
+ *
+ * ⚠️ **Re-measured at `v3d2`, and it is 2.1 points, not v2's 3.5.** Phase D2 brought the bought box
+ * back and the screens quote this number, so it was measured again on today's race model — eight
+ * equal rating-50 dogs of mixed styles, 20,000 races a track, box 1 against the mean of the eight:
+ * **+2.1 on tight bends, +1.2 medium, +0.7 wide, nothing on a straight** (`--explore` prints it).
+ * The race model has changed under it since D37 — the fold of Trap into Acceleration, the styles, the
+ * hot pace and the run-in — and nothing read the constant, so nothing noticed. The v2 note follows.
  *
  * ⚠️ **A measured conversion, not a derivation.** `trapDrawEdge` is a top-speed multiplier and
  * win rate is not linear in top speed, so the two cannot be related by arithmetic. The number
@@ -41,7 +48,7 @@ export function bendFactor(track: Track): number {
  *
  * Re-measure it if `trapDrawEdge`, `trapTraffic` or the bump constants ever move.
  */
-export const DRAW_WIN_POINTS = 0.035;
+export const DRAW_WIN_POINTS = 0.021;
 
 export function drawAdvantage(track: Track): number {
   return DRAW_WIN_POINTS * bendFactor(track);

@@ -35,10 +35,22 @@ import { balance } from '../balance';
 import { catchChanceHere, currentPlanet } from '../../state';
 import { netWorth } from '../../economy/netWorth';
 import { HARD_KNOBS } from '../../ai/knobs';
-import type { Dog, GoodId } from '../../types';
+import type { Dog, GoodId, Track } from '../../types';
+import { drawAdvantage } from '../../race/draw';
 
 /** What the steward wants for a box (GDD_V3 §9.3): the card's own price. */
 const BOX_COST = 250;
+
+/**
+ * What a chosen box is worth on this track, in the words the card and the Race Office both use —
+ * from the engine's one measured figure (`race/draw.ts`), so the screen cannot drift from the race.
+ */
+export function boxWorthText(track: Track): string {
+  const pts = drawAdvantage(track) * 100;
+  return pts <= 0
+    ? 'This track is a straight: a box is worth nothing here.'
+    : `On these ${track.bends} bends the rail (box 1) is worth about ${pts.toFixed(1)} points of win rate against a random draw.`;
+}
 
 /** Rival seats a nobble card can name: every other stable, up to seven. */
 const RIVAL_SLOTS = 7;
@@ -588,14 +600,8 @@ export const ALLEY: readonly EventCard[] = [
     weight: 6,
     kind: 'choice',
     category: 'alley',
-    detail: (ctx) => {
-      const bends = currentPlanet(ctx.s).track.bends;
-      return bends === 'tight'
-        ? 'This track has tight bends: the rail (box 1) is worth about 3.5 points of win rate. You choose the box in the Race Office.'
-        : bends === 'none'
-          ? 'This track is a straight: the box is worth nothing here. You choose it in the Race Office anyway.'
-          : `This track has ${bends} bends: the box is worth something, less than on tight ones. You choose it in the Race Office.`;
-    },
+    detail: (ctx) =>
+      boxWorthText(currentPlanet(ctx.s).track) + ' You choose the box in the Race Office.',
     choices: [
       {
         label: `Slip him ${BOX_COST}`,
@@ -604,7 +610,7 @@ export const ALLEY: readonly EventCard[] = [
           ctx.s.jobs.push({ by: ctx.p.id, kind: 'box' });
           ctx.p.stats.boxes++;
           ctx.log(
-            'He pockets it. Name your box at the Race Office once you have declared — on tight bends the rail is worth about 3.5 points of win rate; on a straight, nothing.',
+            `He pockets it. Name your box at the Race Office once you have declared. ${boxWorthText(currentPlanet(ctx.s).track)}`,
           );
         },
       },

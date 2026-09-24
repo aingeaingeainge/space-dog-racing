@@ -412,11 +412,13 @@ function autoplanFor(s: GameState, p: Player, sold: ReadonlySet<Id> = new Set())
     taken.add(pick.id);
     out.push({ t: 'Declare', playerId: p.id, race, dogId: pick.id });
   }
-  // Anything under the fitness floor rests; nobody trains; everything else stays pointed at a
-  // race, which is the state a dog is created in and the state a player who touches nothing gets.
+  // ⚠️ **No Race/Rest here since Phase D2** (item 5): the week follows the declarations, so a player
+  // who touches nothing gets every undeclared dog resting — which is what the engine now sets at
+  // arrival and at the lock. The `states` half of `autoplan%` therefore reads what the declarations
+  // leave, for the autoplan and for the agent alike.
   for (const d of kennel) {
     if (taken.has(d.id)) continue;
-    const state: WeekState = d.fitness < balance.injuryLowFitnessBelow ? 'rest' : 'race';
+    const state: WeekState = 'rest';
     if (d.weekState !== state) out.push({ t: 'SetDogState', playerId: p.id, dogId: d.id, state });
   }
   return out;
@@ -450,7 +452,9 @@ function planFrom(s: GameState, p: Player, actions: readonly Action[]): WeekPlan
 }
 
 /** Everything the agent decided that was *not* the week's plan — its shopping, mostly. */
-const notPlan = (a: Action) => a.t !== 'Declare' && a.t !== 'SetDogState';
+// A bought box (Phase D2) is spent on a declared runner, so it belongs to the plan: the autoplan
+// declares its own runners and does not spend it.
+const notPlan = (a: Action) => a.t !== 'Declare' && a.t !== 'SetDogState' && a.t !== 'ChooseBox';
 
 /**
  * Dogs the agent is about to sell this phase. The autoplan is computed from the state as it
@@ -2183,6 +2187,42 @@ export function runStyles(seasons = 200, seed = 1, n = 6000): string {
 // --explore (Phase D1 item 10): the deck, the doors, the Pound's dogs, the tips and the Bar's shelf.
 // ---------------------------------------------------------------------------------------------
 
+/**
+ * What box 1 is worth against a random draw, by bends (Phase D2, `race/draw.ts`'s DRAW_WIN_POINTS):
+ * eight equal rating-50 dogs of mixed styles at 480 m, `n` races a track.
+ */
+function railWorth(n: number): string {
+  const rng = mulberry32(5);
+  let k = 0;
+  const nextId = (p: string) => `${p}_${k++}`;
+  const styles: StyleId[] = [
+    'frontRunner',
+    'frontRunner',
+    'frontRunner',
+    'stalker',
+    'stalker',
+    'stalker',
+    'closer',
+    'closer',
+  ];
+  return (
+    (['tight', 'medium', 'wide', 'none'] as const)
+      .map((bends) => {
+        const track: Track = { distance: 480, length: 'standard', bends, hazard: 1 };
+        let rail = 0;
+        for (let i = 0; i < n; i++) {
+          const f = equalField(rng, nextId, styles);
+          const r = simulateRace(f, { track, major: false }, mulberry32(i * 7 + 1));
+          if (f.find((x) => x.id === r.order[0])!.trap === 1) rail++;
+        }
+        const pts = (100 * rail) / n - 100 / 8;
+        return `${bends} ${pts >= 0 ? '+' : ''}${pts.toFixed(1)}`;
+      })
+      .join(' · ') +
+    ` points for box 1 against a random draw (eight equal dogs, ${n} races a track)`
+  );
+}
+
 /** Phase D2: what the Back Alley's jobs did, across a run of seasons. */
 interface SabTally {
   booked: number;
@@ -2578,6 +2618,7 @@ export function runExplore(seasons = 400, seed = 1): string {
   lines.push(
     `  what getting caught costs: a ${fmt(balance.caughtFine)} fine plus a quarter of the stake, mean ${fmt(mean(sab.fines))}; a job costs its price plus about ${fmt((sab.caught / Math.max(1, sab.landed.n)) * mean(sab.fines))} in expected fines`,
   );
+  lines.push(`  a bought box, measured: ${railWorth(8000)}`);
   lines.push(
     `  trap draws bought ${(sabSeasons.boxes / stables).toFixed(2)} a stable-season, honoured ${(sabSeasons.boxesUsed / stables).toFixed(2)} — what the box was worth, win rate against the book's price:`,
   );

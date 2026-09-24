@@ -39,3 +39,4 @@ export {
   type StaffBonusId,
   type StaffRow,
 } from './content/staff';
+export { boxWorthText } from './content/deck/alley';

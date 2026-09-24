@@ -6,6 +6,7 @@ import {
   publicStyle,
   purseFor,
   restBonus,
+  boxWorthText,
   STYLE_BY_ID,
   STYLE_IDS,
   thisWeeksCard,
@@ -40,22 +41,16 @@ import { useGame } from '../store/gameStore';
  * GDD_V3 §9.3's bought trap draw, spent: a stable that slipped the steward something in the Back
  * Alley names its box here, once it knows the race. One press on a box (and one on the race, if it
  * has runners in more than one). It is honoured at the lock, if the dog is still declared, and the
- * screen says what a box is worth on this track: about 3.5 points of win rate on tight bends, and
- * nothing on a straight.
+ * screen says what a box is worth on this track — about two points of win rate on tight bends, and
+ * nothing on a straight — from the engine's one measured figure.
  */
 function BoxChooser({ s, me }: { s: GameState; me: Player }) {
   const dispatch = useGame((g) => g.dispatch);
   const job = s.jobs.find((j) => j.by === me.id && j.kind === 'box');
   if (!job || s.phase !== 'planetPre') return null;
-  const bends = planetOf(s.planet.planetId).track.bends;
+  const worth = boxWorthText(planetOf(s.planet.planetId).track);
   const entered = thisWeeksCard().filter((r) => s.declarations[r][me.id]);
   const race = job.race && entered.includes(job.race) ? job.race : entered[entered.length - 1];
-  const worth =
-    bends === 'tight'
-      ? 'Tight bends: the rail (box 1) is the short way round — worth about 3.5 points of win rate.'
-      : bends === 'none'
-        ? 'A straight: the box is worth nothing here. You paid for it anyway.'
-        : `${bends === 'wide' ? 'Wide' : 'Medium'} bends: the inside is worth something, less than on tight ones.`;
   return (
     <Panel
       title="The steward's box"
