@@ -219,6 +219,31 @@ const LABELS: Record<string, string> = {
   'Condition: buzzing, speed on race day (stat points)': 'conditionBuzzingSpeed',
   // GDD_V3 §4.4: the free local runner.
   'Local runner: a dog counts as fit at this fitness or above': 'localRunnerFitAt',
+  // Phase D2, GDD_V3 §8: staff on commission.
+  'Staff: trainers dealt to each stable at the start of a game': 'staffSlots',
+  'Staff cut: +1 stat a week': 'staffCutStatWeek',
+  'Staff cut: +5 fitness recovery a week': 'staffCutFitnessWeek',
+  'Staff cut: injury chance halved': 'staffCutInjuryHalf',
+  'Staff cut: injury duration −1 week': 'staffCutInjuryShort',
+  "Staff cut: reveals a rival dog's style a week": 'staffCutStyleReveal',
+  "Staff cut: next planet's band position for all six goods": 'staffCutShelfIntel',
+  'Staff cut: +10% prize money': 'staffCutPrizeUp',
+  'Staff cut: Explore less likely to go badly': 'staffCutSaferExplore',
+  'Staff cut: premium for a trainer with two bonuses': 'staffCutPairPremium',
+  'Staff cut: the most a trainer takes': 'staffCutMax',
+  'Staff bonus: stat points a week, to each dog': 'staffStatWeek',
+  'Staff bonus: fitness a week, to a dog that did not run': 'staffFitnessWeek',
+  'Staff bonus: injury chance ×': 'staffInjuryMult',
+  'Staff bonus: weeks off a layoff, at the roll': 'staffInjuryShorter',
+  'Staff bonus: extra prize money, share of the purse': 'staffPrizeUp',
+  "Staff bonus: an Explore card's bad-outcome chance ×": 'staffExploreRiskMult',
+  // Phase D2, GDD_V3 §9.3: sabotage and the stewards.
+  "Sabotage: a nobbled runner's fitness on race day": 'nobbleFitness',
+  'Sabotage: stewards catch a nobbler, chance (any planet without its own)': 'catchChance',
+  'Sabotage: catch chance at Lagrange Lows': 'catchChanceLagrangeLows',
+  'Sabotage: catch chance at Holy Bark': 'catchChanceHolyBark',
+  'Sabotage: caught, a flat fine': 'caughtFine',
+  'Sabotage: caught, share of what the nobbler had on the race': 'caughtStakeShare',
 };
 
 const wb = XLSX.read(readFileSync(xlsxPath));
