@@ -151,7 +151,7 @@ export function finishSeason(ctx: Ctx): void {
 
 /**
  * The next season (GDD_V3 §2.2 step 4): **cash, cargo, dogs, trainers and known styles carry over
- * untouched**; the circuit is re-drawn on the game's stream, prices reset (next week's market is
+ * untouched** — except that every dog comes back fresh, on full fitness and with no layoff (Phase E2); the circuit is re-drawn on the game's stream, prices reset (next week's market is
  * forgotten, so arrival rolls a fresh one), and the season's own business is cleared — conditions,
  * jobs, bets, declarations, results and the log. Each stable's season stats are reset, having been
  * archived in `seasons` when the last one ended. Turn order is rolled at arrival, as at any arrival.
@@ -183,6 +183,15 @@ export function startNextSeason(ctx: Ctx): void {
   for (const p of s.players) {
     p.stats = emptySeasonStats();
     p.intel = { week: 0, goods: [] };
+    // Phase E2, Jesse's call: **the off-season is a long rest.** Every dog starts the new season on
+    // `seasonStartFitness` (100) and any layoff clears. Until E2 fitness and layoffs carried over
+    // untouched, and races entered fell from 2.12 a weekend in season 1 to about 1.87 after it.
+    for (const id of p.dogIds) {
+      const d = s.dogs[id];
+      if (!d) continue;
+      d.fitness = balance.seasonStartFitness;
+      d.injuryWeeks = 0;
+    }
   }
   s.phase = 'arrival';
   log(s, `Season ${s.season} begins.`);

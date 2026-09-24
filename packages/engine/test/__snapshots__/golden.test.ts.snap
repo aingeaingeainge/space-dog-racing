@@ -2,14 +2,14 @@
 
 exports[`golden game (seed 42, 6 Normal AIs, two seasons) > matches the golden digest 1`] = `
 {
-  "actions": 1330,
+  "actions": 1298,
   "hires": 1,
   "players": [
     {
       "dogs": [
-        "Steaming of Shimmer:49:3:1/12",
-        "Mustache the Smoked:50:5:1/7",
-        "Yapping Pickle:50:4:3/13",
+        "Steaming of Shimmer:53:3:2/13",
+        "Bone the Madam:54:4:4/14",
+        "Yapping Pickle:54:4:3/14",
       ],
       "id": "p1",
       "staff": [
@@ -17,35 +17,35 @@ exports[`golden game (seed 42, 6 Normal AIs, two seasons) > matches the golden d
         "vell",
       ],
       "worth": {
-        "cargo": 0,
-        "cash": 39601,
-        "dogs": 14532,
-        "total": 54133,
+        "cargo": 88,
+        "cash": 53242,
+        "dogs": 18166,
+        "total": 71496,
       },
     },
     {
       "dogs": [
-        "Gentle Slate:52:5:1/13",
-        "Cousin Drifter:59:3:3/14",
-        "Kevin:56:4:3/13",
+        "Gentle Slate:47:5:2/14",
+        "Cousin Drifter:53:3:2/14",
+        "Kevin:55:4:2/14",
       ],
       "id": "p2",
       "staff": [
         "sarge",
-        "tick",
+        "rook",
       ],
       "worth": {
-        "cargo": 48,
-        "cash": 52192,
-        "dogs": 18389,
-        "total": 70629,
+        "cargo": 44,
+        "cash": 47673,
+        "dogs": 15996,
+        "total": 63713,
       },
     },
     {
       "dogs": [
-        "Mister of Cannonball:50:5:2/12",
-        "Crispy Bandit:56:3:1/13",
-        "Quiet of Rocket:58:4:3/13",
+        "Mister of Cannonball:47:5:1/14",
+        "Crispy Bandit:54:3:0/14",
+        "Quiet of Rocket:58:4:4/14",
       ],
       "id": "p3",
       "staff": [
@@ -53,17 +53,17 @@ exports[`golden game (seed 42, 6 Normal AIs, two seasons) > matches the golden d
         "ruin",
       ],
       "worth": {
-        "cargo": 24,
-        "cash": 56765,
-        "dogs": 17765,
-        "total": 74554,
+        "cargo": 0,
+        "cash": 39283,
+        "dogs": 16865,
+        "total": 56148,
       },
     },
     {
       "dogs": [
-        "Final Chalice:58:4:5/13",
-        "Nebular of Peril:52:5:4/13",
-        "Notorious Sideburn:62:4:4/13",
+        "Final Chalice:55:4:1/14",
+        "Nebular of Peril:55:5:4/13",
+        "Notorious Sideburn:64:4:6/13",
       ],
       "id": "p4",
       "staff": [
@@ -71,35 +71,35 @@ exports[`golden game (seed 42, 6 Normal AIs, two seasons) > matches the golden d
         "grubb",
       ],
       "worth": {
-        "cargo": 24,
-        "cash": 51918,
-        "dogs": 18286,
-        "total": 70228,
+        "cargo": 44,
+        "cash": 44109,
+        "dogs": 18583,
+        "total": 62736,
       },
     },
     {
       "dogs": [
-        "Mild Peril:54:3:1/13",
-        "Fearless Burp:46:5:0/6",
-        "Lukewarm Torpedo:53:4:3/12",
+        "Mild Peril:63:3:2/14",
+        "Fearless Burp:50:5:0/7",
+        "Lukewarm Torpedo:59:4:2/14",
       ],
       "id": "p5",
       "staff": [
-        "ondine",
+        "jhett",
         "lucky",
       ],
       "worth": {
-        "cargo": 48,
-        "cash": 43694,
-        "dogs": 15694,
-        "total": 59436,
+        "cargo": 44,
+        "cash": 60933,
+        "dogs": 19816,
+        "total": 80793,
       },
     },
     {
       "dogs": [
-        "Airlock Whiplash:50:4:2/15",
-        "Madam of Saucer:50:5:0/13",
-        "Sudden Jumble:50:5:0/14",
+        "Airlock Whiplash:59:4:2/13",
+        "Madam of Saucer:57:5:1/14",
+        "Sudden Jumble:47:5:0/15",
       ],
       "id": "p6",
       "staff": [
@@ -107,15 +107,15 @@ exports[`golden game (seed 42, 6 Normal AIs, two seasons) > matches the golden d
         "brack",
       ],
       "worth": {
-        "cargo": 96,
-        "cash": 25635,
-        "dogs": 12685,
-        "total": 38416,
+        "cargo": 0,
+        "cash": 32616,
+        "dogs": 15174,
+        "total": 47790,
       },
     },
   ],
   "retirements": 1,
-  "rng": 3766127723,
+  "rng": 4292809899,
   "seasons": [
     {
       "calendar": [
@@ -181,36 +181,36 @@ exports[`golden game (seed 42, 6 Normal AIs, two seasons) > matches the golden d
       ],
       "goldCups": {
         "p1": 0,
-        "p2": 0,
-        "p3": 1,
-        "p4": 3,
-        "p5": 1,
-        "p6": 0,
+        "p2": 1,
+        "p3": 0,
+        "p4": 2,
+        "p5": 0,
+        "p6": 1,
       },
       "season": 2,
       "standings": [
         {
-          "netWorth": 74554,
-          "playerId": "p3",
-        },
-        {
-          "netWorth": 70629,
-          "playerId": "p2",
-        },
-        {
-          "netWorth": 70228,
-          "playerId": "p4",
-        },
-        {
-          "netWorth": 59436,
+          "netWorth": 80793,
           "playerId": "p5",
         },
         {
-          "netWorth": 54133,
+          "netWorth": 71496,
           "playerId": "p1",
         },
         {
-          "netWorth": 38416,
+          "netWorth": 63713,
+          "playerId": "p2",
+        },
+        {
+          "netWorth": 62736,
+          "playerId": "p4",
+        },
+        {
+          "netWorth": 56148,
+          "playerId": "p3",
+        },
+        {
+          "netWorth": 47790,
           "playerId": "p6",
         },
       ],
@@ -218,31 +218,31 @@ exports[`golden game (seed 42, 6 Normal AIs, two seasons) > matches the golden d
   ],
   "standings": [
     {
-      "netWorth": 74554,
-      "playerId": "p3",
-    },
-    {
-      "netWorth": 70629,
-      "playerId": "p2",
-    },
-    {
-      "netWorth": 70228,
-      "playerId": "p4",
-    },
-    {
-      "netWorth": 59436,
+      "netWorth": 80793,
       "playerId": "p5",
     },
     {
-      "netWorth": 54133,
+      "netWorth": 71496,
       "playerId": "p1",
     },
     {
-      "netWorth": 38416,
+      "netWorth": 63713,
+      "playerId": "p2",
+    },
+    {
+      "netWorth": 62736,
+      "playerId": "p4",
+    },
+    {
+      "netWorth": 56148,
+      "playerId": "p3",
+    },
+    {
+      "netWorth": 47790,
       "playerId": "p6",
     },
   ],
-  "stateHash": "e68d8f282262aaf5f987cdbdb6911e2020807981e8e5078e547116784621fd48",
+  "stateHash": "ae3d6f0a1d65375b38bcb2e3fd64206d08c99e5b338ed78ac0df5102969c8a77",
 }
 `;
 

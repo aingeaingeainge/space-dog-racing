@@ -147,7 +147,7 @@ export function OffSeason({ s, me }: { s: GameState; me: Player }) {
       </div>
       <Notes
         lines={[
-          'Cash, cargo, dogs, trainers and every style the table knows carry over. The circuit is re-drawn and the prices start again.',
+          'Cash, cargo, dogs, trainers and every style the table knows carry over. The off-season is a long rest: every dog starts the new season on full fitness, and any layoff has healed. The circuit is re-drawn and the prices start again.',
         ]}
       />
     </>
