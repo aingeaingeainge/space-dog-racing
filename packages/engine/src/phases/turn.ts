@@ -49,6 +49,10 @@ export function finishPlayerPhase(s: GameState): void {
     case 'planetPost':
       s.phase = 'endTurn';
       break;
+    case 'offSeason':
+      // Everybody has answered (GDD_V3 §2.2): AdvancePhase starts the next season.
+      s.phase = 'newSeason';
+      break;
     default:
       break;
   }

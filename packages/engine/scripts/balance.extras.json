@@ -15,7 +15,6 @@
   "injuryWeeksMax": 3,
   "injuredValueFactor": 0.7,
   "declineMinAge": 5,
-  "ageTickWeek": 7,
   "raceBreakMin": 0.6,
   "raceBreakMax": 1.4,
   "raceFormCoef": 0.05,

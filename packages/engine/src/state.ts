@@ -413,6 +413,7 @@ export function createSeason(setup: SeasonSetup): GameState {
     length,
     seasons: [],
     gameOver: null,
+    offSeason: null,
   };
   s.planet.planetId = s.calendar[0]!.planetId;
   const ctx: Ctx = { s, rng, nextId: (prefix) => `${prefix}_${(s.nextId++).toString(36)}` };

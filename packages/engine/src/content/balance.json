@@ -6,7 +6,6 @@
   "ageFactor4": 0.85,
   "ageFactor5": 0.65,
   "ageFactor6": 0.45,
-  "ageTickWeek": 7,
   "aiBetFraction": 0.03,
   "aiBetMinProb": 0.3,
   "aiFoodSpreadMin": 40,

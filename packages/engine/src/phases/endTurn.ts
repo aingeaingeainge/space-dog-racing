@@ -175,13 +175,14 @@ export function runEndTurn(ctx: Ctx): void {
       // from 5 — because v3 has no pups to raise (no dog market) and age now matters across *seasons*
       // rather than inside one. Growth is **on top of** whatever the food gives (§4.3), so a young dog
       // fed well compounds and an old one fed well merely holds station, which is the shape that makes
-      // Phase E's retirement window a decision.
+      // the off-season's retirement window a decision. ⚠️ **Age itself no longer ticks here.** It
+      // ticked at week 7 until Phase E1; §4.3 says it ticks once, in the off-season (`openOffSeason`),
+      // so a one-season game has no ageing at all.
       const growth = growthForAge(d.age);
       for (let i = 0; i < Math.abs(growth); i++) {
         const stat = rng.pick(STAT_KEYS);
         d[stat] = clamp(d[stat] + Math.sign(growth), 1, 99);
       }
-      if (s.week === balance.ageTickWeek) d.age = Math.min(7, d.age + 1);
     }
     if (p.sponsorWeeks > 0) p.sponsorWeeks--;
     p.stats.worthByWeek.push(netWorth(s, p));

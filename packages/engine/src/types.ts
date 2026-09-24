@@ -137,6 +137,11 @@ export type Phase =
   | 'race' // system: simulate the card in order; pay purses; settle bets
   | 'planetPost' // in turn order: buy food
   | 'endTurn' // system: weekly costs, training, recovery, jump to the next planet
+  /**
+   * Between seasons (GDD_V3 §2.2): every dog has aged, and each stable answers its retirement window
+   * and its staff notice (`Retire`, `ResolveStaffNotice`) and sends EndPhase. A player phase.
+   */
+  | 'offSeason'
   | 'newSeason' // system: re-draw the circuit, reset prices and the season's stats (GDD_V3 §2.2 step 4)
   /**
    * ⚠️ **The game is over** — the last season has ended, or a Target was crossed (GDD_V3 §2.1). The
@@ -663,6 +668,32 @@ export interface SeasonRecord {
   raceWins: Record<Id, number>;
 }
 
+/**
+ * One stable's off-season (GDD_V3 §2.2), rolled in full when the off-season opens, on the stable's
+ * own stream (decision D1's pattern): the replacement it would be offered for a retirement, the
+ * trainers who have handed in their notice, and the candidate it is offered if it is left short.
+ * The stable's answers are filled in as it gives them; nothing it answers draws anything.
+ */
+export interface OffSeasonNotice {
+  /** The replacement on offer (§9.2's params: age, one true stat, patter that can lie). */
+  offer: Record<string, number | string>;
+  /** Unset until answered: the dog retired, or null for "keep them all". */
+  retired?: Id | null;
+  /** The book value it was paid for the dog it retired. */
+  paid?: number;
+  /** Trainers who left at the notice — gone already, shown so the stable knows why it is short. */
+  left: Id[];
+  /** One trainer offered to a stable left with fewer than two; null if it was not left short. */
+  candidate: Id | null;
+  /** Unset until answered, if there is a candidate. */
+  hired?: boolean;
+}
+
+/** The off-season (GDD_V3 §2.2): each stable's notice, by id. Null outside the off-season. */
+export interface OffSeasonState {
+  notices: Record<Id, OffSeasonNotice>;
+}
+
 /** Why and when the game ended (GDD_V3 §2.1). */
 export interface GameOver {
   /** The seasons ran out; a Target was crossed; or a Target game hit its season cap. */
@@ -736,6 +767,8 @@ export interface GameState {
   seasons: SeasonRecord[];
   /** Why the game ended, once it has; null while it is running. */
   gameOver: GameOver | null;
+  /** Between seasons, each stable's off-season (GDD_V3 §2.2); null the rest of the time. */
+  offSeason: OffSeasonState | null;
 }
 
 export interface PlayerSetup {
@@ -782,6 +815,13 @@ export type Action =
    * Race Office only, once the race is known; honoured at the lock.
    */
   | { t: 'ChooseBox'; playerId: Id; race: RaceTypeId; box: number }
+  /**
+   * The off-season's retirement window (GDD_V3 §2.2): retire this dog — paid its book value, and
+   * replaced by the dog on offer — or `null` to keep them all. Once, in the off-season.
+   */
+  | { t: 'Retire'; playerId: Id; dogId: Id | null }
+  /** The off-season's staff notice: take the candidate on, or not. Only if one was offered. */
+  | { t: 'ResolveStaffNotice'; playerId: Id; hire: boolean }
   | { t: 'EndPhase'; playerId: Id }
   | { t: 'AdvancePhase' }; // system
 

@@ -10,6 +10,7 @@ import {
   player,
   type Ctx,
 } from '../state';
+import { openOffSeason } from './offSeason';
 import type { GameOver, GameState, Id, SeasonRecord } from '../types';
 
 /**
@@ -93,8 +94,8 @@ function endOfGame(s: GameState, crossers: Id[]): GameOver['reason'] | null {
 }
 
 /**
- * The season is over: archive it, then end the game or move on to the next season (GDD_V3 §2.1,
- * §2.2). Called at the end of week 10, or at the end of the weekend a Target is crossed.
+ * The season is over: archive it, then end the game or open the off-season (GDD_V3 §2.1, §2.2).
+ * Called at the end of week 10, or at the end of the weekend a Target is crossed.
  */
 export function finishSeason(ctx: Ctx): void {
   const { s } = ctx;
@@ -119,7 +120,8 @@ export function finishSeason(ctx: Ctx): void {
       s,
       `Season ${s.season} over: ${champ.name} tops the table with a stable worth ${standings[0]!.netWorth}.`,
     );
-    s.phase = 'newSeason';
+    // GDD_V3 §2.2: between seasons, the off-season — age, one retirement, the staff notice.
+    openOffSeason(ctx);
     return;
   }
 
@@ -175,6 +177,7 @@ export function startNextSeason(ctx: Ctx): void {
   s.fields = null;
   s.races = null;
   s.pendingEvent = null;
+  s.offSeason = null;
   s.done = [];
   s.activePlayer = null;
   for (const p of s.players) {

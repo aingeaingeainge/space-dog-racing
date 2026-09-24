@@ -2,6 +2,7 @@ import { settleHold } from './economy/goods';
 import { runArrival } from './phases/arrival';
 import { runEndTurn } from './phases/endTurn';
 import { startNextSeason } from './phases/game';
+import { offSeasonOutstanding, resolveStaffNotice, retire } from './phases/offSeason';
 import { chooseDoor, resolveEvent } from './phases/explore';
 import { chooseBox, declare, placeBet, setDogState, tradeFood } from './phases/planet';
 import { lockDeclarations, runRaces } from './phases/raceDay';
@@ -52,6 +53,10 @@ export function reduceMut(s: GameState, action: Action): GameState {
     case 'EndPhase': {
       if (s.pendingEvent) throw new ActionError('Resolve your event first', action);
       if (s.phase === 'explore') throw new ActionError('Pick a door first', action);
+      if (s.phase === 'offSeason') {
+        const why = offSeasonOutstanding(s, action.playerId);
+        if (why) throw new ActionError(why, action);
+      }
       if (s.activePlayer !== action.playerId)
         throw new ActionError(`It is not ${action.playerId}'s turn`, action);
       player(s, action.playerId);
@@ -78,6 +83,12 @@ export function reduceMut(s: GameState, action: Action): GameState {
       break;
     case 'ChooseBox':
       chooseBox(ctx, action);
+      break;
+    case 'Retire':
+      retire(ctx, action);
+      break;
+    case 'ResolveStaffNotice':
+      resolveStaffNotice(ctx, action);
       break;
     default:
       // An action this engine does not know. The switch is exhaustive over the union, so the only
