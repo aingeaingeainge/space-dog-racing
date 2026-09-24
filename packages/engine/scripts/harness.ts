@@ -979,7 +979,9 @@ export function runHarness(args: Args): string {
       const betReturns = s.bets
         .filter((b) => b.playerId === p.id)
         .reduce((sum, b) => sum + (b.settled?.payout ?? 0), 0);
-      st.grossPrize.push(p.stats.prizeIncome);
+      // The purse as won, before the trainers' cut (Phase D2): gross is gross, and the commission is
+      // a cost, as `roadSplit` counts it.
+      st.grossPrize.push(p.stats.prizeIncome + p.stats.commission);
       st.grossFood.push(sample.grossFood.get(p.id) ?? 0);
       st.grossBets.push(betReturns);
       st.crates.push(mean(sample.cratesByWeek.get(p.id) ?? [0]));

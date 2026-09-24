@@ -27,13 +27,13 @@ import type { GameState, Player } from '../types';
  * for v2's three-road printout.
  */
 export interface RoadSplit {
-  /** Purses won, all season. */
+  /** Purses won, all season, before the trainers' cut (GDD_V3 §8.1). */
   prize: number;
   /** Goods sold minus goods bought, net. Food eaten is a cost and is not in here (§9.1). */
   trade: number;
   /** Betting returns minus stakes struck (§10). Negative for most stables, which is the point. */
   betting: number;
-  /** Food bought for eating, and event bills — everything that simply went out. */
+  /** Food bought for eating, event bills, fines and the trainers' commission — what went out. */
   costs: number;
   /** `prize + trade + betting − costs`: the ledger, before what it left you owning. */
   net: number;
@@ -47,9 +47,12 @@ export interface RoadSplit {
  * figure the ledger actually moved.
  */
 export function roadSplit(s: GameState, p: Player): RoadSplit {
-  const prize = p.stats.prizeIncome;
+  // ⚠️ Phase D2: the purse is what the dog won, before the trainers' cut, and the cut is a cost —
+  // which is where this file said Phase D's commission would land. `stats.prizeIncome` is what the
+  // stable banked after it, so the purse is that plus `stats.commission`. The net is unchanged.
+  const prize = p.stats.prizeIncome + p.stats.commission;
   const trade = p.stats.tradeIncome;
   const betting = p.stats.betIncome;
-  const costs = p.stats.costs;
+  const costs = p.stats.costs + p.stats.commission;
   return { prize, trade, betting, costs, net: prize + trade + betting - costs };
 }
