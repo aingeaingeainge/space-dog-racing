@@ -7,6 +7,7 @@
  *   npm run harness -- --autoplan --seasons 200   # §7a.3: autoplan% and the sampled apLoss rollout
  *   npm run harness -- --lead            # §7a.4: does a lead at week 6 convert, split on betting
  *   npm run harness -- --hardAblation    # §14: which of Hard's own decisions earns its head-to-head
+ *   npm run harness -- --hardD2 --seasons 400   # Phase D2: each of Hard's new pieces, 3 v 3
  *   npm run harness -- --styles --seasons 200   # GDD_V3 §5 / §11: running styles, the kill switch,
  *                                        # the variance decomposition, the blind-lone-closer return
  *   npm run harness -- --styles --hotGrid   # Phase C2: the hot pace's lights / group / cost sweep (slow)
@@ -96,6 +97,8 @@ interface Args {
   hotGrid: boolean;
   /** Phase D1: the doors, the deck, the Pound, the tips and the Bar's shelf. */
   explore: boolean;
+  /** Phase D2: what each of Hard's new pieces is worth, three Hard against three Normal. */
+  hardD2: boolean;
   quiet: boolean;
 }
 
@@ -112,6 +115,7 @@ function parseArgs(argv: string[]): Args {
     styles: false,
     hotGrid: false,
     explore: false,
+    hardD2: false,
     quiet: false,
   };
   for (let i = 0; i < argv.length; i++) {
@@ -131,6 +135,7 @@ function parseArgs(argv: string[]): Args {
     else if (a === '--styles') args.styles = true;
     else if (a === '--hotGrid') args.hotGrid = true;
     else if (a === '--explore') args.explore = true;
+    else if (a === '--hardD2') args.hardD2 = true;
     else if (a === '--quiet') args.quiet = true;
     else throw new Error(`Unknown flag ${a}. See the usage block at the top of this file.`);
   }
@@ -1618,6 +1623,79 @@ export function runHardAblation(seasons = 600, seed = 1): string {
   return lines.join('\n');
 }
 
+/**
+ * `--hardD2` — Phase D2 item 4: what each of Hard's new pieces is worth, **three Hard against three
+ * Normal** (the table BUILD_PLAN_V3's acceptance row and every phase note since `v3b` quote), the
+ * same seeds every row. Each row switches one piece off; the first row is Hard as built, the last is
+ * Hard with all five off, which is `v3d1`'s Hard on D2's rules.
+ */
+export function runHardD2(seasons = 400, seed = 1): string {
+  const lines: string[] = [];
+  const before = { ...HARD_KNOBS };
+  const ai: AiAgent[] = ['hard', 'hard', 'hard', 'normal', 'normal', 'normal'];
+  const run = () => {
+    let wins = 0;
+    let pairs = 0;
+    const hard: number[] = [];
+    const normal: number[] = [];
+    for (let i = 0; i < seasons; i++) {
+      const { state } = playSeason(seed + i, ai, emptySample());
+      const h = state.players.slice(0, 3).map((p) => netWorth(state, p));
+      const n = state.players.slice(3).map((p) => netWorth(state, p));
+      hard.push(...h);
+      normal.push(...n);
+      for (const a of h)
+        for (const b of n) {
+          pairs++;
+          if (a > b) wins++;
+        }
+    }
+    const sorted = [...hard].sort((a, b) => a - b);
+    return {
+      rate: wins / Math.max(1, pairs),
+      hard: mean(hard),
+      p50: quantile(sorted, 0.5),
+      normal: mean(normal),
+    };
+  };
+  const off = {
+    readsFieldEntries: false,
+    readsFieldBets: false,
+    hiresBetter: false,
+    nobblesBetter: false,
+    buysBoxesWider: false,
+  };
+  const rows: [string, Partial<typeof HARD_KNOBS>][] = [
+    ['as built (D2)', {}],
+    ['  no field read in its entries', { readsFieldEntries: false }],
+    ['  no field read at the bookie', { readsFieldBets: false }],
+    ["  hires on Normal's price list", { hiresBetter: false }],
+    ["  nobbles by Normal's rule", { nobblesBetter: false }],
+    ['  boxes on tight bends only', { buysBoxesWider: false }],
+    ['  all five off (v3d1 Hard)', off],
+  ];
+  lines.push(
+    `Hard's Phase D2 pieces, ablated — ${seasons} seasons, three Hard against three Normal, same seeds`,
+  );
+  lines.push('');
+  lines.push(
+    '  row                              beats Normal   Hard mean   Hard p50   Normal mean',
+  );
+  for (const [label, knobs] of rows) {
+    Object.assign(HARD_KNOBS, before, knobs);
+    const r = run();
+    lines.push(
+      `  ${label.padEnd(32)} ${pct(r.rate).padStart(8)} ${fmt(r.hard).padStart(12)} ${fmt(r.p50).padStart(10)} ${fmt(r.normal).padStart(12)}`,
+    );
+  }
+  Object.assign(HARD_KNOBS, before);
+  lines.push('');
+  lines.push(
+    `  Target 63–68%. The standard error on a head-to-head at ${seasons} seasons is about ${(50 / Math.sqrt(seasons)).toFixed(1)} points (the season is the sample).`,
+  );
+  return lines.join('\n');
+}
+
 // -------------------------------------------------------------------------------------------
 // --styles — GDD_V3 §5 and §11, BUILD_PLAN_V3 Phase C's acceptance table.
 // -------------------------------------------------------------------------------------------
@@ -2404,6 +2482,7 @@ function main() {
   else if (args.explore)
     console.log(runExplore(args.seasons === 50 ? 400 : args.seasons, args.seed));
   else if (args.styles) console.log(runStyles(args.seasons === 50 ? 200 : args.seasons, args.seed));
+  else if (args.hardD2) console.log(runHardD2(args.seasons === 50 ? 400 : args.seasons, args.seed));
   else if (args.hardAblation)
     console.log(runHardAblation(args.seasons === 50 ? 600 : args.seasons, args.seed));
   else console.log(runHarness(args));

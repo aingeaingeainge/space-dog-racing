@@ -136,7 +136,8 @@ export function chooseDoor(ctx: Ctx, action: Extract<Action, { t: 'ChooseDoor' }
     };
     return;
   }
-  const choice = card.choices.length > 1 && card.aiChoice ? card.aiChoice(ectx) : 0;
+  const decideBy = p.difficulty === 'hard' && card.hardChoice ? card.hardChoice : card.aiChoice;
+  const choice = card.choices.length > 1 && decideBy ? decideBy(ectx) : 0;
   applyChoice(ectx, card, choice);
   passOn(ctx, playerId);
 }

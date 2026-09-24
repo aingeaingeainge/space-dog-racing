@@ -24,7 +24,8 @@ import {
   luck,
 } from '../eventKit';
 import { weakestStat } from '../../economy/dogValue';
-import { hireSlot, unemployedStaff } from '../../economy/staff';
+import { hardWorth, hireSlot, unemployedStaff } from '../../economy/staff';
+import { HARD_KNOBS } from '../../ai/knobs';
 import { cutOf, STAFF_BONUS_BY_ID, staffRow, type StaffRow } from '../staff';
 import { GOOD_IDS, type Dog, type GoodId } from '../../types';
 import type { EventChoice, EventCtx } from '../eventKit';
@@ -103,6 +104,15 @@ function trainerCard(
     // Normal: hire into the slot of the trainer worth least to it, if the offer beats that trainer
     // by two points of its weekly prize money (economy/staff.ts `hireSlot`).
     aiChoice: (ctx) => 1 + hireSlot(ctx.s, ctx.p, staffRow(String(ctx.params.staffId))),
+    // Hard: its own price list (what it trades, that it reads the field), same margin.
+    hardChoice: (ctx) =>
+      1 +
+      hireSlot(
+        ctx.s,
+        ctx.p,
+        staffRow(String(ctx.params.staffId)),
+        HARD_KNOBS.hiresBetter ? hardWorth(ctx.p) : undefined,
+      ),
   };
 }
 

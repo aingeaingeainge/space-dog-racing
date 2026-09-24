@@ -31,6 +31,7 @@ import {
   type RaceEntry,
   type RaceTypeId,
   type StatKey,
+  type StyleId,
   type WeekState,
 } from '../types';
 
@@ -133,6 +134,11 @@ export interface AssignmentOptions {
    * arithmetic with two different rulers.
    */
   rivalRatingOf?: (d: Dog) => number;
+  /**
+   * Rating points to add to our own dog in one race, on top of whatever ruler rates it: Hard's read
+   * of the field (Phase D2 item 4). Normal passes nothing.
+   */
+  adjust?: (d: Dog, race: RaceTypeId) => number;
 }
 
 /**
@@ -165,7 +171,7 @@ export function bestAssignment(
             d,
             race,
             p.id,
-            opts.ratingOf ? opts.ratingOf(d) : d.rating,
+            (opts.ratingOf ? opts.ratingOf(d) : d.rating) + (opts.adjust?.(d, race) ?? 0),
             opts.rivalRatingOf,
           ),
         );
@@ -803,4 +809,42 @@ export function spendBox(plan: Plan, entries: Partial<Record<RaceTypeId, Id>>): 
   const d = s.dogs[entries[race]!];
   const box = d?.traits.includes('wideRunner') ? balance.traps : 1;
   out.push({ t: 'ChooseBox', playerId, race, box });
+}
+
+/**
+ * **What the field's shape is worth to a runner, in rating points** (Phase D2 item 4, GDD_V3 §5.3,
+ * C12–C13) — by its style and how many *other* front-runners are in the race: 0, 1, 2, 3 or more.
+ *
+ * Read off `--styles` row 3 at `v3d1` (eight equal dogs, 480 m) and converted at the slope of the
+ * book's curve for an eight-dog field, about 0.013 win a rating point: a front-runner alone wins
+ * 15.8% against 12.5%, with one other 12.8% and two 11.7%; a closer against one, two and three
+ * front-runners 12.0%, 13.0% and 14.4%. A stalker is the yardstick. The book never prices any of it
+ * (§5.6), which is the point: only a stable that reads the board sees it.
+ */
+export const FIELD_READ: Record<StyleId, readonly number[]> = {
+  frontRunner: [2.5, 0.2, -0.6, -0.6],
+  stalker: [0, 0, 0, 0],
+  closer: [-0.4, -0.4, 0.4, 1.4],
+};
+
+/** Interpolate FIELD_READ at a (possibly fractional) count of other front-runners. */
+export function fieldRead(style: StyleId | null, otherFrontRunners: number): number {
+  if (!style) return 0;
+  const row = FIELD_READ[style];
+  const k = Math.max(0, Math.min(row.length - 1, otherFrontRunners));
+  const lo = Math.floor(k);
+  const hi = Math.min(row.length - 1, lo + 1);
+  return row[lo]! + (row[hi]! - row[lo]!) * (k - lo);
+}
+
+/**
+ * How many front-runners a race will hold besides one runner, as far as the board says (GDD_V3 §7.3):
+ * every public style counts as itself, and every runner nobody can read yet — a rival whose style is
+ * hidden, a local not yet drawn, a stable still to declare — counts as a third of one, because a
+ * third of dogs are front-runners.
+ */
+export function otherFrontRunners(styles: readonly (StyleId | null)[], unfilled: number): number {
+  let k = unfilled / 3;
+  for (const st of styles) k += st === null ? 1 / 3 : st === 'frontRunner' ? 1 : 0;
+  return k;
 }

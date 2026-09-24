@@ -3,13 +3,15 @@ import { balance } from '../content/balance';
 import { decimalOdds, placeProbabilities, styleEdge, winProbabilities } from '../race/odds';
 import { publicStyle } from '../content/styles';
 import { bettingMargin, currentPlanet, maxStakeFor, player, thisWeeksCard } from '../state';
-import type { Action, GameState, Id, RaceTypeId } from '../types';
+import type { Action, Dog, GameState, Id, RaceEntry, RaceTypeId } from '../types';
 import {
   bestAssignment,
   effectiveRating,
   emitDeclarations,
   expectedField,
+  fieldRead,
   hash01,
+  otherFrontRunners,
   buyFeedPlan,
   planetAhead,
   racingDogs,
@@ -130,6 +132,8 @@ function declareForThisWeek(plan: Plan): Assignment {
     // field by their stats; `false` measures both by the public rating, which is Normal's answer.
     ratingOf: HARD_KNOBS.ratesByStats ? effectiveRating : undefined,
     rivalRatingOf: HARD_KNOBS.ratesByStats && HARD_KNOBS.sameRuler ? effectiveRating : undefined,
+    // Phase D2 item 4: read the board (§7.3). What is declared so far is public, in turn order.
+    adjust: HARD_KNOBS.readsFieldEntries ? (d, race) => boardRead(s, playerId, d, race) : undefined,
   });
 
   // Now and then, leave the first race on the card to the locals: the dog keeps its fitness and
@@ -155,6 +159,36 @@ function declareForThisWeek(plan: Plan): Assignment {
   setStates(plan, racingDogs(assignment), { diets: true });
   spendBox(plan, assignment.plan);
   return assignment;
+}
+
+/**
+ * Hard reads the declarations board (GDD_V3 §7.3, Phase D2 item 4): what this dog's style is worth in
+ * this race, given the front-runners already declared into it and the ones the empty traps will
+ * probably bring. Only a public style can be read — Hard learns its own dogs' styles by racing them,
+ * like everybody else (C4) — so a dog nobody has read yet is worth its rating and no more.
+ */
+function boardRead(s: GameState, playerId: Id, d: Dog, race: RaceTypeId): number {
+  const style = publicStyle(d);
+  if (!style) return 0;
+  const rivals = Object.entries(s.declarations[race])
+    .filter(([pid]) => pid !== playerId)
+    .map(([, id]) => s.dogs[id])
+    .filter((x): x is Dog => !!x);
+  const unfilled = balance.traps - 1 - rivals.length;
+  return fieldRead(style, otherFrontRunners(rivals.map(publicStyle), unfilled));
+}
+
+/** The field-shape read on a posted field (§5.6): rating points per entry, index-aligned. */
+function fieldShape(entries: readonly RaceEntry[]): number[] {
+  return entries.map((e, i) =>
+    fieldRead(
+      e.style,
+      otherFrontRunners(
+        entries.filter((_, j) => j !== i).map((x) => x.style),
+        0,
+      ),
+    ),
+  );
 }
 
 /**
@@ -206,83 +240,8 @@ const EDGE_REQUIRED = 1.15;
 const KELLY_SHARE = 0.25;
 const KELLY_MAX_FRACTION = 0.2;
 
-/**
- * Harness-only ablation switches for the two Phase D changes tried on Hard (BUILD_PLAN §7a).
- *
- * ⚠️ **Both are off, and both are off because they were measured rather than because nobody got to
- * them.** §14 has asked for the first since M4 and the Phase D brief names the second; the numbers
- * are in `claude/V2_PHASE_D_NOTES.md` and repeated here so the next session does not re-try them:
- *
- *   Hard's betting, 300 seasons          beats Normal   mean     p10     bet income
- *   flat fraction of cash (kept)            58.3%      41,109   9,390        +867
- *   quarter-Kelly on the measured edge       56.7%      37,915  11,061        −178
- *
- *   Hard's third slot, 200 seasons        beats Normal   mean     p10    fixes
- *   trainer + vet (kept)                     58.8%      41,663   8,919    0.0
- *   trainer + vet + fixer, working him       49.3%      33,973   7,460    0.8
- *
- * The second of those is D30's question re-asked with §13 in the game — is a Fixer the first third
- * hire a racing stable can profitably make? — and the answer is a flat no, by **9.5 points**. It is
- * the same arithmetic that stopped the crook's own road paying, seen from the other side: a fixer's
- * value is per job and his wage is per week, and a stable that already earns well from purses has
- * the most to lose by spending a slot on a man it uses twice.
- *
- * The Kelly result is the more interesting of the two and the reason is worth keeping: Kelly
- * stakes *more* as the price shortens, so it moves money off the long shots — which is where
- * `effectiveRating` finds its edge, because a fed dog that has not had the results yet is exactly
- * a dog the book has long — and onto short ones, where Hard's own estimate is least likely to beat
- * the book's. Sizing a bet by an edge you have measured is right; sizing it by an edge you have
- * *estimated* is only right where the estimate is good, and Hard's is good in one corner of the
- * board.
- */
-export const HARD_KNOBS = {
-  /** Stake in proportion to the measured edge rather than a flat fraction of cash. */
-  sizeBetsByEdge: false,
-  /**
-   * ⚠️ **Phase E's four, and the answer they gave: none of them is a bad decision.**
-   *
-   * The record said the only thing that has ever moved Hard is removing a bad decision, so these
-   * switch off decisions Hard makes and Normal does not, one at a time, at the standing table
-   * (easy, normal ×3, hard ×2), 800 seasons, same seeds:
-   *
-   *   as built (one ruler each)        58.0%   mean 40,997   p10  9,783
-   *     rates its dogs like Normal     57.8%        40,509        9,511
-   *     one ruler: stats on both sides 57.8%        40,920        9,649
-   *     does not hold for a Major      55.9%        40,362        9,873
-   *     never throws the cheap race    57.9%        41,493        9,572
-   *     does not sell before the tick  56.1%        40,271        9,261
-   *     works §13 per job              53.6%        37,670       10,461
-   *
-   * Two of them are load-bearing — holding the best dog out the week before a Major is worth 2.1
-   * points and selling before the age tick 1.9 — and the rest are inside the standard error. So
-   * the phase's contribution to the most-missed number in the project is a **negative result**:
-   * there is no bad decision left in Hard to take away, and whatever is keeping it off 63–68% is
-   * not on this list (E-D49).
-   */
-  /** Rate our own dogs by their stats rather than their public rating when filling the card. */
-  ratesByStats: true,
-  /**
-   * Rate the *rivals'* declared dogs by the same ruler.
-   *
-   * Off, Hard compares a generous estimate of itself against a plain one of the field — which is
-   * what it did from M4 to Phase D, because `expectedField` never took a ruler. Every race it
-   * priced therefore over-estimated its own chance, which is arithmetic with two rulers rather
-   * than an edge over the bookie.
-   *
-   * ⚠️ **On, it is worth nothing measurable, and it is kept anyway.** Three Hard against three
-   * Normal it reads +2.5 points; at the standing table it reads −0.2, which is noise, with the
-   * mean and p10 also inside the error. Those two tables disagreeing is itself the finding
-   * (E-D49): a head-to-head is a property of the table it is played at, and an ablation run at a
-   * different one answers a different question from BUILD_PLAN's acceptance row. The repair stays
-   * because comparing two different rulers is a defect whether or not fixing it moves a
-   * head-to-head — but nobody should record it as a gain.
-   */
-  sameRuler: true,
-  /** Sit the best dog out the week before a Major rather than arrive at it tired. */
-  holdsForMajor: true,
-  /** Now and then leave the cheap race to the locals and put the money over the counter. */
-  throwsCheapRace: true,
-};
+import { HARD_KNOBS } from './knobs';
+export { HARD_KNOBS };
 
 function placeBets(plan: Plan): void {
   const { s, p, playerId, out } = plan;
@@ -294,6 +253,8 @@ function placeBets(plan: Plan): void {
   const margin = bettingMargin(s);
 
   for (const { race, entries: field } of s.fields) {
+    // Phase D2 item 4: the book prices each runner's trip and never the field (§5.6). Hard adds it.
+    const shape = HARD_KNOBS.readsFieldBets ? fieldShape(field) : field.map(() => 0);
     let pick: { dogId: Id; kind: 'win' | 'place' } | null = null;
     let fraction = balance.aiBetFraction;
     // A tip, bet exactly as Normal bets one (Phase D1 item 6): Hard gets nothing new in D1 beyond it.
@@ -313,8 +274,11 @@ function placeBets(plan: Plan): void {
       if (!d) continue;
       // On the book's own ruler: its style edge on this trip, as posted (GDD_V3 §5.6).
       const ours =
-        effectiveRating(d) + d.raceBonus * balance.ratingWeightSpeed + (e.bookRating - e.rating);
-      const ratings = field.map((x, j) => (j === i ? ours : x.bookRating));
+        effectiveRating(d) +
+        d.raceBonus * balance.ratingWeightSpeed +
+        (e.bookRating - e.rating) +
+        shape[i]!;
+      const ratings = field.map((x, j) => (j === i ? ours : x.bookRating + shape[j]!));
       const winEdge = winProbabilities(ratings)[i]! * e.odds;
       const placeEdge = placeProbabilities(ratings)[i]! * decimalOdds(e.placeProb, margin);
       const kind: 'win' | 'place' = placeEdge >= winEdge ? 'place' : 'win';
@@ -331,6 +295,22 @@ function placeBets(plan: Plan): void {
           fraction = Math.max(0, Math.min(KELLY_MAX_FRACTION, kelly * KELLY_SHARE));
         }
       }
+    }
+
+    // Anybody's runner the field's shape makes better than its price — a lone front-runner, a closer
+    // behind a crowd — backed to win like an edge on its own dog (Phase D2 item 4).
+    if (!pick && HARD_KNOBS.readsFieldBets && shape.some((x) => x !== 0)) {
+      const probs = winProbabilities(field.map((x, j) => x.bookRating + shape[j]!));
+      let best = EDGE_REQUIRED;
+      field.forEach((e, j) => {
+        if (mine.has(e.dogId)) return;
+        const edge = probs[j]! * e.odds;
+        if (edge > best) {
+          best = edge;
+          pick = { dogId: e.dogId, kind: 'win' };
+          fraction = balance.aiBetFraction * 2;
+        }
+      });
     }
 
     // A week it left the cheap race alone: the money it did not risk on the track goes on the

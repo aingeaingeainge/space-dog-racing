@@ -108,3 +108,17 @@ export function hireSlot(
 
 /** Two points of the stable's weekly prize money: what an offer has to beat the worst trainer by. */
 export const HIRE_MARGIN = 0.02;
+
+/**
+ * Hard's price list (Phase D2 item 4, GDD §14's "better decisions, same rules"): Normal's, plus what
+ * Hard actually does with the two bonuses Normal cannot use — it reads the field, so a style revealed
+ * is worth a little; and it trades on a tip, so next week's shelf is priced off its own trading.
+ */
+export function hardWorth(p: Player): Record<StaffBonusId, { prize: number; flat: number }> {
+  const trade = Math.max(0, p.stats.tradeIncome);
+  return {
+    ...STAFF_WORTH,
+    styleReveal: { prize: 0.005, flat: 0 },
+    shelfIntel: { prize: 0, flat: Math.max(STAFF_WORTH.shelfIntel.flat, trade * 0.01) },
+  };
+}

@@ -64,8 +64,13 @@ export interface EventCard {
   labels?: (ctx: EventCtx) => string[];
   /** What the player is shown beyond `text`, rolled for them: a dog offer's age, stat and patter. */
   detail?: (ctx: EventCtx) => string;
-  /** Which choice a Normal AI takes (default 0). */
+  /** Which choice a Normal AI takes (default 0). Easy takes it too. */
   aiChoice?: (ctx: EventCtx) => number;
+  /**
+   * Which choice a Hard AI takes, where Hard decides better than Normal (GDD §14: better decisions,
+   * same rules). Falls back to `aiChoice`. Phase D2: trainers, nobbles and the steward's box.
+   */
+  hardChoice?: (ctx: EventCtx) => number;
 }
 
 export const ownDogs = (s: GameState, p: Player): Dog[] =>

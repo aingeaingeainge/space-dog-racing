@@ -33,6 +33,8 @@ import { spoilCargo, HOLD_CAP, cargoTotal } from '../../economy/goods';
 import { winProbAgainst } from '../../race/odds';
 import { balance } from '../balance';
 import { catchChanceHere, currentPlanet } from '../../state';
+import { netWorth } from '../../economy/netWorth';
+import { HARD_KNOBS } from '../../ai/knobs';
 import type { Dog, GoodId } from '../../types';
 
 /** What the steward wants for a box (GDD_V3 §9.3): the card's own price. */
@@ -116,6 +118,26 @@ function nobbleCard(
       const best = Math.max(...ownDogs(ctx.s, ctx.p).map((d) => d.rating), 0);
       const pick = offered(ctx).sort((a, b) => b.d.rating - a.d.rating)[0];
       return pick && pick.d.rating > best && ctx.p.cash > cost * 6 ? 1 + pick.i : 0;
+    },
+    // Hard: net worth is the score (§2.4), so when it is not leading it goes after the leader's dog
+    // whatever it is rated — the leader is the stable standing between Hard and the win. Leading,
+    // it plays Normal's rule.
+    hardChoice: (ctx) => {
+      const normal = () => {
+        const best = Math.max(...ownDogs(ctx.s, ctx.p).map((d) => d.rating), 0);
+        const pick = offered(ctx).sort((a, b) => b.d.rating - a.d.rating)[0];
+        return pick && pick.d.rating > best && ctx.p.cash > cost * 6 ? 1 + pick.i : 0;
+      };
+      if (!HARD_KNOBS.nobblesBetter) return normal();
+      const worth = (id: string) =>
+        netWorth(
+          ctx.s,
+          ctx.s.players.find((x) => x.id === id)!,
+        );
+      const leader = [...ctx.s.players].sort((a, b) => worth(b.id) - worth(a.id))[0]!;
+      if (leader.id === ctx.p.id) return normal();
+      const hit = offered(ctx).find((o) => o.d.ownerId === leader.id);
+      return hit && ctx.p.cash > cost * 4 ? 1 + hit.i : normal();
     },
   };
 }
@@ -591,5 +613,11 @@ export const ALLEY: readonly EventCard[] = [
     // Normal buys a box only where it is worth one — tight bends — and only with cash to spare.
     aiChoice: (ctx) =>
       currentPlanet(ctx.s).track.bends === 'tight' && ctx.p.cash > BOX_COST * 8 ? 0 : 1,
+    // Hard: on medium bends too, where the rail is still worth something.
+    hardChoice: (ctx) => {
+      const bends = currentPlanet(ctx.s).track.bends;
+      const worth = bends === 'tight' || (HARD_KNOBS.buysBoxesWider && bends === 'medium');
+      return worth && ctx.p.cash > BOX_COST * 8 ? 0 : 1;
+    },
   },
 ];
