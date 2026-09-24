@@ -11,7 +11,7 @@ import {
   type Ctx,
 } from '../state';
 import { openOffSeason } from './offSeason';
-import type { GameOver, GameState, Id, SeasonRecord } from '../types';
+import type { GameOver, GameState, Id, SeasonMoments, SeasonRecord } from '../types';
 
 /**
  * The game around the seasons (GDD_V3 §2.1, §2.2, §2.4): how a season ends, whether that is the
@@ -48,6 +48,47 @@ function seasonWins(s: GameState): { goldCups: Record<Id, number>; raceWins: Rec
     if (r.race === HEADLINE_TYPE_ID) goldCups[win.playerId] = (goldCups[win.playerId] ?? 0) + 1;
   }
   return { goldCups, raceWins };
+}
+
+/**
+ * The season's moments as facts (Phase E2), for the archive: the longest-priced winner and the slip
+ * that paid most over its stake. Reads the season's results and book, which the next season clears.
+ * Nothing here draws or decides anything; it is a record, like the standings beside it.
+ */
+function seasonMoments(s: GameState): SeasonMoments {
+  let upset: SeasonMoments['upset'] = null;
+  for (const r of s.results) {
+    const e = r.entries.find((x) => x.dogId === r.order[0]);
+    if (e && (!upset || e.odds > upset.odds))
+      upset = {
+        name: e.name,
+        ownerId: e.ownerId,
+        odds: e.odds,
+        race: r.race,
+        planetId: r.planetId,
+        week: r.week,
+      };
+  }
+  let bet: SeasonMoments['bet'] = null;
+  for (const b of s.bets) {
+    if (!b.settled?.won) continue;
+    const profit = b.settled.payout - b.stake;
+    if (bet && profit <= bet.profit) continue;
+    const ran = s.results.find((r) => r.week === b.week && r.race === b.race);
+    const name =
+      ran?.entries.find((e) => e.dogId === b.dogId)?.name ?? s.dogs[b.dogId]?.name ?? 'a dog';
+    bet = {
+      playerId: b.playerId,
+      name,
+      stake: b.stake,
+      odds: b.odds,
+      kind: b.kind,
+      race: b.race,
+      week: b.week,
+      profit,
+    };
+  }
+  return { upset, bet, betsStruck: s.bets.length };
 }
 
 /**
@@ -110,6 +151,7 @@ export function finishSeason(ctx: Ctx): void {
     stats: Object.fromEntries(s.players.map((p) => [p.id, structuredClone(p.stats)])),
     goldCups,
     raceWins,
+    moments: seasonMoments(s),
   });
   s.activePlayer = null;
 

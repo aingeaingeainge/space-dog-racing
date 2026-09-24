@@ -666,6 +666,41 @@ export interface SeasonRecord {
   /** Gold Cups and races won this season, per stable — §2.4's two tie-breaks. */
   goldCups: Record<Id, number>;
   raceWins: Record<Id, number>;
+  /**
+   * Phase E2: what the season will be remembered for, kept as facts rather than prose, so the game's
+   * end can tell the whole game's story after the season's results and slips have been cleared.
+   */
+  moments: SeasonMoments;
+}
+
+/**
+ * The raw material of a season's "moments" (GDD_V3 §10's season and game end), archived at
+ * `finishSeason`. Names are copied in because a local dog is swept at the jump and a stable dog can be
+ * retired; everything else is an id the screen can look up.
+ */
+export interface SeasonMoments {
+  /** The longest price that won a race, locals included. Null if nothing ran. */
+  upset: {
+    name: string;
+    ownerId: Id | 'local';
+    odds: number;
+    race: RaceTypeId;
+    planetId: Id;
+    week: number;
+  } | null;
+  /** The slip that paid most over its stake. Null if no slip landed. */
+  bet: {
+    playerId: Id;
+    name: string;
+    stake: number;
+    odds: number;
+    kind: Bet['kind'];
+    race: RaceTypeId;
+    week: number;
+    profit: number;
+  } | null;
+  /** Slips struck all season, by everybody. */
+  betsStruck: number;
 }
 
 /**

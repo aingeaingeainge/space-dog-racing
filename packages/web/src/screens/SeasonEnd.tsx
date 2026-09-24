@@ -1,21 +1,25 @@
 import { useState } from 'react';
-import {
-  formatBones,
-  planetOf,
-  roadSplit,
-  type GameState,
-  type Player,
-  type RoadSplit,
-} from '@sdr/engine';
+import { formatBones, planetOf, type GameState, type Player, type RoadSplit } from '@sdr/engine';
 import { Panel } from '../components/Panel';
-import { StableName } from '../components/ui';
+import { Notes, StableName } from '../components/ui';
 import { OwnerBlurb, OwnerFace } from '../components/Owner';
 import { staffLine } from '../components/StaffCard';
 import { NeonButton } from '../components/NeonButton';
 import { WorthChart } from '../components/WorthChart';
-import { lastSeason, moments, seasonRows, type SeasonRow } from '../lib/seasonEnd';
+import {
+  gameMoments,
+  gameRows,
+  lastSeason,
+  moments,
+  seasonRows,
+  targetFinish,
+  type GameRow,
+  type Moment,
+  type SeasonRow,
+  type TargetFinish,
+} from '../lib/seasonEnd';
 import { seasonLinkFor } from '../lib/seedLink';
-import { standings } from '../lib/selectors';
+import { playerById, standings } from '../lib/selectors';
 import { useGame } from '../store/gameStore';
 
 /**
@@ -78,7 +82,7 @@ function SeasonOver({ s, rows }: { s: GameState; rows: SeasonRow[] }) {
         <WorthChart s={s} />
       </Panel>
 
-      <Moments s={s} />
+      <Moments list={moments(s)} sub="what the season will be remembered for" />
 
       <Panel title={`Season ${s.season} standings`} tight>
         <div className="table-wrap">
@@ -196,125 +200,220 @@ export function IncomeSplit({
   );
 }
 
-/** The game's end, and the end of a one-season game. */
+/**
+ * Phase E2 — **the game's end** (BUILD_PLAN_V3 Phase E item 5; GDD §15.11 before it): the winner, big,
+ * and why the game ended; the whole game's net worth across every season; its moments; a table of
+ * seasons and the game's totals; how a Target was crossed; and "play again". Nothing here is a rule:
+ * it reads the archive and the final state. A one-season game is its own season's end as well, so it
+ * shows the season's podium and chart where a longer game shows its seasons.
+ */
 function GameOver({ s }: { s: GameState }) {
   const abandon = useGame((g) => g.abandon);
   const playAgain = useGame((g) => g.playAgain);
   const setup = useGame((g) => g.setup);
-  const ackSeason = useGame((g) => g.ackSeason);
-  const rows = standings(s);
-  const podium = rows.slice(0, 3);
-  const final = s.calendar[s.week - 1];
-  // Between seasons (GDD_V3 §2.2) this is the season's end, and the game goes on.
-  const between = s.phase === 'offSeason';
-  const multi = s.length.kind === 'target' || s.length.seasons > 1;
+  const rows = gameRows(s);
+  const winner = rows[0];
+  const multi = s.seasons.length > 1;
+  const finish = targetFinish(s);
+  const rec = lastSeason(s);
 
   return (
     <div className="app">
       <div className="centre">
-        <h1>{between || (multi && !s.gameOver) ? `Season ${s.season} over` : 'Game over'}</h1>
-        <p className="muted">
-          {final ? `${planetOf(final.planetId).name}, week ${s.week}` : null}
-          {multi ? ` · ${gameLengthText(s)}` : null}
-        </p>
+        <h1>Game over</h1>
+        {winner ? (
+          <div className="winner">
+            <OwnerFace player={winner.player} big />
+            <div className="winner-name">
+              <StableName player={winner.player} />
+            </div>
+            <div className="worth">{formatBones(winner.netWorth)}</div>
+          </div>
+        ) : null}
         {s.gameOver ? <p className="game-end">{gameEndLine(s)}</p> : null}
+        <p className="muted">{gameLengthText(s)}</p>
       </div>
 
-      {between ? (
-        <div className="row centre">
-          <NeonButton variant="primary" onClick={ackSeason}>
-            On to season {s.season + 1}
+      {finish ? <TargetPanel s={s} finish={finish} /> : null}
+
+      {multi ? null : rec ? <SeasonPodium rows={seasonRows(s, rec)} /> : null}
+
+      <Panel
+        title={multi ? 'The game' : 'The season'}
+        sub={multi ? 'net worth, weekend by weekend, every season' : 'net worth, week by week'}
+      >
+        <WorthChart s={s} game={multi} />
+      </Panel>
+
+      <Moments
+        list={gameMoments(s)}
+        sub={
+          multi ? 'what the game will be remembered for' : 'what the season will be remembered for'
+        }
+      />
+
+      {multi ? <SeasonsTable s={s} rows={rows} /> : null}
+
+      <IncomeSplit
+        rows={rows}
+        sub={
+          multi
+            ? "the whole game: where each stable's money came from"
+            : "where each stable's money came from"
+        }
+      />
+
+      <FinalStandings s={s} rows={rows} />
+
+      <Panel title="Again" sub={`seed ${s.seed}`}>
+        <div className="row">
+          <NeonButton variant="primary" onClick={playAgain}>
+            Play again
           </NeonButton>
-          <span className="muted">
-            The off-season first: a year older, one retirement, the staff notice.
-          </span>
+          <NeonButton onClick={abandon}>New game</NeonButton>
+          {setup ? <ShareSeed setup={setup} /> : null}
         </div>
-      ) : null}
-
-      <Panel title="Podium" sub="highest net worth wins; tie-break most Gold Cup wins">
-        <div className="podium">
-          {podium.map((r, i) => (
-            <div key={r.player.id} className={i === 0 ? 'first' : undefined}>
-              <div className="medal">{['🥇', '🥈', '🥉'][i]}</div>
-              <OwnerFace player={r.player} big />
-              <div>
-                <StableName player={r.player} />
-              </div>
-              <OwnerBlurb player={r.player} />
-              <div className="worth">{formatBones(r.netWorth)}</div>
-              <div className="muted">{r.goldCupWins} Gold Cup wins</div>
-            </div>
-          ))}
-        </div>
+        <p className="muted">
+          Play again is the same table, the same seed and the same length, from the first weekend:
+          the same dogs on offer, the same events, the same trap draws. What you do with them is up
+          to you.
+        </p>
       </Panel>
+    </div>
+  );
+}
 
-      <Panel title="The season" sub="net worth, week by week">
-        <WorthChart s={s} />
-      </Panel>
-
-      <Moments s={s} />
-
-      <RoadsWalked s={s} />
-
-      <Panel title="Final standings" tight>
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Stable</th>
-                <th className="num">Cash</th>
-                <th className="num">Dogs</th>
-
-                <th className="num">Cargo</th>
-
-                <th className="num">Net worth</th>
-                <th className="num">Open</th>
-                <th className="num">Prize money</th>
-                <th className="num">Trainers took</th>
-                <th>Trainers</th>
+/** Who topped each season, and the game's totals (Gold Cups and races won are `gameTotal`s). */
+function SeasonsTable({ s, rows }: { s: GameState; rows: GameRow[] }) {
+  return (
+    <Panel title="Season by season" tight>
+      <div className="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Season</th>
+              <th className="num">Weekends</th>
+              <th>Topped by</th>
+              <th className="num">Worth</th>
+              <th>Runner-up</th>
+            </tr>
+          </thead>
+          <tbody>
+            {s.seasons.map((r) => {
+              const top = r.standings[0];
+              const second = r.standings[1];
+              return (
+                <tr key={r.season}>
+                  <td>{r.season}</td>
+                  <td className="num">{r.weeks}</td>
+                  <td>{top ? playerById(s, top.playerId)?.name : '—'}</td>
+                  <td className="num">{top ? formatBones(top.netWorth) : '—'}</td>
+                  <td className="muted">
+                    {second
+                      ? `${playerById(s, second.playerId)?.name} ${formatBones(second.netWorth)}`
+                      : '—'}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      <div className="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Stable</th>
+              <th className="num">Seasons topped</th>
+              <th className="num">Gold Cups</th>
+              <th className="num">Races won</th>
+              <th className="num">Final worth</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.player.id} className={r.player.kind === 'human' ? 'me' : ''}>
+                <td>
+                  <StableName player={r.player} />
+                </td>
+                <td className="num">{r.titles}</td>
+                <td className="num">{r.goldCups}</td>
+                <td className="num">{r.raceWins}</td>
+                <td className="num">
+                  <b>{formatBones(r.netWorth)}</b>
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {rows.map((r, i) => (
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </Panel>
+  );
+}
+
+/** GDD_V3 §2.1, E3: how the race to the figure finished. */
+function TargetPanel({ s, finish }: { s: GameState; finish: TargetFinish }) {
+  const target = s.length.kind === 'target' ? s.length.worth : 0;
+  const names = finish.crossers.map((p) => p.name).join(' and ');
+  const lines = [
+    `${names} crossed ${formatBones(target)} at week ${finish.week} of season ${finish.season} — weekend ${finish.weekend} of the game.`,
+    finish.together
+      ? 'Two crossed on the same weekend, so the richer of them took it.'
+      : 'Nobody else got there that weekend.',
+    finish.caught
+      ? `${finish.caught.name} led into that last weekend and was caught on it.`
+      : 'The stable that led into the last weekend held on.',
+  ];
+  return (
+    <Panel title="The finish" sub="net worth is checked at the end of every weekend">
+      <Notes lines={lines} />
+    </Panel>
+  );
+}
+
+/** The final table, as the game ended: what every stable holds, and what it is worth. */
+function FinalStandings({ s, rows }: { s: GameState; rows: GameRow[] }) {
+  const live = new Map(standings(s).map((r) => [r.player.id, r]));
+  return (
+    <Panel title="Final standings" tight>
+      <div className="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Stable</th>
+              <th className="num">Cash</th>
+              <th className="num">Dogs</th>
+              <th className="num">Cargo</th>
+              <th className="num">Net worth</th>
+              <th className="num">Gold Cups</th>
+              <th>Trainers</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r, i) => {
+              const l = live.get(r.player.id);
+              return (
                 <tr key={r.player.id} className={r.player.kind === 'human' ? 'me' : ''}>
                   <td>{i + 1}</td>
                   <td>
                     <StableName player={r.player} />
                   </td>
-                  <td className="num">{formatBones(r.cash)}</td>
-                  <td className="num">{formatBones(r.dogs)}</td>
-                  <td className="num">{formatBones(r.cargo)}</td>
+                  <td className="num">{l ? formatBones(l.cash) : '—'}</td>
+                  <td className="num">{l ? formatBones(l.dogs) : '—'}</td>
+                  <td className="num">{l ? formatBones(l.cargo) : '—'}</td>
                   <td className="num">
                     <b>{formatBones(r.netWorth)}</b>
                   </td>
-                  <td className="num">{r.goldCupWins}</td>
-                  <td className="num">{formatBones(r.player.stats.prizeIncome)}</td>
-                  <td className="num">{formatBones(r.player.stats.commission)}</td>
+                  <td className="num">{r.goldCups}</td>
                   <td className="wrap small">{staffLine(r.player)}</td>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Panel>
-
-      {between ? null : (
-        <Panel title="Again" sub={`seed ${s.seed}`}>
-          <div className="row">
-            <NeonButton variant="primary" onClick={playAgain}>
-              Play this season again
-            </NeonButton>
-            <NeonButton onClick={abandon}>New season</NeonButton>
-            {setup ? <ShareSeed setup={setup} /> : null}
-          </div>
-          <p className="muted">
-            The same seed and the same table replays the same weekends — the dogs on offer, the
-            events, the trap draws. What you do with them is up to you.
-          </p>
-        </Panel>
-      )}
-    </div>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </Panel>
   );
 }
 
@@ -325,8 +424,9 @@ function gameLengthText(s: GameState): string {
 }
 
 /**
- * The plain game-end line (Phase E1): who won, and in a Target game who crossed. The real game-end
- * screen is Phase E2's.
+ * Why the game ended, in a line (GDD_V3 §2.1): the seasons ran out, a target was crossed, or a Target
+ * game hit the season cap. ⚠️ E1's line could say "Overtaken on the line!", which cannot happen with one
+ * worth check a weekend (E3); the finish panel says what can — two crossing together, a leader caught.
  */
 function gameEndLine(s: GameState): string {
   const over = s.gameOver!;
@@ -337,75 +437,12 @@ function gameEndLine(s: GameState): string {
     const crossers = over.crossers
       .map((id) => s.players.find((p) => p.id === id)?.name ?? id)
       .join(' and ');
-    const onTheLine = top && !over.crossers.includes(top.playerId) ? ' Overtaken on the line!' : '';
-    return `${crossers} crossed the target at week ${over.week} of season ${over.season}. ${wins}${onTheLine}`;
+    const target = s.length.kind === 'target' ? formatBones(s.length.worth) : 'the target';
+    return `Target crossed: ${crossers} passed ${target} at week ${over.week} of season ${over.season}. ${wins}`;
   }
-  if (over.reason === 'cap') return `Nobody reached the target in ${over.season} seasons. ${wins}`;
-  return over.season > 1 ? `After ${over.season} seasons, ${wins}` : wins;
-}
-
-/**
- * Which road every stable actually walked, in Bones (GDD §2.1).
- *
- * ⚠️ **This is the only screen in the game that can tell a player what they *did*.** An hour of
- * small decisions does not add up to a sentence on its own: a stable that believes it played the
- * trainer's road and reads five thousand of trade profit has learnt something about itself, and a
- * crook who spent more on fixers than the betting ever returned has learnt something sharper. The
- * three income lines have been on `Player.stats` since M0 and the harness has printed exactly this
- * split for `--roads` since Phase D; `roadSplit` in the engine is the one arithmetic both read, so
- * the screen and the instrument cannot disagree about what a road earned.
- *
- * ⚠️ **The columns do not add up to net worth and the caption says so.** Two of the roads pay in
- * *assets* rather than income — a trained dog's book value, a bought hold — so this table answers
- * "where did the money come from" while the standings below answer "what is it worth now".
- * Pretending otherwise would be a nicer table and a worse instrument.
- */
-function RoadsWalked({ s }: { s: GameState }) {
-  const rows = standings(s).map((r) => ({ ...r, split: roadSplit(s, r.player) }));
-  return (
-    <Panel
-      title="The roads walked"
-      sub="where each stable's money came from — assets bought are not in here"
-      tight
-    >
-      <div className="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Stable</th>
-              <th className="num">Prize money</th>
-              <th className="num">Trading</th>
-              <th className="num">Betting</th>
-              <th className="num">Costs</th>
-              <th className="num">Ledger</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => (
-              <tr key={r.player.id} className={r.player.kind === 'human' ? 'me' : ''}>
-                <td>
-                  <StableName player={r.player} />
-                </td>
-                <td className="num">{formatBones(r.split.prize)}</td>
-                <td className="num">{signed(r.split.trade)}</td>
-                <td className="num">{signed(r.split.betting)}</td>
-                <td className="num">{formatBones(-r.split.costs)}</td>
-                <td className="num">
-                  <b>{signed(r.split.net)}</b>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <p className="muted">
-        Prize money is what the purses paid, trading is goods sold less goods bought, betting is
-        returns less stakes. Costs are the food that went out whatever you were doing — there is no
-        upkeep, no wages and no fuel any more. The ledger is those columns; what is left over is in
-        the dogs and the hold, which is why it does not match the net worth below.
-      </p>
-    </Panel>
-  );
+  if (over.reason === 'cap')
+    return `The season cap: nobody reached the target in ${over.season} seasons. ${wins}`;
+  return over.season > 1 ? `The seasons ran out: after ${over.season}, ${wins}` : wins;
 }
 
 /** A figure that can go either way reads better with its sign on the front. */
@@ -413,11 +450,10 @@ function signed(n: number): string {
   return n > 0 ? `+${formatBones(n)}` : formatBones(n);
 }
 
-function Moments({ s }: { s: GameState }) {
-  const list = moments(s);
+function Moments({ list, sub }: { list: Moment[]; sub: string }) {
   if (!list.length) return null;
   return (
-    <Panel title="Moments" sub="what the season will be remembered for">
+    <Panel title="Moments" sub={sub}>
       <dl className="moments">
         {list.map((m) => (
           <div key={m.key}>

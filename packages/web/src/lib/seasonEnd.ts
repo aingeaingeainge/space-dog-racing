@@ -9,8 +9,6 @@ import {
   type Id,
   type Player,
   type PlayerSeasonStats,
-  type RaceEntry,
-  type RaceResult,
   type RoadSplit,
   type SeasonRecord,
 } from '@sdr/engine';
@@ -24,6 +22,10 @@ import { playerById, raceLabel, standings } from './selectors';
  * M0 and `s.results`, `s.bets` and `s.dogs` carry the rest, so this module adds nothing to
  * GameState and nothing to the engine — which is the whole reason the season-end screen could be
  * left until M4 without a rule change.
+ *
+ * ⚠️ **Phase E2: the upset and the best bet come from the archive now** (`SeasonRecord.moments`, kept
+ * by the engine at `finishSeason`), because the game's end tells every season's story and each new
+ * season clears the results and the book. The rest is still derived.
  */
 
 export interface WorthSeries {
@@ -73,28 +75,6 @@ function stableName(s: GameState, ownerId: Id | 'local'): string {
   return playerById(s, ownerId)?.name ?? 'a stable';
 }
 
-function where(r: RaceResult): string {
-  return `${raceLabel(r.race)} on ${planetOf(r.planetId).name}, week ${r.week}`;
-}
-
-/** The longest odds that actually won, locals included — an upset is an upset. */
-function biggestUpset(s: GameState): Moment | null {
-  let best: { r: RaceResult; e: RaceEntry } | null = null;
-  for (const r of s.results) {
-    const winner = r.order[0];
-    if (!winner) continue;
-    const e = r.entries.find((x) => x.dogId === winner);
-    if (e && (!best || e.odds > best.e.odds)) best = { r, e };
-  }
-  if (!best) return null;
-  return {
-    key: 'upset',
-    label: 'Biggest upset',
-    headline: `${best.e.name} at ${best.e.odds.toFixed(2)}`,
-    detail: `${where(best.r)} — ${stableName(s, best.e.ownerId)}`,
-  };
-}
-
 /**
  * The most valuable dog left standing. Not what anybody *paid* for one: purchase prices are
  * never written into the state, so a "most expensive dog" read off `s.dogs` would be an invented
@@ -118,48 +98,82 @@ function bestDog(s: GameState): Moment | null {
   };
 }
 
-/** The slip that paid the most over its stake. */
-function bestBet(s: GameState): Moment | null {
-  const settled = s.bets.filter((b) => b.settled);
-  if (!s.bets.length) return null;
-  const won = settled.filter((b) => b.settled?.won);
-  if (!won.length) {
+/**
+ * "Season 2, week 4" in a game of more than one season, "week 4" in a game of one — so a one-season
+ * game reads exactly as it always did.
+ */
+function when(s: GameState, season: number, week: number): string {
+  const multi = s.length.kind === 'target' || s.length.seasons > 1;
+  return multi ? `season ${season}, week ${week}` : `week ${week}`;
+}
+
+/**
+ * The longest odds that actually won, locals included — an upset is an upset. Read off the archive
+ * (Phase E2), so a game's end can find the longest price of the whole game.
+ */
+function biggestUpset(s: GameState, recs: readonly SeasonRecord[]): Moment | null {
+  let best: { rec: SeasonRecord; u: NonNullable<SeasonRecord['moments']['upset']> } | null = null;
+  for (const rec of recs) {
+    const u = rec.moments?.upset;
+    if (u && (!best || u.odds > best.u.odds)) best = { rec, u };
+  }
+  if (!best) return null;
+  const { rec, u } = best;
+  return {
+    key: 'upset',
+    label: 'Biggest upset',
+    headline: `${u.name} at ${u.odds.toFixed(2)}`,
+    detail: `${raceLabel(u.race)} on ${planetOf(u.planetId).name}, ${when(s, rec.season, u.week)} — ${stableName(s, u.ownerId)}`,
+  };
+}
+
+/** The slip that paid the most over its stake, across the seasons given. */
+function bestBet(s: GameState, recs: readonly SeasonRecord[]): Moment | null {
+  const struck = recs.reduce((n, r) => n + (r.moments?.betsStruck ?? 0), 0);
+  if (!struck) return null;
+  let best: { rec: SeasonRecord; b: NonNullable<SeasonRecord['moments']['bet']> } | null = null;
+  for (const rec of recs) {
+    const b = rec.moments?.bet;
+    if (b && (!best || b.profit > best.b.profit)) best = { rec, b };
+  }
+  if (!best) {
     return {
       key: 'bet',
       label: 'Best bet',
       headline: 'Not one slip landed',
-      detail: `${s.bets.length} bet${s.bets.length === 1 ? '' : 's'} struck all season, every one of them torn up`,
+      detail: `${struck} bet${struck === 1 ? '' : 's'} struck, every one of them torn up`,
     };
   }
-  const best = won.reduce((a, b) =>
-    b.settled!.payout - b.stake > a.settled!.payout - a.stake ? b : a,
-  );
-  const profit = best.settled!.payout - best.stake;
+  const { rec, b } = best;
   return {
     key: 'bet',
     label: 'Best bet',
-    headline: `${formatBones(profit)} on ${s.dogs[best.dogId]?.name ?? 'a dog since sold'}`,
-    detail: `${stableName(s, best.playerId)} — ${formatBones(best.stake)} at ${best.odds.toFixed(2)} ${best.kind}, ${raceLabel(best.race)} in week ${best.week}`,
+    headline: `${formatBones(b.profit)} on ${b.name}`,
+    detail: `${stableName(s, b.playerId)} — ${formatBones(b.stake)} at ${b.odds.toFixed(2)} ${b.kind}, ${raceLabel(b.race)} in ${when(s, rec.season, b.week)}`,
   };
 }
 
 /**
- * The last week the lead actually changed hands. Session 1 measured the season as settled by
- * week 7.6 of 13 after the balance pass (6.5 before it), so this is the number that says whether
- * *this* season was a contest or a procession.
+ * The last weekend the lead actually changed hands, on whatever axis the series are drawn on — a
+ * season's weeks, or (Phase E2) the whole game's weekends laid end to end. Session 1 measured the
+ * season as settled by week 7.6 of 13 after the balance pass, so this is the number that says
+ * whether *this* season, or game, was a contest or a procession.
  */
-function leadChange(s: GameState): Moment | null {
-  const n = weeksPlayed(s);
+function leadChange(
+  s: GameState,
+  series: readonly WorthSeries[],
+  label: (weekend: number) => string,
+): Moment | null {
+  const n = series.reduce((m, x) => Math.max(m, x.points.length), 0);
   if (n === 0) return null;
-  const leaderAt = (week: number): Player | null => {
+  const leaderAt = (weekend: number): Player | null => {
     let best: Player | null = null;
     let bestWorth = -Infinity;
-    for (const p of s.players) {
-      const w = p.stats.worthByWeek[week - 1];
-      if (w === undefined) continue;
-      if (w > bestWorth) {
+    for (const line of series) {
+      const w = line.points[weekend - 1];
+      if (w !== undefined && w > bestWorth) {
         bestWorth = w;
-        best = p;
+        best = line.player;
       }
     }
     return best;
@@ -180,27 +194,75 @@ function leadChange(s: GameState): Moment | null {
     return {
       key: 'lead',
       label: 'The lead',
-      headline: `${leader.name} led from week 1`,
+      headline: `${leader.name} led from the first weekend`,
       detail: 'never headed — a procession',
     };
   }
   return {
     key: 'lead',
     label: 'Lead last changed',
-    headline: `Week ${changed} of ${n}`,
+    headline: label(changed),
     detail: takenFrom ? `${leader.name} took it off ${takenFrom.name} and kept it` : undefined,
   };
 }
 
-/** Everything the season already knows about itself, in the order it is worth reading. */
+/**
+ * Stewards' enquiries that caught somebody (GDD_V3 §9.3) — public, and the best story generator in
+ * the game — summed across the seasons given, off the archived stats.
+ */
+function caught(s: GameState, recs: readonly SeasonRecord[]): Moment | null {
+  const rows = s.players
+    .map((p) => ({ p, n: recs.reduce((m, r) => m + (r.stats[p.id]?.caught ?? 0), 0) }))
+    .filter((x) => x.n > 0)
+    .sort((a, b) => b.n - a.n);
+  if (!rows.length) return null;
+  const total = rows.reduce((m, x) => m + x.n, 0);
+  return {
+    key: 'caught',
+    label: 'Caught by the stewards',
+    headline: rows.map((x) => (x.n > 1 ? `${x.p.name} ×${x.n}` : x.p.name)).join(', '),
+    detail: `${total} nobble${total === 1 ? '' : 's'} found out and fined`,
+  };
+}
+
+/**
+ * What the season that has just ended will be remembered for (Phase E2: read off its archive record,
+ * whose moments the engine keeps at `finishSeason`).
+ */
 export function moments(s: GameState): Moment[] {
-  // ⚠️ **The stewards' moment is gone with the supplement and the fixing (BUILD_PLAN_V3 §2.1).**
-  // GDD_V3 §9.3 brings the best story generator in the game back as a Back Alley event in Phase D,
-  // with the caught saboteur named publicly to the whole table — which is the version v2 D40 said it
-  // was waiting for hotseat to make bite. That is the moment to add here then.
-  return [biggestUpset(s), bestDog(s), bestBet(s), leadChange(s)].filter(
-    (m): m is Moment => m !== null,
-  );
+  const rec = s.seasons[s.seasons.length - 1];
+  const recs = rec ? [rec] : [];
+  return [
+    biggestUpset(s, recs),
+    bestDog(s),
+    bestBet(s, recs),
+    caught(s, recs),
+    leadChange(s, worthSeries(s), (w) => `Week ${w} of ${weeksPlayed(s)}`),
+  ].filter((m): m is Moment => m !== null);
+}
+
+/**
+ * The whole game's moments (Phase E2): the longest price and the best slip of any season, the most
+ * valuable dog left, everybody the stewards caught, and the last time the lead changed across every
+ * season laid end to end.
+ */
+export function gameMoments(s: GameState): Moment[] {
+  const series = gameWorthSeries(s);
+  const at = (weekend: number): string => {
+    let left = weekend;
+    for (const r of s.seasons) {
+      if (left <= r.weeks) return `Season ${r.season}, week ${left}`;
+      left -= r.weeks;
+    }
+    return `Weekend ${weekend}`;
+  };
+  return [
+    biggestUpset(s, s.seasons),
+    bestDog(s),
+    bestBet(s, s.seasons),
+    caught(s, s.seasons),
+    leadChange(s, series, at),
+  ].filter((m): m is Moment => m !== null);
 }
 
 // ---------------------------------------------------------------------------------------------------

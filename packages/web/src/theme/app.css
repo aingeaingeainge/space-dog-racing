@@ -1660,6 +1660,31 @@ ul.notes li::before {
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
+/* Phase E2: the game's winner, big, above everything else on the game-end screen. */
+.winner {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 16px 28px;
+  margin: 4px 0 10px;
+  border: 2px solid var(--hazard);
+  border-radius: 4px;
+  background: linear-gradient(180deg, var(--plate-hi), var(--plate-lo));
+  box-shadow:
+    inset 0 0 0 1px var(--hazard),
+    0 0 34px rgba(244, 197, 66, 0.32);
+}
+.winner .winner-name {
+  font-size: 26px;
+  font-weight: 800;
+}
+.winner .worth {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--hazard);
+  font-variant-numeric: tabular-nums;
+}
 
 /* ---------------------------------------------------------------- narrow screens */
 @media (max-width: 760px) {
