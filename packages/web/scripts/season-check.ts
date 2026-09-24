@@ -36,6 +36,7 @@ import {
   type GoodId,
 } from '@sdr/engine';
 import { applyActions, screenFor, weekKey, type ScreenUi } from '../src/store/loop';
+import { walkTable } from './table-walk';
 
 const HUMAN = 'p1';
 
@@ -627,6 +628,59 @@ if (
     !offWalk.targets)
 ) {
   console.error('The off-season or the Target game was never walked both ways.');
+  failures++;
+}
+// ⚠️ Phase E2: **the table.** Four humans (and two Normal AIs) round one laptop, walked through
+// screenFor by table-walk.ts: a two-season game and a race to the short target. It fails if any human
+// ever sees another's private screen without a pass in between — stated as a rule about screenFor:
+// the owner of a private screen changed, and the screens since the last one were not a pass — and if
+// "Skip the rest of race day", a trip back to the planet after the races, the off-season or the Target
+// finish was never walked. Each game's log must replay to the same state.
+const tableRuns: [string, number, GameLength][] = [
+  ['four humans, two seasons', 42, { kind: 'seasons', seasons: 2 }],
+  ['four humans, race to the short target', 1234, { kind: 'target', worth: balance.targetShort }],
+];
+const table = { skipped: 0, watched: 0, postTrades: 0, offSeasons: 0, passes: 0, weekends: 0 };
+for (const [label, seed, length] of tableRuns) {
+  try {
+    const w = walkTable(seed, 4, 2, {
+      length,
+      raceDay: (s) => (s.week % 2 ? 'skipRest' : 'watch'),
+      tradeAfterRaces: (s, me) => s.week === 3 && me.id === 'p2',
+    });
+    const setup = {
+      seed,
+      length,
+      players: w.state.players.map((p) =>
+        p.kind === 'human'
+          ? { name: p.name, kind: 'human' as const }
+          : { name: '', kind: 'ai' as const, difficulty: p.difficulty },
+      ),
+    };
+    if (JSON.stringify(replay(createSeason(setup), w.log)) !== JSON.stringify(w.state))
+      throw new Error('replaying the log did not reproduce the game');
+    if (w.leaks.length) throw new Error(`a private screen leaked: ${w.leaks[0]}`);
+    if (w.state.gameOver?.reason !== (length.kind === 'target' ? 'target' : 'seasons'))
+      throw new Error(`the game ended by ${w.state.gameOver?.reason}`);
+    table.skipped += w.skippedRaceDays;
+    table.watched += (w.screens.race ?? 0) - w.skippedRaceDays;
+    table.postTrades += w.postTrades;
+    table.offSeasons += w.screens.offSeason ?? 0;
+    table.passes += w.passes;
+    table.weekends += w.weekends;
+    console.log(
+      `${label} (seed ${seed}): ${w.weekends} weekends, ${w.passes} passes (${(w.passes / w.weekends).toFixed(1)} a weekend), ` +
+        `${w.skippedRaceDays} race days skipped, 0 leaks; ${w.state.players.find((p) => p.id === w.state.finalStandings?.[0]?.playerId)?.name} wins`,
+    );
+  } catch (e) {
+    failures++;
+    console.error(`${label} FAILED: ${(e as Error).message}`);
+  }
+}
+if (!failures && (!table.skipped || !table.watched || !table.postTrades || !table.offSeasons)) {
+  console.error(
+    'The table walk never skipped a race day, watched one, traded after the races or reached an off-season.',
+  );
   failures++;
 }
 console.log(failures ? `${failures} season(s) failed` : 'All seasons played out clean.');

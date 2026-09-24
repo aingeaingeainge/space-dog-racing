@@ -52,6 +52,9 @@ export interface TableWalk {
   tablePresses: number;
   /** Private screens shown to a human who had not been passed the laptop. Must be empty. */
   leaks: string[];
+  /** Race days skipped with "Skip the rest of race day", and humans who went back to trade after them. */
+  skippedRaceDays: number;
+  postTrades: number;
   /** Screens seen, by kind. */
   screens: Record<string, number>;
   state: GameState;
@@ -126,6 +129,11 @@ export interface WalkOptions {
   length?: GameLength;
   /** After the races, does this human take the laptop back to trade? Never, unless a caller says. */
   tradeAfterRaces?: (s: GameState, me: Player) => boolean;
+  /**
+   * Race day: watched to the end (a press on each race's Next) or skipped with one press of "Skip the
+   * rest of race day" (Phase E2). Either way it only marks the weekend's races watched.
+   */
+  raceDay?: (s: GameState) => 'watch' | 'skipRest';
   /** Called on every screen, before it is answered — for a caller with a check of its own. */
   onScreen?: (s: GameState, ui: ScreenUi, kind: string) => void;
 }
@@ -172,6 +180,8 @@ export function walkTable(
     ),
     tablePresses: 0,
     leaks: [],
+    skippedRaceDays: 0,
+    postTrades: 0,
     screens: {},
     state,
     log,
@@ -210,7 +220,10 @@ export function walkTable(
     }
     switch (screen.kind) {
       case 'race':
-        walk.tablePresses++;
+        if (opts.raceDay?.(state) === 'skipRest') {
+          walk.tablePresses++;
+          walk.skippedRaceDays++;
+        } else walk.tablePresses += state.races?.length ?? 1;
         ui.racesWatchedWeek = weekKey(state);
         continue;
       case 'fields':
@@ -244,6 +257,7 @@ export function walkTable(
         // The roll-call after the races: fly on in public, or take the laptop back to trade.
         if (opts.tradeAfterRaces?.(state, me)) {
           walk.presses[me.id] = (walk.presses[me.id] ?? 0) + 1;
+          walk.postTrades++;
           ui.postTrade = me.id;
           continue;
         }

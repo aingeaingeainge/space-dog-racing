@@ -794,3 +794,126 @@ describe('Phase E1: the game around the seasons (GDD_V3 §2.1, §2.2, §4.3)', (
     expect(s.seasons[1]!.stats['p1']!.worthByWeek).toHaveLength(balance.weeks);
   }, 60_000);
 });
+
+describe('Phase E2: the fresh season, the archive’s moments and the Bookie in any order', () => {
+  const six = Array.from({ length: 6 }, () => ({
+    name: '',
+    kind: 'ai' as const,
+    difficulty: 'normal' as const,
+  }));
+  const step = (s: GameState): Action[] => {
+    if (needsAdvance(s)) return [{ t: 'AdvancePhase' }];
+    const who = s.pendingEvent?.playerId ?? s.activePlayer!;
+    return decide(s, who, player(s, who).difficulty);
+  };
+
+  it('starts every dog of every season after the first on seasonStartFitness, with no layoff', () => {
+    let tired = 0;
+    let injured = 0;
+    let seasonsChecked = 0;
+    for (const seed of [5, 6, 7]) {
+      const s = createSeason({ seed, players: six, length: { kind: 'seasons', seasons: 3 } });
+      let guard = 0;
+      while (!isSeasonOver(s) && guard++ < 200_000) {
+        for (const a of step(s)) {
+          const phase = s.phase;
+          // What the dogs carried out of the season, so the check below is not vacuous.
+          if (phase === 'newSeason')
+            for (const p of s.players)
+              for (const id of p.dogIds) {
+                const d = s.dogs[id]!;
+                if (d.fitness < balance.seasonStartFitness) tired++;
+                if (d.injuryWeeks > 0) injured++;
+              }
+          reduceMut(s, a);
+          // The first arrival of the new season: nothing has touched a dog since startNextSeason.
+          if (phase === 'newSeason') {
+            expect(s.phase).toBe('arrival');
+            seasonsChecked++;
+            for (const p of s.players)
+              for (const id of p.dogIds) {
+                const d = s.dogs[id]!;
+                assert(
+                  d.fitness === balance.seasonStartFitness && d.injuryWeeks === 0,
+                  `season ${s.season}: ${d.name} starts on ${d.fitness} fitness, ${d.injuryWeeks} weeks out`,
+                );
+              }
+          }
+        }
+      }
+    }
+    expect(seasonsChecked).toBe(6);
+    expect(tired).toBeGreaterThan(0);
+    expect(injured).toBeGreaterThan(0);
+  }, 90_000);
+
+  it('archives each season’s longest-priced winner and best slip, as the season’s own results say', () => {
+    const s = createSeason({ seed: 11, players: six, length: { kind: 'seasons', seasons: 2 } });
+    let checked = 0;
+    let guard = 0;
+    while (!isSeasonOver(s) && guard++ < 200_000) {
+      for (const a of step(s)) {
+        const phase = s.phase;
+        reduceMut(s, a);
+        const ended = (phase !== 'offSeason' && s.phase === 'offSeason') || isSeasonOver(s);
+        if (!ended) continue;
+        const m = s.seasons[s.seasons.length - 1]!.moments;
+        const winOdds = s.results.map((r) => r.entries.find((e) => e.dogId === r.order[0])!.odds);
+        expect(m.upset?.odds).toBe(Math.max(...winOdds));
+        const profits = s.bets
+          .filter((b) => b.settled?.won)
+          .map((b) => b.settled!.payout - b.stake);
+        expect(m.bet?.profit ?? null).toBe(profits.length ? Math.max(...profits) : null);
+        expect(m.betsStruck).toBe(s.bets.length);
+        checked++;
+      }
+    }
+    expect(checked).toBe(2);
+  }, 60_000);
+
+  it('lets a stable bet out of turn, and refuses a slip or an EndPhase once it has finished', () => {
+    const s = createSeason({
+      seed: 3,
+      players: [{ name: 'A', kind: 'human' }, { name: 'B', kind: 'human' }, ...six.slice(0, 4)],
+    });
+    let guard = 0;
+    while (!(s.phase === 'betting' && s.locked && bettingOpenNow(s)) && guard++ < 100_000) {
+      if (s.phase === 'betting' && s.locked && s.activePlayer) {
+        reduceMut(s, { t: 'EndPhase', playerId: s.activePlayer });
+        continue;
+      }
+      const who = s.pendingEvent?.playerId ?? s.activePlayer;
+      if (!who || needsAdvance(s)) {
+        reduceMut(s, { t: 'AdvancePhase' });
+        continue;
+      }
+      if (s.pendingEvent)
+        reduceMut(s, { t: 'ResolveEvent', playerId: who, choice: aiChoiceFor(s, who) });
+      else for (const a of decide(s, who, 'normal')) reduceMut(s, a);
+    }
+    // The human later in the turn order bets and leaves first, while the other is still on the clock.
+    const humans = s.turnOrder.filter((id) => player(s, id).kind === 'human');
+    const late = humans[1]!;
+    const { race, entries } = s.fields![0]!;
+    const bet: Action = {
+      t: 'PlaceBet',
+      playerId: late,
+      race,
+      dogId: entries[0]!.dogId,
+      kind: 'win',
+      stake: 50,
+    };
+    const active = s.activePlayer;
+    reduceMut(s, bet);
+    reduceMut(s, { t: 'EndPhase', playerId: late });
+    expect(s.done).toContain(late);
+    expect(s.activePlayer).toBe(active);
+    expect(() => reduceMut(s, bet)).toThrow(/finished at the Bookie/);
+    expect(() => reduceMut(s, { t: 'EndPhase', playerId: late })).toThrow();
+  });
+});
+
+/** Is there a bookie this weekend (the engine's own rule, copied so this file needs no new export)? */
+function bettingOpenNow(s: GameState): boolean {
+  return s.toggles.betting && s.fields !== null;
+}
