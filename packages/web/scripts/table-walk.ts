@@ -135,7 +135,7 @@ export interface WalkOptions {
    */
   raceDay?: (s: GameState) => 'watch' | 'skipRest';
   /** Called on every screen, before it is answered — for a caller with a check of its own. */
-  onScreen?: (s: GameState, ui: ScreenUi, kind: string) => void;
+  onScreen?: (s: GameState, ui: ScreenUi, kind: string, log: readonly Action[]) => void;
 }
 
 export function walkTable(
@@ -201,7 +201,7 @@ export function walkTable(
   for (let step = 0; step < 400000; step++) {
     const screen = screenFor(state, ui);
     walk.screens[screen.kind] = (walk.screens[screen.kind] ?? 0) + 1;
-    opts.onScreen?.(state, ui, screen.kind);
+    opts.onScreen?.(state, ui, screen.kind, log);
     if (screen.kind === 'seasonEnd') {
       walk.tablePresses++;
       if (state.phase !== 'offSeason') break;

@@ -125,7 +125,7 @@ export function Results({ s, me }: { s: GameState; me: Player }) {
         actions={
           <>
             <NeonButton variant="primary" onClick={ackResults} title="key: Enter">
-              Back to the planet
+              {table ? 'Read — on to after the races' : 'Back to the planet'}
             </NeonButton>
             {canFly ? (
               <NeonButton onClick={flyOn} title="key: F — ends your turn here">
