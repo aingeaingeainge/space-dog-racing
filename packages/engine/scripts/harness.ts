@@ -11,6 +11,7 @@
  *   npm run harness -- --styles --seasons 200   # GDD_V3 §5 / §11: running styles, the kill switch,
  *                                        # the variance decomposition, the blind-lone-closer return
  *   npm run harness -- --styles --hotGrid   # Phase C2: the hot pace's lights / group / cost sweep (slow)
+ *   npm run harness -- --game [--games 200]   # Phase E1: whole games at 1/3/5 seasons and both targets
  *   npm run harness -- --explore --seasons 400   # Phase D1: doors, the deck's outcomes, dog offers,
  *                                        # lies, the race-day tip rows and the Bar's shelf
  *
@@ -58,6 +59,7 @@ import { decide } from '../src/ai';
 import { HARD_KNOBS } from '../src/ai/hard';
 import { hash01 } from '../src/ai/shared';
 import { isSeasonOver, needsAdvance, reduceMut } from '../src/reduce';
+import { runGames } from './harness-game';
 import { simulateRace, type Runner } from '../src/race/simulateRace';
 import { winProbabilities } from '../src/race/odds';
 import { HEADLINE_TYPE_ID, raceType } from '../src/content/raceTypes';
@@ -100,6 +102,10 @@ interface Args {
   explore: boolean;
   /** Phase D2: what each of Hard's new pieces is worth, three Hard against three Normal. */
   hardD2: boolean;
+  /** Phase E1: whole games at 1, 3 and 5 seasons and both targets (`harness-game.ts`). */
+  game: boolean;
+  /** With --game: games per mode (the 1-season mode plays twice as many). */
+  games: number;
   quiet: boolean;
 }
 
@@ -117,6 +123,8 @@ function parseArgs(argv: string[]): Args {
     hotGrid: false,
     explore: false,
     hardD2: false,
+    game: false,
+    games: 200,
     quiet: false,
   };
   for (let i = 0; i < argv.length; i++) {
@@ -137,6 +145,8 @@ function parseArgs(argv: string[]): Args {
     else if (a === '--hotGrid') args.hotGrid = true;
     else if (a === '--explore') args.explore = true;
     else if (a === '--hardD2') args.hardD2 = true;
+    else if (a === '--game') args.game = true;
+    else if (a === '--games') args.games = Number(next());
     else if (a === '--quiet') args.quiet = true;
     else throw new Error(`Unknown flag ${a}. See the usage block at the top of this file.`);
   }
@@ -2683,7 +2693,8 @@ export function runExplore(seasons = 400, seed = 1): string {
 
 function main() {
   const args = parseArgs(process.argv.slice(2));
-  if (args.calibrate) console.log(runCalibration());
+  if (args.game) console.log(runGames(args.games, args.seed, args.ai));
+  else if (args.calibrate) console.log(runCalibration());
   else if (args.stats) console.log(runStatLeverage());
   else if (args.autoplan) console.log(runAutoplan(args.seasons));
   else if (args.styles && args.hotGrid) console.log(runHotGrid());

@@ -9,12 +9,14 @@
  * Not part of `npm test` (which is the engine's own suite); this is the UI's end-to-end check.
  */
 import {
+  balance,
   cargoTotal,
   GOODS,
   HOLD_CAP,
   STAPLE_ID,
   bettingMargin,
   createSeason,
+  dogValue,
   planetOf,
   drive,
   maxStakeFor,
@@ -30,6 +32,7 @@ import {
   type RaceTypeId,
   type SeasonSetup,
   type Diet,
+  type GameLength,
   type GoodId,
 } from '@sdr/engine';
 import { applyActions, screenFor, weekKey, type ScreenUi } from '../src/store/loop';
@@ -251,10 +254,48 @@ function bettingTurn(s: GameState, p: Player, tally: Tally): Action[] {
   return out;
 }
 
-function playSeason(seed: number, toggles?: SeasonSetup['toggles']) {
+/**
+ * Phase E1: what the human does at an off-season (GDD_V3 §2.2) — retire its lowest-valued dog, or
+ * keep them all — and what the walk saw of every off-season it passed through.
+ */
+type OffPlan = 'retire' | 'keep';
+const offWalk = {
+  /** Off-season screens the human answered, and the most presses any one of them took. */
+  screens: 0,
+  maxPresses: 0,
+  retired: 0,
+  keptAll: 0,
+  /** Retirements on offer (one a stable an off-season) and staff candidates, table-wide. */
+  offers: 0,
+  candidates: 0,
+  hires: 0,
+  /** Target games walked to their end. */
+  targets: 0,
+};
+
+/** The human's presses at one off-season screen: the retirement, the staff notice, "On to season N". */
+function offSeasonPress(s: GameState, me: Player, plan: OffPlan): Action {
+  const n = s.offSeason!.notices[me.id]!;
+  if (n.retired === undefined) {
+    if (plan === 'keep') return { t: 'Retire', playerId: me.id, dogId: null };
+    const cheapest = [...ownDogs(s, me)].sort((a, b) => dogValue(a) - dogValue(b))[0]!;
+    return { t: 'Retire', playerId: me.id, dogId: cheapest.id };
+  }
+  if (n.candidate && n.hired === undefined)
+    return { t: 'ResolveStaffNotice', playerId: me.id, hire: true };
+  return { t: 'EndPhase', playerId: me.id };
+}
+
+function playSeason(
+  seed: number,
+  toggles?: SeasonSetup['toggles'],
+  length?: GameLength,
+  offPlan: OffPlan = 'keep',
+) {
   const setup: SeasonSetup = {
     seed,
     ...(toggles ? { toggles } : {}),
+    ...(length ? { length } : {}),
     // A mixed field, so the check exercises all three difficulties' action streams (M4).
     players: [
       { name: 'Jesse', kind: 'human' },
@@ -288,11 +329,24 @@ function playSeason(seed: number, toggles?: SeasonSetup['toggles']) {
     fieldsSeenWeek: 0,
     passAck: null,
     bustAck: [],
+    seasonSeen: 0,
   };
+  let presses = 0;
 
-  for (let step = 0; step < 20000; step++) {
+  for (let step = 0; step < 100000; step++) {
     const screen = screenFor(state, ui);
     screens[screen.kind] = (screens[screen.kind] ?? 0) + 1;
+    if (screen.kind === 'seasonEnd' && state.phase === 'offSeason') {
+      // A season is over and the game goes on (GDD_V3 §2.2): the table reads it, then the
+      // off-season. What every stable was rolled is counted here, once an off-season.
+      for (const n of Object.values(state.offSeason!.notices)) {
+        offWalk.offers++;
+        if (n.candidate) offWalk.candidates++;
+      }
+      ui.seasonSeen = state.season;
+      presses = 0;
+      continue;
+    }
     if (screen.kind === 'seasonEnd') {
       const human = state.players.find((p) => p.id === HUMAN)!;
       const rehearsed = replay(createSeason(setup), log);
@@ -326,6 +380,26 @@ function playSeason(seed: number, toggles?: SeasonSetup['toggles']) {
       continue;
     }
     let actions: Action[];
+    if (screen.kind === 'offSeason') {
+      // One press at a time, as the screen dispatches them, so the count is the presses.
+      const press = offSeasonPress(state, me, offPlan);
+      if (press.t === 'Retire') {
+        if (press.dogId) offWalk.retired++;
+        else offWalk.keptAll++;
+      }
+      if (press.t === 'ResolveStaffNotice' && press.hire) offWalk.hires++;
+      presses++;
+      if (press.t === 'EndPhase') {
+        offWalk.screens++;
+        offWalk.maxPresses = Math.max(offWalk.maxPresses, presses);
+        if (presses > 3) throw new Error(`the off-season took ${presses} presses (at most 3)`);
+        presses = 0;
+      }
+      const applied = applyActions(state, [press]);
+      state = applied.state;
+      log.push(...applied.added);
+      continue;
+    }
     if (state.phase === 'explore' && !state.pendingEvent && state.activePlayer === me.id) {
       // GDD_V3 §9.1: a door a week, walked round all three so every category gets opened — except
       // that the walk goes down the Back Alley whenever there is one until it has both nobbled a
@@ -366,7 +440,7 @@ function playSeason(seed: number, toggles?: SeasonSetup['toggles']) {
     state = applied.state;
     log.push(...applied.added);
   }
-  throw new Error(`seed ${seed}: the season never ended`);
+  throw new Error(`seed ${seed}: the game never ended`);
 }
 
 const seeds = process.argv
@@ -392,31 +466,56 @@ const walked = {
   sabotages: 0,
   boxes: 0,
 };
+/**
+ * Phase E1: whole games as well as seasons. The first two seeds are also walked as **two-season
+ * games** — the human retires a dog at one off-season and keeps them all at the other — and the
+ * third as a **race to the short target**, to its end.
+ */
+type Variant = [string, SeasonSetup['toggles'] | undefined, GameLength | undefined, OffPlan];
 for (const seed of toRun) {
-  const variants: [string, SeasonSetup['toggles'] | undefined][] =
-    seed === toRun[0]
-      ? [
-          ['default toggles', undefined],
-          [
-            'no betting, no trading, casual events',
-            {
-              betting: false,
-              trading: false,
-              casualEvents: true,
-            },
-          ],
-        ]
-      : [['default toggles', undefined]];
-  for (const [label, toggles] of variants) {
+  const variants: Variant[] = [['default toggles', undefined, undefined, 'keep']];
+  if (seed === toRun[0])
+    variants.push(
+      [
+        'no betting, no trading, casual events',
+        { betting: false, trading: false, casualEvents: true },
+        undefined,
+        'keep',
+      ],
+      ['two seasons, retiring a dog', undefined, { kind: 'seasons', seasons: 2 }, 'retire'],
+    );
+  if (seed === toRun[1])
+    variants.push([
+      'two seasons, keeping them all',
+      undefined,
+      { kind: 'seasons', seasons: 2 },
+      'keep',
+    ]);
+  if (seed === toRun[2])
+    variants.push([
+      'race to the short target',
+      undefined,
+      { kind: 'target', worth: balance.targetShort },
+      'retire',
+    ]);
+  for (const [label, toggles, length, offPlan] of variants) {
     try {
-      const { state, log, tally, screens, human } = playSeason(seed, toggles);
+      const { state, log, tally, screens, human } = playSeason(seed, toggles, length, offPlan);
+      if (length && state.gameOver?.reason !== (length.kind === 'target' ? 'target' : 'seasons'))
+        throw new Error(`the game ended by ${state.gameOver?.reason}, not as its length says`);
+      if (length?.kind === 'target') offWalk.targets++;
+      // Per-season counts, summed over the game's archive: the live stats are the last season's.
+      const games = state.seasons.map((r) => Object.values(r.stats));
+      const total = (pick: (st: Player['stats']) => number) =>
+        games.flat().reduce((n, st) => n + pick(st), 0);
+      const weeksPlayed = state.seasons.reduce((n, r) => n + r.weeks, 0);
       const worth = state.finalStandings?.find((f) => f.playerId === HUMAN)?.netWorth ?? 0;
       const rank = (state.finalStandings ?? []).findIndex((f) => f.playerId === HUMAN) + 1;
       const missing = Object.entries(tally)
         .filter(([, n]) => n === 0)
         .map(([k]) => k);
       console.log(
-        `seed ${seed} (${label}): finished week ${state.week}, ${log.length} actions, ` +
+        `seed ${seed} (${label}): finished season ${state.season} week ${state.week}, ${log.length} actions, ` +
           `${human.name} ${rank}/${state.players.length} on ${worth.toLocaleString('en-NZ')} Bones`,
       );
       console.log(
@@ -446,7 +545,8 @@ for (const seed of toRun) {
       const hungry = state.eventLog.filter(
         (l) => l.playerId === HUMAN && l.text.includes('went hungry'),
       ).length;
-      if (state.toggles.trading && hungry === 0)
+      // The log is the last season's; a Target game can end before HUNGRY_WEEK of it.
+      if (state.toggles.trading && hungry === 0 && state.week > HUNGRY_WEEK)
         throw new Error(`sold the hold in week ${HUNGRY_WEEK} and no dog went hungry`);
       walked.hungry += hungry;
       if (human.dogIds.length === 0) throw new Error('the human stable lost every dog');
@@ -454,20 +554,20 @@ for (const seed of toRun) {
       // was — every stable opened a door, the Pound offered a dog, and somebody was tipped. Staff
       // and sabotage get their rows in D2.
       const picks = log.filter((a) => a.t === 'ChooseDoor').length;
-      const offers = state.players.reduce((n, p) => n + p.stats.dogOffers, 0);
-      const tips = state.players.reduce((n, p) => n + p.stats.tips, 0);
+      const offers = total((st) => st.dogOffers);
+      const tips = total((st) => st.tips);
       // Phase D2's rows (BUILD_PLAN_V3 Phase D): trainers offered in the Bar, and sabotage booked in
       // the Back Alley. A season with none of either has not walked the people.
-      const staffOffers = state.players.reduce((n, p) => n + p.stats.staffOffers, 0);
-      const sabotages = state.players.reduce((n, p) => n + p.stats.nobbles, 0);
-      const commission = state.players.reduce((n, p) => n + p.stats.commission, 0);
+      const staffOffers = total((st) => st.staffOffers);
+      const sabotages = total((st) => st.nobbles);
+      const commission = total((st) => st.commission);
       console.log(
         `  explore: ${picks} doors opened, ${offers} dog offers, ${tips} tips, ${staffOffers} trainer offers, ${sabotages} sabotages; trainers took ${commission.toLocaleString('en-NZ')}`,
       );
       if (picks === 0) throw new Error('nobody opened a door');
-      if (picks !== state.players.length * state.week)
+      if (picks !== state.players.length * weeksPlayed)
         throw new Error(
-          `${picks} doors opened in ${state.week} weeks of ${state.players.length} stables`,
+          `${picks} doors opened in ${weeksPlayed} weeks of ${state.players.length} stables`,
         );
       if (offers === 0) throw new Error('the season produced no dog offers');
       if (tips === 0) throw new Error('the season produced no tips');
@@ -509,6 +609,24 @@ if (!failures && Object.values(walked).some((n) => n === 0)) {
     .filter(([, n]) => n === 0)
     .map(([k]) => k);
   console.error(`Never exercised: ${dead.join(', ')} — the check did not walk the week.`);
+  failures++;
+}
+// ⚠️ Phase E1's rows: the off-season walked, both ways, in at most three presses; a staff candidate
+// offered somewhere at the table; and a Target game played to its end. Run-wide, like sabotage — a
+// candidate needs a trainer to have left (15% each), which one off-season can easily not produce.
+console.log(
+  `The off-season walked: ${offWalk.screens} screens (at most ${offWalk.maxPresses} presses), ${offWalk.retired} retired, ${offWalk.keptAll} kept them all, ` +
+    `${offWalk.offers} retirements on offer, ${offWalk.candidates} staff candidates (${offWalk.hires} hired by the walk), ${offWalk.targets} Target game(s) to the end.`,
+);
+if (
+  !failures &&
+  (!offWalk.offers ||
+    !offWalk.candidates ||
+    !offWalk.retired ||
+    !offWalk.keptAll ||
+    !offWalk.targets)
+) {
+  console.error('The off-season or the Target game was never walked both ways.');
   failures++;
 }
 console.log(failures ? `${failures} season(s) failed` : 'All seasons played out clean.');

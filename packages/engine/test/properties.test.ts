@@ -654,3 +654,143 @@ describe('Phase D2: staff, sabotage and the bought box', () => {
     expect(hits).toBeGreaterThan(3);
   });
 });
+
+/*
+ * v3 Phase E1 — additions only. Above this line, only Phase D1's block was edited, as item 1 (the
+ * free local runner's deletion) forced; its comments say where.
+ */
+describe('Phase E1: the game around the seasons (GDD_V3 §2.1, §2.2, §4.3)', () => {
+  const six = Array.from({ length: 6 }, () => ({
+    name: '',
+    kind: 'ai' as const,
+    difficulty: 'normal' as const,
+  }));
+  /** One step of an all-AI game: the actions the engine or the stable on the clock would take. */
+  const step = (s: GameState): Action[] => {
+    if (needsAdvance(s)) return [{ t: 'AdvancePhase' }];
+    const who = s.pendingEvent?.playerId ?? s.activePlayer!;
+    return decide(s, who, player(s, who).difficulty);
+  };
+
+  it('ages every dog by exactly one at each off-season, and never during a season', () => {
+    for (const seed of [5, 6]) {
+      const s = createSeason({ seed, players: six, length: { kind: 'seasons', seasons: 3 } });
+      let offSeasons = 0;
+      let guard = 0;
+      while (!isSeasonOver(s) && guard++ < 200_000) {
+        for (const a of step(s)) {
+          const before = new Map(Object.values(s.dogs).map((d) => [d.id, d.age]));
+          const phase = s.phase;
+          reduceMut(s, a);
+          const opened = phase !== 'offSeason' && s.phase === 'offSeason';
+          if (opened) offSeasons++;
+          for (const d of Object.values(s.dogs)) {
+            const was = before.get(d.id);
+            if (was === undefined || d.ownerId === 'local') continue;
+            const want = opened ? Math.min(7, was + 1) : was;
+            assert(d.age === want, `${d.id} aged ${was} → ${d.age} at week ${s.week} (${a.t})`);
+          }
+          // No dog anywhere carries a loan (item 1), in any season.
+          for (const d of Object.values(s.dogs)) assert(!('loan' in d), `${d.id} is a loaner`);
+        }
+      }
+      expect(offSeasons).toBe(2);
+    }
+  }, 60_000);
+
+  it('pays a retirement exactly the dog’s book value, and swaps in the dog on offer', () => {
+    const s = createSeason({
+      seed: 21,
+      players: [{ name: 'Me', kind: 'human' }, ...six.slice(1)],
+      length: { kind: 'seasons', seasons: 2 },
+    });
+    let guard = 0;
+    while (!(s.phase === 'offSeason' && s.activePlayer === 'p1') && guard++ < 100_000) {
+      const who = s.pendingEvent?.playerId ?? s.activePlayer;
+      if (!needsAdvance(s) && who === 'p1') {
+        // The human seat plays the week as Normal would.
+        if (s.pendingEvent)
+          reduceMut(s, { t: 'ResolveEvent', playerId: who, choice: aiChoiceFor(s, who) });
+        else for (const a of decide(s, who, 'normal')) reduceMut(s, a);
+        continue;
+      }
+      for (const a of step(s)) reduceMut(s, a);
+    }
+    const me = player(s, 'p1');
+    const old = s.dogs[me.dogIds[1]!]!;
+    const value = dogValue(old);
+    const cash = me.cash;
+    const offered = String(s.offSeason!.notices['p1']!.offer.offerName);
+    reduceMut(s, { t: 'Retire', playerId: 'p1', dogId: old.id });
+    expect(me.cash).toBe(cash + value);
+    expect(s.dogs[old.id]).toBeUndefined();
+    expect(me.dogIds).toHaveLength(balance.startDogs);
+    const joined = s.dogs[me.dogIds[1]!]!;
+    expect(joined.name).toBe(offered);
+    expect(joined.styleKnown).toBe(false);
+    expect(joined.dealt).toBe(false);
+    // Each answer once; EndPhase only once everything is answered.
+    expect(() => reduceMut(s, { t: 'Retire', playerId: 'p1', dogId: null })).toThrow();
+    const n = s.offSeason!.notices['p1']!;
+    if (n.candidate) {
+      expect(() => reduceMut(s, { t: 'EndPhase', playerId: 'p1' })).toThrow(/staff/);
+      reduceMut(s, { t: 'ResolveStaffNotice', playerId: 'p1', hire: false });
+    }
+    reduceMut(s, { t: 'EndPhase', playerId: 'p1' });
+  }, 60_000);
+
+  it('ends a Target game at the end of the first weekend anybody crosses, and the richest wins', async () => {
+    const { netWorth } = await import('../src/index');
+    for (const seed of [1, 2, 3, 4]) {
+      const target = balance.targetShort;
+      const s = createSeason({ seed, players: six, length: { kind: 'target', worth: target } });
+      let first: { season: number; week: number } | null = null;
+      let guard = 0;
+      while (!isSeasonOver(s) && guard++ < 200_000) {
+        for (const a of step(s)) {
+          const wasEnd = s.phase === 'endTurn';
+          const at = { season: s.season, week: s.week };
+          reduceMut(s, a);
+          // At the end of every weekend, before the jump: who is at or past the target?
+          if (wasEnd && !first) {
+            const worths = s.players.map((p) => p.stats.worthByWeek[at.week - 1] ?? 0);
+            if (Math.max(...worths) >= target) first = at;
+          }
+        }
+      }
+      expect(s.gameOver?.reason).toBe('target');
+      expect(first).toEqual({ season: s.gameOver!.season, week: s.gameOver!.week });
+      const worths = s.players.map((p) => netWorth(s, p));
+      expect(s.finalStandings![0]!.netWorth).toBe(Math.max(...worths));
+      for (const id of s.gameOver!.crossers)
+        expect(netWorth(s, player(s, id))).toBeGreaterThanOrEqual(target);
+    }
+  }, 60_000);
+
+  it('resets a stable’s stats at a new season and keeps the old ones in the archive', async () => {
+    const { emptySeasonStats } = await import('../src/index');
+    const s = createSeason({ seed: 9, players: six, length: { kind: 'seasons', seasons: 2 } });
+    let atEnd: Record<string, unknown> | null = null;
+    let checked = false;
+    let guard = 0;
+    while (!isSeasonOver(s) && guard++ < 200_000) {
+      for (const a of step(s)) {
+        const phase = s.phase;
+        reduceMut(s, a);
+        if (phase !== 'offSeason' && s.phase === 'offSeason')
+          atEnd = Object.fromEntries(s.players.map((p) => [p.id, structuredClone(p.stats)]));
+        if (phase === 'newSeason' && !checked) {
+          checked = true;
+          expect(s.season).toBe(2);
+          for (const p of s.players) expect(p.stats).toEqual(emptySeasonStats());
+          expect(s.seasons[0]!.stats).toEqual(atEnd);
+          expect(s.results).toEqual([]);
+          expect(s.bets).toEqual([]);
+        }
+      }
+    }
+    expect(checked).toBe(true);
+    expect(s.seasons).toHaveLength(2);
+    expect(s.seasons[1]!.stats['p1']!.worthByWeek).toHaveLength(balance.weeks);
+  }, 60_000);
+});
