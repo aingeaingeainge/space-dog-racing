@@ -56,6 +56,8 @@ interface GameObs {
   over: GameState['gameOver'];
   winner: Id;
   weeksPlayed: number;
+  /** The richest stable at the end of the weekend before the last — who led into the finish. */
+  leaderBefore: Id | null;
 }
 
 /** The first-place purse this race pays in this calendar week (§7.1), before any trainer's bonus. */
@@ -102,6 +104,7 @@ export function playGame(seed: number, ai: AiAgent[], length: GameLength): GameO
     over: null,
     winner: '',
     weeksPlayed: 0,
+    leaderBefore: null,
   };
   let startedSeason = 0;
   let week8Season = 0;
@@ -158,6 +161,16 @@ export function playGame(seed: number, ai: AiAgent[], length: GameLength): GameO
   obs.over = s.gameOver;
   obs.winner = s.finalStandings![0]!.playerId;
   obs.weeksPlayed = (s.season - 1) * balance.weeks + s.week;
+  // Who led going into the last weekend: the week before in this season, or last season's end.
+  const last = s.seasons[s.seasons.length - 1]!;
+  const before = s.players.map((p) =>
+    s.week > 1
+      ? last.stats[p.id]!.worthByWeek[s.week - 2]!
+      : (s.seasons[s.seasons.length - 2]?.standings.find((x) => x.playerId === p.id)?.netWorth ??
+        0),
+  );
+  if (s.week > 1 || s.seasons.length > 1)
+    obs.leaderBefore = s.players[before.indexOf(Math.max(...before))]!.id;
   return obs;
 }
 
@@ -334,7 +347,7 @@ export function runGames(games: number, seed: number, ai: AiAgent[]): string {
   // ---- Target mode ----
   out.push('Target mode — how a race to a figure ends');
   out.push(
-    '  target      weekends to finish (mean / p10 / p90)   crosser not the winner   hit the season cap',
+    '  target      weekends to finish (mean / p10 / p90)   crosser not the winner   two or more crossed   leader into the last weekend lost   hit the season cap',
   );
   for (const { mode, obs } of all.filter((x) => x.mode.length.kind === 'target')) {
     const weeks = obs.map((o) => o.weeksPlayed).sort((a, b) => a - b);
@@ -343,11 +356,16 @@ export function runGames(games: number, seed: number, ai: AiAgent[]): string {
       (o) => o.over?.reason === 'target' && !o.over.crossers.includes(o.winner),
     ).length;
     const cap = obs.filter((o) => o.over?.reason === 'cap').length;
+    const several = obs.filter((o) => (o.over?.crossers.length ?? 0) > 1).length;
+    const overtaken = obs.filter((o) => o.leaderBefore && o.leaderBefore !== o.winner).length;
     out.push(
-      `  ${mode.label.padEnd(15)} ${mean(weeks).toFixed(1).padStart(6)} / ${String(q(0.1)).padStart(3)} / ${String(q(0.9)).padStart(3)}${' '.repeat(22)}${pct(notWinner / obs.length).padStart(6)}${' '.repeat(18)}${pct(cap / obs.length).padStart(6)}`,
+      `  ${mode.label.padEnd(15)} ${mean(weeks).toFixed(1).padStart(6)} / ${String(q(0.1)).padStart(3)} / ${String(q(0.9)).padStart(3)}${' '.repeat(22)}${pct(notWinner / obs.length).padStart(6)}${pct(several / obs.length).padStart(22)}${pct(overtaken / obs.length).padStart(36)}${pct(cap / obs.length).padStart(21)}`,
     );
   }
   out.push(
+    '  ⚠️ "Crosser not the winner" is zero by construction: worth is checked once, at the end of the weekend, so',
+    '  whoever is richest then is at or past the target too. What §2.1\'s "overtaken on the line" can mean is the',
+    '  last two columns — two stables crossing together, and the stable that led into the last weekend losing it.',
     `  A season is ${balance.weeks} weekends; the cap is ${balance.targetSeasonCap} seasons. The finish itself is E2's playtest row.`,
     '',
   );
