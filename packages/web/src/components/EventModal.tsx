@@ -44,14 +44,20 @@ export function EventModal({ s }: { s: GameState }) {
       title={card.name}
       sub={who ? `${who.name} — ${door ? `${door.name}, ` : ''}week ${s.week}` : undefined}
     >
-      <div className="event-art">
-        {art ? <img src={art.url} alt="" decoding="async" /> : null}
-        {!art || art.placeholder ? (
-          <span className="ph">{art ? 'placeholder' : `no card art — ${pending.eventId}`}</span>
-        ) : null}
-      </div>
+      {/* A trainer's portrait is the art on a trainer's offer: the card below carries it. */}
+      {pending.params.staffId ? null : (
+        <div className="event-art">
+          {art ? <img src={art.url} alt="" decoding="async" /> : null}
+          {!art || art.placeholder ? (
+            <span className="ph">{art ? 'placeholder' : `no card art — ${pending.eventId}`}</span>
+          ) : null}
+        </div>
+      )}
       <p>{card.text}</p>
-      {pending.detail ? <p className="event-detail">{pending.detail}</p> : null}
+      {/* A trainer's offer draws the trainer's card below instead of the same words in a line. */}
+      {pending.detail && !pending.params.staffId ? (
+        <p className="event-detail">{pending.detail}</p>
+      ) : null}
       {/* GDD_V3 §8: a trainer looking for work shows their face, and the two you would let go. */}
       {pending.params.staffId ? (
         <div className="staffcards">
