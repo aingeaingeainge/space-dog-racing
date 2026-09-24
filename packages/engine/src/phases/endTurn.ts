@@ -145,14 +145,20 @@ export function runEndTurn(ctx: Ctx): void {
     // Train redundant, and it is why `feedOneWeek` runs for the whole yard rather than for the dogs
     // that chose to train. Race has already happened at race day; Rest and Layoff recover.
     const remaining = ownDogs(s, p);
+    // ⚠️ **"+1 to one stat a week" is one dog's stat, not every dog's (Phase D2, decision D10).**
+    // Built first as +1 to every dog, a 3% trainer was worth about 4,000 of end worth to the stable
+    // that held one — the whole of mean end worth's move out of its band. The one it works is the
+    // lowest-rated dog in the kennel (ties to the first in the kennel), which is the dog a trainer
+    // would pick and a rule a player can read.
+    const drilled = [...remaining].sort((a, b) => a.rating - b.rating)[0]?.id;
     for (const d of remaining) {
       const plan = feeding.find((f) => f.dogId === d.id);
       const dinner = plan ? feedOneWeek(ctx, p, d, plan) : 0;
-      // GDD_V3 §8.2, beside the food: a trainer who drills works the dog's weakest stat (by the
-      // rating's weights — a rule, not a draw, so hiring one never moves the game's stream), and one
-      // who rests them well adds to a dog that did not run.
+      // GDD_V3 §8.2, beside the food: a trainer who drills works **one** dog a week — the one that
+      // needs it most — on its weakest stat (by the rating's weights; a rule, not a draw, so hiring
+      // one never moves the game's stream). One who rests them well adds to a dog that did not run.
       const drill = staffBonus(p, 'statWeek') * balance.staffStatWeek;
-      if (drill) {
+      if (drill && d.id === drilled) {
         const stat = weakestStat(d);
         d[stat] = clamp(d[stat] + drill, 1, 99);
       }

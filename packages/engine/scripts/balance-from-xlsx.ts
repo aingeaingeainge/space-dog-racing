@@ -231,7 +231,7 @@ const LABELS: Record<string, string> = {
   'Staff cut: Explore less likely to go badly': 'staffCutSaferExplore',
   'Staff cut: premium for a trainer with two bonuses': 'staffCutPairPremium',
   'Staff cut: the most a trainer takes': 'staffCutMax',
-  'Staff bonus: stat points a week, to each dog': 'staffStatWeek',
+  'Staff bonus: stat points a week, to one dog': 'staffStatWeek',
   'Staff bonus: fitness a week, to a dog that did not run': 'staffFitnessWeek',
   'Staff bonus: injury chance ×': 'staffInjuryMult',
   'Staff bonus: weeks off a layoff, at the roll': 'staffInjuryShorter',

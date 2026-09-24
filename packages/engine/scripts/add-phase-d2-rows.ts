@@ -48,16 +48,27 @@ const ROWS: NewRow[] = [
     value: 0.03,
     note: 'Commission, a share of race prize money only (§8.1). A trainer with one bonus takes its cut; with two, the sum plus the premium below, capped',
   },
-  { section: STAFF_SECTION, label: 'Staff cut: +5 fitness recovery a week', value: 0.03 },
+  {
+    section: STAFF_SECTION,
+    label: 'Staff cut: +5 fitness recovery a week',
+    value: 0.05,
+    note: '3% at first. Measured at 800 seasons by regressing end worth on the dealt bonuses (the deal is random, so it is a clean experiment): a +5-recovery trainer was worth ~1,300 to its stable at 3%. 5% leaves it worth having',
+  },
   { section: STAFF_SECTION, label: 'Staff cut: injury chance halved', value: 0.04 },
   { section: STAFF_SECTION, label: 'Staff cut: injury duration −1 week', value: 0.02 },
   { section: STAFF_SECTION, label: "Staff cut: reveals a rival dog's style a week", value: 0.02 },
   {
     section: STAFF_SECTION,
     label: "Staff cut: next planet's band position for all six goods",
-    value: 0.03,
+    value: 0.08,
+    note: "3% at first, and it was the cheapest bonus in the pool for what it did: knowing all six of next week's prices every week lifted food's share of gross income four points and was worth ~1,000 to its stable. At 8% the regression reads it at nothing either way — the same 8% trainer is cheap for a trader and dear for a racer (§8.1)",
   },
-  { section: STAFF_SECTION, label: 'Staff cut: +10% prize money', value: 0.05 },
+  {
+    section: STAFF_SECTION,
+    label: 'Staff cut: +10% prize money',
+    value: 0.06,
+    note: '5% at first; 6% after the 800-season regression',
+  },
   { section: STAFF_SECTION, label: 'Staff cut: Explore less likely to go badly', value: 0.03 },
   {
     section: STAFF_SECTION,
@@ -73,9 +84,9 @@ const ROWS: NewRow[] = [
   },
   {
     section: STAFF_SECTION,
-    label: 'Staff bonus: stat points a week, to each dog',
+    label: 'Staff bonus: stat points a week, to one dog',
     value: 1,
-    note: "At the jump, beside the food, on the dog's weakest stat by the rating's weights — a rule, not a draw, so hiring a trainer never moves the game's stream",
+    note: "§8.2's \"+1 to one stat per week\": at the jump, beside the food, on the lowest-rated dog's weakest stat by the rating's weights — a rule, not a draw. Built first as +1 to every dog, which made a 3% trainer worth ~4,000 of end worth and took mean end worth out of its band (decision D10)",
   },
   {
     section: STAFF_SECTION,
@@ -135,7 +146,12 @@ ROWS.push(
   },
 );
 
-const REMOVE: { label: string; why: string }[] = [];
+const REMOVE: { label: string; why: string }[] = [
+  {
+    label: 'Staff bonus: stat points a week, to each dog',
+    why: 'Renamed: the bonus works one dog a week, not every dog (decision D10)',
+  },
+];
 
 // ---------------------------------------------------------------------------
 

@@ -47,7 +47,7 @@ export const STAFF_BONUSES: readonly StaffBonus[] = [
   {
     id: 'statWeek',
     short: `+${balance.staffStatWeek} stat a week`,
-    text: `Works every dog on its weakest stat: +${balance.staffStatWeek} a week, on top of the food`,
+    text: `Drills the dog that needs it most: +${balance.staffStatWeek} a week to the lowest-rated dog's weakest stat, on top of the food`,
     cut: balance.staffCutStatWeek,
     size: balance.staffStatWeek,
   },
