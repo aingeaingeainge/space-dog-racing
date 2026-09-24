@@ -381,6 +381,11 @@ export interface Player {
   intel: { week: number; goods: GoodId[] };
   /** This weekend's free local runner (GDD_V3 §4.4), if the stable was lent one. */
   loanerId?: Id;
+  /**
+   * Its trainers (GDD_V3 §8): at most `staffSlots` ids of `content/staff.ts` rows. Dealt at the start
+   * of a game; changed only by a Bar card in Phase D.
+   */
+  staff: Id[];
   fanClubDogId?: Id;
   stats: PlayerSeasonStats;
 }
@@ -400,6 +405,14 @@ export interface PlayerSeasonStats {
   liesCaught: number;
   /** Race-day tips this stable was given (Phase D1 item 6). */
   tips: number;
+  /**
+   * What its trainers took from its purses (GDD_V3 §8.1). `prizeIncome` is what it banked, after
+   * the cut, so the purse a dog won is `prizeIncome + commission`.
+   */
+  commission: number;
+  /** Trainers offered to this stable in the Bar (§8.2's "two or three swings"), and how many it hired. */
+  staffOffers: number;
+  staffHired: number;
 }
 
 /**
@@ -499,7 +512,11 @@ export interface RaceResult {
    */
   runs: RunNote[];
   injuries: Record<Id, number>; // dogId → weeks out
-  payouts: { playerId: Id; dogId: Id; place: number; amount: number }[];
+  /**
+   * What each placed stable dog banked (`amount`, after the trainers' cut) and what its trainers took
+   * (`commission`, GDD_V3 §8.1).
+   */
+  payouts: { playerId: Id; dogId: Id; place: number; amount: number; commission: number }[];
 }
 
 /** How one runner ran one race (see `RaceResult.runs`). */

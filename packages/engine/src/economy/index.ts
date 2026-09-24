@@ -5,3 +5,4 @@ export * from './goods';
 export * from './dogs';
 export * from './roadSplit';
 export * from './acquire';
+export * from './staff';

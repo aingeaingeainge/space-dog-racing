@@ -28,3 +28,14 @@ export { LOAN_RACE } from './phases/explore';
 export { intelPrice } from './ai/shared';
 export { CONDITIONS, CONDITION_BY_ID, conditionOf, tipsFor } from './content/conditions';
 export * from './content/names';
+export {
+  STAFF,
+  STAFF_BY_ID,
+  STAFF_BONUSES,
+  STAFF_BONUS_BY_ID,
+  cutOf,
+  staffRow,
+  type StaffBonus,
+  type StaffBonusId,
+  type StaffRow,
+} from './content/staff';

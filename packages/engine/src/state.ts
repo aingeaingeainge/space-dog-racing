@@ -10,6 +10,7 @@ import { CARD, raceType } from './content/raceTypes';
 import { createStartingDog, emptyPlanetState, type IdGen } from './economy/dogs';
 import { emptyCargo } from './economy/goods';
 import { STAPLE_ID } from './content/goods';
+import { STAFF } from './content/staff';
 import { mulberry32, type Rng } from './rng';
 import type {
   CalendarEntry,
@@ -373,6 +374,7 @@ export function createSeason(setup: SeasonSetup): GameState {
       sponsorWeeks: 0,
       dealtGone: [],
       intel: { week: 0, goods: [] },
+      staff: [],
       stats: {
         prizeIncome: 0,
         tradeIncome: 0,
@@ -384,6 +386,9 @@ export function createSeason(setup: SeasonSetup): GameState {
         liesTold: 0,
         liesCaught: 0,
         tips: 0,
+        commission: 0,
+        staffOffers: 0,
+        staffHired: 0,
       },
     };
     if (ps.kind === 'ai') {
@@ -404,5 +409,9 @@ export function createSeason(setup: SeasonSetup): GameState {
     }
     s.players.push(p);
   });
+  // GDD_V3 §8.1: two trainers each, dealt from the shuffled rows in seating order. ⚠️ Added in Phase
+  // D2, after the dogs, so it moves every draw the game makes after the deal.
+  const pool = rng.shuffle(STAFF.map((r) => r.id));
+  for (const p of s.players) p.staff = pool.splice(0, balance.staffSlots);
   return commitCtx(ctx);
 }

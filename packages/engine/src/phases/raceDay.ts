@@ -1,4 +1,5 @@
-import { balance } from '../content/balance';
+import { balance, formatBones } from '../content/balance';
+import { commissionRate, purseAfterStaff } from '../economy/staff';
 import { good } from '../content/goods';
 import { publicStyle, STYLE_BY_ID } from '../content/styles';
 import { CONDITION_BY_ID, conditionOf } from '../content/conditions';
@@ -261,9 +262,19 @@ export function runRaces(ctx: Ctx): void {
           let amount = purse[place - 1]!;
           if (planet.special.winningsTax)
             amount = Math.round(amount * (1 - planet.special.winningsTax));
-          owner.cash += amount;
-          owner.stats.prizeIncome += amount;
-          result.payouts.push({ playerId: owner.id, dogId, place, amount });
+          // GDD_V3 §8: the prize-money bonus, then the trainers' cut — of race prize money and of
+          // nothing else, taken here where the purse is paid, and logged.
+          const { commission, net } = purseAfterStaff(owner, amount);
+          owner.cash += net;
+          owner.stats.prizeIncome += net;
+          owner.stats.commission += commission;
+          result.payouts.push({ playerId: owner.id, dogId, place, amount: net, commission });
+          if (commission > 0)
+            log(
+              s,
+              `${d.name}'s ${formatBones(net + commission)}: the trainers take ${formatBones(commission)} (${Math.round(commissionRate(owner) * 100)}%).`,
+              owner.id,
+            );
         }
       }
     });
