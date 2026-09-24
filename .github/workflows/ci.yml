@@ -4,7 +4,10 @@ on:
   pull_request:
 jobs:
   test:
-    runs-on: ubuntu-latest
+    # Pinned, not ubuntu-latest: GitHub moves ubuntu-latest to Ubuntu 26 on 19 October 2026, and a
+    # runner image changing underneath the goldens is exactly what this matrix is here to catch, not
+    # to cause. To undo the pin, put `ubuntu-latest` back on this line.
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       # BUILD_PLAN_V3 Phase E: seed + action log reproduces a whole multi-season game on Node 20
@@ -13,8 +16,8 @@ jobs:
       matrix:
         node-version: [20, 22, 24]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: ${{ matrix.node-version }}
           cache: npm

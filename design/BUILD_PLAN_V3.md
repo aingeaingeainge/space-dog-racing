@@ -359,7 +359,7 @@ in a crowd +2.3), but it does not read it yet. Accel over stamina at 480 m is on
 > | Season-end and game-end screens: income split, net-worth chart (whole game at the end), moments | ✅ | ✅ (moments archived per season, `STATE_VERSION` 12) |
 > | A new season starts every dog fresh | ✅ property test | ✅ |
 > | `season-check` walks four humans with no private screen leaking | ✅ | two games, 0 leaks ✅ (the check reports 200 leaks with the planet's pass removed on purpose) |
-> | CI green on Node 20/22/24 | ✅ | **not checked**: no GitHub access from the build session. Look at the Actions tab |
+> | CI green on Node 20/22/24 | ✅ | 3/3 green (Jesse checked the Actions tab after the `v3e2` push) |
 > | One-season rows unmoved; E1's `--game` rows re-measured after the fresh-season rule | reported | 800 seasons byte-identical to `v3e1` ✅; `--game` in the E2 notes |
 > | Stables ending a season on less than they started | 10–25% | 0.8% (1 season) · 0.6% (5 seasons) ❌ reported, not tuned (Jesse) |
 > | Nobody mathematically out before week 8 | ✅ | one season 0.0% ✅ · last season of 3 / 5-season games 15.8% / 48.8% ❌ reported |
