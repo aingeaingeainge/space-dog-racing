@@ -52,6 +52,7 @@ export type ScreenKind =
   | 'results'
   | 'pass'
   | 'explore'
+  | 'offSeason'
   | 'betting'
   | 'planet';
 
@@ -66,6 +67,11 @@ export interface ScreenUi {
   passAck: Id | null;
   /** Humans who have been told they are bust. */
   bustAck: Id[];
+  /**
+   * The last season whose end the table has read (GDD_V3 §2.2). Optional so a caller written before
+   * multi-season play — a script, a test — still type-checks; absent reads as "none".
+   */
+  seasonSeen?: number;
 }
 
 export interface Screen {
@@ -88,6 +94,10 @@ export function screenFor(s: GameState, ui: ScreenUi): Screen {
   // a store change rather than a rule change.
 
   if (isSeasonOver(s)) return { kind: 'seasonEnd', me: null };
+  // Between seasons (GDD_V3 §2.2): the table reads how the season ended, together, and then each
+  // human has the off-season screen in turn.
+  if (s.phase === 'offSeason' && (ui.seasonSeen ?? 0) < s.season)
+    return { kind: 'seasonEnd', me: null };
   const waiting = waitingOn(s);
   const me = s.players.find((p) => p.id === waiting) ?? table[0] ?? null;
   if (!me) return { kind: 'noHuman', me: null };
@@ -102,6 +112,7 @@ export function screenFor(s: GameState, ui: ScreenUi): Screen {
   // GDD_V3 §9.1: a new planet opens on its three doors. A card with a choice waits in EventModal
   // over the hub, so the doors are only the screen while there is a door still to pick.
   if (s.phase === 'explore' && !s.pendingEvent) return { kind: 'explore', me };
+  if (s.phase === 'offSeason') return { kind: 'offSeason', me };
   if (s.phase === 'betting') return { kind: 'betting', me };
   return { kind: 'planet', me };
 }

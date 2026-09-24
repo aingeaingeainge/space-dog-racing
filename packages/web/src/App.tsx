@@ -9,6 +9,7 @@ import { Explore } from './screens/Explore';
 import { GalaxyMap } from './screens/GalaxyMap';
 import { LockedField } from './screens/LockedField';
 import { Market } from './screens/Market';
+import { OffSeason } from './screens/OffSeason';
 import { PlanetHub } from './screens/PlanetHub';
 import { RaceView } from './screens/RaceView';
 import { RaceOffice } from './screens/RaceOffice';
@@ -34,6 +35,7 @@ export function App() {
   const fieldsSeenWeek = useGame((g) => g.fieldsSeenWeek);
   const passAck = useGame((g) => g.passAck);
   const bustAck = useGame((g) => g.bustAck);
+  const seasonSeen = useGame((g) => g.seasonSeen);
   const error = useGame((g) => g.error);
   const clearError = useGame((g) => g.clearError);
 
@@ -55,6 +57,7 @@ export function App() {
     fieldsSeenWeek,
     passAck,
     bustAck,
+    seasonSeen,
   });
 
   const wrap = (node: ReactNode) => <PlanetTheme planetId={planetId}>{node}</PlanetTheme>;
@@ -105,7 +108,9 @@ export function App() {
           </div>
         ) : null}
 
-        {screen.kind === 'explore' ? (
+        {screen.kind === 'offSeason' ? (
+          <OffSeason s={s} me={me} />
+        ) : screen.kind === 'explore' ? (
           <Explore s={s} me={me} />
         ) : screen.kind === 'betting' ? (
           <Bookie s={s} me={me} />

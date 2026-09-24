@@ -1625,6 +1625,13 @@ ul.notes li::before {
 }
 
 /* ---------------------------------------------------------------- podium */
+/* Phase E1's plain game-end line: who won, and in a Target game who crossed. */
+.game-end {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--hazard);
+  margin: 6px 0 14px;
+}
 .podium {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));

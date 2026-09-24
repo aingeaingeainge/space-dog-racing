@@ -18,6 +18,8 @@ export interface SaveUi {
    * bust. Both optional for the same reason as the two above: an M3 save must still load. */
   fieldsSeenWeek?: number;
   bustAck?: string[];
+  /** The last season whose end the table has read (GDD_V3 §2.2). */
+  seasonSeen?: number;
 }
 
 export interface SaveBlob {

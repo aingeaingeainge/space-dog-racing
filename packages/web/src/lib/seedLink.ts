@@ -1,4 +1,4 @@
-import type { Difficulty, PlayerSetup, SeasonSetup, Toggles } from '@sdr/engine';
+import type { Difficulty, GameLength, PlayerSetup, SeasonSetup, Toggles } from '@sdr/engine';
 
 /**
  * A whole season in a link: `?seed=12345&players=h,normal,normal,hard`.
@@ -21,6 +21,8 @@ export interface SharedSeason {
   seed: number;
   players: PlayerSetup[];
   toggles: Partial<Toggles>;
+  /** The game's length (GDD_V3 §2.1), if the link names one: `len=3` seasons, `len=t60000`. */
+  length?: GameLength;
 }
 
 /**
@@ -64,6 +66,25 @@ export function togglesParam(toggles: Partial<Toggles> | undefined): string {
   return on.join(',');
 }
 
+/**
+ * A game's length as a link spells it (GDD_V3 §2.1): nothing for one season, `3` for three,
+ * `t60000` for a race to 60,000. Without it a shared seed would replay a different game.
+ */
+export function lengthParam(length: GameLength | undefined): string {
+  if (!length) return '';
+  if (length.kind === 'target') return `t${length.worth}`;
+  return length.seasons === 1 ? '' : String(length.seasons);
+}
+
+function parseLength(raw: string | null): GameLength | undefined {
+  if (!raw) return undefined;
+  const t = raw.trim().toLowerCase();
+  const n = Number(t.startsWith('t') ? t.slice(1) : t);
+  if (!Number.isInteger(n) || n <= 0) return undefined;
+  if (t.startsWith('t')) return { kind: 'target', worth: n };
+  return n >= 1 && n <= 5 ? { kind: 'seasons', seasons: n } : undefined;
+}
+
 /** The link for a season, given where the game is served from. */
 export function seasonLinkFor(setup: SeasonSetup, base: string): string {
   const params = new URLSearchParams();
@@ -71,6 +92,8 @@ export function seasonLinkFor(setup: SeasonSetup, base: string): string {
   params.set('players', playersParam(setup.players));
   const t = togglesParam(setup.toggles);
   if (t) params.set('toggles', t);
+  const len = lengthParam(setup.length);
+  if (len) params.set('len', len);
   const clean = base.split('?')[0]!.split('#')[0]!;
   return `${clean}?${params.toString()}`;
 }
@@ -117,5 +140,6 @@ export function parseSeasonLink(search: string): SharedSeason | null {
     }
   }
 
-  return { seed: Math.trunc(seed), players, toggles };
+  const length = parseLength(params.get('len'));
+  return { seed: Math.trunc(seed), players, toggles, ...(length ? { length } : {}) };
 }

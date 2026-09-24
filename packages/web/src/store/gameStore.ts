@@ -33,6 +33,8 @@ export interface GameStore {
   fieldsSeenWeek: number;
   /** Humans who have been shown the bad news. UI only. */
   bustAck: Id[];
+  /** The last season whose end the table has read (GDD_V3 §2.2). UI only. */
+  seasonSeen: number;
   /** 1× or 2×. UI only. */
   raceSpeed: RaceSpeed;
   /** The human whose "pass the laptop" screen has been acknowledged. */
@@ -52,6 +54,8 @@ export interface GameStore {
   ackResults: () => void;
   ackFields: () => void;
   ackPass: (playerId: Id) => void;
+  /** The table has read the season's end: on to the off-season. */
+  ackSeason: () => void;
   ackBust: (playerId: Id) => void;
   clearError: () => void;
 }
@@ -66,6 +70,7 @@ export const useGame = create<GameStore>((set, get) => {
       fieldsSeenWeek: g.fieldsSeenWeek,
       bustAck: g.bustAck,
       raceSpeed: g.raceSpeed,
+      seasonSeen: g.seasonSeen,
       ...over,
     };
   }
@@ -87,6 +92,7 @@ export const useGame = create<GameStore>((set, get) => {
     resultsSeenWeek: 0,
     fieldsSeenWeek: 0,
     bustAck: [],
+    seasonSeen: 0,
     raceSpeed: 2,
     passAck: null,
     hasSave: readSave() !== null,
@@ -107,6 +113,7 @@ export const useGame = create<GameStore>((set, get) => {
           fieldsSeenWeek: 0,
           bustAck: [],
           raceSpeed: speed,
+          seasonSeen: 0,
         },
       });
       set({
@@ -120,6 +127,7 @@ export const useGame = create<GameStore>((set, get) => {
         resultsSeenWeek: 0,
         fieldsSeenWeek: 0,
         bustAck: [],
+        seasonSeen: 0,
         passAck: null,
         hasSave: true,
       });
@@ -162,6 +170,7 @@ export const useGame = create<GameStore>((set, get) => {
           resultsSeenWeek: blob.ui?.resultsSeenWeek ?? 0,
           fieldsSeenWeek: blob.ui?.fieldsSeenWeek ?? 0,
           bustAck: blob.ui?.bustAck ?? [],
+          seasonSeen: blob.ui?.seasonSeen ?? 0,
           raceSpeed: speed,
           passAck: null,
           hasSave: true,
@@ -182,6 +191,7 @@ export const useGame = create<GameStore>((set, get) => {
         passAck: null,
         bustAck: [],
         fieldsSeenWeek: 0,
+        seasonSeen: 0,
       });
     },
 
@@ -244,6 +254,12 @@ export const useGame = create<GameStore>((set, get) => {
     },
 
     ackPass: (playerId) => set({ passAck: playerId }),
+
+    ackSeason: () => {
+      const seasonSeen = get().state?.season ?? 0;
+      set({ seasonSeen, passAck: null });
+      save({ seasonSeen });
+    },
 
     ackBust: (playerId) => {
       const bustAck = [...get().bustAck, playerId];

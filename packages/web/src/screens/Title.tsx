@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import type { Difficulty, PlayerSetup, Toggles } from '@sdr/engine';
+import { balance, formatBones } from '@sdr/engine';
+import type { Difficulty, GameLength, PlayerSetup, Toggles } from '@sdr/engine';
 import { Panel } from '../components/Panel';
 import { Notes, Swatch } from '../components/ui';
 import { NeonButton } from '../components/NeonButton';
@@ -48,6 +49,11 @@ export function Title() {
     ...shared?.toggles,
   }));
 
+  // GDD_V3 §2.1: one to five seasons, or a race to a target. The default is one season.
+  const [length, setLength] = useState<GameLength>(
+    () => shared?.length ?? { kind: 'seasons', seasons: 1 },
+  );
+
   const update = (i: number, patch: Partial<PlayerSetup>) =>
     setRoster((r) => r.map((p, j) => (i === j ? { ...p, ...patch } : p)));
 
@@ -58,6 +64,7 @@ export function Title() {
     newSeason({
       seed,
       toggles,
+      length,
       players: roster.map((p, i) => ({
         ...p,
         name: p.name.trim() || (p.kind === 'human' ? `Stable ${i + 1}` : ''),
@@ -69,8 +76,8 @@ export function Title() {
       <div className="centre">
         <h1>Space Dog Racing</h1>
         <p className="muted tagline">
-          Thirteen weekends on the grimy underground circuit. Richest stable at the Galactic Collar
-          wins.
+          Ten weekends a season on the grimy underground circuit — one season, five, or race to a
+          fortune. Richest stable at the end wins.
         </p>
       </div>
 
@@ -118,6 +125,8 @@ export function Title() {
           <NeonButton onClick={() => setSeed(randomSeed())}>Roll a new seed</NeonButton>
           <span className="muted">Same seed + same choices = the same season, on any machine.</span>
         </div>
+
+        <GameLengthPicker length={length} setLength={setLength} />
 
         <div className="table-wrap">
           <table>
@@ -229,16 +238,92 @@ export function Title() {
         />
       </Panel>
 
-      <Panel title="What is in this build" sub="v3 Phase B — the market">
+      <Panel title="What is in this build" sub="v3 Phase E1 — the game's shape">
         <p className="muted flush">
-          A ten-week season against Easy, Normal and Hard stables: three dealt dogs, Race or Rest,
-          three purse tiers, the six-food market that is also your dogs&apos; training, events, the
-          bookie, the leaderboard, and a season-end screen that shows you where it was won. Every
-          screen is painted to the art bible and every planet tints its own chrome. Most of the
-          pictures are still stand-ins — hatched slots labelled &ldquo;placeholder&rdquo; — because
-          11 of the 149 files in the art library are real so far.
+          One to five ten-week seasons, or a race to a target, against Easy, Normal and Hard
+          stables: three dealt dogs, Explore&apos;s three doors, trainers on commission, the
+          six-food market that is also your dogs&apos; training, three purse tiers, the bookie, and
+          an off-season between seasons. Every screen is painted to the art bible and every planet
+          tints its own chrome. Most of the pictures are still stand-ins — hatched slots labelled
+          &ldquo;placeholder&rdquo; — because 11 of the 149 files in the art library are real so
+          far.
         </p>
       </Panel>
+    </div>
+  );
+}
+
+/**
+ * GDD_V3 §2.1: how long the game is. Seasons, or a target net worth — the two suggestions are sheet
+ * cells (`targetShort`, `targetLong`), and any other figure can be typed in.
+ */
+function GameLengthPicker({
+  length,
+  setLength,
+}: {
+  length: GameLength;
+  setLength: (l: GameLength) => void;
+}) {
+  const seasons = Array.from(
+    { length: balance.gameSeasonsMax - balance.gameSeasonsMin + 1 },
+    (_, i) => balance.gameSeasonsMin + i,
+  );
+  const suggested = [balance.targetShort, balance.targetLong];
+  const value =
+    length.kind === 'seasons'
+      ? `s${length.seasons}`
+      : suggested.includes(length.worth)
+        ? `t${length.worth}`
+        : 'custom';
+  const pick = (v: string) => {
+    if (v.startsWith('s')) setLength({ kind: 'seasons', seasons: Number(v.slice(1)) });
+    else if (v.startsWith('t')) setLength({ kind: 'target', worth: Number(v.slice(1)) });
+    else setLength({ kind: 'target', worth: length.kind === 'target' ? length.worth : 100_000 });
+  };
+  return (
+    <div className="row gap-b">
+      <label>
+        Game length{' '}
+        <select value={value} onChange={(e) => pick(e.target.value)}>
+          {seasons.map((n) => (
+            <option key={n} value={`s${n}`}>
+              {n} season{n === 1 ? '' : 's'}
+            </option>
+          ))}
+          <option value={`t${balance.targetShort}`}>
+            Race to {formatBones(balance.targetShort)} — a short game
+          </option>
+          <option value={`t${balance.targetLong}`}>
+            Race to {formatBones(balance.targetLong)} — a long game
+          </option>
+          <option value="custom">Race to a figure of your own…</option>
+        </select>
+      </label>
+      {value === 'custom' && length.kind === 'target' ? (
+        <label>
+          Target{' '}
+          <input
+            type="number"
+            className="seed"
+            min={1}
+            step={5000}
+            value={length.worth}
+            onChange={(e) =>
+              setLength({
+                kind: 'target',
+                worth: Math.max(1, Math.round(Number(e.target.value) || 0)),
+              })
+            }
+          />
+        </label>
+      ) : null}
+      <span className="muted">
+        {length.kind === 'seasons'
+          ? length.seasons === 1
+            ? 'Ten weekends; the richest stable wins.'
+            : `Ten weekends a season, with an off-season between: a year older, one retirement, the staff notice.`
+          : `Net worth is checked at the end of every weekend. The first stable past it ends the game that weekend — and the richest stable wins, not necessarily the one that crossed. At most ${balance.targetSeasonCap} seasons.`}
+      </span>
     </div>
   );
 }

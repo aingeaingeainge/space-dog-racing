@@ -20,18 +20,35 @@ export function SeasonEnd({ s }: { s: GameState }) {
   const abandon = useGame((g) => g.abandon);
   const playAgain = useGame((g) => g.playAgain);
   const setup = useGame((g) => g.setup);
+  const ackSeason = useGame((g) => g.ackSeason);
   const rows = standings(s);
   const podium = rows.slice(0, 3);
-  const final = s.calendar[s.calendar.length - 1];
+  const final = s.calendar[s.week - 1];
+  // Between seasons (GDD_V3 §2.2) this is the season's end, and the game goes on.
+  const between = s.phase === 'offSeason';
+  const multi = s.length.kind === 'target' || s.length.seasons > 1;
 
   return (
     <div className="app">
       <div className="centre">
-        <h1>Season over</h1>
+        <h1>{between || (multi && !s.gameOver) ? `Season ${s.season} over` : 'Game over'}</h1>
         <p className="muted">
-          {final ? `${planetOf(final.planetId).name} — the Galactic Collar` : null}
+          {final ? `${planetOf(final.planetId).name}, week ${s.week}` : null}
+          {multi ? ` · ${gameLengthText(s)}` : null}
         </p>
+        {s.gameOver ? <p className="game-end">{gameEndLine(s)}</p> : null}
       </div>
+
+      {between ? (
+        <div className="row centre">
+          <NeonButton variant="primary" onClick={ackSeason}>
+            On to season {s.season + 1}
+          </NeonButton>
+          <span className="muted">
+            The off-season first: a year older, one retirement, the staff notice.
+          </span>
+        </div>
+      ) : null}
 
       <Panel title="Podium" sub="highest net worth wins; tie-break most Gold Cup wins">
         <div className="podium">
@@ -101,21 +118,49 @@ export function SeasonEnd({ s }: { s: GameState }) {
         </div>
       </Panel>
 
-      <Panel title="Again" sub={`seed ${s.seed}`}>
-        <div className="row">
-          <NeonButton variant="primary" onClick={playAgain}>
-            Play this season again
-          </NeonButton>
-          <NeonButton onClick={abandon}>New season</NeonButton>
-          {setup ? <ShareSeed setup={setup} /> : null}
-        </div>
-        <p className="muted">
-          The same seed and the same table replays the same thirteen weekends — the dogs on offer,
-          the events, the trap draws. What you do with them is up to you.
-        </p>
-      </Panel>
+      {between ? null : (
+        <Panel title="Again" sub={`seed ${s.seed}`}>
+          <div className="row">
+            <NeonButton variant="primary" onClick={playAgain}>
+              Play this season again
+            </NeonButton>
+            <NeonButton onClick={abandon}>New season</NeonButton>
+            {setup ? <ShareSeed setup={setup} /> : null}
+          </div>
+          <p className="muted">
+            The same seed and the same table replays the same weekends — the dogs on offer, the
+            events, the trap draws. What you do with them is up to you.
+          </p>
+        </Panel>
+      )}
     </div>
   );
+}
+
+/** The game's length in a phrase (GDD_V3 §2.1). */
+function gameLengthText(s: GameState): string {
+  if (s.length.kind === 'seasons') return `season ${s.season} of ${s.length.seasons}`;
+  return `season ${s.season}, racing to ${formatBones(s.length.worth)}`;
+}
+
+/**
+ * The plain game-end line (Phase E1): who won, and in a Target game who crossed. The real game-end
+ * screen is Phase E2's.
+ */
+function gameEndLine(s: GameState): string {
+  const over = s.gameOver!;
+  const top = s.finalStandings?.[0];
+  const winner = s.players.find((p) => p.id === top?.playerId);
+  const wins = winner && top ? `${winner.name} wins with ${formatBones(top.netWorth)}.` : '';
+  if (over.reason === 'target') {
+    const crossers = over.crossers
+      .map((id) => s.players.find((p) => p.id === id)?.name ?? id)
+      .join(' and ');
+    const onTheLine = top && !over.crossers.includes(top.playerId) ? ' Overtaken on the line!' : '';
+    return `${crossers} crossed the target at week ${over.week} of season ${over.season}. ${wins}${onTheLine}`;
+  }
+  if (over.reason === 'cap') return `Nobody reached the target in ${over.season} seasons. ${wins}`;
+  return over.season > 1 ? `After ${over.season} seasons, ${wins}` : wins;
 }
 
 /**
