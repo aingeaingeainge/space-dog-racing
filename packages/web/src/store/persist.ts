@@ -28,6 +28,10 @@ export interface SaveBlob {
 }
 
 /**
+ * 9 for v3 Phase D2. Two trainers are dealt to every stable at createSeason, which moves every draw
+ * after the deal; the log can carry `ChooseBox`; injury rolls, the stewards and the Race Office's
+ * week all draw or set differently. A v3d1 log is a different season here.
+ *
  * 8 for v3 Phase D1. The arrival draw is gone and Explore replaces it: a log now carries ChooseDoor,
  * the week's first actions are doors rather than an event queue, arrival rolls conditions and next
  * week's market, and a Pound card can change a stable's dogs. A v3c2 log does not mean this season.
@@ -60,7 +64,7 @@ export interface SaveBlob {
  * player on the title screen with a new season rather than half a season that no longer means
  * what it meant.
  */
-export const SAVE_VERSION = 8;
+export const SAVE_VERSION = 9;
 const KEY = 'sdr.save.v1';
 
 export function writeSave(blob: SaveBlob): void {

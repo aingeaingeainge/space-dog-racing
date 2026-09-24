@@ -27,6 +27,12 @@ import type {
 import { ActionError, RACE_TYPE_IDS, STYLE_IDS } from './types';
 
 /**
+ * 10 for v3 Phase D2: a stable carries two `staff` and new season stats (commission, nobbles, fines,
+ * boxes, trainer offers); the state carries this weekend's Back Alley `jobs`; a race result carries
+ * the `stewards`' findings and a payout its `commission`; `Action` gains `ChooseBox`. The deal draws
+ * two trainers a stable after the dogs, the injury roll draws its length every time and race day
+ * draws once per stable for the stewards — so a v3d1 log replays into a different season.
+ *
  * 9 for v3 Phase D1: Explore replaces the arrival draw. `Action` gains `ChooseDoor`; the state drops
  * `eventQueue` for `explore` (each stable's seed, door and card), and carries race-day `conditions`,
  * next week's market (`nextPlanet`), and on a stable its `dealtGone`, `intel`, `loanerId` and new
@@ -75,7 +81,7 @@ import { ActionError, RACE_TYPE_IDS, STYLE_IDS } from './types';
  * The web save is seed + log (store/persist.ts), which is why SAVE_VERSION moves with it and an
  * old save fails soft to the title screen rather than replaying into a different game.
  */
-export const STATE_VERSION = 9;
+export const STATE_VERSION = 10;
 /**
  * The Major weekends. **One, at week 5 (GDD_V3 §2.1)**, where v2 had three.
  *
