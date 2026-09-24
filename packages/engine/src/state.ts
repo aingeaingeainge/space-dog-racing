@@ -29,6 +29,12 @@ import type {
 import { ActionError, RACE_TYPE_IDS, STYLE_IDS } from './types';
 
 /**
+ * 12 for v3 Phase E2: a season's archive record carries its `moments` (the longest-priced winner, the
+ * best slip, the slips struck), so the game's end can tell every season's story. Every dog starts a
+ * new season on `seasonStartFitness` with no layoff, so a v3e1 log replays into a different game from
+ * season 2 on. The Bookie takes slips in any order, and a slip is filed in turn order whatever order it
+ * was struck in; a v3e1 log's bets were all struck in turn order and file where they always did.
+ *
  * 11 for v3 Phase E1: a game is one to five seasons or a race to a target. The state carries the
  * `season`, the game's `length`, an archive of finished `seasons`, `gameOver` and, between seasons,
  * the `offSeason`; `Action` gains `Retire` and `ResolveStaffNotice`; a phase can be `offSeason` or
@@ -90,7 +96,7 @@ import { ActionError, RACE_TYPE_IDS, STYLE_IDS } from './types';
  * The web save is seed + log (store/persist.ts), which is why SAVE_VERSION moves with it and an
  * old save fails soft to the title screen rather than replaying into a different game.
  */
-export const STATE_VERSION = 11;
+export const STATE_VERSION = 12;
 /**
  * The Major weekends. **One, at week 5 (GDD_V3 §2.1)**, where v2 had three.
  *

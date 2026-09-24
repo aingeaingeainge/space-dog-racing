@@ -36,6 +36,11 @@ export interface SaveBlob {
 }
 
 /**
+ * 11 for v3 Phase E2. Every dog starts a new season fresh, so a v3e1 log that reached a second season
+ * replays into a different game from there; the check sends every v3e1 save to the title screen rather
+ * than deciding which were one-season games. The UI block gains the hotseat marks (`arrivalSeenWeek`,
+ * `boardSeenWeek`) and the pace timer (`pace`), all optional.
+ *
  * 10 for v3 Phase E1. A setup may carry a game `length`, and a log may run through an off-season
  * (`Retire`, `ResolveStaffNotice`) into a second season. The free local runner is gone and dogs no
  * longer age at week 7, so a v3d2 log is a different season here; this check sends it to the title
@@ -77,7 +82,7 @@ export interface SaveBlob {
  * player on the title screen with a new season rather than half a season that no longer means
  * what it meant.
  */
-export const SAVE_VERSION = 10;
+export const SAVE_VERSION = 11;
 const KEY = 'sdr.save.v1';
 
 export function writeSave(blob: SaveBlob): void {
