@@ -49,10 +49,17 @@ import { venueStatus } from '../src/lib/venueStatus';
 import { HOTSPOT_VENUES } from '../src/lib/hotspots';
 
 /**
- * Declarations (3) + **plan the week** + head to the track + run the races + back to the planet +
- * end turn.
+ * Declarations (3) + head to the track + run the races + back to the planet + end turn.
  *
- * ⚠️ **Four of these eight are navigation, not decisions, and v3's budget row is about decisions.**
+ * ⚠️ **7, not 8, since Phase D2 (Jesse's call): the "plan the week" press is gone.** It was v2 Phase
+ * A's addition — one Kennels button that set every dog's Race/Rest by fitness — and it was counted
+ * here as a fixed press every weekend. D1's walk found it changed nothing: `weeklyFitnessDelta`
+ * rests a dog that did not run whatever its state says, so for a player who declares, Race/Rest was
+ * inert and the declaration was the decision. From D2 the Race Office sets the week (a declared dog
+ * races, the rest rest) and the Kennels shows it, so the press is not made and is not counted.
+ * The sum below is otherwise the same instrument D1 used.
+ *
+ * ⚠️ **Four of these seven are navigation, not decisions, and v3's budget row is about decisions.**
  * BUILD_PLAN_V3 Phase A asks for "decisions per weekend per player ≤ 10" and names this script as the
  * instrument, so the headline number below stays the full press count — moving the goalposts by
  * re-defining the instrument in the phase that is supposed to measure it is exactly the move the
@@ -60,20 +67,11 @@ import { HOTSPOT_VENUES } from '../src/lib/hotspots';
  * different questions: presses are how long the evening takes, decisions are how much of it was a
  * choice, and §1 asks both.
  *
- * "Plan the week" is v2 Phase A's addition and it is counted here deliberately. GDD §5.7 gives
- * every dog a weekly state, which is six decisions for a full kennel; the Kennels' summary button
- * (screens/Stable.tsx) sets the whole yard by fitness in one press and the player then overrides
- * the dogs they care about. So the mechanic costs **one** click a weekend rather than six, which
- * is the summary BUILD_PLAN §11 asks for when a per-dog decision meets a click budget. A player
- * who never touches it pays nothing and gets v1's behaviour — every dog pointed at a race.
- *
- * This is now true of *every* weekend, which it was not before M4 session 2. A weekend with no
- * bookie — Holy Bark, or a No Betting season — never had a "run the races" button to press, so the
- * flat 7 used to over-count those weeks by one. The locked-card screen those weekends now get
- * (screens/LockedField.tsx) ends on "Watch the races", which takes that click's place: the field
- * finally gets shown and the weekend costs exactly what a betting weekend costs.
+ * A weekend with no bookie — Holy Bark, or a No Betting season — never had a "run the races" button
+ * to press; the locked-card screen those weekends get (screens/LockedField.tsx) ends on "Watch the
+ * races", which takes that click's place, so every weekend costs the same fixed seven.
  */
-const FIXED_PER_WEEKEND = 8;
+const FIXED_PER_WEEKEND = 7;
 
 /** Head to the track, run the races, back to the planet, end turn — pressed, never chosen. */
 const FIXED_NAVIGATION = 4;
@@ -96,17 +94,7 @@ function planetTurn(s: GameState, p: Player): Action[] {
   // and buying gear. That should push `hub-clicks` down on its own, which matters because GDD_V3
   // §10.1 cuts the budget from 14.5 to **10** — the number that counts now is decisions × players,
   // and eight players at 14 is an unplayable evening. Phase D's Explore adds one back.
-  // GDD §5.7's per-dog decision, counted honestly: the hub player plans every dog's week the way
-  // the Kennels' "Plan the week" button does. That is *one* click for the yard, not one per dog —
-  // the summary BUILD_PLAN §11 asks for when a per-dog decision meets a click budget — so the
-  // weekend costs one more decision than it did, not six.
-  if (pre) {
-    for (const d of dogs) {
-      if (d.injuryWeeks > 0) continue;
-      const state = d.fitness >= 65 ? 'race' : 'rest';
-      if (d.weekState !== state) out.push({ t: 'SetDogState', playerId: p.id, dogId: d.id, state });
-    }
-  }
+  // ⚠️ No Race/Rest here any more (Phase D2 item 5): the declarations below set the week.
 
   if (s.toggles.trading && p.cargo[STAPLE_ID] < dogs.length * 2) {
     const units = Math.min(

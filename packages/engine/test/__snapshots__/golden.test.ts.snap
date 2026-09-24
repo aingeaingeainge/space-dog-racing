@@ -2,7 +2,7 @@
 
 exports[`golden season (seed 42, 6 Normal AIs) > matches the golden digest 1`] = `
 {
-  "actions": 685,
+  "actions": 650,
   "calendar": [
     "holyBark",
     "vatgrown",

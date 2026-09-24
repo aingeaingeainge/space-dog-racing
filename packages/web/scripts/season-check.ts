@@ -20,6 +20,7 @@ import {
   replay,
   raceType,
   thisWeeksCard,
+  RACE_TYPE_IDS,
   type Action,
   type Dog,
   type GameState,
@@ -27,7 +28,6 @@ import {
   type Player,
   type RaceTypeId,
   type SeasonSetup,
-  type WeekState,
   type Diet,
   type GoodId,
 } from '@sdr/engine';
@@ -99,22 +99,15 @@ function planetTurn(s: GameState, p: Player, tally: Tally): Action[] {
   const dogs = ownDogs(s, p);
   const kennel = [...dogs];
 
-  // GDD §5.7: the walk-through player plans every dog's week the way the Kennels' own "Plan the
-  // week" button does — race anything fresh, train the middle, rest the tired. The declarations
-  // below then flip whatever they enter back to 'race', which is the friendly implication in
-  // action and the reason this runs first.
-  if (pre) {
+  // ⚠️ **No Race/Rest walk since Phase D2** (item 5): the Race Office sets the week, so the only
+  // Kennels action left is GDD_V3 §6.3's sticky diet, set once in week 1 the way a player would —
+  // each dog on the food aimed at its weakest stat. Three clicks a season, not a week.
+  if (pre && s.week === 1) {
     for (const d of kennel) {
-      // GDD_V3 §6.3's sticky diet, set once in week 1 the way a player would: each dog on the
-      // food aimed at its weakest stat. Sticky, so this is three clicks a season, not a week.
-      const diet: Diet | undefined =
-        s.week === 1 ? { kind: 'named', good: dietFood(d) } : undefined;
-      if (d.injuryWeeks > 0 && !diet) continue;
-      const state: WeekState = d.injuryWeeks > 0 ? d.weekState : d.fitness >= 65 ? 'race' : 'rest';
-      if (d.weekState === state && !diet) continue;
-      out.push({ t: 'SetDogState', playerId: p.id, dogId: d.id, state, ...(diet ? { diet } : {}) });
+      const diet: Diet = { kind: 'named', good: dietFood(d) };
+      out.push({ t: 'SetDogState', playerId: p.id, dogId: d.id, state: d.weekState, diet });
       bump(tally, 'SetDogState');
-      if (diet) walked.diets++;
+      walked.diets++;
     }
   }
 
@@ -336,6 +329,14 @@ function playSeason(seed: number, toggles?: SeasonSetup['toggles']) {
       ];
       bump(tally, 'ResolveEvent');
     } else if (screen.kind === 'betting') {
+      // Phase D2 item 5, checked rather than assumed: once the card locks, every dog of ours that
+      // is declared is racing and every other one is resting — the week followed the Race Office.
+      const declared = new Set(RACE_TYPE_IDS.map((r) => state.declarations[r][me.id]));
+      for (const d of ownDogs(state, me)) {
+        if (d.weekState !== (declared.has(d.id) ? 'race' : 'rest'))
+          throw new Error(`${d.name} is set to ${d.weekState} against the Race Office`);
+        walked.states++;
+      }
       actions = bettingTurn(state, me, tally);
     } else {
       actions = planetTurn(state, me, tally);
@@ -354,6 +355,11 @@ const seeds = process.argv
 const toRun = seeds.length ? seeds : [42, 7, 1234, 90210];
 let failures = 0;
 /** Phase A's replacement for the §13 coverage row — see the note at the end of the run. */
+/**
+ * `states` was "Race/Rest changes" until Phase D2, which retired the weekly Race/Rest press (item 5):
+ * it now counts dog-weeks checked at the lock to be in the state the Race Office left them in, so a
+ * zero still means the check stopped checking.
+ */
 const walked = { declare: 0, states: 0, trades: 0, bets: 0, diets: 0, hungry: 0 };
 for (const seed of toRun) {
   const variants: [string, SeasonSetup['toggles'] | undefined][] =
@@ -436,7 +442,7 @@ for (const seed of toRun) {
 // it stopped checking is worse than a red one, and this phase deleted most of what this file used to
 // walk. So the run fails unless every decision v3 has at this point was actually made.
 console.log(
-  `\nThe week walked: ${walked.declare} declarations, ${walked.states} Race/Rest changes, ` +
+  `\nThe week walked: ${walked.declare} declarations, ${walked.states} dog-weeks whose state followed the Race Office, ` +
     `${walked.trades} trades, ${walked.bets} bets, ${walked.diets} diets set, ` +
     `${walked.hungry} hungry dog-weeks.`,
 );

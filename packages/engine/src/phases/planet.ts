@@ -62,6 +62,7 @@ export function declare(ctx: Ctx, action: Extract<Action, { t: 'Declare' }>): vo
     fail(`There is no ${type.label} on this weekend's card`, action);
   if (action.dogId === null) {
     delete s.declarations[action.race][p.id];
+    followDeclarations(s, p.id);
     return;
   }
   const d = dog(s, action.dogId);
@@ -81,8 +82,30 @@ export function declare(ctx: Ctx, action: Extract<Action, { t: 'Declare' }>): vo
       delete s.declarations[race][p.id];
   }
   s.declarations[action.race][p.id] = d.id;
-  // Declaring implies racing (GDD §5.7). See setDogState for why the implication runs this way.
-  d.weekState = 'race';
+  followDeclarations(s, p.id);
+}
+
+/**
+ * **The week's state follows the declarations** (Phase D2 item 5, Jesse's call): a declared dog is
+ * racing, and every other dog in the kennel is resting.
+ *
+ * ⚠️ **Race/Rest was inert for an undeclared dog**, and this is the rule that says so out loud.
+ * `weeklyFitnessDelta` rests a dog that did not run whatever its `weekState` says, so the Kennels'
+ * weekly "Plan the week" press changed nothing for a player who declares — the declaration was the
+ * decision all along. So the state is now *set* by the Race Office, on every Declare and again when
+ * declarations lock, and the Kennels shows it rather than asking for it. `SetDogState` stays, for the
+ * diet and for a player who wants to mark a dog, but a mark lasts only until the next declaration.
+ */
+export function followDeclarations(s: GameState, playerId?: Id): void {
+  for (const p of s.players) {
+    if (playerId && p.id !== playerId) continue;
+    const declared = new Set(declaredDogs(s, p.id));
+    const ids = p.loanerId ? [...p.dogIds, p.loanerId] : p.dogIds;
+    for (const id of ids) {
+      const d = s.dogs[id];
+      if (d) d.weekState = declared.has(id) ? 'race' : 'rest';
+    }
+  }
 }
 
 export function placeBet(ctx: Ctx, action: Extract<Action, { t: 'PlaceBet' }>): void {

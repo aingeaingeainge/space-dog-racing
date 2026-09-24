@@ -69,23 +69,14 @@ export function venueStatus(s: GameState, me: Player): Record<VenueId, VenueStat
 
   // --- Kennels: is every dog's week decided, and is anything wrong with one?
   const wrong = mine.filter((d) => d.injuryWeeks > 0 || d.fitness < balance.fitnessScaleBelow);
-  // GDD §5.7 made the Kennels the centre of the game, so its hotspot answers the question the
-  // screen exists for: is every dog's week decided? A stable whose plan is already set can walk
-  // past, which is the whole point of the click budget — the decision is per dog, the *visit* is
-  // not. GDD_V3 §10.1 cuts that budget from 14.5 to 10, so this matters more than it did.
+  // ⚠️ **Since Phase D2 the Kennels never asks for a weekly visit** (item 5, Jesse's call). It used to
+  // flag a dog "set to race that nothing has entered" so the player would walk in and plan the week;
+  // the Race Office now sets the week (a declared dog races, the rest rest), so there is nothing to
+  // plan and the hotspot only reports. What is left to do in there — the diet — is sticky.
   const plans = mine.map((d) => weekStatusOf(d));
   const racing = plans.filter((x) => x === 'race').length;
   const resting = plans.filter((x) => x === 'rest').length;
   const layoff = plans.filter((x) => x === 'layoff').length;
-  // "Unplanned" is a dog set to race that nothing has entered yet — it will idle the week away.
-  const unplanned =
-    inTurn && pre
-      ? mine.filter(
-          (d) =>
-            weekStatusOf(d) === 'race' &&
-            !RACE_TYPE_IDS.some((r) => s.declarations[r][me.id] === d.id),
-        ).length
-      : 0;
   const plan = [
     racing ? `${racing} racing` : null,
     resting ? `${resting} resting` : null,
@@ -93,17 +84,10 @@ export function venueStatus(s: GameState, me: Player): Record<VenueId, VenueStat
   ]
     .filter(Boolean)
     .join(', ');
-  const kennels: VenueStatus =
-    inTurn && unplanned
-      ? {
-          line: [plan, `${unplanned} with no race and no plan`].filter(Boolean).join(' · '),
-          short: `${unplanned} undecided`,
-          worth: true,
-        }
-      : nothing(
-          wrong.length ? `${plan} · ${wrong.length} off colour` : plan || `${mine.length} dogs`,
-          wrong.length ? `${wrong.length} off colour` : plan || `${mine.length} dogs`,
-        );
+  const kennels: VenueStatus = nothing(
+    wrong.length ? `${plan} · ${wrong.length} off colour` : plan || `${mine.length} dogs`,
+    wrong.length ? `${wrong.length} off colour` : plan || `${mine.length} dogs`,
+  );
 
   const bookie: VenueStatus = !s.toggles.betting
     ? nothing('No betting this season')

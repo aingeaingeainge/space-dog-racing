@@ -6,6 +6,7 @@ import { cargoTotal, HOLD_CAP } from '../economy/goods';
 import { currentPlanet, emptyDeclarations, log, type Ctx } from '../state';
 import { clamp } from '../rng';
 import { seedExplore } from './explore';
+import { followDeclarations } from './planet';
 import { CONDITIONS } from '../content/conditions';
 
 /** One draw per stable dog against the condition table (Phase D1 item 6). */
@@ -54,6 +55,8 @@ export function runArrival(ctx: Ctx): void {
     s.nextPlanet = ahead;
   } else s.nextPlanet = null;
   s.declarations = emptyDeclarations();
+  // Nothing is declared yet, so every dog starts the week resting (Phase D2 item 5).
+  followDeclarations(s);
   s.locked = false;
   s.fields = null;
   s.races = null;

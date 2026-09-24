@@ -23,6 +23,7 @@ import { clamp, fork } from '../rng';
 import type { Dog, GameState, Id, RaceField, RaceResult, StyleId } from '../types';
 import { STYLE_IDS } from '../types';
 import { bettingOpen, startPlayerPhase } from './turn';
+import { followDeclarations } from './planet';
 
 /** GDD §4.2 step 4: fill traps with locals, draw traps, open the bookie. */
 export function lockDeclarations(ctx: Ctx): void {
@@ -94,6 +95,8 @@ export function lockDeclarations(ctx: Ctx): void {
   }
   s.fields = fields;
   s.locked = true;
+  // What the Race Office left is the week (Phase D2 item 5): declared dogs race, the rest rest.
+  followDeclarations(s);
   if (bettingOpen(s)) startPlayerPhase(s, 'betting');
   else s.phase = 'race';
 }

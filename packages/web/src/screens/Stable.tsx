@@ -8,19 +8,16 @@ import {
   weekStatusOf,
   weeklyFitnessDelta,
   GOODS,
-  WEEK_STATES,
   type Dog,
   type GameState,
   type Player,
   type Diet,
   type GoodId,
   type StatKey,
-  type WeekState,
   good,
   type FeedPlan,
 } from '@sdr/engine';
 import { DogCard } from '../components/DogCard';
-import { NeonButton } from '../components/NeonButton';
 import { Panel } from '../components/Panel';
 import { Badge, KV, Notes } from '../components/ui';
 import {
@@ -39,11 +36,6 @@ function status(d: Dog): { text: string; tone?: 'bad' | 'hot' } {
   if (d.fitness < balance.fitnessScaleBelow) return { text: 'jaded', tone: 'hot' };
   return { text: 'fit' };
 }
-
-const STATE_LABEL: Record<WeekState, string> = {
-  race: 'Race',
-  rest: 'Rest',
-};
 
 const STAT_LABEL: Record<StatKey, string> = {
   speed: 'Speed',
@@ -130,7 +122,6 @@ export function Stable({ s, me }: { s: GameState; me: Player }) {
       </Panel>
 
       <Panel title="Dogs" sub="ratings and stats are public — everyone can see them">
-        <PlanTheWeek s={s} me={me} dogs={dogs} inTurn={inTurn} />
         <div className="dogcards">
           {dogs.map((d) => {
             const st = status(d);
@@ -188,18 +179,16 @@ function dinnerLine(s: GameState, d: Dog, f: FeedPlan | undefined): string {
 }
 
 /**
- * GDD_V3 §4.2's control, and the centre of the game: **Race or Rest**, one per dog per week.
+ * GDD_V3 §4.2's Race or Rest, one per dog per week — **shown, not asked for, since Phase D2.**
+ * The Race Office sets it (a declared dog races, the rest rest), because Race/Rest was inert for a
+ * dog that was not declared and the weekly "Plan the week" press changed nothing.
  *
  * ⚠️ Train is gone (GDD_V3 V8) — a dog eats and gains every week whatever it is doing, so a third
  * state had nothing left to be. Three dogs × a binary is three decisions a week against §10.1's
  * budget of ten.
  *
- * Layoff is shown rather than offered — an injured dog is on Layoff whatever the Kennels says — but
- * the two buttons stay live underneath it, because what a dog does the week it comes sound is a
- * decision worth taking early.
- *
- * Standing a declared dog down is refused by the engine (withdraw it from its race first), so the
- * button says so rather than throwing an ActionError at the player.
+ * Layoff is shown as it always was: an injured dog is on Layoff whatever the Race Office says. The
+ * diet stays a control here, and it is sticky, so it is not a weekly press.
  */
 function WeekPlan({
   s,
@@ -226,32 +215,14 @@ function WeekPlan({
   return (
     <div className="weekplan">
       <div className="row tight">
-        {WEEK_STATES.map((state) => {
-          // Race stays live for a barred dog on purpose: it is how you say what the dog should
-          // do the week it comes back, and setDogState allows exactly that. The button explains
-          // itself instead of refusing.
-          const why = !inTurn
-            ? 'Not while the races are on'
-            : state !== 'race' && declared
-              ? `Withdraw ${d.name} from its race first`
-              : null;
-          const note =
-            state === 'race' && barred
-              ? `Not this weekend — ${barred}. Sets the week it can.`
-              : null;
-          return (
-            <NeonButton
-              key={state}
-              small
-              variant={status === state ? 'primary' : undefined}
-              disabled={!!why}
-              title={why ?? note ?? `${STATE_LABEL[state]} this week`}
-              onClick={() => dispatch({ t: 'SetDogState', playerId: me.id, dogId: d.id, state })}
-            >
-              {STATE_LABEL[state]}
-            </NeonButton>
-          );
-        })}
+        {/* Phase D2 item 5: the week follows the Race Office. A declared dog races and every other
+            dog rests, so this is a label, not a form — the declaration was always the decision. */}
+        <Badge
+          tone={status === 'race' ? 'good' : status === 'layoff' ? 'bad' : undefined}
+          title="Set by the Race Office: a declared dog races, every other dog rests"
+        >
+          {laidOff ? 'on layoff' : status === 'race' ? 'racing' : 'resting'}
+        </Badge>
         {/*
           GDD_V3 §6.3's diet: per dog, sticky, and **not a weekly click** — set it once and it holds
           until you change it. The default is the cheapest food aboard, which is also §6.3's own
@@ -292,54 +263,6 @@ function WeekPlan({
       ) : null}
       <span className={dinner && dinner.good === null ? 'warn-text small' : 'muted small'}>
         {dinnerLine(s, d, dinner)}
-      </span>
-    </div>
-  );
-}
-
-/**
- * The click budget's answer to a per-dog decision (GDD §15.3, BUILD_PLAN §11). Six dogs × one
- * decision is six clicks a weekend on top of the thirteen there already were, and the fix the
- * plan asks for is a summary rather than fewer decisions — so one button sets the whole yard to
- * the sensible default and the player overrides the dogs they care about.
- */
-function PlanTheWeek({
-  s,
-  me,
-  dogs,
-  inTurn,
-}: {
-  s: GameState;
-  me: Player;
-  dogs: Dog[];
-  inTurn: boolean;
-}) {
-  const dispatch = useGame((g) => g.dispatch);
-  // Race or Rest (GDD_V3 §4.2): anything fresh enough runs, everything else takes the week off.
-  // There is no middle state to fall into any more, so the whole policy is one threshold.
-  const plan = (d: Dog): WeekState => (d.fitness >= 65 ? 'race' : 'rest');
-  const todo = dogs.filter(
-    (d) => weekStatusOf(d) !== 'layoff' && !declaredRace(s, me.id, d.id) && d.weekState !== plan(d),
-  );
-
-  return (
-    <div className="row">
-      <NeonButton
-        disabled={!inTurn || !todo.length}
-        title={
-          !todo.length
-            ? 'Every dog already has the week it would be given'
-            : 'Race anything over 65 fitness, rest the rest — then change your mind about the ones that matter'
-        }
-        onClick={() => {
-          for (const d of todo)
-            dispatch({ t: 'SetDogState', playerId: me.id, dogId: d.id, state: plan(d) });
-        }}
-      >
-        Plan the week ({todo.length})
-      </NeonButton>
-      <span className="muted small">
-        Sets every undeclared dog by fitness. It is a starting point, not advice.
       </span>
     </div>
   );
