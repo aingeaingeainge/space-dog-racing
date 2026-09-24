@@ -27,11 +27,11 @@ Everything is loaded lazily and per planet, so the whole set is never fetched at
 | Dog run cycles | 12 | 45 kB | 0.5 MB | 0.9 MB | 2 |
 | Event cards | 93 | 70 kB | 6.4 MB | 11.8 MB | 3 |
 | Explore doors | 54 | 60 kB | 3.2 MB | 5.8 MB | 2 |
-| Character portraits | 41 | 50 kB | 2.0 MB | 3.6 MB | 3 |
+| Character portraits | 49 | 50 kB | 2.4 MB | 4.3 MB | 3 |
 | UI furniture | 11 | 8/25/30/40 kB | 0.2 MB | 0.4 MB | 3 |
-| **All of it** | **285** | | **19.8 MB** | **36.2 MB** | |
+| **All of it** | **293** | | **20.2 MB** | **36.9 MB** | |
 
-**285 files, about 19.8 MB if you hit the targets and 36.2 MB if every one lands on its cap.** That is the whole library, not a download: no player ever fetches all of it, because backdrops, ground and surfaces are per planet and a season visits thirteen of eighteen.
+**293 files, about 20.2 MB if you hit the targets and 36.9 MB if every one lands on its cap.** That is the whole library, not a download: no player ever fetches all of it, because backdrops, ground and surfaces are per planet and a season visits thirteen of eighteen.
 
 Two levers if that total wants to come down:
 
@@ -2060,7 +2060,7 @@ photorealism, 3D render, photograph, text, letters, words, readable signage, wat
 1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: Work on the ice. Glassfall trainers teach their dogs to corner on sheet ice. A dog that can hold a bend on ice can hold one anywhere. Some of them learn by falling over. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
 ```
 
-### Character portraits — 41 files, ~2.0 MB
+### Character portraits — 49 files, ~2.4 MB
 
 Twelve AI stable owners (indexed like Dog.look, by stable number), six hireables and Fat Tony Nebula.
 
@@ -2396,6 +2396,70 @@ photorealism, 3D render, photograph, text, letters, watermark, signature, real c
 
 ```text
 1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Character portrait: Grub & Grub, a dog trainer: two scruffy grub-like alien brothers leaning on a battered freight van. Head and shoulders, facing the viewer, comic and characterful, grimy retro-future dog-racing circuit. Acid green #9BE84B and hazard yellow #F4C542 accents over charcoal #1B1A22. Transparent background or a flat charcoal one, no text, square 1:1.
+```
+
+#### human 1 (red) — `src/assets/portraits/human-01.webp` (or `.svg`)
+
+512×512 · WebP with alpha · target 50 kB, cap 90 kB · seeds 9300–9349
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Character portrait of a player's stable owner: a freckled pilot-mechanic with flight goggles pushed up into a messy bun and a red bandana. The red #e03131 band or scarf is the stable's saddle-cloth colour and must read clearly. Head and shoulders, facing the viewer, likeable, comic and characterful — someone you would want to be, not a villain — grimy retro-future dog-racing circuit, over charcoal #1B1A22. Transparent background or a flat charcoal one, no text, square 1:1.
+```
+
+#### human 2 (blue) — `src/assets/portraits/human-02.webp` (or `.svg`)
+
+512×512 · WebP with alpha · target 50 kB, cap 90 kB · seeds 9350–9399
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Character portrait of a player's stable owner: a lanky, friendly antennaed alien with a huge grin and a long blue scarf. The blue #3b82f6 band or scarf is the stable's saddle-cloth colour and must read clearly. Head and shoulders, facing the viewer, likeable, comic and characterful — someone you would want to be, not a villain — grimy retro-future dog-racing circuit, over charcoal #1B1A22. Transparent background or a flat charcoal one, no text, square 1:1.
+```
+
+#### human 3 (white) — `src/assets/portraits/human-03.webp` (or `.svg`)
+
+512×512 · WebP with alpha · target 50 kB, cap 90 kB · seeds 9400–9449
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Character portrait of a player's stable owner: a bearded old spaceport captain in a peaked cap with a white silk scarf. The white #f4f4f4 band or scarf is the stable's saddle-cloth colour and must read clearly. Head and shoulders, facing the viewer, likeable, comic and characterful — someone you would want to be, not a villain — grimy retro-future dog-racing circuit, over charcoal #1B1A22. Transparent background or a flat charcoal one, no text, square 1:1.
+```
+
+#### human 4 (black) — `src/assets/portraits/human-04.webp` (or `.svg`)
+
+512×512 · WebP with alpha · target 50 kB, cap 90 kB · seeds 9450–9499
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Character portrait of a player's stable owner: a studded punk with a pink crest and a black studded headband. The black #2b2b33 band or scarf is the stable's saddle-cloth colour and must read clearly. Head and shoulders, facing the viewer, likeable, comic and characterful — someone you would want to be, not a villain — grimy retro-future dog-racing circuit, over charcoal #1B1A22. Transparent background or a flat charcoal one, no text, square 1:1.
+```
+
+#### human 5 (orange) — `src/assets/portraits/human-05.webp` (or `.svg`)
+
+512×512 · WebP with alpha · target 50 kB, cap 90 kB · seeds 9500–9549
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Character portrait of a player's stable owner: a cheerful stocky lizard in a backwards cap with an orange neckerchief. The orange #f97316 band or scarf is the stable's saddle-cloth colour and must read clearly. Head and shoulders, facing the viewer, likeable, comic and characterful — someone you would want to be, not a villain — grimy retro-future dog-racing circuit, over charcoal #1B1A22. Transparent background or a flat charcoal one, no text, square 1:1.
+```
+
+#### human 6 (green) — `src/assets/portraits/human-06.webp` (or `.svg`)
+
+512×512 · WebP with alpha · target 50 kB, cap 90 kB · seeds 9550–9599
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Character portrait of a player's stable owner: a young hotshot with sunglasses on a lime-green headband. The green #9be84b band or scarf is the stable's saddle-cloth colour and must read clearly. Head and shoulders, facing the viewer, likeable, comic and characterful — someone you would want to be, not a villain — grimy retro-future dog-racing circuit, over charcoal #1B1A22. Transparent background or a flat charcoal one, no text, square 1:1.
+```
+
+#### human 7 (yellow) — `src/assets/portraits/human-07.webp` (or `.svg`)
+
+512×512 · WebP with alpha · target 50 kB, cap 90 kB · seeds 9600–9649
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Character portrait of a player's stable owner: a rosy one-eyed alien in a flat cap with a yellow scarf. The yellow #f4c542 band or scarf is the stable's saddle-cloth colour and must read clearly. Head and shoulders, facing the viewer, likeable, comic and characterful — someone you would want to be, not a villain — grimy retro-future dog-racing circuit, over charcoal #1B1A22. Transparent background or a flat charcoal one, no text, square 1:1.
+```
+
+#### human 8 (pink) — `src/assets/portraits/human-08.webp` (or `.svg`)
+
+512×512 · WebP with alpha · target 50 kB, cap 90 kB · seeds 9650–9699
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Character portrait of a player's stable owner: a glamorous old hand in cat-eye glasses and a hot-pink headscarf, star earrings. The pink #f04e98 band or scarf is the stable's saddle-cloth colour and must read clearly. Head and shoulders, facing the viewer, likeable, comic and characterful — someone you would want to be, not a villain — grimy retro-future dog-racing circuit, over charcoal #1B1A22. Transparent background or a flat charcoal one, no text, square 1:1.
 ```
 
 ### UI furniture — 11 files, ~0.2 MB

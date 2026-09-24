@@ -457,6 +457,53 @@ const staffPortraits: AssetSpec[] = STAFF_BRIEFS.map(([id, brief], i) => ({
   seeds: `${7600 + i * 50}–${7649 + i * 50}`,
 }));
 
+/**
+ * The human stables' faces (Phase F1): one per saddle-cloth colour, in `STABLE_COLOURS` order, keyed
+ * by `Player.colour` in `lib/owners.ts`. They are the players' own avatars, so each is someone a
+ * player would want to be — grimy and quirky like the AI owners, never a villain — and each wears
+ * its saddle-cloth colour at the neck or on the head, so the face and the swatch agree.
+ */
+const HUMAN_BRIEFS: [string, string, string][] = [
+  [
+    'red',
+    '#e03131',
+    'a freckled pilot-mechanic with flight goggles pushed up into a messy bun and a red bandana',
+  ],
+  ['blue', '#3b82f6', 'a lanky, friendly antennaed alien with a huge grin and a long blue scarf'],
+  ['white', '#f4f4f4', 'a bearded old spaceport captain in a peaked cap with a white silk scarf'],
+  ['black', '#2b2b33', 'a studded punk with a pink crest and a black studded headband'],
+  ['orange', '#f97316', 'a cheerful stocky lizard in a backwards cap with an orange neckerchief'],
+  ['green', '#9be84b', 'a young hotshot with sunglasses on a lime-green headband'],
+  ['yellow', '#f4c542', 'a rosy one-eyed alien in a flat cap with a yellow scarf'],
+  [
+    'pink',
+    '#f04e98',
+    'a glamorous old hand in cat-eye glasses and a hot-pink headscarf, star earrings',
+  ],
+];
+
+const humanPortraits: AssetSpec[] = HUMAN_BRIEFS.map(([name, hex, brief], i) => ({
+  stem: `portraits/human-${String(i + 1).padStart(2, '0')}`,
+  group: 'portraits',
+  w: 512,
+  h: 512,
+  alpha: true,
+  targetKb: 50,
+  capKb: 90,
+  label: `human ${i + 1} (${name})`,
+  what: `${brief} — saddle-cloth ${name}`,
+  tier: 3,
+  accents: [hex, '#1B1A22'],
+  prompt:
+    `${STYLE}. Character portrait of a player's stable owner: ${brief}. The ${name} ${hex} ` +
+    `band or scarf is the stable's saddle-cloth colour and must read clearly. Head and shoulders, ` +
+    `facing the viewer, likeable, comic and characterful — someone you would want to be, not a ` +
+    `villain — grimy retro-future dog-racing circuit, over charcoal #1B1A22. Transparent ` +
+    `background or a flat charcoal one, no text, square 1:1.`,
+  negative: NEG_CHAR,
+  seeds: `${9300 + i * 50}–${9349 + i * 50}`,
+}));
+
 // ---------------------------------------------------------------- UI furniture
 
 interface UiBrief {
@@ -667,7 +714,7 @@ export const GROUPS: AssetGroup[] = [
     blurb:
       'Twelve AI stable owners (indexed like Dog.look, by stable number), six hireables and Fat ' +
       'Tony Nebula.',
-    assets: [...ownerPortraits, ...staffPortraits],
+    assets: [...ownerPortraits, ...staffPortraits, ...humanPortraits],
   },
   {
     id: 'ui',

@@ -20,7 +20,19 @@ export function ownerIndexFor(player: Player): number | null {
   return named >= 0 ? named : player.colour % AI_STABLE_NAMES.length;
 }
 
+/**
+ * A human stable's face (Phase F1): one of eight, keyed by its saddle-cloth colour, so the face and
+ * the swatch beside it always agree. Display only — nothing in the engine or the setup knows about it,
+ * and a human still has no personality line.
+ */
+export function humanFaceFor(player: Player): string | null {
+  if (player.kind !== 'human') return null;
+  return `human-${String((player.colour % 8) + 1).padStart(2, '0')}`;
+}
+
 export function ownerArtFor(player: Player): Art | null {
+  const human = humanFaceFor(player);
+  if (human) return portraitArt(human);
   const i = ownerIndexFor(player);
   if (i === null) return null;
   return portraitArt(`owner-${String(i + 1).padStart(2, '0')}`);
