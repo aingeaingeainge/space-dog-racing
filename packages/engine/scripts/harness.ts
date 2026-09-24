@@ -71,6 +71,7 @@ import {
   type Dog,
   type GameState,
   type Id,
+  type Job,
   type GoodId,
   type Player,
   type RaceTypeId,
@@ -2182,6 +2183,18 @@ export function runStyles(seasons = 200, seed = 1, n = 6000): string {
 // --explore (Phase D1 item 10): the deck, the doors, the Pound's dogs, the tips and the Bar's shelf.
 // ---------------------------------------------------------------------------------------------
 
+/** Phase D2: what the Back Alley's jobs did, across a run of seasons. */
+interface SabTally {
+  booked: number;
+  atLeader: number;
+  atAbove: number;
+  landed: { n: number; won: number; prob: number };
+  sameRace: { n: number; won: number; prob: number };
+  caught: number;
+  fines: number[];
+  boxes: Map<string, { n: number; won: number; prob: number }>;
+}
+
 /** What one card did: how often it came up, and the Bone value of what it did at once. */
 interface CardTally {
   n: number;
@@ -2202,8 +2215,10 @@ function exploreSeason(
     tipBets: { n: number; stake: number; ret: number };
     legs: { intel: number[]; plain: number[] };
     contention: { blocked: number };
+    sab?: SabTally;
   },
   poundSeat?: Id,
+  wantDoor: DoorCategory = 'pound',
 ): GameState {
   const s = createSeason({
     seed,
@@ -2224,6 +2239,29 @@ function exploreSeason(
     if (needsAdvance(s)) {
       let pending: { dogId: Id; odds: number; local: boolean }[][] | null = null;
       let conds: Map<Id, string> | null = null;
+      const jobField: { job: Job; race: RaceTypeId; winProb: number; mineProb: number | null }[] =
+        [];
+      if (s.phase === 'race' && s.fields && out.sab) {
+        for (const job of s.jobs) {
+          const dogId = job.kind === 'nobble' ? job.dogId : undefined;
+          for (const f of s.fields) {
+            const target =
+              job.kind === 'nobble'
+                ? f.entries.find((e) => e.dogId === dogId)
+                : job.race === f.race && job.box
+                  ? f.entries.find((e) => e.dogId === s.declarations[f.race][job.by])
+                  : undefined;
+            if (!target) continue;
+            const mine = f.entries.find((e) => e.ownerId === job.by);
+            jobField.push({
+              job,
+              race: f.race,
+              winProb: target.winProb,
+              mineProb: job.kind === 'nobble' && mine ? mine.winProb : null,
+            });
+          }
+        }
+      }
       if (s.phase === 'race' && s.fields) {
         pending = s.fields.map((f) =>
           f.entries.map((e) => ({ dogId: e.dogId, odds: e.odds, local: e.local })),
@@ -2240,6 +2278,35 @@ function exploreSeason(
       }
       const before = s.week;
       reduceMut(s, { t: 'AdvancePhase' });
+      if (out.sab && s.races && s.week === before)
+        for (const jf of jobField) {
+          const r = s.races.find((x) => x.race === jf.race)!;
+          const t = out.sab;
+          if (jf.job.kind === 'box') {
+            const bends = currentPlanet(s).track.bends;
+            const dogId = s.declarations[jf.race][jf.job.by];
+            const row = t.boxes.get(bends) ?? { n: 0, won: 0, prob: 0 };
+            row.n++;
+            row.prob += jf.winProb;
+            if (r.order[0] === dogId) row.won++;
+            t.boxes.set(bends, row);
+            continue;
+          }
+          t.landed.n++;
+          t.landed.prob += jf.winProb;
+          if (r.order[0] === jf.job.dogId) t.landed.won++;
+          const mine = r.entries.find((e) => e.ownerId === jf.job.by);
+          if (mine && jf.mineProb !== null) {
+            t.sameRace.n++;
+            t.sameRace.prob += jf.mineProb;
+            if (r.order[0] === mine.dogId) t.sameRace.won++;
+          }
+          const f = r.stewards.find((x) => x.playerId === jf.job.by);
+          if (f) {
+            t.caught++;
+            t.fines.push(f.fine);
+          }
+        }
       if (pending && s.races && s.week === before) {
         s.races.forEach((r, i) =>
           pending![i]!.forEach((e) => {
@@ -2266,7 +2333,7 @@ function exploreSeason(
     const p = player(s, who);
     let actions = decide(s, who, p.difficulty);
     if (s.phase === 'explore' && who === poundSeat && !s.pendingEvent) {
-      const i = currentPlanet(s).exploreDoors.findIndex((d) => d.category === 'pound');
+      const i = currentPlanet(s).exploreDoors.findIndex((d) => d.category === wantDoor);
       if (i >= 0) actions = [{ t: 'ChooseDoor', playerId: who, door: i }];
     }
     for (const a of actions) {
@@ -2275,7 +2342,18 @@ function exploreSeason(
         bumpMap(out.doors, cat);
         const worth = netWorth(s, p);
         const taken = s.explore!.taken.length;
+        const jobsBefore = s.jobs.length;
         reduceMut(s, a);
+        if (out.sab)
+          for (const job of s.jobs.slice(jobsBefore)) {
+            if (job.kind !== 'nobble' || !job.dogId) continue;
+            const owner = s.dogs[job.dogId]?.ownerId;
+            const ranked = [...s.players].sort((x, y) => netWorth(s, y) - netWorth(s, x));
+            out.sab.booked++;
+            if (ranked[0]!.id === owner) out.sab.atLeader++;
+            if (ranked.findIndex((x) => x.id === owner) < ranked.findIndex((x) => x.id === who))
+              out.sab.atAbove++;
+          }
         const id = s.explore!.cards[who] ?? '';
         if (id) {
           const t = out.cards.get(id) ?? { n: 0, bones: [] };
@@ -2313,7 +2391,19 @@ export function runExplore(seasons = 400, seed = 1): string {
     tipBets: { n: 0, stake: 0, ret: 0 },
     legs: { intel: [] as number[], plain: [] as number[] },
     contention: { blocked: 0 },
+    sab: {
+      booked: 0,
+      atLeader: 0,
+      atAbove: 0,
+      landed: { n: 0, won: 0, prob: 0 },
+      sameRace: { n: 0, won: 0, prob: 0 },
+      caught: 0,
+      fines: [] as number[],
+      boxes: new Map<string, { n: number; won: number; prob: number }>(),
+    } as SabTally,
   };
+  const staff = { prize: 0, commission: 0, offers: 0, hired: 0 };
+  const sabSeasons = { any: 0, nobbles: 0, boxes: 0, boxesUsed: 0 };
   let stables = 0;
   let offers = 0;
   let taken = 0;
@@ -2328,8 +2418,17 @@ export function runExplore(seasons = 400, seed = 1): string {
     const s = exploreSeason(seed + k, out);
     seatSeen.push(s.players.map((p) => out.seen.get(p.id) ?? new Set()));
     tableSeen.push(new Set([...out.seen.values()].flatMap((x) => [...x])));
+    const nobbles = s.players.reduce((a, p) => a + p.stats.nobbles, 0);
+    if (nobbles > 0) sabSeasons.any++;
+    sabSeasons.nobbles += nobbles;
     for (const p of s.players) {
       stables++;
+      staff.prize += p.stats.prizeIncome;
+      staff.commission += p.stats.commission;
+      staff.offers += p.stats.staffOffers;
+      staff.hired += p.stats.staffHired;
+      sabSeasons.boxes += p.stats.boxes;
+      sabSeasons.boxesUsed += p.stats.boxesUsed;
       offers += p.stats.dogOffers;
       taken += p.stats.dogsTaken;
       lies += p.stats.liesTold;
@@ -2350,15 +2449,37 @@ export function runExplore(seasons = 400, seed = 1): string {
         doors: new Map(),
         tipBets: { n: 0, stake: 0, ret: 0 },
         legs: { intel: [], plain: [] },
+        sab: undefined,
       },
       'p1',
     );
     wanting.offers += player(s, 'p1').stats.dogOffers;
     wanting.n++;
   }
+  // Phase D2: a stable that wants a trainer — opens the Bar whenever there is one.
+  const wantingTrainer = { offers: 0, n: 0 };
+  for (let k = 0; k < Math.min(seasons, 300); k++) {
+    const s = exploreSeason(
+      seed + 20_000 + k,
+      {
+        ...out,
+        cards: new Map(),
+        seen: new Map(),
+        bets: new Map(),
+        doors: new Map(),
+        tipBets: { n: 0, stake: 0, ret: 0 },
+        legs: { intel: [], plain: [] },
+        sab: undefined,
+      },
+      'p1',
+      'bar',
+    );
+    wantingTrainer.offers += player(s, 'p1').stats.staffOffers;
+    wantingTrainer.n++;
+  }
 
   lines.push(
-    `Explore (GDD_V3 §9, Phase D1) — ${seasons} seasons, six Normal stables, seeds ${seed}…${seed + seasons - 1}`,
+    `Explore (GDD_V3 §9, Phases D1 and D2) — ${seasons} seasons, six Normal stables, seeds ${seed}…${seed + seasons - 1}`,
   );
   lines.push('');
   const totalDoors = [...out.doors.values()].reduce((a, b) => a + b, 0);
@@ -2420,6 +2541,50 @@ export function runExplore(seasons = 400, seed = 1): string {
   lines.push(
     `  lies told ${pct(lies / Math.max(1, offers))} of offers · caught (the dog was taken, its stat bars are public) ${pct(caught / Math.max(1, lies))} of lies · dodged ${pct(1 - caught / Math.max(1, lies))}`,
   );
+  lines.push('');
+
+  // ---- Phase D2: staff, sabotage and the bought box. ----
+  const commissionShare = staff.commission / Math.max(1, staff.prize + staff.commission);
+  lines.push('Staff (GDD_V3 §8, Phase D2) — two trainers on commission');
+  lines.push(
+    `  commission, share of a stable's prize money ${pct(commissionShare)} — target 4–14%: ${commissionShare >= 0.04 && commissionShare <= 0.14 ? 'MET' : 'MISSED'} · ${fmt(staff.commission / stables)} a stable-season`,
+  );
+  const wt = wantingTrainer.offers / Math.max(1, wantingTrainer.n);
+  lines.push(
+    `  trainer offers a stable-season ${(staff.offers / stables).toFixed(2)} · hired ${(staff.hired / stables).toFixed(2)} (${pct(staff.hired / Math.max(1, staff.offers))} of offers)`,
+  );
+  lines.push(
+    `  a stable that wants a trainer (opens the Bar whenever there is one): ${wt.toFixed(2)} swings a season — target ≥ 2: ${wt >= 2 ? 'MET' : 'MISSED'}`,
+  );
+  lines.push('');
+  const sab = out.sab;
+  const anyShare = sabSeasons.any / seasons;
+  lines.push('Sabotage (GDD_V3 §9.3, Phase D2) — the nobble, the stewards, and the bought box');
+  lines.push(
+    `  seasons with at least one sabotage ${pct(anyShare)} — target 40–70%: ${anyShare >= 0.4 && anyShare <= 0.7 ? 'MET' : 'MISSED'} · nobbles a season ${(sabSeasons.nobbles / seasons).toFixed(2)}`,
+  );
+  lines.push(
+    `  bit (the dog ran) ${sab.landed.n} · caught ${sab.caught} (${pct(sab.caught / Math.max(1, sab.landed.n))} of those that bit) · mean fine ${fmt(mean(sab.fines))}`,
+  );
+  lines.push(
+    `  targets: the net-worth leader ${pct(sab.atLeader / Math.max(1, sab.booked))} of nobbles · a stable above the nobbler ${pct(sab.atAbove / Math.max(1, sab.booked))}`,
+  );
+  lines.push(
+    `  what it does to the victim: won ${pct(sab.landed.won / Math.max(1, sab.landed.n))} of its races against a book price of ${pct(sab.landed.prob / Math.max(1, sab.landed.n))}`,
+  );
+  lines.push(
+    `  what it earns the nobbler, in a race it shared with the victim (${sab.sameRace.n}): won ${pct(sab.sameRace.won / Math.max(1, sab.sameRace.n))} against a book price of ${pct(sab.sameRace.prob / Math.max(1, sab.sameRace.n))}`,
+  );
+  lines.push(
+    `  what getting caught costs: a ${fmt(balance.caughtFine)} fine plus a quarter of the stake, mean ${fmt(mean(sab.fines))}; a job costs its price plus about ${fmt((sab.caught / Math.max(1, sab.landed.n)) * mean(sab.fines))} in expected fines`,
+  );
+  lines.push(
+    `  trap draws bought ${(sabSeasons.boxes / stables).toFixed(2)} a stable-season, honoured ${(sabSeasons.boxesUsed / stables).toFixed(2)} — what the box was worth, win rate against the book's price:`,
+  );
+  for (const [bends, b] of [...sab.boxes.entries()].sort())
+    lines.push(
+      `    ${bends.padEnd(7)} bends  ${String(b.n).padStart(5)} runners   won ${pct(b.won / Math.max(1, b.n))} against ${pct(b.prob / Math.max(1, b.n))} priced  (${b.won / Math.max(1, b.n) - b.prob / Math.max(1, b.n) >= 0 ? '+' : ''}${((100 * (b.won - b.prob)) / Math.max(1, b.n)).toFixed(1)} points)`,
+    );
   lines.push('');
 
   lines.push(

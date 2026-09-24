@@ -570,3 +570,104 @@ describe('Explore, the Pound, the tips and the local runner (GDD_V3 §4.4, §9; 
     ).toThrow(/lent/);
   });
 });
+
+/*
+ * v3 Phase D2 — additions only; nothing above this line was edited.
+ */
+describe('Phase D2: staff, sabotage and the bought box', () => {
+  /** Drive a season to a point, every seat an AI of the given difficulty. */
+  const table = (seed: number, n = 6) =>
+    createSeason({
+      seed,
+      players: Array.from({ length: n }, (_, i) => ({
+        name: '',
+        kind: 'ai' as const,
+        difficulty: (['normal', 'hard', 'easy'] as const)[i % 3]!,
+      })),
+    });
+  const step = (s: GameState) => {
+    const who = s.pendingEvent?.playerId ?? s.activePlayer!;
+    const actions: Action[] = needsAdvance(s)
+      ? [{ t: 'AdvancePhase' }]
+      : decide(s, who, player(s, who).difficulty);
+    for (const a of actions) reduceMut(s, a);
+  };
+
+  it('a stable never has more than two trainers, and commission comes only from purses', () => {
+    for (let seed = 400; seed < 410; seed++) {
+      const s = table(seed, 3 + (seed % 6));
+      let guard = 0;
+      while (!isSeasonOver(s) && guard++ < 50_000) {
+        step(s);
+        for (const p of s.players) {
+          assert(p.staff.length <= balance.staffSlots, `${p.id} holds ${p.staff.length} trainers`);
+          assert(new Set(p.staff).size === p.staff.length, `${p.id} holds a trainer twice`);
+        }
+        const all = s.players.flatMap((p) => p.staff);
+        assert(new Set(all).size === all.length, 'two stables employ the same trainer');
+      }
+      // Every Bone of commission is on a payout — a purse — and nowhere else.
+      for (const p of s.players) {
+        const onPurses = s.results
+          .flatMap((r) => r.payouts)
+          .filter((x) => x.playerId === p.id)
+          .reduce((a, x) => a + x.commission, 0);
+        expect(p.stats.commission).toBe(onPurses);
+      }
+    }
+  }, 60_000);
+
+  /** Two copies of one weekend at the lock, one with a job booked by hand; race day run on both. */
+  const raceDayWith = (seed: number, book: (s: GameState) => void) => {
+    const run = (withJob: boolean) => {
+      const s = table(seed);
+      let booked = false;
+      let guard = 0;
+      while (s.phase !== 'planetPost' && guard++ < 5000) {
+        if (s.phase === 'betting' && !s.locked && !booked) {
+          booked = true;
+          if (withJob) book(s);
+        }
+        step(s);
+      }
+      return s;
+    };
+    return { plain: run(false), booked: run(true) };
+  };
+
+  it('a nobble never touches the stored fitness', () => {
+    let hits = 0;
+    for (let seed = 500; seed < 506; seed++) {
+      let victim = '';
+      const { plain, booked } = raceDayWith(seed, (s) => {
+        victim = Object.values(s.declarations[HEADLINE_TYPE_ID])[0] ?? '';
+        s.jobs.push({ by: 'p6', kind: 'nobble', dogId: victim });
+      });
+      if (!victim) continue;
+      hits++;
+      // The runner ran on −25; the stored dog is exactly what it would have been without the job.
+      expect(booked.dogs[victim]!.fitness).toBe(plain.dogs[victim]!.fitness);
+      expect(booked.fields).toEqual(plain.fields);
+    }
+    expect(hits).toBeGreaterThan(0);
+  });
+
+  it('a bought box is honoured', () => {
+    let hits = 0;
+    for (let seed = 600; seed < 612; seed++) {
+      const box = 1 + (seed % 8);
+      let race: (typeof RACE_TYPE_IDS)[number] | undefined;
+      const { booked } = raceDayWith(seed, (s) => {
+        race = RACE_TYPE_IDS.find((r) => s.declarations[r]['p1']);
+        if (race) s.jobs.push({ by: 'p1', kind: 'box', race, box });
+      });
+      if (!race) continue;
+      const entry = booked
+        .fields!.find((f) => f.race === race)!
+        .entries.find((e) => e.ownerId === 'p1');
+      expect(entry?.trap).toBe(box);
+      hits++;
+    }
+    expect(hits).toBeGreaterThan(3);
+  });
+});

@@ -15,6 +15,7 @@ import {
   STAPLE_ID,
   bettingMargin,
   createSeason,
+  planetOf,
   drive,
   maxStakeFor,
   replay,
@@ -34,6 +35,9 @@ import {
 import { applyActions, screenFor, type ScreenUi } from '../src/store/loop';
 
 const HUMAN = 'p1';
+
+/** The Back Alley cards that sell a nobble (GDD_V3 §9.3). */
+const NOBBLE_CARDS = new Set(['syringeMan', 'kennelBoyBribe']);
 
 /**
  * Every good the walk-through bought or sold, across every season it plays. With six goods a walk
@@ -188,6 +192,12 @@ function planetTurn(s: GameState, p: Player, tally: Tally): Action[] {
     const declares = declarations(s, kennel, p);
     out.push(...declares);
     bump(tally, 'Declare', declares.length);
+    // GDD_V3 §9.3: a bought box is named in the Race Office — the rail, for the richest runner.
+    const top = declares[0];
+    if (top?.t === 'Declare' && s.jobs.some((j) => j.by === p.id && j.kind === 'box')) {
+      out.push({ t: 'ChooseBox', playerId: p.id, race: top.race, box: 1 });
+      bump(tally, 'ChooseBox');
+    }
   }
   out.push({ t: 'EndPhase', playerId: p.id });
   return out;
@@ -265,6 +275,7 @@ function playSeason(seed: number, toggles?: SeasonSetup['toggles']) {
     SetDogState: 0,
     ResolveEvent: 0,
     ChooseDoor: 0,
+    ChooseBox: 0,
   };
   const screens: Record<string, number> = {};
 
@@ -316,17 +327,27 @@ function playSeason(seed: number, toggles?: SeasonSetup['toggles']) {
     }
     let actions: Action[];
     if (state.phase === 'explore' && !state.pendingEvent && state.activePlayer === me.id) {
-      // GDD_V3 §9.1: a door a week, walked round all three so every category gets opened.
-      actions = [{ t: 'ChooseDoor', playerId: me.id, door: state.week % 3 }];
+      // GDD_V3 §9.1: a door a week, walked round all three so every category gets opened — except
+      // that the walk goes down the Back Alley whenever there is one until it has both nobbled a
+      // rival and bought a box (§9.3), so the Race Office's box buttons get pressed too.
+      const alley = planetOf(state.planet.planetId).exploreDoors.findIndex(
+        (d) => d.category === 'alley',
+      );
+      const door = alley >= 0 && (!me.stats.nobbles || !me.stats.boxes) ? alley : state.week % 3;
+      actions = [{ t: 'ChooseDoor', playerId: me.id, door }];
       bump(tally, 'ChooseDoor');
     } else if (state.pendingEvent && state.pendingEvent.playerId === me.id) {
-      actions = [
-        {
-          t: 'ResolveEvent',
-          playerId: me.id,
-          choice: state.week % state.pendingEvent.choices.length,
-        },
-      ];
+      const pe = state.pendingEvent;
+      // A nobble: the first rival the card names. The steward's box: buy it. Anything else: rotate.
+      const choice = NOBBLE_CARDS.has(pe.eventId)
+        ? Math.max(
+            0,
+            pe.choices.findIndex((l, i) => i > 0 && l !== '—'),
+          )
+        : pe.eventId === 'stewardBox'
+          ? 0
+          : state.week % pe.choices.length;
+      actions = [{ t: 'ResolveEvent', playerId: me.id, choice }];
       bump(tally, 'ResolveEvent');
     } else if (screen.kind === 'betting') {
       // Phase D2 item 5, checked rather than assumed: once the card locks, every dog of ours that
@@ -360,7 +381,17 @@ let failures = 0;
  * it now counts dog-weeks checked at the lock to be in the state the Race Office left them in, so a
  * zero still means the check stopped checking.
  */
-const walked = { declare: 0, states: 0, trades: 0, bets: 0, diets: 0, hungry: 0 };
+const walked = {
+  declare: 0,
+  states: 0,
+  trades: 0,
+  bets: 0,
+  diets: 0,
+  hungry: 0,
+  /** Phase D2 (GDD_V3 §9.3): nobbles booked by anybody, and boxes named by the walk. */
+  sabotages: 0,
+  boxes: 0,
+};
 for (const seed of toRun) {
   const variants: [string, SeasonSetup['toggles'] | undefined][] =
     seed === toRun[0]
@@ -408,6 +439,7 @@ for (const seed of toRun) {
       walked.states += tally.SetDogState ?? 0;
       walked.trades += tally.TradeFood ?? 0;
       walked.bets += tally.PlaceBet ?? 0;
+      walked.boxes += tally.ChooseBox ?? 0;
       // GDD_V3 §6.3's penalty, read off the season's own log rather than inferred: the walk sold its
       // hold in week HUNGRY_WEEK, so in a trading season at least one of its dogs must have gone
       // hungry at that jump — and a trading season in which none did means the rule did not fire.
@@ -424,7 +456,14 @@ for (const seed of toRun) {
       const picks = log.filter((a) => a.t === 'ChooseDoor').length;
       const offers = state.players.reduce((n, p) => n + p.stats.dogOffers, 0);
       const tips = state.players.reduce((n, p) => n + p.stats.tips, 0);
-      console.log(`  explore: ${picks} doors opened, ${offers} dog offers, ${tips} tips`);
+      // Phase D2's rows (BUILD_PLAN_V3 Phase D): trainers offered in the Bar, and sabotage booked in
+      // the Back Alley. A season with none of either has not walked the people.
+      const staffOffers = state.players.reduce((n, p) => n + p.stats.staffOffers, 0);
+      const sabotages = state.players.reduce((n, p) => n + p.stats.nobbles, 0);
+      const commission = state.players.reduce((n, p) => n + p.stats.commission, 0);
+      console.log(
+        `  explore: ${picks} doors opened, ${offers} dog offers, ${tips} tips, ${staffOffers} trainer offers, ${sabotages} sabotages; trainers took ${commission.toLocaleString('en-NZ')}`,
+      );
       if (picks === 0) throw new Error('nobody opened a door');
       if (picks !== state.players.length * state.week)
         throw new Error(
@@ -432,6 +471,12 @@ for (const seed of toRun) {
         );
       if (offers === 0) throw new Error('the season produced no dog offers');
       if (tips === 0) throw new Error('the season produced no tips');
+      if (staffOffers === 0) throw new Error('the season produced no staff offers');
+      // ⚠️ Sabotage is checked across the run, not per season (see the end of the file): at its own
+      // target — 40–70% of seasons see one — a third of honest seasons have none.
+      walked.sabotages += sabotages;
+      if (state.players.some((p) => p.staff.length > 2))
+        throw new Error('a stable holds more than two trainers');
     } catch (e) {
       failures++;
       console.error(`seed ${seed} (${label}) FAILED: ${(e as Error).message}`);
@@ -444,7 +489,7 @@ for (const seed of toRun) {
 console.log(
   `\nThe week walked: ${walked.declare} declarations, ${walked.states} dog-weeks whose state followed the Race Office, ` +
     `${walked.trades} trades, ${walked.bets} bets, ${walked.diets} diets set, ` +
-    `${walked.hungry} hungry dog-weeks.`,
+    `${walked.hungry} hungry dog-weeks, ${walked.sabotages} sabotages, ${walked.boxes} boxes named.`,
 );
 console.log(
   `Goods traded: ${goodsTraded.size} of ${GOODS.length} (${[...goodsTraded].join(', ')}).`,
@@ -455,6 +500,10 @@ if (!failures && goodsTraded.size < 4) {
   );
   failures++;
 }
+// ⚠️ Phase D2: `sabotages` and `boxes` are in `walked`, so a run in which nobody booked a nobble, or
+// the walk never named a box, fails here. They are run-wide rather than per season on purpose: the
+// acceptance row puts one sabotage in 40–70% of seasons, so a per-season check would fail about a
+// third of honest seasons. Dog offers and staff offers are frequent enough to fail per season.
 if (!failures && Object.values(walked).some((n) => n === 0)) {
   const dead = Object.entries(walked)
     .filter(([, n]) => n === 0)
