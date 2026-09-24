@@ -244,6 +244,17 @@ const LABELS: Record<string, string> = {
   'Sabotage: catch chance at Holy Bark': 'catchChanceHolyBark',
   'Sabotage: caught, a flat fine': 'caughtFine',
   'Sabotage: caught, share of what the nobbler had on the race': 'caughtStakeShare',
+  // Phase E1, GDD_V3 §2.1: how long a game is.
+  'Game: fewest seasons a table may choose': 'gameSeasonsMin',
+  'Game: most seasons a table may choose': 'gameSeasonsMax',
+  'Target: suggested net worth, a short game': 'targetShort',
+  'Target: suggested net worth, a long game': 'targetLong',
+  'Target: the most seasons a Target game runs': 'targetSeasonCap',
+  // Phase E1, GDD_V3 §2.2: the off-season.
+  'Off-season: a trainer leaves, chance each': 'staffNoticeChance',
+  "Off-season: the replacement's seller lies, × the dog-offer rate": 'retireOfferLieMult',
+  'Off-season: AI retires when the offer beats its cheapest dog by (Bones)': 'aiRetireMargin',
+  'Off-season: AI retires a dog this old, whatever the offer': 'aiRetireAge',
 };
 
 const wb = XLSX.read(readFileSync(xlsxPath));
