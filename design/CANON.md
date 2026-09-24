@@ -74,6 +74,6 @@ correction goes in the next phase's notes.
 |---|---|---|
 | v1 | `m4` | `design/GDD.md` 0.1, `design/BUILD_PLAN.md` §6 |
 | v2 | `v2a` … `v2e` | `design/GDD.md` 0.2–0.7, `design/BUILD_PLAN.md` §6b |
-| **v3** | `v3a`, `v3b`, `v3c`, `v3c2`, `v3d1`, `v3d2`, `v3e1`, `v3e2`, `v3f1` | **`design/GDD_V3.md` 3.0, `design/BUILD_PLAN_V3.md`** |
+| **v3** | `v3a`, `v3b`, `v3c`, `v3c2`, `v3d1`, `v3d2`, `v3e1`, `v3e2`, `v3f1`, `v3f2` | **`design/GDD_V3.md` 3.0, `design/BUILD_PLAN_V3.md`** |
 
-Last reviewed and **synced to the claude.ai Project: 25 September 2026**, at `v3f1` (Phase F1, the look, built: doors, trainers and human faces; Phase E's playtest rows and F1's checklist outstanding). The Project mirrors match this repo for `CANON.md`, `GDD_V3.md`, `BUILD_PLAN_V3.md`, `BUILD_PLAN.md` and `GDD.md`. `design/ASSET_LIST.md` is not mirrored: it is a working list for the art, read in the repo.
+Last reviewed and **synced to the claude.ai Project: 25 September 2026**, at `v3f2` (Phase F done: F2 drew the 67 event cards, and every file in the art contract is finished; Phase E's playtest rows and the F1 and F2 checklists outstanding). The Project mirrors match this repo for `CANON.md`, `GDD_V3.md`, `BUILD_PLAN_V3.md`, `BUILD_PLAN.md` and `GDD.md`. `design/ASSET_LIST.md` is not mirrored: it is a working list for the art, read in the repo.
