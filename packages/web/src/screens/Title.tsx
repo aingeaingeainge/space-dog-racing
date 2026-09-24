@@ -322,7 +322,7 @@ function GameLengthPicker({
           ? length.seasons === 1
             ? 'Ten weekends; the richest stable wins.'
             : `Ten weekends a season, with an off-season between: a year older, one retirement, the staff notice.`
-          : `Net worth is checked at the end of every weekend. The first stable past it ends the game that weekend — and the richest stable wins, not necessarily the one that crossed. At most ${balance.targetSeasonCap} seasons.`}
+          : `Net worth is checked at the end of every weekend. The first weekend anybody is past it is the last one, and the richest stable then wins — two can cross together, and a leader can be caught on the last weekend. At most ${balance.targetSeasonCap} seasons.`}
       </span>
     </div>
   );

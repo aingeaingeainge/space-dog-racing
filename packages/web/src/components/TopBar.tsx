@@ -14,6 +14,12 @@ export function TopBar({ s, me }: { s: GameState; me: Player | null }) {
     <div className="topbar">
       <span className="brand">Space Dog Racing</span>
       <span className="stat">
+        {s.season > 1 || s.length.kind === 'target' || s.length.seasons > 1 ? (
+          <>
+            Season <b>{s.season}</b>
+            {s.length.kind === 'seasons' ? `/${s.length.seasons}` : ''} ·{' '}
+          </>
+        ) : null}
         Week <b>{s.week}</b>/{s.calendar.length}
         {planet ? (
           <>
