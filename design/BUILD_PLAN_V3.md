@@ -3,7 +3,7 @@
 > **Status: CURRENT.** Build from this document.
 >
 > Canonical copy: `design/BUILD_PLAN_V3.md` in the `space-dog-racing` repo. A copy in a claude.ai
-> Project is a **mirror**, last synced 24 September 2026 (at `v3e1`) — edit the repo, never the mirror. See
+> Project is a **mirror**, last synced 25 September 2026 (at `v3e2`) — edit the repo, never the mirror. See
 > `design/CANON.md`.
 >
 > Supersedes `design/BUILD_PLAN.md` from §6 onward. **That document's §§1–5 — architecture, tech
@@ -344,23 +344,27 @@ in a crowd +2.3), but it does not read it yet. Accel over stamina at 480 m is on
 
 ### Phase E — the table (1–2 sessions) → `v3e`
 
-> **Status: E1 COMPLETE, tagged `v3e1` (24 September 2026); E2 to come.** E1 built the game's
-> shape: the free local runner removed, 1–5 seasons or a Target, the off-season (age, retirement,
-> staff notice), multi-season save and replay with a second golden, CI on Node 20/22/24, a
-> minimal UI and `--game` (GDD_V3 E1–E7, `claude/V3_PHASE_E1_NOTES.md`). E2 is the table:
-> simultaneous hotseat, skippable races, the real season-end and game-end screens, and the
-> playtest.
+> **Status: E2 BUILT, tagged `v3e2` (25 September 2026); the four 🎲 rows are outstanding until
+> Jesse's table has played.** E1 (`v3e1`, 24 September) built the game's shape: no free local runner,
+> 1–5 seasons or a Target, the off-season, multi-season save and replay, CI on Node 20/22/24 and
+> `--game`. E2 built the table: the hotseat loop (the laptop moves only when a private screen changes
+> hands; the Bookie in any order), "Skip the rest of race day", every dog fresh at a new season, the
+> real season-end and game-end screens with each season's moments archived, the pace timer and the
+> playtest checklist (GDD_V3 E1–E11; `claude/V3_PHASE_E1_NOTES.md`, `claude/V3_PHASE_E2_NOTES.md`).
 >
-> | Measure (E1's rows) | Target | `v3e1` |
+> | Measure | Target | `v3e2` |
 > |---|---|---|
-> | Stables ending a season on less than they started | 10–25% | **0.8%** ❌ reported |
-> | Net worth gap, 1st to last, end of season | narrower than v2's | 26,510 / 1.85× against v2e's 63,530 / 8.16× ✅ |
-> | Nobody mathematically out before week 8 (E7) | ✅ | one season 0.0% ✅ · last season of a 3 / 5-season game 12.8% / 42.2% ❌ reported |
-> | A 5-season game's roster turns over | ≥ 1 per stable per 2 seasons | **1.81** (1.02 retired + 0.79 Pound) ✅ |
-> | Seed + log reproduces a multi-season game | ✅ tests; Node 20/22/24 in CI | ✅ two-season golden; CI matrix added, **not yet run** (runs on push) |
-> | One-season rows | in band or reported | mean end worth **42,151** ❌ (Jesse: leave it) · races 2.12 · races/dog 6.54 · Phase B ✅ · house margin −10.9% ❌ · blind stable dog +2.6% ❌ · buzzing +30.0% ✅ |
-> | `npm test`; `npm run build` | ✅ | 43 green; build ✅ |
-> | 🎲 25 min for 4 humans (races skipped), 40 watched, 70 for 8; a Target finish worth watching | E2 | outstanding |
+> | Explore, Kennel and the Bookie take no more passes than privacy needs | ✅, reported at 4 and 8 humans | 4 humans (+2 AIs) **14.5 → 10.7** passes a weekend · 8 humans **30.4 → 22.4**; presses a human 13.8 → 12.9 and 14.1 → 13.1 ✅ |
+> | Race day skippable in one press | ✅ | "Skip the rest of race day" (Shift+S) ✅ |
+> | Season-end and game-end screens: income split, net-worth chart (whole game at the end), moments | ✅ | ✅ (moments archived per season, `STATE_VERSION` 12) |
+> | A new season starts every dog fresh | ✅ property test | ✅ |
+> | `season-check` walks four humans with no private screen leaking | ✅ | two games, 0 leaks ✅ (the check reports 200 leaks with the planet's pass removed on purpose) |
+> | CI green on Node 20/22/24 | ✅ | **not checked**: no GitHub access from the build session. Look at the Actions tab |
+> | One-season rows unmoved; E1's `--game` rows re-measured after the fresh-season rule | reported | 800 seasons byte-identical to `v3e1` ✅; `--game` in the E2 notes |
+> | Stables ending a season on less than they started | 10–25% | 0.8% (1 season) · 0.6% (5 seasons) ❌ reported, not tuned (Jesse) |
+> | Nobody mathematically out before week 8 | ✅ | one season 0.0% ✅ · last season of 3 / 5-season games 15.8% / 48.8% ❌ reported |
+> | 🎲 4 humans, 1 season, races skipped ≤ 25 min · watched ≤ 40 · 8 humans ≤ 70 · a Target finish worth watching | 🎲 | **outstanding** — the pace timer on the game-end screen measures them; `design/PLAYTEST_CHECKLIST.md` |
+> | `npm test`; `npm run build` | ✅ | 47 green; build ✅ |
 
 **Goal:** three to eight humans finish a game in forty minutes and want another.
 

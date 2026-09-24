@@ -3,7 +3,7 @@
 > **Status: CURRENT.** Build from this document.
 >
 > Canonical copy: `design/GDD_V3.md` in the `space-dog-racing` repo. A copy in a claude.ai Project
-> is a **mirror**, last synced 24 September 2026 (at `v3e1`) — edit the repo, never the mirror. See `design/CANON.md`.
+> is a **mirror**, last synced 25 September 2026 (at `v3e2`) — edit the repo, never the mirror. See `design/CANON.md`.
 >
 > Supersedes `design/GDD.md` (v2, shipped at tag `v2e`), which is kept as historical reference and
 > is cited by name throughout this document.
@@ -148,6 +148,12 @@ Normal retires any dog of 6 or older, or its cheapest dog when the offer reads 5
 Hard uses half the margin. In 5-season games 64% of stables retire a dog each off-season, and a
 kennel turns over 1.81 dogs per two seasons (1.02 retired, 0.79 taken in the Pound).*
 
+*`v3e2` (E9, Jesse's call): **the off-season is a long rest.** At the new season every dog's fitness is
+set to `seasonStartFitness` (100) and any layoff clears, so step 4's "carry over untouched" no longer
+covers fitness. Races entered in seasons 2–5 went from about 1.87 a weekend to 2.04–2.12, level with
+season 1. The season's end is now a real screen (E10): podium, where the money came from, the chart
+and the moments, then "On to season N".*
+
 ### 2.3 The weekend
 
 One planet phase, not two. v2 ran a market phase before *and* after the races; v3 runs one, because
@@ -172,6 +178,12 @@ spent next week, which gives the season a rhythm.
 against last look at a field you have to commit a dog into. A stable that loads its hold to the roof
 goes last all season, which makes it rich and predictable — a trade the whole table can see it
 making.
+
+*`v3e2` (E8): step 6 is built as written — **the Bookie takes slips in any order**, and a slip is filed
+in turn order whatever order it was struck in, so the order changes nothing (a determinism test runs all
+24 orders of four humans). Steps 1 and 5's public moments — the turn order at arrival and the locked
+board — are read by a hotseat table together, and after step 7 the table flies on from a public
+roll-call; only a stable that wants the market again takes the laptop back.*
 
 ### 2.4 Winning
 
@@ -202,6 +214,16 @@ top. Net worth is the whole scoring system.
   in the design.
 - **Hidden information between humans:** a stable's Explore choice and its bets are private. Its
   declarations are public the moment they are made (§7.3), and its dogs' stats are always public.
+
+*`v3e2` (E8): the laptop moves only when a private screen changes hands. Private: the door and its
+card, the market, kennels and Race Office, the Bookie, the off-season. Public, read together: the
+arrival, the locked board, race day, the results (every stable's purses, nobody's slips — a human
+reads their own settled slips on their next private screen), the roll-call after the races, and the
+season's and game's end. The pass screen says who is next and why, and never shows to the human already
+holding the laptop. `hub-clicks`: 14.5 → 10.7 passes a weekend at four humans (with two AIs), 30.4 →
+22.4 at eight; presses a human 13.8 → 12.9 and 14.1 → 13.1. Explore and the Market/Race Office sitting
+are still one pass each a human, because both are in turn order and one must finish before the other
+opens.*
 
 ---
 
@@ -652,6 +674,12 @@ photo-finish freeze, 1× / 2× / skip. Two additions v3 requires:
 ❓ **Open:** should all three races be watchable simultaneously in split view? It would cut the
 watching time by two thirds at some cost in drama.
 
+*`v3e2` (Jesse's call): **every race is watched, with a way out.** Nothing is auto-skipped and there is no
+Title toggle; the per-race Skip stays, and **"Skip the rest of race day"** (Shift+S) takes every race
+left this weekend to the results in one press. Watching changes nothing in the engine. At a hotseat
+table the race view has no "you". The pace timer (E11) splits out race day, so the table's own time
+says whether split view is worth building.*
+
 ---
 
 ## 8. Staff — two trainers on commission
@@ -842,6 +870,11 @@ always there.**
 *`v3d2`: Race/Rest is no longer a press — the week follows the declarations (D16) — and `hub-clicks`
 reads 9.4 a weekend.*
 
+*`v3e2`: one human still reads 9.4. At a hotseat table the number that matters is passes × players as
+well as presses × players: 10.7 passes a weekend at four humans and 22.4 at eight (E8), and 12.9 and
+13.1 presses a human, pass acknowledgements included. The public moments cost the table about one
+press a weekend between them, because each one's button is the pass when the laptop moves.*
+
 ---
 
 ## 11. Balance targets
@@ -977,6 +1010,10 @@ All 18 planets survive as data. What changes is which fields do work:
 | 2026-09-24 | **E5 — each stable's off-season runs on its own stream, rolled in full when it opens** | Decision D1's pattern. The game's stream draws one seed per stable in seating order and nothing else. From its seed each stable rolls its offer and its trainers' notices, then its candidate in a second pass once everybody's leavers are in the pool. Answers draw nothing, so no choice moves the game's stream or another stable's draws, which a determinism test checks |
 | 2026-09-24 | **E6 — age ticks in the off-season only, not at week 7** | §4.3 as written. The week-7 tick was a build artefact, never a rule, and removing it means a one-season game has no ageing. One-season mean end worth went 39,194 → 42,151 (band 25–40k); all of the rise is dog book value. Jesse's call: leave it and report. It also moved the betting rows: a stable dog backed blind went +1.5% → +2.6% (the band is ≤ +2%), because young dogs now grow all season while their rating lags. `oddsScale` was not touched |
 | 2026-09-24 | **E7 — "mathematically out" is a purse definition: at the start of week 8, worth plus every first-place purse left in the season is under the leader's** | Defined before it was measured. Multipliers and the stable's prize-money trainers are counted; commission, tax, trading and betting are not. One-season games: 0.0% of stables out ✅. In the last season of a long game the gap has grown for years: 12.8% of stables are out in 3-season games, 42.2% in 5-season games and 27.8% in 150,000 games ❌ reported. Pillar 5 holds for a season, not for the fifth season of a long game |
+| 2026-09-25 | **E8 — the hotseat loop passes the laptop only when a private screen changes hands; the Bookie takes slips in any order** | §2.3, §3, V20. The pass is skipped for the human already holding the laptop, and names who is next and why. The arrival, the locked board, the results and a roll-call after the races are public, each ending on a button that is the pass when needed. The Bookie's engine half: `placeBet` and EndPhase accept any stable not yet finished, and a slip is filed in turn order, so any order gives the same state (all 24 orders of four humans, byte for byte). The results show no slips; each human reads theirs on their next private screen. `hub-clicks`: 14.5 → 10.7 passes a weekend at 4 humans, 30.4 → 22.4 at 8. Neither golden moved |
+| 2026-09-25 | **E9 — the off-season is a long rest: every dog starts a new season on `seasonStartFitness` (100), with no layoff** | Jesse's call. A sheet row. The two-season golden moved; the one-season golden did not. 5-season games: races entered in seasons 2–5 went 1.89/1.88/1.86/1.86 → 2.12/2.09/2.06/2.04; mean worth at the end of season 5 136,740 → 147,689; poorer than they began 0.6% → 0.6%; out at week 8 of the last season 42.2% → 48.8%. Nothing tuned |
+| 2026-09-25 | **E10 — each season's moments are archived at `finishSeason`, as facts** | `SeasonRecord.moments`: the longest-priced winner, the best slip over its stake (names copied in) and slips struck. Chosen over "the game end shows only the last season's" because each new season clears the results and the book, so a five-season game's end could otherwise tell a fifth of its story. A state change (`STATE_VERSION` 12). The game end reads the archive: winner, reason, whole-game chart with the off-seasons marked, the game's moments, a table of seasons, the whole game's income split, and in a Target game who crossed, whether two crossed together and whether the leader was caught |
+| 2026-09-25 | **E11 — the pace timer is UI-only** | Wall-clock seconds a weekend, arrival to "Fly on", split into private screens, race day, pass screens and the table's own screens, plus the time between seasons. Kept in the save's `ui` block, never in state or the log. A stretch counts ten minutes at most; a hidden window stops it. Read back on the game-end screen. It exists for the four 🎲 rows |
 
 ---
 
