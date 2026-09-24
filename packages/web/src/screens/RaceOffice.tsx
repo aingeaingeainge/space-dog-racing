@@ -1,7 +1,6 @@
 import {
   balance,
   formatBones,
-  LOAN_RACE,
   planetOf,
   publicStyle,
   purseFor,
@@ -208,8 +207,6 @@ export function RaceOffice({ s, me }: { s: GameState; me: Player }) {
   const trip = planet.track.length;
 
   const card = thisWeeksCard();
-  // GDD_V3 §4.4: a stable short of fit dogs is lent a local for the Bronze Dash, free.
-  const loaner = me.loanerId ? s.dogs[me.loanerId] : undefined;
   const declare = (race: RaceTypeId, dogId: string) =>
     dispatch({ t: 'Declare', playerId: me.id, race, dogId: dogId || null });
 
@@ -258,12 +255,10 @@ export function RaceOffice({ s, me }: { s: GameState; me: Player }) {
           ]}
         />
         <WeekLedger s={s} me={me} dogs={dogs} />
-        {loaner ? (
+        {dogs.some((d) => d.injuryWeeks > 0) ? (
           <p className="event-detail">
-            You are short of fit dogs, so the track lends you <b>{loaner.name}</b> (rated{' '}
-            {loaner.rating}, a {STYLE_BY_ID[loaner.style].name.toLowerCase()}) for the{' '}
-            {raceLabel(LOAN_RACE)}. It runs in your colours and you keep the prize; it goes back at
-            the end of the weekend and is nobody&apos;s asset.
+            A dog on layoff cannot be declared, and nobody lends you a runner. A vet behind the
+            Pound — or a riskier one in the Back Alley — can shorten a layoff.
           </p>
         ) : null}
       </Panel>
@@ -309,11 +304,6 @@ export function RaceOffice({ s, me }: { s: GameState; me: Player }) {
                   onChange={(e) => declare(race, e.target.value)}
                 >
                   <option value="">— no runner —</option>
-                  {loaner && race === LOAN_RACE ? (
-                    <option value={loaner.id}>
-                      {loaner.name} · {loaner.rating} · the lent local runner
-                    </option>
-                  ) : null}
                   {dogs.map((d) => {
                     const bad = ineligibleReason(d, race);
                     const other = declaredRace(s, me.id, d.id);

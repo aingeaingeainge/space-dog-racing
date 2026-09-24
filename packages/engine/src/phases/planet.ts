@@ -1,4 +1,3 @@
-import { LOAN_RACE } from './explore';
 import { raceType } from '../content/raceTypes';
 import { balance } from '../content/balance';
 import { good } from '../content/goods';
@@ -68,8 +67,6 @@ export function declare(ctx: Ctx, action: Extract<Action, { t: 'Declare' }>): vo
   }
   const d = dog(s, action.dogId);
   if (d.ownerId !== p.id) fail('Not your dog', action);
-  if (d.loan && action.race !== LOAN_RACE)
-    fail(`${d.name} is lent for the ${raceType(LOAN_RACE).label} only`, action);
   if (!eligible(d, action.race)) {
     fail(
       d.injuryWeeks > 0
@@ -101,8 +98,7 @@ export function followDeclarations(s: GameState, playerId?: Id): void {
   for (const p of s.players) {
     if (playerId && p.id !== playerId) continue;
     const declared = new Set(declaredDogs(s, p.id));
-    const ids = p.loanerId ? [...p.dogIds, p.loanerId] : p.dogIds;
-    for (const id of ids) {
+    for (const id of p.dogIds) {
       const d = s.dogs[id];
       if (d) d.weekState = declared.has(id) ? 'race' : 'rest';
     }

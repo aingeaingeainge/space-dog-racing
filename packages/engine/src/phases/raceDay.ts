@@ -301,9 +301,7 @@ export function runRaces(ctx: Ctx): void {
       if (race === HEADLINE_TYPE_ID && place === 1) d.goldCupWins++;
       if (d.ownerId !== 'local') {
         const owner = player(s, d.ownerId);
-        // A lent local (GDD_V3 §4.4) pays its stable the prize and nothing else: it is nobody's
-        // asset, so it is not rolled for injury.
-        const weeks = d.loan ? 0 : rollInjury(ctx, owner, d, planet.track.hazard);
+        const weeks = rollInjury(ctx, owner, d, planet.track.hazard);
         if (weeks) {
           d.injuryWeeks = weeks;
           result.injuries[dogId] = weeks;

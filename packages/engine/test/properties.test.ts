@@ -480,12 +480,9 @@ describe('Explore, the Pound, the tips and the local runner (GDD_V3 §4.4, §9; 
   /** What must hold after every action once Explore exists, over whole seasons of Normal stables. */
   function checkD1(s: GameState): void {
     for (const p of s.players) {
-      // A lent runner is nobody's asset: never in the kennel, and only this weekend's.
-      for (const id of p.dogIds) assert(!s.dogs[id]!.loan, `${id} is a loaner in ${p.id}'s kennel`);
-      if (p.loanerId) {
-        const d = s.dogs[p.loanerId];
-        assert(d?.loan && d.ownerId === p.id, `${p.id}'s loaner ${p.loanerId} is not a loan`);
-      }
+      // ⚠️ Edited in Phase E1 (item 1): the free local runner is deleted, so there is no loaner to
+      // check — only that no stable carries one any more.
+      assert(!('loanerId' in p), `${p.id} still carries a loaner`);
       assert(p.dogIds.length === balance.startDogs, `${p.id} holds ${p.dogIds.length} dogs`);
       assert(
         p.dealtGone.length + p.dogIds.filter((id) => s.dogs[id]!.dealt).length === 3,
@@ -494,12 +491,7 @@ describe('Explore, the Pound, the tips and the local runner (GDD_V3 §4.4, §9; 
       assert(p.stats.liesCaught <= p.stats.liesTold, 'more lies caught than told');
       assert(p.stats.dogsTaken <= p.stats.dogOffers, 'more dogs taken than offered');
     }
-    for (const d of Object.values(s.dogs))
-      if (d.loan)
-        assert(
-          s.players.some((p) => p.loanerId === d.id),
-          `stray loaner ${d.id}`,
-        );
+    for (const d of Object.values(s.dogs)) assert(!('loan' in d), `${d.id} is a loaner`);
     for (const c of s.conditions) {
       for (const pid of c.tipped)
         assert(
@@ -540,7 +532,8 @@ describe('Explore, the Pound, the tips and the local runner (GDD_V3 §4.4, §9; 
     }
   }, 60_000);
 
-  it('refuses a second door, a door out of turn, and a loaner outside the Bronze Dash', () => {
+  // ⚠️ Edited in Phase E1 (item 1): the loaner half of this test went with the free local runner.
+  it('refuses a second door and a door out of turn', () => {
     const s = createSeason({
       seed: 11,
       players: [
@@ -558,16 +551,6 @@ describe('Explore, the Pound, the tips and the local runner (GDD_V3 §4.4, §9; 
     if (s.pendingEvent)
       reduceMut(s, { t: 'ResolveEvent', playerId: first, choice: aiChoiceFor(s, first) });
     expect(() => reduceMut(s, { t: 'ChooseDoor', playerId: first, door: 0 })).toThrow();
-    // Lend the active stable a runner by hand and try it in the Gold Cup.
-    explorePast(s);
-    const p = player(s, s.activePlayer!);
-    const d = s.dogs[p.dogIds[0]!]!;
-    const lent = { ...d, id: 'dog_lent', loan: true as const, dealt: false };
-    s.dogs[lent.id] = lent;
-    p.loanerId = lent.id;
-    expect(() =>
-      reduceMut(s, { t: 'Declare', playerId: p.id, race: HEADLINE_TYPE_ID, dogId: lent.id }),
-    ).toThrow(/lent/);
   });
 });
 

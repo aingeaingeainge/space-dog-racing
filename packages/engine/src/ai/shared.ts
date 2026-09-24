@@ -15,7 +15,6 @@ import {
 } from '../state';
 import { feedsFor, GOODS, good, STAPLE_ID, type Good } from '../content/goods';
 import { tipsFor } from '../content/conditions';
-import { LOAN_RACE } from '../phases/explore';
 import { expectedPrice, planFeeding } from '../economy/food';
 import { cargoTotal, HOLD_CAP } from '../economy/goods';
 import {
@@ -722,9 +721,6 @@ export function racingDogs(assignment: Assignment): Set<Id> {
 /** Turn a chosen assignment into Declare actions, skipping the ones already standing. */
 export function emitDeclarations(plan: Plan, assignment: Assignment): void {
   const { s, playerId, out } = plan;
-  // The free local runner (GDD_V3 §4.4): a race our own dogs are not in is free money for it.
-  const loaner = plan.p.loanerId;
-  if (loaner && s.dogs[loaner] && !assignment.plan[LOAN_RACE]) assignment.plan[LOAN_RACE] = loaner;
   for (const race of thisWeeksCard()) {
     const dogId = assignment.plan[race] ?? null;
     if ((s.declarations[race][playerId] ?? null) !== dogId)

@@ -86,7 +86,12 @@ ROWS.push(
   },
 );
 
-const REMOVE: { label: string; why: string }[] = [];
+const REMOVE: { label: string; why: string }[] = [
+  {
+    label: 'Local runner: a dog counts as fit at this fitness or above',
+    why: "Jesse's call for Phase E1: no free local runner at all. D2 measured an injury nearly free because of it. ⚠️ `add-phase-d-rows.ts` still writes this row; re-running it would put it back",
+  },
+];
 
 // ---------------------------------------------------------------------------
 

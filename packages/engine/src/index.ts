@@ -24,7 +24,6 @@ export { publicStyle, STYLES, STYLE_BY_ID } from './content/styles';
 export { EVENTS, EVENT_BY_ID, type EventCard } from './content/events';
 export { aiChoiceFor, deckFor } from './phases/explore';
 export { doorWeights, pickDoor } from './ai/explore';
-export { LOAN_RACE } from './phases/explore';
 export { intelPrice } from './ai/shared';
 export { CONDITIONS, CONDITION_BY_ID, conditionOf, tipsFor } from './content/conditions';
 export * from './content/names';

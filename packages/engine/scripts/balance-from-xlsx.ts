@@ -217,8 +217,6 @@ const LABELS: Record<string, string> = {
   'Condition: off its feed, fitness on race day': 'conditionOffFeedFitness',
   'Condition: buzzing, chance per stable dog per weekend': 'conditionBuzzingChance',
   'Condition: buzzing, speed on race day (stat points)': 'conditionBuzzingSpeed',
-  // GDD_V3 §4.4: the free local runner.
-  'Local runner: a dog counts as fit at this fitness or above': 'localRunnerFitAt',
   // Phase D2, GDD_V3 §8: staff on commission.
   'Staff: trainers dealt to each stable at the start of a game': 'staffSlots',
   'Staff cut: +1 stat a week': 'staffCutStatWeek',

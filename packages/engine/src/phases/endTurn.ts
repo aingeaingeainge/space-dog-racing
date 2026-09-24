@@ -196,9 +196,8 @@ export function runEndTurn(ctx: Ctx): void {
 
   // Sweep the locals; prune this week's tick logs into the archive.
   for (const d of Object.values(s.dogs)) {
-    if (d.ownerId === 'local' || d.loan) delete s.dogs[d.id];
+    if (d.ownerId === 'local') delete s.dogs[d.id];
   }
-  for (const p of s.players) delete p.loanerId;
   if (s.races) {
     for (const r of s.races) s.results.push({ ...r, ticks: [] });
   }
