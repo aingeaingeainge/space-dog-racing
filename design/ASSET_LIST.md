@@ -27,11 +27,11 @@ Everything is loaded lazily and per planet, so the whole set is never fetched at
 | Dog run cycles | 12 | 45 kB | 0.5 MB | 0.9 MB | 2 |
 | Event cards | 93 | 70 kB | 6.4 MB | 11.8 MB | 3 |
 | Explore doors | 54 | 60 kB | 3.2 MB | 5.8 MB | 2 |
-| Character portraits | 49 | 50 kB | 2.4 MB | 4.3 MB | 3 |
+| Character portraits | 44 | 50 kB | 2.1 MB | 3.9 MB | 3 |
 | UI furniture | 11 | 8/25/30/40 kB | 0.2 MB | 0.4 MB | 3 |
-| **All of it** | **293** | | **20.2 MB** | **36.9 MB** | |
+| **All of it** | **288** | | **20.0 MB** | **36.5 MB** | |
 
-**293 files, about 20.2 MB if you hit the targets and 36.9 MB if every one lands on its cap.** That is the whole library, not a download: no player ever fetches all of it, because backdrops, ground and surfaces are per planet and a season visits thirteen of eighteen.
+**288 files, about 20.0 MB if you hit the targets and 36.5 MB if every one lands on its cap.** That is the whole library, not a download: no player ever fetches all of it, because backdrops, ground and surfaces are per planet and a season visits thirteen of eighteen.
 
 Two levers if that total wants to come down:
 
@@ -2060,9 +2060,9 @@ photorealism, 3D render, photograph, text, letters, words, readable signage, wat
 1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: Work on the ice. Glassfall trainers teach their dogs to corner on sheet ice. A dog that can hold a bend on ice can hold one anywhere. Some of them learn by falling over. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
 ```
 
-### Character portraits — 49 files, ~2.4 MB
+### Character portraits — 44 files, ~2.1 MB
 
-Twelve AI stable owners (indexed like Dog.look, by stable number), six hireables and Fat Tony Nebula.
+Twelve AI stable owners (keyed by stable name), the twenty-four trainers of GDD_V3 §8 (two rows reuse trainer-01 and trainer-02), and eight faces for the human stables, one per saddle-cloth colour. The v2 vets, fixers and Fat Tony went with the hireables and the loan shark (Phase F1).
 
 **Negative prompt for every file in this group:**
 
@@ -2182,49 +2182,9 @@ photorealism, 3D render, photograph, text, letters, watermark, signature, real c
 1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Character portrait: a brisk younger trainer with a stopwatch and a clipboard. Head and shoulders, facing the viewer, comic and characterful, grimy retro-future dog-racing circuit. Acid green #9BE84B and hazard yellow #F4C542 accents over charcoal #1B1A22. Transparent background or a flat charcoal one, no text, square 1:1.
 ```
 
-#### vet-01 — `src/assets/portraits/vet-01.webp` (or `.svg`)
-
-512×512 · WebP with alpha · target 50 kB, cap 90 kB · seeds 7700–7749
-
-```text
-1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Character portrait: a four-handed vet in a stained smock holding a huge syringe. Head and shoulders, facing the viewer, comic and characterful, grimy retro-future dog-racing circuit. Acid green #9BE84B and hazard yellow #F4C542 accents over charcoal #1B1A22. Transparent background or a flat charcoal one, no text, square 1:1.
-```
-
-#### vet-02 — `src/assets/portraits/vet-02.webp` (or `.svg`)
-
-512×512 · WebP with alpha · target 50 kB, cap 90 kB · seeds 7750–7799
-
-```text
-1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Character portrait: a gentle giant of a vet with reading spectacles and a bandage roll. Head and shoulders, facing the viewer, comic and characterful, grimy retro-future dog-racing circuit. Acid green #9BE84B and hazard yellow #F4C542 accents over charcoal #1B1A22. Transparent background or a flat charcoal one, no text, square 1:1.
-```
-
-#### fixer-01 — `src/assets/portraits/fixer-01.webp` (or `.svg`)
-
-512×512 · WebP with alpha · target 50 kB, cap 90 kB · seeds 7800–7849
-
-```text
-1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Character portrait: a fixer in a long coat, hands in pockets, standing in shadow. Head and shoulders, facing the viewer, comic and characterful, grimy retro-future dog-racing circuit. Acid green #9BE84B and hazard yellow #F4C542 accents over charcoal #1B1A22. Transparent background or a flat charcoal one, no text, square 1:1.
-```
-
-#### fixer-02 — `src/assets/portraits/fixer-02.webp` (or `.svg`)
-
-512×512 · WebP with alpha · target 50 kB, cap 90 kB · seeds 7850–7899
-
-```text
-1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Character portrait: a cheerful fixer with a briefcase full of things you should not have. Head and shoulders, facing the viewer, comic and characterful, grimy retro-future dog-racing circuit. Acid green #9BE84B and hazard yellow #F4C542 accents over charcoal #1B1A22. Transparent background or a flat charcoal one, no text, square 1:1.
-```
-
-#### fat-tony — `src/assets/portraits/fat-tony.webp` (or `.svg`)
-
-512×512 · WebP with alpha · target 50 kB, cap 90 kB · seeds 7900–7949
-
-```text
-1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Character portrait: Fat Tony Nebula: an enormous, immaculately dressed loan shark, all rings and teeth. Head and shoulders, facing the viewer, comic and characterful, grimy retro-future dog-racing circuit. Acid green #9BE84B and hazard yellow #F4C542 accents over charcoal #1B1A22. Transparent background or a flat charcoal one, no text, square 1:1.
-```
-
 #### staff-osk — `src/assets/portraits/staff-osk.webp` (or `.svg`)
 
-512×512 · WebP with alpha · target 50 kB, cap 90 kB · seeds 7950–7999
+512×512 · WebP with alpha · target 50 kB, cap 90 kB · seeds 7700–7749
 
 ```text
 1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Character portrait: Madame Osk, a dog trainer: a stern four-armed alien physiotherapist with bandage rolls in every hand. Head and shoulders, facing the viewer, comic and characterful, grimy retro-future dog-racing circuit. Acid green #9BE84B and hazard yellow #F4C542 accents over charcoal #1B1A22. Transparent background or a flat charcoal one, no text, square 1:1.
@@ -2232,7 +2192,7 @@ photorealism, 3D render, photograph, text, letters, watermark, signature, real c
 
 #### staff-rumbold — `src/assets/portraits/staff-rumbold.webp` (or `.svg`)
 
-512×512 · WebP with alpha · target 50 kB, cap 90 kB · seeds 8000–8049
+512×512 · WebP with alpha · target 50 kB, cap 90 kB · seeds 7750–7799
 
 ```text
 1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Character portrait: Doc Rumbold, a dog trainer: a jowly back-street dog doctor with a head lamp and a leather bag. Head and shoulders, facing the viewer, comic and characterful, grimy retro-future dog-racing circuit. Acid green #9BE84B and hazard yellow #F4C542 accents over charcoal #1B1A22. Transparent background or a flat charcoal one, no text, square 1:1.
@@ -2240,7 +2200,7 @@ photorealism, 3D render, photograph, text, letters, watermark, signature, real c
 
 #### staff-jhett — `src/assets/portraits/staff-jhett.webp` (or `.svg`)
 
-512×512 · WebP with alpha · target 50 kB, cap 90 kB · seeds 8050–8099
+512×512 · WebP with alpha · target 50 kB, cap 90 kB · seeds 7800–7849
 
 ```text
 1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Character portrait: Whisper Jhett, a dog trainer: a thin, grinning alien gossip with oversized ears and a cocktail. Head and shoulders, facing the viewer, comic and characterful, grimy retro-future dog-racing circuit. Acid green #9BE84B and hazard yellow #F4C542 accents over charcoal #1B1A22. Transparent background or a flat charcoal one, no text, square 1:1.
@@ -2248,7 +2208,7 @@ photorealism, 3D render, photograph, text, letters, watermark, signature, real c
 
 #### staff-pim — `src/assets/portraits/staff-pim.webp` (or `.svg`)
 
-512×512 · WebP with alpha · target 50 kB, cap 90 kB · seeds 8100–8149
+512×512 · WebP with alpha · target 50 kB, cap 90 kB · seeds 7850–7899
 
 ```text
 1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Character portrait: Ledger Pim, a dog trainer: a small bespectacled mole-like clerk buried in shipping manifests. Head and shoulders, facing the viewer, comic and characterful, grimy retro-future dog-racing circuit. Acid green #9BE84B and hazard yellow #F4C542 accents over charcoal #1B1A22. Transparent background or a flat charcoal one, no text, square 1:1.
@@ -2256,7 +2216,7 @@ photorealism, 3D render, photograph, text, letters, watermark, signature, real c
 
 #### staff-vell — `src/assets/portraits/staff-vell.webp` (or `.svg`)
 
-512×512 · WebP with alpha · target 50 kB, cap 90 kB · seeds 8150–8199
+512×512 · WebP with alpha · target 50 kB, cap 90 kB · seeds 7900–7949
 
 ```text
 1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Character portrait: Duchess Vell, a dog trainer: a haughty feathered alien aristocrat in a fraying ballgown and opera gloves. Head and shoulders, facing the viewer, comic and characterful, grimy retro-future dog-racing circuit. Acid green #9BE84B and hazard yellow #F4C542 accents over charcoal #1B1A22. Transparent background or a flat charcoal one, no text, square 1:1.
@@ -2264,7 +2224,7 @@ photorealism, 3D render, photograph, text, letters, watermark, signature, real c
 
 #### staff-anselm — `src/assets/portraits/staff-anselm.webp` (or `.svg`)
 
-512×512 · WebP with alpha · target 50 kB, cap 90 kB · seeds 8200–8249
+512×512 · WebP with alpha · target 50 kB, cap 90 kB · seeds 7950–7999
 
 ```text
 1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Character portrait: Brother Anselm, a dog trainer: a calm hooded monk-alien with a lantern and a knowing half-smile. Head and shoulders, facing the viewer, comic and characterful, grimy retro-future dog-racing circuit. Acid green #9BE84B and hazard yellow #F4C542 accents over charcoal #1B1A22. Transparent background or a flat charcoal one, no text, square 1:1.
@@ -2272,7 +2232,7 @@ photorealism, 3D render, photograph, text, letters, watermark, signature, real c
 
 #### staff-grubb — `src/assets/portraits/staff-grubb.webp` (or `.svg`)
 
-512×512 · WebP with alpha · target 50 kB, cap 90 kB · seeds 8250–8299
+512×512 · WebP with alpha · target 50 kB, cap 90 kB · seeds 8000–8049
 
 ```text
 1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Character portrait: Nan Grubb, a dog trainer: a tiny ancient grandmother alien stirring a steaming pot of broth. Head and shoulders, facing the viewer, comic and characterful, grimy retro-future dog-racing circuit. Acid green #9BE84B and hazard yellow #F4C542 accents over charcoal #1B1A22. Transparent background or a flat charcoal one, no text, square 1:1.
@@ -2280,7 +2240,7 @@ photorealism, 3D render, photograph, text, letters, watermark, signature, real c
 
 #### staff-sarge — `src/assets/portraits/staff-sarge.webp` (or `.svg`)
 
-512×512 · WebP with alpha · target 50 kB, cap 90 kB · seeds 8300–8349
+512×512 · WebP with alpha · target 50 kB, cap 90 kB · seeds 8050–8099
 
 ```text
 1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Character portrait: Sarge K-9, a dog trainer: a barrel-chested cyborg drill sergeant with a megaphone and a buzz cut. Head and shoulders, facing the viewer, comic and characterful, grimy retro-future dog-racing circuit. Acid green #9BE84B and hazard yellow #F4C542 accents over charcoal #1B1A22. Transparent background or a flat charcoal one, no text, square 1:1.
@@ -2288,7 +2248,7 @@ photorealism, 3D render, photograph, text, letters, watermark, signature, real c
 
 #### staff-lucky — `src/assets/portraits/staff-lucky.webp` (or `.svg`)
 
-512×512 · WebP with alpha · target 50 kB, cap 90 kB · seeds 8350–8399
+512×512 · WebP with alpha · target 50 kB, cap 90 kB · seeds 8100–8149
 
 ```text
 1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Character portrait: Lucky Oyelaran, a dog trainer: a dapper smiling hustler in a gold waistcoat holding up a winner’s cheque. Head and shoulders, facing the viewer, comic and characterful, grimy retro-future dog-racing circuit. Acid green #9BE84B and hazard yellow #F4C542 accents over charcoal #1B1A22. Transparent background or a flat charcoal one, no text, square 1:1.
@@ -2296,7 +2256,7 @@ photorealism, 3D render, photograph, text, letters, watermark, signature, real c
 
 #### staff-glass — `src/assets/portraits/staff-glass.webp` (or `.svg`)
 
-512×512 · WebP with alpha · target 50 kB, cap 90 kB · seeds 8400–8449
+512×512 · WebP with alpha · target 50 kB, cap 90 kB · seeds 8150–8199
 
 ```text
 1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Character portrait: Mother Glass, a dog trainer: a glassy translucent alien matron peering through a jeweller’s loupe. Head and shoulders, facing the viewer, comic and characterful, grimy retro-future dog-racing circuit. Acid green #9BE84B and hazard yellow #F4C542 accents over charcoal #1B1A22. Transparent background or a flat charcoal one, no text, square 1:1.
@@ -2304,7 +2264,7 @@ photorealism, 3D render, photograph, text, letters, watermark, signature, real c
 
 #### staff-brack — `src/assets/portraits/staff-brack.webp` (or `.svg`)
 
-512×512 · WebP with alpha · target 50 kB, cap 90 kB · seeds 8450–8499
+512×512 · WebP with alpha · target 50 kB, cap 90 kB · seeds 8200–8249
 
 ```text
 1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Character portrait: The Brack Twins, a dog trainer: identical burly twin trainers in matching tracksuits, one with a whistle. Head and shoulders, facing the viewer, comic and characterful, grimy retro-future dog-racing circuit. Acid green #9BE84B and hazard yellow #F4C542 accents over charcoal #1B1A22. Transparent background or a flat charcoal one, no text, square 1:1.
@@ -2312,7 +2272,7 @@ photorealism, 3D render, photograph, text, letters, watermark, signature, real c
 
 #### staff-mossgrave — `src/assets/portraits/staff-mossgrave.webp` (or `.svg`)
 
-512×512 · WebP with alpha · target 50 kB, cap 90 kB · seeds 8500–8549
+512×512 · WebP with alpha · target 50 kB, cap 90 kB · seeds 8250–8299
 
 ```text
 1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Character portrait: Old Mossgrave, a dog trainer: an ancient mossy tree-bark alien vet with a pipe and splints. Head and shoulders, facing the viewer, comic and characterful, grimy retro-future dog-racing circuit. Acid green #9BE84B and hazard yellow #F4C542 accents over charcoal #1B1A22. Transparent background or a flat charcoal one, no text, square 1:1.
@@ -2320,7 +2280,7 @@ photorealism, 3D render, photograph, text, letters, watermark, signature, real c
 
 #### staff-fontaine — `src/assets/portraits/staff-fontaine.webp` (or `.svg`)
 
-512×512 · WebP with alpha · target 50 kB, cap 90 kB · seeds 8550–8599
+512×512 · WebP with alpha · target 50 kB, cap 90 kB · seeds 8300–8349
 
 ```text
 1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Character portrait: Zeb Fontaine, a dog trainer: a slick informant in a trench coat with a notebook full of secrets. Head and shoulders, facing the viewer, comic and characterful, grimy retro-future dog-racing circuit. Acid green #9BE84B and hazard yellow #F4C542 accents over charcoal #1B1A22. Transparent background or a flat charcoal one, no text, square 1:1.
@@ -2328,7 +2288,7 @@ photorealism, 3D render, photograph, text, letters, watermark, signature, real c
 
 #### staff-ruin — `src/assets/portraits/staff-ruin.webp` (or `.svg`)
 
-512×512 · WebP with alpha · target 50 kB, cap 90 kB · seeds 8600–8649
+512×512 · WebP with alpha · target 50 kB, cap 90 kB · seeds 8350–8399
 
 ```text
 1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Character portrait: Contessa Ruin, a dog trainer: an imperious cybernetic countess with a riding crop and a monocle. Head and shoulders, facing the viewer, comic and characterful, grimy retro-future dog-racing circuit. Acid green #9BE84B and hazard yellow #F4C542 accents over charcoal #1B1A22. Transparent background or a flat charcoal one, no text, square 1:1.
@@ -2336,7 +2296,7 @@ photorealism, 3D render, photograph, text, letters, watermark, signature, real c
 
 #### staff-hex — `src/assets/portraits/staff-hex.webp` (or `.svg`)
 
-512×512 · WebP with alpha · target 50 kB, cap 90 kB · seeds 8650–8699
+512×512 · WebP with alpha · target 50 kB, cap 90 kB · seeds 8400–8449
 
 ```text
 1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Character portrait: Hex, a dog trainer: a mysterious hooded fortune-teller alien with glowing eyes and tarot cards. Head and shoulders, facing the viewer, comic and characterful, grimy retro-future dog-racing circuit. Acid green #9BE84B and hazard yellow #F4C542 accents over charcoal #1B1A22. Transparent background or a flat charcoal one, no text, square 1:1.
@@ -2344,7 +2304,7 @@ photorealism, 3D render, photograph, text, letters, watermark, signature, real c
 
 #### staff-umbo — `src/assets/portraits/staff-umbo.webp` (or `.svg`)
 
-512×512 · WebP with alpha · target 50 kB, cap 90 kB · seeds 8700–8749
+512×512 · WebP with alpha · target 50 kB, cap 90 kB · seeds 8450–8499
 
 ```text
 1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Character portrait: Big Umbo, a dog trainer: an enormous gentle blob-like alien carrying a sleepy greyhound. Head and shoulders, facing the viewer, comic and characterful, grimy retro-future dog-racing circuit. Acid green #9BE84B and hazard yellow #F4C542 accents over charcoal #1B1A22. Transparent background or a flat charcoal one, no text, square 1:1.
@@ -2352,7 +2312,7 @@ photorealism, 3D render, photograph, text, letters, watermark, signature, real c
 
 #### staff-quillon — `src/assets/portraits/staff-quillon.webp` (or `.svg`)
 
-512×512 · WebP with alpha · target 50 kB, cap 90 kB · seeds 8750–8799
+512×512 · WebP with alpha · target 50 kB, cap 90 kB · seeds 8500–8549
 
 ```text
 1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Character portrait: Dr Quillon, a dog trainer: a spiky porcupine-like alien vet in a stained white coat. Head and shoulders, facing the viewer, comic and characterful, grimy retro-future dog-racing circuit. Acid green #9BE84B and hazard yellow #F4C542 accents over charcoal #1B1A22. Transparent background or a flat charcoal one, no text, square 1:1.
@@ -2360,7 +2320,7 @@ photorealism, 3D render, photograph, text, letters, watermark, signature, real c
 
 #### staff-sixeyes — `src/assets/portraits/staff-sixeyes.webp` (or `.svg`)
 
-512×512 · WebP with alpha · target 50 kB, cap 90 kB · seeds 8800–8849
+512×512 · WebP with alpha · target 50 kB, cap 90 kB · seeds 8550–8599
 
 ```text
 1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Character portrait: Marta Six-Eyes, a dog trainer: a six-eyed alien businesswoman with a ticker tape and an abacus. Head and shoulders, facing the viewer, comic and characterful, grimy retro-future dog-racing circuit. Acid green #9BE84B and hazard yellow #F4C542 accents over charcoal #1B1A22. Transparent background or a flat charcoal one, no text, square 1:1.
@@ -2368,7 +2328,7 @@ photorealism, 3D render, photograph, text, letters, watermark, signature, real c
 
 #### staff-rook — `src/assets/portraits/staff-rook.webp` (or `.svg`)
 
-512×512 · WebP with alpha · target 50 kB, cap 90 kB · seeds 8850–8899
+512×512 · WebP with alpha · target 50 kB, cap 90 kB · seeds 8600–8649
 
 ```text
 1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Character portrait: Rook, a dog trainer: a hulking armoured bird-headed bodyguard with a leash in each claw. Head and shoulders, facing the viewer, comic and characterful, grimy retro-future dog-racing circuit. Acid green #9BE84B and hazard yellow #F4C542 accents over charcoal #1B1A22. Transparent background or a flat charcoal one, no text, square 1:1.
@@ -2376,7 +2336,7 @@ photorealism, 3D render, photograph, text, letters, watermark, signature, real c
 
 #### staff-varga — `src/assets/portraits/staff-varga.webp` (or `.svg`)
 
-512×512 · WebP with alpha · target 50 kB, cap 90 kB · seeds 8900–8949
+512×512 · WebP with alpha · target 50 kB, cap 90 kB · seeds 8650–8699
 
 ```text
 1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Character portrait: Pops Varga, a dog trainer: a grizzled old mechanic-turned-trainer with oily hands and a flat cap. Head and shoulders, facing the viewer, comic and characterful, grimy retro-future dog-racing circuit. Acid green #9BE84B and hazard yellow #F4C542 accents over charcoal #1B1A22. Transparent background or a flat charcoal one, no text, square 1:1.
@@ -2384,7 +2344,7 @@ photorealism, 3D render, photograph, text, letters, watermark, signature, real c
 
 #### staff-ondine — `src/assets/portraits/staff-ondine.webp` (or `.svg`)
 
-512×512 · WebP with alpha · target 50 kB, cap 90 kB · seeds 8950–8999
+512×512 · WebP with alpha · target 50 kB, cap 90 kB · seeds 8700–8749
 
 ```text
 1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Character portrait: Silk Ondine, a dog trainer: a glamorous aquatic alien in sunglasses and a silk robe at a dog spa. Head and shoulders, facing the viewer, comic and characterful, grimy retro-future dog-racing circuit. Acid green #9BE84B and hazard yellow #F4C542 accents over charcoal #1B1A22. Transparent background or a flat charcoal one, no text, square 1:1.
@@ -2392,7 +2352,7 @@ photorealism, 3D render, photograph, text, letters, watermark, signature, real c
 
 #### staff-grubs — `src/assets/portraits/staff-grubs.webp` (or `.svg`)
 
-512×512 · WebP with alpha · target 50 kB, cap 90 kB · seeds 9000–9049
+512×512 · WebP with alpha · target 50 kB, cap 90 kB · seeds 8750–8799
 
 ```text
 1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Character portrait: Grub & Grub, a dog trainer: two scruffy grub-like alien brothers leaning on a battered freight van. Head and shoulders, facing the viewer, comic and characterful, grimy retro-future dog-racing circuit. Acid green #9BE84B and hazard yellow #F4C542 accents over charcoal #1B1A22. Transparent background or a flat charcoal one, no text, square 1:1.

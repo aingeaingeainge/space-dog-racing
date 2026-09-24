@@ -398,14 +398,6 @@ const OWNER_BRIEFS = [
 const STAFF_BRIEFS: [string, string][] = [
   ['trainer-01', 'Gristle McGraw: a wiry old trainer with a whistle and a wandering eye'],
   ['trainer-02', 'a brisk younger trainer with a stopwatch and a clipboard'],
-  ['vet-01', 'a four-handed vet in a stained smock holding a huge syringe'],
-  ['vet-02', 'a gentle giant of a vet with reading spectacles and a bandage roll'],
-  ['fixer-01', 'a fixer in a long coat, hands in pockets, standing in shadow'],
-  ['fixer-02', 'a cheerful fixer with a briefcase full of things you should not have'],
-  [
-    'fat-tony',
-    'Fat Tony Nebula: an enormous, immaculately dressed loan shark, all rings and teeth',
-  ],
   // Phase D2 (GDD_V3 §8): every trainer row carries a portrait stem and a brief. The first two rows
   // reuse trainer-01 and trainer-02 above; the rest are `staff-<id>`, briefed from the row's `looks`
   // in the house style.
@@ -712,8 +704,10 @@ export const GROUPS: AssetGroup[] = [
     title: 'Character portraits',
     tier: 3,
     blurb:
-      'Twelve AI stable owners (indexed like Dog.look, by stable number), six hireables and Fat ' +
-      'Tony Nebula.',
+      'Twelve AI stable owners (keyed by stable name), the twenty-four trainers of GDD_V3 §8 (two ' +
+      'rows reuse trainer-01 and trainer-02), and eight faces for the human stables, one per ' +
+      'saddle-cloth colour. The v2 vets, fixers and Fat Tony went with the hireables and the loan ' +
+      'shark (Phase F1).',
     assets: [...ownerPortraits, ...staffPortraits, ...humanPortraits],
   },
   {
