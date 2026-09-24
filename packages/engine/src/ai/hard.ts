@@ -14,6 +14,7 @@ import {
   planetAhead,
   racingDogs,
   setStates,
+  spendBox,
   startPlan,
   stateHold,
   tippedAgainst,
@@ -152,6 +153,7 @@ function declareForThisWeek(plan: Plan): Assignment {
 
   emitDeclarations(plan, assignment);
   setStates(plan, racingDogs(assignment), { diets: true });
+  spendBox(plan, assignment.plan);
   return assignment;
 }
 

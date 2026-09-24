@@ -1,5 +1,6 @@
 import { LOAN_RACE } from './explore';
 import { raceType } from '../content/raceTypes';
+import { balance } from '../content/balance';
 import { good } from '../content/goods';
 import { cargoTotal, HOLD_CAP, recordPurchase } from '../economy/goods';
 import { decimalOdds } from '../race/odds';
@@ -202,4 +203,24 @@ export function setDogState(ctx: Ctx, action: Extract<Action, { t: 'SetDogState'
     if (action.diet.kind === 'named') good(action.diet.good); // throws on a good this engine lacks
     d.diet = action.diet;
   }
+}
+
+/**
+ * Spend a bought trap draw (GDD_V3 §9.3): name the box for this stable's runner in one race. The
+ * right was bought in the Back Alley at Explore, before anybody knew the card; it is spent here, in
+ * the Race Office, once the race is. It can be moved until the card locks, and is honoured at the
+ * lock (`lockDeclarations`) if the stable still has a runner in that race.
+ */
+export function chooseBox(ctx: Ctx, action: Extract<Action, { t: 'ChooseBox' }>): void {
+  const { s } = ctx;
+  planetPhase(s, action, 'planetPre');
+  const p = activeOrFail(s, action.playerId, action);
+  const job = s.jobs.find((j) => j.by === p.id && j.kind === 'box');
+  if (!job) fail('You have not bought a box from a steward this weekend', action);
+  if (!thisWeeksCard().includes(action.race)) fail('That race is not on the card', action);
+  if (!Number.isInteger(action.box) || action.box < 1 || action.box > balance.traps)
+    fail(`There is no box ${action.box}`, action);
+  if (!s.declarations[action.race][p.id]) fail('Declare a runner in that race first', action);
+  job.race = action.race;
+  job.box = action.box;
 }

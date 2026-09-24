@@ -199,6 +199,7 @@ export function runEndTurn(ctx: Ctx): void {
   s.races = null;
   s.fields = null;
   s.conditions = [];
+  s.jobs = [];
   s.declarations = emptyDeclarations();
   s.locked = false;
 

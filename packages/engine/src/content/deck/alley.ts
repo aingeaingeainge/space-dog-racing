@@ -31,7 +31,107 @@ import {
 } from '../eventKit';
 import { spoilCargo, HOLD_CAP, cargoTotal } from '../../economy/goods';
 import { winProbAgainst } from '../../race/odds';
-import type { GoodId } from '../../types';
+import { balance } from '../balance';
+import { catchChanceHere, currentPlanet } from '../../state';
+import type { Dog, GoodId } from '../../types';
+
+/** What the steward wants for a box (GDD_V3 §9.3): the card's own price. */
+const BOX_COST = 250;
+
+/** Rival seats a nobble card can name: every other stable, up to seven. */
+const RIVAL_SLOTS = 7;
+
+/**
+ * A Back Alley card that sells a nobble (GDD_V3 §9.3), **freely targetable**: a button per rival,
+ * every one the same price. Explore comes before the Race Office, so the job is booked against a
+ * rival's **dog**, not a race entry — the card names one of each rival's sound dogs, picked on this
+ * stable's own stream ("he can get into one kennel per yard, and this is the dog in it"), and the job
+ * bites if that dog runs this weekend: −25 fitness on race day, on the runner, after the book has
+ * priced it. The stewards may catch it on race day (`stewardsEnquiry`), and if they do the whole
+ * table is told.
+ */
+function nobbleCard(
+  id: string,
+  name: string,
+  text: string,
+  weight: number,
+  cost: number,
+  planets?: { ids: string[]; boost: number },
+): EventCard {
+  const target = (i: number): EventChoice => ({
+    label: `Nobble rival ${i + 1}'s dog (−${cost})`,
+    apply: (ctx) => {
+      const d = ctx.s.dogs[String(ctx.params[`t${i}`] ?? '')];
+      if (!d || !spend(ctx, cost)) return;
+      ctx.s.jobs.push({ by: ctx.p.id, kind: 'nobble', dogId: d.id });
+      ctx.p.stats.nobbles++;
+      const owner = ctx.s.players.find((x) => x.id === d.ownerId);
+      ctx.log(
+        `The money changes hands. If ${d.name} (${owner?.name ?? 'a rival'}) runs this weekend, it runs on ${-balance.nobbleFitness} less than the card says. The stewards here catch about ${Math.round(catchChanceHere(ctx.s) * 100)}% of these.`,
+      );
+    },
+  });
+  return {
+    id,
+    name,
+    text,
+    weight,
+    kind: 'choice',
+    category: 'alley',
+    ...(planets ? { planets: planets.ids, planetBoost: planets.boost } : {}),
+    roll: (ctx) => {
+      const params: Record<string, string | number> = {};
+      let any = false;
+      ctx.s.players
+        .filter((x) => x.id !== ctx.p.id)
+        .slice(0, RIVAL_SLOTS)
+        .forEach((x, i) => {
+          const dogs = x.dogIds.map((d) => ctx.s.dogs[d]!).filter((d) => d && d.injuryWeeks === 0);
+          params[`t${i}`] = dogs.length ? ctx.rng.pick(dogs).id : '';
+          if (dogs.length) any = true;
+        });
+      return any ? params : null;
+    },
+    detail: (ctx) =>
+      `${-balance.nobbleFitness} fitness off the dog on race day if it runs, whichever race it is in — after the book has priced it. The stewards here catch about ${Math.round(catchChanceHere(ctx.s) * 100)}% of these: a ${balance.caughtFine} fine plus a quarter of what you had on the race, and everybody hears who did it.`,
+    labels: (ctx) => [
+      'Walk away',
+      ...Array.from({ length: RIVAL_SLOTS }, (_, i) => {
+        const d = ctx.s.dogs[String(ctx.params[`t${i}`] ?? '')];
+        if (!d) return '—';
+        const owner = ctx.s.players.find((x) => x.id === d.ownerId);
+        return `${owner?.name ?? 'A rival'}'s ${d.name} (−${cost})`;
+      }),
+    ],
+    choices: [
+      {
+        label: 'Walk away',
+        apply: (ctx) => ctx.log('You keep your hands clean. This week.'),
+      },
+      ...Array.from({ length: RIVAL_SLOTS }, (_, i) => target(i)),
+    ],
+    // Normal's rule, readable and not tuned: nobble the rival dog on offer most likely to beat its
+    // own best runner — the best-rated one — if it outrates that runner, and only with cash to spare.
+    aiChoice: (ctx) => {
+      const best = Math.max(...ownDogs(ctx.s, ctx.p).map((d) => d.rating), 0);
+      const pick = offered(ctx).sort((a, b) => b.d.rating - a.d.rating)[0];
+      return pick && pick.d.rating > best && ctx.p.cash > cost * 6 ? 1 + pick.i : 0;
+    },
+  };
+}
+
+/** The dogs a nobble card is offering, with their button index. */
+export function offered(ctx: {
+  s: { dogs: Record<string, Dog> };
+  params: Record<string, string | number>;
+}): { i: number; d: Dog }[] {
+  const out: { i: number; d: Dog }[] = [];
+  for (let i = 0; i < RIVAL_SLOTS; i++) {
+    const d = ctx.s.dogs[String(ctx.params[`t${i}`] ?? '')];
+    if (d) out.push({ i, d });
+  }
+  return out;
+}
 
 /** Take `n` crates of the stolen good at 60% of the shelf; a quarter of the time the load is bad. */
 function takeStolen(n: number): EventChoice {
@@ -441,5 +541,55 @@ export const ALLEY: readonly EventCard[] = [
       },
     ],
     aiChoice: (ctx) => (ctx.p.cash > 600 ? 0 : 1),
+  },
+
+  // ---- Sabotage and the bought trap draw (GDD_V3 §9.3). Freely targetable; the same cost for all. ----
+  nobbleCard(
+    'syringeMan',
+    'A man with a syringe',
+    'He does not say what is in it. He says it is not illegal, exactly, and that it wears off by Tuesday. He can get into one kennel in every yard on the planet. Pick a yard.',
+    8,
+    500,
+  ),
+  nobbleCard(
+    'kennelBoyBribe',
+    'A kennel-boy with debts',
+    'A kennel-boy who works nights at half the yards on the planet owes money to the wrong people. He could leave a bowl of something in the wrong pen. He could use the money.',
+    5,
+    350,
+    { ids: ['lagrangeLows', 'drift', 'rustgut', 'hushmarket'], boost: 2 },
+  ),
+  {
+    id: 'stewardBox',
+    name: 'A steward with a clipboard',
+    text: 'One of the track stewards is having a cigarette where he should not be. He does the trap draw. For a consideration, he can do it a little less randomly — for one dog, in one race, your choice once you know it.',
+    weight: 6,
+    kind: 'choice',
+    category: 'alley',
+    detail: (ctx) => {
+      const bends = currentPlanet(ctx.s).track.bends;
+      return bends === 'tight'
+        ? 'This track has tight bends: the rail (box 1) is worth about 3.5 points of win rate. You choose the box in the Race Office.'
+        : bends === 'none'
+          ? 'This track is a straight: the box is worth nothing here. You choose it in the Race Office anyway.'
+          : `This track has ${bends} bends: the box is worth something, less than on tight ones. You choose it in the Race Office.`;
+    },
+    choices: [
+      {
+        label: `Slip him ${BOX_COST}`,
+        apply: (ctx) => {
+          if (!spend(ctx, BOX_COST)) return;
+          ctx.s.jobs.push({ by: ctx.p.id, kind: 'box' });
+          ctx.p.stats.boxes++;
+          ctx.log(
+            'He pockets it. Name your box at the Race Office once you have declared — on tight bends the rail is worth about 3.5 points of win rate; on a straight, nothing.',
+          );
+        },
+      },
+      { label: 'Not today', apply: (ctx) => ctx.log('He finishes his cigarette and goes in.') },
+    ],
+    // Normal buys a box only where it is worth one — tight bends — and only with cash to spare.
+    aiChoice: (ctx) =>
+      currentPlanet(ctx.s).track.bends === 'tight' && ctx.p.cash > BOX_COST * 8 ? 0 : 1,
   },
 ];

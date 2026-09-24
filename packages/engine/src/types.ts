@@ -163,6 +163,8 @@ export interface PlanetSpecial {
   fitnessOnArrival?: number; // Sunbleach −5, Holy Bark +5
   turnOrderReversed?: boolean; // Blackreach
   piratesLikely?: boolean; // The Drift
+  /** The stewards' catch chance for a nobble here (GDD_V3 §9.3); `catchChance` if absent. */
+  catchChance?: number;
 }
 
 /**
@@ -410,6 +412,18 @@ export interface PlayerSeasonStats {
    * the cut, so the purse a dog won is `prizeIncome + commission`.
    */
   commission: number;
+  /**
+   * Sabotage (GDD_V3 §9.3): nobbles booked, and how many bit (the dog ran); times the stewards caught
+   * this stable, and what they fined it; times one of its own dogs was nobbled and ran on it.
+   */
+  nobbles: number;
+  nobblesLanded: number;
+  caught: number;
+  fines: number;
+  nobbled: number;
+  /** Trap draws bought from a steward, and how many were spent on a box that was honoured. */
+  boxes: number;
+  boxesUsed: number;
   /** Trainers offered to this stable in the Bar (§8.2's "two or three swings"), and how many it hired. */
   staffOffers: number;
   staffHired: number;
@@ -512,6 +526,8 @@ export interface RaceResult {
    */
   runs: RunNote[];
   injuries: Record<Id, number>; // dogId → weeks out
+  /** Nobblers the stewards caught in this race (GDD_V3 §9.3). The whole table is told. */
+  stewards: StewardsFinding[];
   /**
    * What each placed stable dog banked (`amount`, after the trainers' cut) and what its trainers took
    * (`commission`, GDD_V3 §8.1).
@@ -586,6 +602,29 @@ export interface RaceDayCondition {
   tipped: Id[];
 }
 
+/**
+ * A job booked in the Back Alley this weekend (GDD_V3 §9.3). Cleared at the jump.
+ *
+ * - `nobble`: booked against a rival's **dog**, because Explore comes before the Race Office — it
+ *   bites if that dog runs this weekend, whatever race it runs in.
+ * - `box`: the right to choose a box, bought at Explore and spent with `ChooseBox` once the race is
+ *   known; `race` and `box` are set when it is spent.
+ */
+export interface Job {
+  by: Id;
+  kind: 'nobble' | 'box';
+  dogId?: Id;
+  race?: RaceTypeId;
+  box?: number;
+}
+
+/** A nobbler the stewards caught (GDD_V3 §9.3): public, on the log and on Results. */
+export interface StewardsFinding {
+  playerId: Id;
+  dogId: Id;
+  fine: number;
+}
+
 export interface LogLine {
   week: number;
   phase: Phase;
@@ -641,6 +680,8 @@ export interface GameState {
   nextPlanet: PlanetState | null;
   /** This weekend's race-day conditions (Phase D1 item 6). Drawn at arrival; cleared at the jump. */
   conditions: RaceDayCondition[];
+  /** This weekend's Back Alley jobs (GDD_V3 §9.3), in the order they were booked. */
+  jobs: Job[];
   bets: Bet[];
   results: RaceResult[]; // all past races (tick logs pruned)
   eventLog: LogLine[];
@@ -683,6 +724,11 @@ export type Action =
   /** Open one of the planet's three doors (GDD_V3 §9.1). Once a weekend, in turn order. */
   | { t: 'ChooseDoor'; playerId: Id; door: number }
   | { t: 'ResolveEvent'; playerId: Id; choice: number }
+  /**
+   * Spend a bought trap draw (GDD_V3 §9.3): the box, 1–8, for this stable's runner in this race.
+   * Race Office only, once the race is known; honoured at the lock.
+   */
+  | { t: 'ChooseBox'; playerId: Id; race: RaceTypeId; box: number }
   | { t: 'EndPhase'; playerId: Id }
   | { t: 'AdvancePhase' }; // system
 

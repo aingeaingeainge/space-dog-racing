@@ -1,9 +1,17 @@
 import { exploreStep } from './explore';
 import { eligible, player, thisWeeksCard } from '../state';
-import type { Action, GameState, Id } from '../types';
+import type { Action, GameState, Id, RaceTypeId } from '../types';
 import { STAPLE_ID } from '../content/goods';
 import { cargoTotal, HOLD_CAP } from '../economy/goods';
-import { availableHere, buyFeedPlan, hash01, setStates, startPlan, weeklyFoodNeed } from './shared';
+import {
+  availableHere,
+  buyFeedPlan,
+  hash01,
+  setStates,
+  spendBox,
+  startPlan,
+  weeklyFoodNeed,
+} from './shared';
 
 /**
  * How often Easy cannot be bothered with a race and leaves the trap to the locals. Half the
@@ -79,6 +87,7 @@ export function decideEasy(s: GameState, playerId: Id): Action[] {
         (a, b) => hash01(s.seed, s.week, playerId, a.id) - hash01(s.seed, s.week, playerId, b.id),
       );
       const used = new Set<Id>();
+      const entered: Partial<Record<RaceTypeId, Id>> = {};
       for (const race of thisWeeksCard()) {
         let chosen: Id | null = null;
         if (hash01(s.seed, s.week, playerId, race, 'skip') > SKIP_RATE) {
@@ -90,8 +99,10 @@ export function decideEasy(s: GameState, playerId: Id): Action[] {
         }
         if ((s.declarations[race][playerId] ?? null) !== chosen)
           out.push({ t: 'Declare', playerId, race, dogId: chosen });
+        if (chosen) entered[race] = chosen;
       }
       setStates(plan, used);
+      spendBox(plan, entered);
     }
   }
 

@@ -7,6 +7,7 @@ import {
   declareBest,
   racingDogs,
   setStates,
+  spendBox,
   stateHold,
   tippedToRest,
   startPlan,
@@ -53,6 +54,7 @@ export function decideNormal(s: GameState, playerId: Id): Action[] {
         hold: tippedToRest(s, playerId),
       });
       setStates(plan, racingDogs(assignment), { diets: true });
+      spendBox(plan, assignment.plan);
       // Dinner first, so a trading leg bought below it is never what the dogs eat (GDD_V3 §6.3's
       // cheapest-aboard fallback feeds the staple before anything dearer).
       buyFeedPlan(plan);

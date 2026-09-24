@@ -2,7 +2,7 @@ import { settleHold } from './economy/goods';
 import { runArrival } from './phases/arrival';
 import { runEndTurn } from './phases/endTurn';
 import { chooseDoor, resolveEvent } from './phases/explore';
-import { declare, placeBet, setDogState, tradeFood } from './phases/planet';
+import { chooseBox, declare, placeBet, setDogState, tradeFood } from './phases/planet';
 import { lockDeclarations, runRaces } from './phases/raceDay';
 import { endPhaseFor } from './phases/turn';
 import { commitCtx, makeCtx, player } from './state';
@@ -68,6 +68,9 @@ export function reduceMut(s: GameState, action: Action): GameState {
       break;
     case 'SetDogState':
       setDogState(ctx, action);
+      break;
+    case 'ChooseBox':
+      chooseBox(ctx, action);
       break;
     default:
       // An action this engine does not know. The switch is exhaustive over the union, so the only

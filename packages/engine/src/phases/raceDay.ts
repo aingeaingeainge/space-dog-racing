@@ -12,6 +12,7 @@ import { simulateRace, type Runner } from '../race/simulateRace';
 import {
   bettingMargin,
   calendarEntry,
+  catchChanceHere,
   currentPlanet,
   dog,
   log,
@@ -21,7 +22,16 @@ import {
   type Ctx,
 } from '../state';
 import { clamp, fork } from '../rng';
-import type { Dog, GameState, Id, Player, RaceField, RaceResult, StyleId } from '../types';
+import type {
+  Dog,
+  GameState,
+  Id,
+  Player,
+  RaceField,
+  RaceResult,
+  RaceTypeId,
+  StyleId,
+} from '../types';
 import { STYLE_IDS } from '../types';
 import { bettingOpen, startPlayerPhase } from './turn';
 import { followDeclarations } from './planet';
@@ -64,15 +74,12 @@ export function lockDeclarations(ctx: Ctx): void {
       }
     }
 
-    // Trap draw: shuffle, then honour wide runners (outside).
-    //
-    // ⚠️ The dodgy steward and the bought box are gone with the crook's road (BUILD_PLAN_V3 §2.1).
-    // GDD_V3 §9.3 brings the bought box back as a Back Alley event in Phase D; the draw itself is
-    // untouched and stays the place it would be applied.
+    // Trap draw: shuffle, then honour wide runners (outside), then honour a bought box.
     const draw = rng.shuffle([...runners]);
     const wide = draw.filter((d) => d.traits.includes('wideRunner'));
     const rest = draw.filter((d) => !d.traits.includes('wideRunner'));
     const ordered = [...rest, ...wide];
+    honourBoxes(s, race, ordered);
     // The book prices the rating and, once it is public, the style on this trip (GDD_V3 §5.6).
     const ratings = ordered.map((d) => d.rating + styleEdge(publicStyle(d), track));
     const winP = winProbabilities(ratings);
@@ -103,6 +110,39 @@ export function lockDeclarations(ctx: Ctx): void {
 }
 
 /**
+ * GDD_V3 §9.3's bought trap draw, at the one point the draw was always going to be applied: after the
+ * shuffle and the wide runners, before the book prices the field — so the book's prices are struck on
+ * the box as it will be run, and a bought box moves nothing else. Jobs are honoured in the order they
+ * were booked, so two stables that bought the same box in the same race settle it by turn order: the
+ * first gets it, and the second keeps the box the draw gave it and is told.
+ *
+ * No draw is made here, so buying a box never moves the game's stream.
+ */
+function honourBoxes(s: GameState, race: RaceTypeId, ordered: Dog[]): void {
+  const claimed = new Set<number>();
+  for (const job of s.jobs) {
+    if (job.kind !== 'box' || job.race !== race || !job.box) continue;
+    const dogId = s.declarations[race][job.by];
+    const i = ordered.findIndex((d) => d.id === dogId);
+    if (i < 0) continue;
+    const want = job.box - 1;
+    const p = player(s, job.by);
+    if (claimed.has(want)) {
+      log(s, `Somebody got to the steward first: box ${job.box} was already bought.`, p.id);
+      continue;
+    }
+    [ordered[i], ordered[want]] = [ordered[want]!, ordered[i]!];
+    claimed.add(want);
+    p.stats.boxesUsed++;
+    log(
+      s,
+      `The steward is as good as his word: ${ordered[want]!.name} goes in box ${job.box}.`,
+      p.id,
+    );
+  }
+}
+
+/**
  * The dog as the race sees it, which is not quite the dog as the card sees it.
  *
  * `fitness` is where §13 lands: a nobbled dog runs on `fitness − nobbled` while every screen, every
@@ -114,13 +154,16 @@ function runnerFrom(s: GameState, d: Dog, trap: number): Runner {
   // dog, every screen and the book all go on reading it as it was.
   const c = conditionOf(s, d.id);
   const row = c ? CONDITION_BY_ID[c.condition] : null;
+  // A nobble (GDD_V3 §9.3) lands the same way and in the same place: after the book has struck its
+  // prices, on the runner, never on the stored dog — the victim's stated fitness never changes.
+  const nobbles = s.jobs.filter((j) => j.kind === 'nobble' && j.dogId === d.id).length;
   return {
     id: d.id,
     trap,
     speed: d.speed,
     accel: d.accel,
     stamina: d.stamina,
-    fitness: clamp(d.fitness + (row?.fitness ?? 0), 0, 100),
+    fitness: clamp(d.fitness + (row?.fitness ?? 0) + nobbles * balance.nobbleFitness, 0, 100),
     form: d.form,
     traits: d.traits,
     speedBonus: d.raceBonus + (row?.speed ?? 0),
@@ -220,6 +263,11 @@ export function runRaces(ctx: Ctx): void {
   const planet = currentPlanet(s);
   const entry = calendarEntry(s);
   const races: RaceResult[] = [];
+  // ⚠️ **The stewards' draws, one per stable in seating order, every race day whether or not anybody
+  // booked a job** (GDD_V3 §9.3). A catch is rolled on race day, and a job is booked at a door, so if
+  // these were drawn only for a nobbler the game's stream would depend on which doors were opened —
+  // the thing decision D1 forbids. Drawn always, and only *read* for a stable whose nobble bit.
+  const stewards = new Map(s.players.map((p) => [p.id, ctx.rng.next()]));
 
   for (const { race, entries: field } of s.fields) {
     const dogs = field.map((e) => dog(s, e.dogId));
@@ -241,6 +289,7 @@ export function runRaces(ctx: Ctx): void {
       ratingDeltas: {},
       runs: sim.runs,
       injuries: {},
+      stewards: [],
       payouts: [],
     };
 
@@ -300,6 +349,7 @@ export function runRaces(ctx: Ctx): void {
     }
 
     revealStyles(s, dogs);
+    stewardsEnquiry(s, race, dogs, result, stewards);
 
     const winner = dog(s, sim.order[0]!);
     log(
@@ -311,10 +361,63 @@ export function runRaces(ctx: Ctx): void {
 
   s.races = races;
 
+  // A nobble booked against a dog that did not run came to nothing.
+  const ran = new Set(races.flatMap((r) => r.order));
+  for (const job of s.jobs)
+    if (job.kind === 'nobble' && job.dogId && !ran.has(job.dogId))
+      log(
+        s,
+        `${s.dogs[job.dogId]?.name ?? 'The dog'} never ran this weekend. The man with the syringe keeps the money.`,
+        job.by,
+      );
+
   // Clear race-day buffs.
   for (const d of Object.values(s.dogs)) d.raceBonus = 0;
   for (const p of s.players) p.flags.tipOff = false;
   startPlayerPhase(s, 'planetPost');
+}
+
+/**
+ * GDD_V3 §9.3's getting caught, for every nobble that bit in this race: the stewards catch the
+ * nobbler at this planet's rate, reading the stable's own race-day draw. Caught, it pays a flat fine
+ * plus a share of what it had on this race (as far as its cash goes — nobody is pushed into debt),
+ * and **the whole table is told who did it**: a public log line, and a line on Results. Not caught,
+ * only the nobbler hears that the job was done.
+ */
+function stewardsEnquiry(
+  s: GameState,
+  race: RaceTypeId,
+  field: readonly Dog[],
+  result: RaceResult,
+  draws: ReadonlyMap<Id, number>,
+): void {
+  const inRace = new Set(field.map((d) => d.id));
+  const chance = catchChanceHere(s);
+  for (const job of s.jobs) {
+    if (job.kind !== 'nobble' || !job.dogId || !inRace.has(job.dogId)) continue;
+    const by = player(s, job.by);
+    const victim = dog(s, job.dogId);
+    by.stats.nobblesLanded++;
+    if (victim.ownerId !== 'local') player(s, victim.ownerId).stats.nobbled++;
+    if ((draws.get(by.id) ?? 1) >= chance) {
+      log(s, `Your man got to ${victim.name}. Nobody saw a thing.`, by.id);
+      continue;
+    }
+    const staked = s.bets
+      .filter((b) => b.playerId === by.id && b.week === s.week && b.race === race)
+      .reduce((a, b) => a + b.stake, 0);
+    const owed = balance.caughtFine + Math.round(staked * balance.caughtStakeShare);
+    const fine = Math.max(0, Math.min(owed, Math.floor(by.cash)));
+    by.cash -= fine;
+    by.stats.caught++;
+    by.stats.fines += fine;
+    by.stats.costs += fine;
+    result.stewards.push({ playerId: by.id, dogId: victim.id, fine });
+    log(
+      s,
+      `Stewards' enquiry, ${raceType(race).label}: ${victim.name} was got at, and it was ${by.name}. Fined ${formatBones(fine)}.`,
+    );
+  }
 }
 
 /** Highest-value dog a player owns, if any. */

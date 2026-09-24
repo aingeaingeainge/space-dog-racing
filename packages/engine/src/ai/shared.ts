@@ -789,3 +789,18 @@ export function betFavourites(plan: Plan, opts: BetOptions = {}): void {
     plan.cash -= stake;
   }
 }
+
+/**
+ * Spend a bought trap draw (GDD_V3 §9.3), once the declarations are queued: the rail (box 1) for the
+ * runner in the richest race this stable has entered — or the widest box for a wide runner, which
+ * wants the outside anyway. A right that nothing can be spent on lapses at the jump.
+ */
+export function spendBox(plan: Plan, entries: Partial<Record<RaceTypeId, Id>>): void {
+  const { s, playerId, out } = plan;
+  if (!s.jobs.some((j) => j.by === playerId && j.kind === 'box')) return;
+  const race = [...thisWeeksCard()].reverse().find((r) => entries[r]);
+  if (!race) return;
+  const d = s.dogs[entries[race]!];
+  const box = d?.traits.includes('wideRunner') ? balance.traps : 1;
+  out.push({ t: 'ChooseBox', playerId, race, box });
+}

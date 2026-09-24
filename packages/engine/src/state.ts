@@ -244,6 +244,11 @@ export function assertPhase(s: GameState, ...phases: Phase[]): void {
   }
 }
 
+/** The stewards' chance of catching a nobble on this planet (GDD_V3 §9.3): a planet row. */
+export function catchChanceHere(s: GameState): number {
+  return currentPlanet(s).special.catchChance ?? balance.catchChance;
+}
+
 export function bettingMargin(s: GameState): number {
   return currentPlanet(s).special.bettingMargin ?? balance.bettingMargin;
 }
@@ -335,6 +340,7 @@ export function createSeason(setup: SeasonSetup): GameState {
     explore: null,
     nextPlanet: null,
     conditions: [],
+    jobs: [],
     bets: [],
     results: [],
     eventLog: [],
@@ -387,6 +393,13 @@ export function createSeason(setup: SeasonSetup): GameState {
         liesCaught: 0,
         tips: 0,
         commission: 0,
+        nobbles: 0,
+        nobblesLanded: 0,
+        caught: 0,
+        fines: 0,
+        nobbled: 0,
+        boxes: 0,
+        boxesUsed: 0,
         staffOffers: 0,
         staffHired: 0,
       },

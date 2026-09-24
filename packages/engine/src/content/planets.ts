@@ -1,3 +1,4 @@
+import { balance } from './balance';
 import { GOOD_IDS, type GoodId, type Planet, type Id } from '../types';
 
 /**
@@ -516,7 +517,7 @@ export const PLANETS: readonly Planet[] = [
     foodBand: taste(0.75, 0.25, { ambrosia: 1.3 }),
     // ⚠️ No bookie means no sabotage here at all: §13's nobbling is a `betting`-phase action and
     // Holy Bark skips that phase entirely. A bought box is still possible, and the monks notice.
-    special: { noBetting: true, fitnessOnArrival: 5 },
+    special: { noBetting: true, fitnessOnArrival: 5, catchChance: balance.catchChanceHolyBark },
     accents: ['#F4F4F4', '#C9A227'],
     exploreDoors: [
       {
@@ -546,7 +547,7 @@ export const PLANETS: readonly Planet[] = [
     // ⚠️ Its one rule was that the locals were Nervy (−5% from traps 1 and 8), and Nervy left the
     // trait list in v3 Phase C (GDD_V3 §4.5). A floating slum keeps its tight bends and its food map;
     // Phase D's Back Alley door (§9.1) is where its character is meant to live now.
-    special: {},
+    special: { catchChance: balance.catchChanceLagrangeLows },
     accents: ['#9BE84B', '#1B1A22'],
     exploreDoors: [
       {

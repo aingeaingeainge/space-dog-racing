@@ -209,3 +209,54 @@ describe("Explore never moves the game's stream (decision D1)", () => {
     }
   });
 });
+
+/*
+ * v3 Phase D2 — additions only; nothing above this line was edited.
+ */
+describe("A Back Alley job never moves the game's stream (GDD_V3 §9.3, Phase D2 item 3)", () => {
+  /**
+   * A nobble and a bought box are booked at a door, and their consequences land on race day: the box
+   * at the lock, the nobble on the runner, and the stewards' catch after the race. The stewards draw
+   * once per stable every race day whether or not anybody booked anything, and the box is placed
+   * without a draw, so the game's stream when race day ends is the same with the jobs as without.
+   */
+  it('gives the same stream after race day with a nobble and a bought box as with neither', async () => {
+    const { createSeason, reduceMut, decide, needsAdvance, player } = await import('../src/index');
+    const run = (withJobs: boolean) => {
+      const s = createSeason({
+        seed: 77,
+        players: Array.from({ length: 6 }, () => ({
+          name: '',
+          kind: 'ai' as const,
+          difficulty: 'normal' as const,
+        })),
+      });
+      let booked = false;
+      let guard = 0;
+      while (s.phase !== 'planetPost' && guard++ < 5000) {
+        if (s.phase === 'betting' && !s.locked && !booked) {
+          booked = true;
+          if (withJobs) {
+            const gold = s.declarations.goldCup;
+            const victim = gold['p2'] ?? Object.values(gold)[0];
+            const mine = Object.entries(s.declarations).find(([, d]) => d['p1'])?.[0];
+            if (victim) s.jobs.push({ by: 'p1', kind: 'nobble', dogId: victim });
+            if (mine) s.jobs.push({ by: 'p1', kind: 'box', race: mine as 'goldCup', box: 1 });
+            expect(s.jobs.length).toBe(2);
+          }
+        }
+        if (needsAdvance(s)) {
+          reduceMut(s, { t: 'AdvancePhase' });
+          continue;
+        }
+        const who = s.pendingEvent?.playerId ?? s.activePlayer!;
+        for (const a of decide(s, who, player(s, who).difficulty)) reduceMut(s, a);
+      }
+      return s;
+    };
+    const plain = run(false);
+    const jobs = run(true);
+    expect(jobs.races).not.toEqual(plain.races);
+    expect(jobs.rng).toBe(plain.rng);
+  });
+});
