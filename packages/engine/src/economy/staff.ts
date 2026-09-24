@@ -42,3 +42,8 @@ export function purseAfterStaff(
   const commission = Math.round(gross * commissionRate(p));
   return { gross, commission, net: gross - commission };
 }
+
+/** Fitness a week a trainer adds to a dog that did not run (§8.2): `weeklyFitnessDelta`'s bonus. */
+export function restBonus(p: Pick<Player, 'staff'>): number {
+  return staffBonus(p, 'fitnessWeek') * balance.staffFitnessWeek;
+}

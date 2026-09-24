@@ -21,6 +21,7 @@ import {
   rollGoods,
   rollTip,
   type EventCard,
+  luck,
 } from '../eventKit';
 import { weakestStat } from '../../economy/dogValue';
 import { GOOD_IDS, type Dog, type GoodId } from '../../types';
@@ -117,7 +118,7 @@ export const BAR: readonly EventCard[] = [
       {
         label: 'Wade in on the barman’s side',
         apply: (ctx) => {
-          if (ctx.rng.chance(0.5)) {
+          if (luck(ctx, 0.5)) {
             earn(ctx, 300);
             ctx.log('You clear the bar. The barman slips you 300 and a free tab.');
           } else {
@@ -223,8 +224,7 @@ export const BAR: readonly EventCard[] = [
       {
         label: 'Argue',
         apply: (ctx) => {
-          if (ctx.rng.chance(0.5))
-            ctx.log('The barman finds the real culprit asleep in the toilets.');
+          if (luck(ctx, 0.5)) ctx.log('The barman finds the real culprit asleep in the toilets.');
           else {
             const paid = pay(ctx, 450);
             ctx.log(`The barman’s brother arrives. You pay the tab and the door (−${paid}).`);

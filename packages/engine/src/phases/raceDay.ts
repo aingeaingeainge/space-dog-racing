@@ -1,5 +1,5 @@
 import { balance, formatBones } from '../content/balance';
-import { commissionRate, purseAfterStaff } from '../economy/staff';
+import { commissionRate, purseAfterStaff, staffBonus } from '../economy/staff';
 import { good } from '../content/goods';
 import { publicStyle, STYLE_BY_ID } from '../content/styles';
 import { CONDITION_BY_ID, conditionOf } from '../content/conditions';
@@ -21,7 +21,7 @@ import {
   type Ctx,
 } from '../state';
 import { clamp, fork } from '../rng';
-import type { Dog, GameState, Id, RaceField, RaceResult, StyleId } from '../types';
+import type { Dog, GameState, Id, Player, RaceField, RaceResult, StyleId } from '../types';
 import { STYLE_IDS } from '../types';
 import { bettingOpen, startPlayerPhase } from './turn';
 import { followDeclarations } from './planet';
@@ -188,23 +188,29 @@ function applyRaceOutcome(s: GameState, d: Dog, place: number, field: Dog[]): nu
 }
 
 /**
- * Did this dog pull up, and for how long (GDD §5.5, GDD_V3 §4.4).
+ * Did this dog pull up, and for how long (GDD §5.5, GDD_V3 §4.4, §8.2).
  *
- * ⚠️ **The vet is gone with the staff ladder (BUILD_PLAN_V3 §2.1)**, so nothing shortens a layoff
- * any more. GDD_V3 §4.4 flags this as something to watch: with three dogs and no market, losing one
- * for three weeks is a third of a stable for a third of a season, and the guards it names — the free
- * local runner and an Explore door that shortens a layoff — both arrive in Phase D. Until then the
- * base rate is the only dial, and §4.4 says so.
+ * The vet came back in Phase D1 as a Pound card; Phase D2 adds the stable's trainers here — one who
+ * checks every leg halves the chance, one who patches them up takes a week off the layoff (never
+ * below one). Both are read by bonus, never by name.
+ *
+ * ⚠️ **Both draws are made every time since Phase D2**: whether the dog pulls up, and for how long.
+ * The length used to be drawn only on an injury, so a trainer who halves the chance — hired through
+ * a door — would have changed how many draws race day makes and moved the game's stream (decision
+ * D1). Drawing it whatever happens keeps the stream a function of who ran, not of who employs whom.
  */
-function rollInjury(ctx: Ctx, d: Dog, hazard: number): number {
+function rollInjury(ctx: Ctx, owner: Player, d: Dog, hazard: number): number {
   let p = balance.injuryBase * hazard;
   if (d.fitness < balance.injuryLowFitnessBelow) p *= balance.injuryLowFitnessMult;
   if (d.traits.includes('fragile')) p *= 2;
   if (d.traits.includes('iron')) p *= 0.5;
   // What it ate at the last jump (GDD_V3 §6.3): Ambrosia halves it for the week that follows.
   if (d.lastMeal) p *= good(d.lastMeal).injuryMult;
-  if (!ctx.rng.chance(p)) return 0;
-  return ctx.rng.int(balance.injuryWeeksMin, balance.injuryWeeksMax);
+  for (let i = staffBonus(owner, 'injuryHalf'); i > 0; i--) p *= balance.staffInjuryMult;
+  const hurt = ctx.rng.chance(p);
+  const weeks = ctx.rng.int(balance.injuryWeeksMin, balance.injuryWeeksMax);
+  if (!hurt) return 0;
+  return Math.max(1, weeks - staffBonus(owner, 'injuryShort') * balance.staffInjuryShorter);
 }
 
 /** GDD §4.2 step 5: run the card in order; pay out; update dogs; settle bets. */
@@ -248,7 +254,7 @@ export function runRaces(ctx: Ctx): void {
         const owner = player(s, d.ownerId);
         // A lent local (GDD_V3 §4.4) pays its stable the prize and nothing else: it is nobody's
         // asset, so it is not rolled for injury.
-        const weeks = d.loan ? 0 : rollInjury(ctx, d, planet.track.hazard);
+        const weeks = d.loan ? 0 : rollInjury(ctx, owner, d, planet.track.hazard);
         if (weeks) {
           d.injuryWeeks = weeks;
           result.injuries[dogId] = weeks;

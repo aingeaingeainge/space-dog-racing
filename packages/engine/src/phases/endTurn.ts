@@ -2,6 +2,8 @@ import { balance } from '../content/balance';
 import { good } from '../content/goods';
 import { planFeeding, type FeedPlan } from '../economy/food';
 import { netWorth } from '../economy/netWorth';
+import { weakestStat } from '../economy/dogValue';
+import { restBonus, staffBonus } from '../economy/staff';
 import { HEADLINE_TYPE_ID } from '../content/raceTypes';
 import {
   emptyDeclarations,
@@ -146,8 +148,16 @@ export function runEndTurn(ctx: Ctx): void {
     for (const d of remaining) {
       const plan = feeding.find((f) => f.dogId === d.id);
       const dinner = plan ? feedOneWeek(ctx, p, d, plan) : 0;
+      // GDD_V3 §8.2, beside the food: a trainer who drills works the dog's weakest stat (by the
+      // rating's weights — a rule, not a draw, so hiring one never moves the game's stream), and one
+      // who rests them well adds to a dog that did not run.
+      const drill = staffBonus(p, 'statWeek') * balance.staffStatWeek;
+      if (drill) {
+        const stat = weakestStat(d);
+        d[stat] = clamp(d[stat] + drill, 1, 99);
+      }
       d.fitness = clamp(
-        d.fitness + weeklyFitnessDelta(d, 0, ranThisWeek(s, d.id)) + dinner,
+        d.fitness + weeklyFitnessDelta(d, restBonus(p), ranThisWeek(s, d.id)) + dinner,
         0,
         100,
       );

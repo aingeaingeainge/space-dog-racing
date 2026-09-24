@@ -8,7 +8,17 @@ import { winProbAgainst } from '../race/odds';
 import { clamp } from '../rng';
 import type { Id, StatKey } from '../types';
 import { STAT_KEYS } from '../types';
-import { crates, fit, holdValue, ownDogs, randomDog, scaleGood, type EventCard } from './eventKit';
+import {
+  crates,
+  fit,
+  holdValue,
+  luck,
+  ownDogs,
+  randomDog,
+  risk,
+  scaleGood,
+  type EventCard,
+} from './eventKit';
 import { POUND } from './deck/pound';
 import { BAR } from './deck/bar';
 import { ALLEY } from './deck/alley';
@@ -220,7 +230,7 @@ const REHOMED: readonly EventCard[] = [
       {
         label: 'Fight (60% keep everything)',
         apply: (ctx) => {
-          if (ctx.rng.chance(0.6)) {
+          if (luck(ctx, 0.6)) {
             ctx.log('You fight off the pirates and keep the lot.');
           } else {
             const lost = emptyHold(ctx.p.cargo);
@@ -608,7 +618,7 @@ const REHOMED: readonly EventCard[] = [
       // ⚠️ The lie is rolled **when the card is drawn**, not when the choice is taken, so that a
       // human and an AI facing the same card face the same manifest — and so that the rng stream
       // does not depend on which choice a player happens to make.
-      return { lying: ctx.rng.chance(0.25) ? 1 : 0, drift: ctx.rng.int(-25, 25) };
+      return { lying: risk(ctx, 0.25) ? 1 : 0, drift: ctx.rng.int(-25, 25) };
     },
     choices: [
       {

@@ -16,6 +16,8 @@ import {
   pay,
   spend,
   type EventCard,
+  luck,
+  risk,
 } from '../eventKit';
 import { cargoTotal, HOLD_CAP } from '../../economy/goods';
 
@@ -93,7 +95,7 @@ export const STRIP: readonly EventCard[] = [
       {
         label: 'Appeal',
         apply: (ctx) => {
-          if (ctx.rng.chance(0.5)) ctx.log('The appeals officer has a dog. She lets you off.');
+          if (luck(ctx, 0.5)) ctx.log('The appeals officer has a dog. She lets you off.');
           else {
             const paid = pay(ctx, 600);
             ctx.log(
@@ -214,7 +216,7 @@ export const STRIP: readonly EventCard[] = [
         label: 'Take the discount (−200)',
         apply: (ctx) => {
           const paid = pay(ctx, 200);
-          if (ctx.rng.chance(0.3)) {
+          if (risk(ctx, 0.3)) {
             const more = pay(ctx, Math.min(800, Math.round(ctx.p.cash * 0.1)));
             ctx.log(
               `The discount was a test. His supervisor fines you 10% (−${paid + more} in all).`,

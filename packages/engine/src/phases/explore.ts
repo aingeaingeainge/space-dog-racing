@@ -4,7 +4,10 @@ import { CARD, raceType } from '../content/raceTypes';
 import { createLocalDog } from '../economy/dogs';
 import { calendarEntry, currentPlanet, log, player, type Ctx } from '../state';
 import { mulberry32, type Rng } from '../rng';
-import { ActionError, type Action, type GameState, type Id } from '../types';
+import { giveIntel } from '../content/eventKit';
+import { STYLE_BY_ID } from '../content/styles';
+import { staffOf } from '../economy/staff';
+import { ActionError, GOOD_IDS, type Action, type GameState, type Id } from '../types';
 import { revealStyles } from './raceDay';
 import { startPlayerPhase } from './turn';
 
@@ -193,8 +196,43 @@ function passOn(ctx: Ctx, playerId: Id): void {
     return;
   }
   s.activePlayer = null;
+  staffWeek(s);
   lendRunners(s, ctx);
   startPlayerPhase(s, 'planetPre');
+}
+
+/**
+ * The two trainer bonuses that tell a stable something (GDD_V3 §8.2), once Explore is over and before
+ * the Market opens, in turn order. Neither draws: which dog, and which goods, are rules.
+ *
+ * - **Has a word around the kennels:** the best-rated rival dog whose style nobody knows yet is made
+ *   public — ⚠️ **to the whole table**, by decision C4: a style is known or it is not, and nobody knows
+ *   one privately, so the trainer's gossip reaches everybody. What the stable buys is *which* dog.
+ * - **Reads the manifests:** where all six goods will sit next week, as the freight clerk's card does.
+ */
+export function staffWeek(s: GameState): void {
+  for (const id of s.turnOrder) {
+    const p = player(s, id);
+    for (const row of staffOf(p)) {
+      if (row.bonuses.includes('styleReveal')) {
+        const target = s.players
+          .filter((x) => x.id !== p.id)
+          .flatMap((x) => x.dogIds.map((d) => s.dogs[d]!))
+          .filter((d) => d && !d.styleKnown)
+          .sort((a, b) => b.rating - a.rating || (a.id < b.id ? -1 : 1))[0];
+        if (target) {
+          target.styleKnown = true;
+          log(
+            s,
+            `${row.name} (${p.name}) has had a word around the kennels: ${target.name} is a ${STYLE_BY_ID[target.style].name.toLowerCase()}. It is on the card now.`,
+          );
+        }
+      }
+      if (row.bonuses.includes('shelfIntel') && s.nextPlanet)
+        giveIntel({ s, p, log: (text) => log(s, `${row.name}: ${text}`, p.id) }, GOOD_IDS);
+    }
+  }
+  revealStyles(s, []);
 }
 
 /**

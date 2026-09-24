@@ -19,6 +19,7 @@ import {
   spend,
   statBy,
   type EventCard,
+  risk,
 } from '../eventKit';
 import { winProbAgainst } from '../../race/odds';
 
@@ -274,7 +275,7 @@ export const TRACK: readonly EventCard[] = [
           const d = dogOf(ctx);
           if (!d) return;
           statBy(d, 'stamina', 3);
-          if (ctx.rng.chance(0.25)) {
+          if (risk(ctx, 0.25)) {
             fit(d, -25);
             ctx.log(
               `${d.name} comes out stronger (+3 stamina) and shivering with swamp fever (−25 fitness).`,
@@ -307,7 +308,7 @@ export const TRACK: readonly EventCard[] = [
           const d = dogOf(ctx);
           if (!d) return;
           statBy(d, 'accel', 3);
-          if (ctx.rng.chance(0.2)) {
+          if (risk(ctx, 0.2)) {
             injure(d, 1);
             ctx.log(
               `${d.name} learns to corner (+3 accel) the hard way: a sprained wrist, a week out.`,

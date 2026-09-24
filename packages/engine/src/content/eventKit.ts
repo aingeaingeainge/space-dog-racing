@@ -13,6 +13,7 @@ import { STYLE_BY_ID } from './styles';
 import { CONDITION_BY_ID } from './conditions';
 import { type IdGen } from '../economy/dogs';
 import { cargoTotal, recordPurchase } from '../economy/goods';
+import { staffBonus } from '../economy/staff';
 import { clamp, type Rng } from '../rng';
 import type { DoorCategory, Dog, GameState, GoodId, Id, Planet, Player, StatKey } from '../types';
 import { GOOD_IDS } from '../types';
@@ -105,6 +106,39 @@ export const fit = (d: Dog, delta: number) => {
 /** The dog a card rolled, by its `dogId` param. */
 export const dogOf = (ctx: EventCtx, key = 'dogId'): Dog | undefined =>
   ctx.s.dogs[String(ctx.params[key])];
+
+/**
+ * How much less likely this stable's cards are to go badly (GDD_V3 §8.2's "Explore events are less
+ * likely to go badly"): `staffExploreRiskMult` for every trainer who carries the bonus, multiplied.
+ * 1 for a stable without one.
+ */
+export const riskMult = (p: Player): number => {
+  let m = 1;
+  for (let i = staffBonus(p, 'saferExplore'); i > 0; i--) m *= balance.staffExploreRiskMult;
+  return m;
+};
+
+/**
+ * **A bad outcome's roll** (Phase D2 item 1): true when the thing that can go wrong does. Its chance
+ * is scaled by the stable's staff, so every card that rolls a mishap through here reads the bonus and
+ * no card needs a branch. For a stable with no such trainer it is exactly `rng.chance(chance)` — the
+ * same one draw — so the helper changes nothing until the bonus is there.
+ *
+ * ⚠️ **Mishaps, not gambles.** A card game, an arm-wrestle, a match race or a slot machine is a
+ * straight bet the player chose to take, and stays on `rng.chance`: a trainer who made you better at
+ * dice would be an edge on the Strip, not somebody keeping you out of trouble.
+ */
+export const risk = (ctx: { rng: Rng; p: Player }, chance: number): boolean =>
+  ctx.rng.chance(chance * riskMult(ctx.p));
+
+/**
+ * **A good outcome's roll**, the other way up: true when the thing goes right. The chance of it going
+ * wrong, `1 − chance`, is what the staff scale — one draw, the same as `rng.chance(chance)` without them.
+ */
+export const luck = (ctx: { rng: Rng; p: Player }, chance: number): boolean => {
+  const m = riskMult(ctx.p);
+  return ctx.rng.chance(m === 1 ? chance : 1 - (1 - chance) * m);
+};
 
 /** A bill the stable has to pay, capped at what it has: nobody is pushed into the red by a card. */
 export const pay = (ctx: EventCtx, bones: number): number => {
@@ -218,7 +252,10 @@ export const giveTip = (ctx: EventCtx): void => {
  * Next week's shelf (GDD_V3 §9.4): tell this stable where these goods will sit in their band at next
  * week's planet, and what they will sell for. It is the only way through the fog, and it is true.
  */
-export const giveIntel = (ctx: EventCtx, goods: readonly GoodId[]): void => {
+export const giveIntel = (
+  ctx: Pick<EventCtx, 's' | 'p' | 'log'>,
+  goods: readonly GoodId[],
+): void => {
   const next = ctx.s.nextPlanet;
   if (!next) return;
   const week = ctx.s.week + 1;

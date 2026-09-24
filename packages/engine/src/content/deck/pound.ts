@@ -19,6 +19,7 @@ import {
   spend,
   statBy,
   type EventCard,
+  risk,
 } from '../eventKit';
 import { weakestStat } from '../../economy/dogValue';
 import {
@@ -168,7 +169,7 @@ export const POUND: readonly EventCard[] = [
           const d = dogOf(ctx);
           if (!d) return;
           formBy(d, 4);
-          if (ctx.rng.chance(0.35)) {
+          if (risk(ctx, 0.35)) {
             for (const x of ownDogs(ctx.s, ctx.p)) fit(x, -6);
             ctx.log(
               `${d.name} is besotted (+4 form). In the morning everybody has fleas (−6 fitness each).`,
@@ -282,7 +283,7 @@ export const POUND: readonly EventCard[] = [
           const d = dogOf(ctx);
           if (!d) return;
           fit(d, -12);
-          if (ctx.rng.chance(0.15)) {
+          if (risk(ctx, 0.15)) {
             injure(d, 1);
             ctx.log(
               `You find ${d.name} two hours later, limping from a fight (−12 fitness, a week out).`,
@@ -339,7 +340,7 @@ export const POUND: readonly EventCard[] = [
         apply: (ctx) => {
           const d = dogOf(ctx);
           if (!d) return;
-          if (ctx.rng.chance(0.6)) {
+          if (risk(ctx, 0.6)) {
             fit(d, -15);
             ctx.log(`${d.name} had worms after all (−15 fitness).`);
           } else ctx.log(`${d.name} was fine. The vet was just selling tablets.`);

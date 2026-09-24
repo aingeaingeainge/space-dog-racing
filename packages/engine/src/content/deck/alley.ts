@@ -26,6 +26,8 @@ import {
   rollTip,
   type EventCard,
   type EventChoice,
+  luck,
+  risk,
 } from '../eventKit';
 import { spoilCargo, HOLD_CAP, cargoTotal } from '../../economy/goods';
 import { winProbAgainst } from '../../race/odds';
@@ -49,7 +51,7 @@ function takeStolen(n: number): EventChoice {
       ctx.p.stats.costs -= paid;
       ctx.p.stats.tradeIncome -= paid;
       addCrates(ctx, g, k, each);
-      if (ctx.rng.chance(0.25)) {
+      if (risk(ctx, 0.25)) {
         const lost = spoilCargo(ctx.p.cargo, 0.3);
         ctx.log(
           `${k} crates of ${goodName(g)} at ${each}. The bottom layer is rotten: ${lost} crates of your hold go over the side with it.`,
@@ -110,7 +112,7 @@ export const ALLEY: readonly EventCard[] = [
       {
         label: 'Run',
         apply: (ctx) => {
-          if (ctx.rng.chance(0.6))
+          if (luck(ctx, 0.6))
             ctx.log('You are faster than you look. They are slower than they look.');
           else {
             const paid = pay(ctx, 700);
@@ -137,7 +139,7 @@ export const ALLEY: readonly EventCard[] = [
         apply: (ctx) => {
           const d = dogOf(ctx);
           if (!d || !spend(ctx, 250)) return;
-          if (ctx.rng.chance(0.7)) {
+          if (luck(ctx, 0.7)) {
             heal(d, 2);
             ctx.log(`Miraculous. ${d.name} is back in ${d.injuryWeeks} week(s).`);
           } else {
@@ -173,7 +175,7 @@ export const ALLEY: readonly EventCard[] = [
         apply: (ctx) => {
           const d = dogOf(ctx);
           if (!d || !spend(ctx, 300)) return;
-          if (ctx.rng.chance(0.75)) {
+          if (luck(ctx, 0.75)) {
             d.raceBonus += 6;
             ctx.log(`${d.name} takes the pill and will not sit still (+6 speed this weekend).`);
           } else {
@@ -238,7 +240,7 @@ export const ALLEY: readonly EventCard[] = [
         label: 'Carry it (+500)',
         apply: (ctx) => {
           earn(ctx, 500);
-          if (ctx.rng.chance(0.2)) {
+          if (risk(ctx, 0.2)) {
             const paid = pay(ctx, 1200);
             ctx.log(
               `Customs open it at the gate. It is full of bees. You are fined ${paid} and keep the 500.`,
@@ -277,7 +279,7 @@ export const ALLEY: readonly EventCard[] = [
               `${d.name} beats the alley champion by a whisker (+500, +3 form). The locals are furious.`,
             );
           } else ctx.log(`${d.name} runs into the bin (−500, −10 fitness).`);
-          if (ctx.rng.chance(0.1)) {
+          if (risk(ctx, 0.1)) {
             injure(d, 1);
             ctx.log(`${d.name} cut a pad on the cobbles: out a week.`);
           }
@@ -308,7 +310,7 @@ export const ALLEY: readonly EventCard[] = [
       {
         label: 'Tell him where to go',
         apply: (ctx) => {
-          if (ctx.rng.chance(0.5)) {
+          if (risk(ctx, 0.5)) {
             for (const d of ownDogs(ctx.s, ctx.p)) fit(d, -12);
             ctx.log(
               'The door comes open. You find your dogs at dawn, three streets away (−12 fitness each).',
@@ -371,7 +373,7 @@ export const ALLEY: readonly EventCard[] = [
           if (n <= 0) return;
           const each = Math.round(ctx.s.planet.goods[g].sell * 1.2);
           ctx.p.cargo[g] -= n;
-          if (ctx.rng.chance(0.15)) {
+          if (risk(ctx, 0.15)) {
             const paid = pay(ctx, 300);
             ctx.log(`It is a sting. The crates are evidence now, and you are fined ${paid}.`);
           } else {
