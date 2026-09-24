@@ -176,6 +176,7 @@
   "scrapmeatGainMin": 1,
   "scrapmeatShelfMax": 45,
   "scrapmeatShelfMin": 30,
+  "seasonStartFitness": 100,
   "staffCutFitnessWeek": 0.05,
   "staffCutInjuryHalf": 0.04,
   "staffCutInjuryShort": 0.02,
