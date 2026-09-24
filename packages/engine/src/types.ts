@@ -133,7 +133,7 @@ export type Phase =
   | 'arrival' // system: roll turn order, planet stock and food prices
   | 'explore' // in turn order, each stable picks one of the planet's three doors (GDD_V3 §9.1)
   | 'planetPre' // in turn order: market, kennels, race office (declarations)
-  | 'betting' // declarations are locked and public; in turn order players may bet
+  | 'betting' // declarations are locked and public; everyone bets, in any order (Phase E2)
   | 'race' // system: simulate the card in order; pay purses; settle bets
   | 'planetPost' // in turn order: buy food
   | 'endTurn' // system: weekly costs, training, recovery, jump to the next planet

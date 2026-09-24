@@ -27,10 +27,17 @@ export function startPlayerPhase(s: GameState, phase: Phase): void {
   if (s.activePlayer === null) finishPlayerPhase(s);
 }
 
-/** The active player is finished; pass to the next, or move the game on. */
+/**
+ * A player is finished; pass to the next, or move the game on.
+ *
+ * ⚠️ **The next player is the first in the turn order still to finish**, not the one after this one
+ * (Phase E2). In turn order the two are the same stable. They differ only at the Bookie, where a stable
+ * may finish out of turn: then the active player stays whoever it was, and the phase ends when the
+ * last stable finishes, whichever that is.
+ */
 export function endPhaseFor(s: GameState, playerId: Id): void {
   if (!s.done.includes(playerId)) s.done.push(playerId);
-  s.activePlayer = nextLivePlayer(s, playerId);
+  s.activePlayer = nextLivePlayer(s, null);
   if (s.activePlayer === null) finishPlayerPhase(s);
 }
 

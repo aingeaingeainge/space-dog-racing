@@ -57,7 +57,10 @@ export function reduceMut(s: GameState, action: Action): GameState {
         const why = offSeasonOutstanding(s, action.playerId);
         if (why) throw new ActionError(why, action);
       }
-      if (s.activePlayer !== action.playerId)
+      // Phase E2: the Bookie is taken in any order (GDD_V3 §2.3 step 6), so a stable still betting
+      // may leave it whenever it likes. Every other player phase is in turn order.
+      const anyOrder = s.phase === 'betting' && !s.done.includes(action.playerId);
+      if (s.activePlayer !== action.playerId && !anyOrder)
         throw new ActionError(`It is not ${action.playerId}'s turn`, action);
       player(s, action.playerId);
       endPhaseFor(s, action.playerId);

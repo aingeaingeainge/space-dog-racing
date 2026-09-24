@@ -105,10 +105,39 @@ export function followDeclarations(s: GameState, playerId?: Id): void {
   }
 }
 
+/**
+ * Is this stable still at the Bookie? **Betting is taken in any order** (Phase E2, GDD_V3 §2.3 step 6,
+ * §3): "everyone bets at once". A stable may bet, and send EndPhase, whenever it has not yet finished
+ * betting — not only when it is the active player — so a hotseat table can hand the laptop round in
+ * whatever order saves a pass. AI stables still act as the active player, in turn order.
+ */
+function bettorOrFail(s: GameState, playerId: Id, action: Action): Player {
+  const p = player(s, playerId);
+  if (s.done.includes(p.id)) fail(`${p.name} has finished at the Bookie`, action);
+  return p;
+}
+
+/**
+ * Where a new slip goes in `s.bets`: after every slip this weekend from a stable at or before this one
+ * in the turn order. So the book reads as if everybody had bet in turn order, **whatever order they
+ * actually bet in** — which is what makes the betting phase order-independent to the byte, and why a
+ * table of AI stables (which do bet in turn order) writes exactly the book it always wrote.
+ */
+function slipIndex(s: GameState, playerId: Id): number {
+  const rank = (id: Id) => s.turnOrder.indexOf(id);
+  let at = s.bets.length;
+  while (at > 0) {
+    const prev = s.bets[at - 1]!;
+    if (prev.week !== s.week || rank(prev.playerId) <= rank(playerId)) break;
+    at--;
+  }
+  return at;
+}
+
 export function placeBet(ctx: Ctx, action: Extract<Action, { t: 'PlaceBet' }>): void {
   const { s } = ctx;
   planetPhase(s, action, 'betting');
-  const p = activeOrFail(s, action.playerId, action);
+  const p = bettorOrFail(s, action.playerId, action);
   if (!s.locked || !s.fields || !bettingOpen(s)) fail('The bookie is closed', action);
   const field = s.fields.find((f) => f.race === action.race);
   const entry = field?.entries.find((e) => e.dogId === action.dogId);
@@ -129,7 +158,7 @@ export function placeBet(ctx: Ctx, action: Extract<Action, { t: 'PlaceBet' }>): 
     action.kind === 'win'
       ? decimalOdds(entry.winProb, margin)
       : decimalOdds(entry.placeProb, margin);
-  s.bets.push({
+  s.bets.splice(slipIndex(s, p.id), 0, {
     playerId: p.id,
     week: s.week,
     race: action.race,

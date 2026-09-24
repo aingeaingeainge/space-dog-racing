@@ -331,3 +331,107 @@ describe("No off-season answer moves the game's stream or another stable's draws
     }
   }, 60_000);
 });
+
+describe('The Bookie is order-independent: the order humans bet in never changes the state (Phase E2)', () => {
+  /**
+   * GDD_V3 §2.3 step 6: "everyone bets at once". From Phase E2 a stable may bet, and leave the Bookie,
+   * whenever it has not yet finished — so a hotseat table can hand the laptop round in whatever order
+   * saves a pass. The argument that this changes nothing:
+   *
+   * 1. **A bet reads nothing another stable's bet writes.** Prices were fixed at the lock; the stake
+   *    cap is a fraction of the stable's own cash; a slip moves only its own stable's cash and stats.
+   * 2. **No AI reads the book.** The AI bets off the posted field, its tips and its own cash.
+   * 3. **The book is written in turn order whatever order it was struck in**: `placeBet` inserts a slip
+   *    after every slip this weekend from a stable at or before it in the turn order.
+   * 4. **Nothing draws.** Betting touches no stream, and `done` is cleared when the phase ends.
+   *
+   * So every order in which four humans can take the laptop gives the same state, byte for byte, by the
+   * time the table sits down to the races — and a table of AIs, which still bets in turn order, writes
+   * the book it always wrote (the goldens do not move).
+   */
+  it('gives the same state after the Bookie in every order four humans can bet', async () => {
+    const { createSeason, reduceMut, decide, needsAdvance, player, aiChoiceFor, maxStakeFor } =
+      await import('../src/index');
+    type S = ReturnType<typeof createSeason>;
+    const humanBets = (s: S, who: string) => {
+      const p = player(s, who);
+      let cash = p.cash;
+      for (const { race, entries } of s.fields ?? []) {
+        const fav = [...entries].sort((a, b) => b.winProb - a.winProb)[0]!;
+        const long = [...entries].sort((a, b) => a.winProb - b.winProb)[0]!;
+        const cap = Math.min(maxStakeFor(s, { ...p, cash }), Math.floor(cash));
+        if (cap < 150) continue;
+        reduceMut(s, {
+          t: 'PlaceBet',
+          playerId: who,
+          race,
+          dogId: fav.dogId,
+          kind: 'win',
+          stake: 100,
+        });
+        reduceMut(s, {
+          t: 'PlaceBet',
+          playerId: who,
+          race,
+          dogId: long.dogId,
+          kind: 'place',
+          stake: 50,
+        });
+        cash -= 150;
+      }
+      reduceMut(s, { t: 'EndPhase', playerId: who });
+    };
+    /** Play to the Bookie of week `week`, then let the humans bet in `order`, then run to the next jump. */
+    const run = (order: number[], week: number) => {
+      const s = createSeason({
+        seed: 77,
+        players: [
+          { name: 'A', kind: 'human' },
+          { name: '', kind: 'ai', difficulty: 'normal' },
+          { name: 'B', kind: 'human' },
+          { name: 'C', kind: 'human' },
+          { name: '', kind: 'ai', difficulty: 'hard' },
+          { name: 'D', kind: 'human' },
+        ],
+      });
+      const humans = s.players.filter((p) => p.kind === 'human').map((p) => p.id);
+      const queue = order.map((i) => humans[i]!);
+      let guard = 0;
+      while (!(s.week === week && s.phase === 'planetPost') && guard++ < 100_000) {
+        if (needsAdvance(s)) {
+          reduceMut(s, { t: 'AdvancePhase' });
+          continue;
+        }
+        const who = s.pendingEvent?.playerId ?? s.activePlayer!;
+        const p = player(s, who);
+        if (p.kind === 'human' && s.phase === 'betting' && s.week === week) {
+          // The table: whoever holds the laptop next, not whoever the turn order names.
+          const next = queue.find((id) => !s.done.includes(id))!;
+          humanBets(s, next);
+        } else if (p.kind === 'human' && s.pendingEvent)
+          reduceMut(s, { t: 'ResolveEvent', playerId: who, choice: aiChoiceFor(s, who) });
+        else
+          for (const a of decide(s, who, p.kind === 'human' ? 'normal' : p.difficulty))
+            reduceMut(s, a);
+      }
+      return s;
+    };
+    const perms = (xs: number[]): number[][] =>
+      xs.length <= 1
+        ? [xs]
+        : xs.flatMap((x, i) =>
+            perms([...xs.slice(0, i), ...xs.slice(i + 1)]).map((r) => [x, ...r]),
+          );
+    for (const week of [2, 3]) {
+      const base = run([0, 1, 2, 3], week);
+      const expected = JSON.stringify(base);
+      // The weekend really was bet on, by every human, so the comparison is not vacuous.
+      expect(
+        base.bets.filter((b) => b.week === week && ['p1', 'p3', 'p4', 'p6'].includes(b.playerId))
+          .length,
+      ).toBeGreaterThan(8);
+      for (const order of perms([0, 1, 2, 3]).slice(1))
+        expect(JSON.stringify(run(order, week))).toBe(expected);
+    }
+  }, 120_000);
+});
