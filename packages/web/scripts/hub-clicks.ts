@@ -47,6 +47,7 @@ import { applyActions, screenFor, weekKey, type ScreenUi } from '../src/store/lo
 import { venues } from '../src/lib/venues';
 import { venueStatus } from '../src/lib/venueStatus';
 import { HOTSPOT_VENUES } from '../src/lib/hotspots';
+import { walkTable } from './table-walk';
 
 /**
  * Declarations (3) + head to the track + run the races + back to the planet + end turn.
@@ -295,3 +296,35 @@ console.log(`  before : ${Math.round(seasonBefore)}`);
 console.log(
   `  after  : ${Math.round(seasonAfter)}   (${Math.round(seasonBefore - seasonAfter)} fewer)`,
 );
+
+// ---------------------------------------------------------------------------------------------------
+// Phase E2 (GDD_V3 §2.3, §3): the table. Everything above is one human against five AIs; a hotseat
+// table pays for its one screen in pass screens, and in the presses each human makes on them. Walked
+// through `screenFor` by `table-walk.ts`, a season each at four humans (and two Normal AIs) and at
+// eight, over the same seeds.
+const TABLE_SEEDS = [42, 7, 1234, 90210, 555];
+console.log('\nThe table — a hotseat season through screenFor (table-walk.ts)');
+console.log(
+  '  humans   passes a weekend   presses a human a weekend   table presses a weekend   leaks',
+);
+for (const [h, ai] of [
+  [4, 2],
+  [8, 0],
+] as const) {
+  let weekends = 0;
+  let passes = 0;
+  let presses = 0;
+  let table = 0;
+  let leaks = 0;
+  for (const seed of TABLE_SEEDS) {
+    const w = walkTable(seed, h, ai);
+    weekends += w.weekends;
+    passes += w.passes;
+    presses += Object.values(w.presses).reduce((a, b) => a + b, 0);
+    table += w.tablePresses;
+    leaks += w.leaks.length;
+  }
+  console.log(
+    `  ${String(h).padStart(6)}   ${(passes / weekends).toFixed(1).padStart(16)}   ${(presses / weekends / h).toFixed(1).padStart(25)}   ${(table / weekends).toFixed(1).padStart(23)}   ${leaks}`,
+  );
+}
