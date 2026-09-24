@@ -2286,8 +2286,10 @@ table.market tr.held td:first-child {
 }
 .door-art {
   position: relative;
+  /* The art is 3:4 (ASSET_LIST, Explore doors). Show all of it where there is room; where the
+     height is capped, crop from the top, which the contract keeps plain for exactly this. */
   aspect-ratio: 3 / 4;
-  max-height: 260px;
+  max-height: min(440px, 54vh);
   margin-bottom: 6px;
   border-bottom: 2px solid var(--ink);
   background:
@@ -2303,6 +2305,39 @@ table.market tr.held td:first-child {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: 50% 100%;
+}
+/* A phone: the three doors stack, each a row — the whole door on the left, its words beside it —
+   so all three fit on about one screen instead of three tall cards. */
+@media (max-width: 720px) {
+  .door {
+    display: grid;
+    grid-template-columns: 112px minmax(0, 1fr);
+    grid-auto-rows: min-content;
+    column-gap: 10px;
+    row-gap: 3px;
+    padding: 0 10px 0 0;
+  }
+  .door > span:not(.door-art) {
+    padding: 0;
+    grid-column: 2;
+  }
+  .door > .door-name {
+    padding-top: 8px;
+  }
+  .door-art {
+    grid-column: 1;
+    grid-row: 1 / span 5;
+    align-self: stretch;
+    max-height: none;
+    min-height: 149px;
+    margin: 0;
+    border-bottom: 0;
+    border-right: 2px solid var(--ink);
+  }
+  .door-name {
+    font-size: 16px;
+  }
 }
 .door-art .ph {
   font-size: 11px;
