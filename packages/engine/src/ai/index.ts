@@ -16,7 +16,7 @@ import { decideOffSeason } from './offSeason';
  */
 export function decide(s: GameState, playerId: Id, agent: AiAgent = 'normal'): Action[] {
   // Between seasons (GDD_V3 §2.2): one screen, the same three answers at every difficulty.
-  if (s.phase === 'offSeason') return decideOffSeason(s, playerId);
+  if (s.phase === 'offSeason') return decideOffSeason(s, playerId, agent);
   switch (agent) {
     case 'easy':
       return decideEasy(s, playerId);
