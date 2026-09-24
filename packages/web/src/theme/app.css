@@ -2317,3 +2317,36 @@ table.market tr.held td:first-child {
 .whispers li {
   margin: 2px 0;
 }
+
+/* Phase D2: a trainer on the Kennels, the offer and the season end (GDD_V3 §8). */
+.staffcards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 12px;
+}
+.staffcard {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 10px;
+  border: 2px solid var(--ink);
+  border-radius: 4px;
+  background: var(--panel, rgba(0, 0, 0, 0.2));
+}
+.staffcard-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.staffcard-head {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.staffcard-bonuses {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13px;
+}

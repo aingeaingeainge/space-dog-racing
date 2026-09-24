@@ -1,4 +1,5 @@
-import { EVENT_BY_ID, planetOf, type GameState } from '@sdr/engine';
+import { EVENT_BY_ID, planetOf, staffRow, type GameState } from '@sdr/engine';
+import { StaffCard } from './StaffCard';
 import { Modal } from './ui';
 import { NeonButton } from './NeonButton';
 import { eventArt } from '../lib/assets';
@@ -30,6 +31,7 @@ export function EventModal({ s }: { s: GameState }) {
   if (!pending) return null;
   const card = EVENT_BY_ID[pending.eventId];
   const who = playerById(s, pending.playerId);
+  const me = s.players.find((p) => p.id === pending.playerId);
   if (!card) return null;
 
   const art = eventArt(pending.eventId);
@@ -50,17 +52,30 @@ export function EventModal({ s }: { s: GameState }) {
       </div>
       <p>{card.text}</p>
       {pending.detail ? <p className="event-detail">{pending.detail}</p> : null}
+      {/* GDD_V3 §8: a trainer looking for work shows their face, and the two you would let go. */}
+      {pending.params.staffId ? (
+        <div className="staffcards">
+          <StaffCard row={staffRow(String(pending.params.staffId))} sub="looking for work" />
+          {me?.staff.map((id) => (
+            <StaffCard key={id} row={staffRow(id)} sub="yours now" />
+          ))}
+        </div>
+      ) : null}
       <div className="row">
-        {pending.choices.map((label, i) => (
-          <NeonButton
-            key={i}
-            variant={i === 0 ? 'primary' : 'default'}
-            title={`key: ${i + 1}`}
-            onClick={() => choose(i)}
-          >
-            {label}
-          </NeonButton>
-        ))}
+        {pending.choices.map((label, i) =>
+          // A card with a button per rival (a nobble, §9.3) marks the seats it has nothing for as
+          // '—'; there is nothing to press there, so there is no button.
+          label === '—' ? null : (
+            <NeonButton
+              key={i}
+              variant={i === 0 ? 'primary' : 'default'}
+              title={`key: ${i + 1}`}
+              onClick={() => choose(i)}
+            >
+              {label}
+            </NeonButton>
+          ),
+        )}
       </div>
     </Modal>
   );

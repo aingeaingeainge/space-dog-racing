@@ -7,7 +7,7 @@ import {
   type RaceResult,
 } from '@sdr/engine';
 import { Panel } from '../components/Panel';
-import { Badge, Delta, StableName, StyleTag, Traits } from '../components/ui';
+import { Badge, Delta, Notes, StableName, StyleTag, Traits } from '../components/ui';
 import { NeonButton } from '../components/NeonButton';
 import { BettingSlip, type SlipRow } from '../components/BettingSlip';
 import { OwnerFace } from '../components/Owner';
@@ -110,6 +110,7 @@ export function Results({ s, me }: { s: GameState; me: Player }) {
     r.payouts.filter((p) => p.playerId === me.id).map((p) => ({ race: r.race, ...p })),
   );
   const won = mine.reduce((sum, p) => sum + p.amount, 0);
+  const taken = mine.reduce((sum, p) => sum + (p.commission ?? 0), 0);
 
   return (
     <div className="app">
@@ -139,11 +140,21 @@ export function Results({ s, me }: { s: GameState; me: Player }) {
               )
               .join(', ')}
             .
+            {taken ? (
+              <span className="muted">
+                {' '}
+                Your trainers took {formatBones(taken)} of it — their cut of the purses.
+              </span>
+            ) : null}
           </p>
         ) : (
           <p className="muted flush">Nothing in the money this weekend.</p>
         )}
       </Panel>
+
+      <Stewards s={s} />
+
+      <YourJobs s={s} me={me} />
 
       <Revealed s={s} />
 
@@ -163,6 +174,60 @@ export function Results({ s, me }: { s: GameState; me: Player }) {
         );
       })}
     </div>
+  );
+}
+
+/**
+ * GDD_V3 §9.3: **the whole table is told who did it.** Every nobbler the stewards caught this weekend,
+ * named, with the fine — on everybody's Results, not only the victim's.
+ */
+function Stewards({ s }: { s: GameState }) {
+  const found = (s.races ?? []).flatMap((r) => r.stewards.map((f) => ({ race: r.race, ...f })));
+  if (!found.length) return null;
+  return (
+    <Panel title="Stewards' enquiry" sub="a dog was got at — and the stewards know who did it">
+      {found.map((f, i) => {
+        const who = playerById(s, f.playerId);
+        const dog = s.dogs[f.dogId];
+        return (
+          <p key={i} className="notice error flush">
+            <b>{who?.name ?? 'Somebody'}</b> nobbled <b>{dog?.name ?? 'a dog'}</b> in the{' '}
+            {raceLabel(f.race)}. Fined {formatBones(f.fine)}.
+          </p>
+        );
+      })}
+    </Panel>
+  );
+}
+
+/**
+ * What this stable's own Back Alley jobs did this weekend (GDD_V3 §9.3) — private, unless the stewards
+ * made it public above. A nobble that bit and was not caught is known only to the stable that paid
+ * for it.
+ */
+const nth = (n: number) => (n === 1 ? '1st' : n === 2 ? '2nd' : n === 3 ? '3rd' : `${n}th`);
+
+function YourJobs({ s, me }: { s: GameState; me: Player }) {
+  const jobs = s.jobs.filter((j) => j.by === me.id);
+  if (!jobs.length || !s.races) return null;
+  const lines = jobs.map((j) => {
+    if (j.kind === 'box')
+      return j.race && j.box
+        ? `The steward's box: box ${j.box} in the ${raceLabel(j.race)}.`
+        : 'The steward’s box was never named, so it was never used.';
+    const dog = j.dogId ? s.dogs[j.dogId] : undefined;
+    const ran = s.races!.find((r) => r.order.includes(j.dogId ?? ''));
+    if (!ran) return `${dog?.name ?? 'The dog'} never ran, so the nobble came to nothing.`;
+    const caught = ran.stewards.some((f) => f.playerId === me.id && f.dogId === j.dogId);
+    const place = ran.order.indexOf(j.dogId!) + 1;
+    return caught
+      ? `${dog?.name} ran nobbled in the ${raceLabel(ran.race)} (${nth(place)}) — and the stewards saw.`
+      : `${dog?.name} ran nobbled in the ${raceLabel(ran.race)} and finished ${nth(place)}. Nobody saw a thing.`;
+  });
+  return (
+    <Panel title="Your business in the Back Alley" sub="only you see this">
+      <Notes lines={lines} />
+    </Panel>
   );
 }
 

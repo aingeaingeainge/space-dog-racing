@@ -15,8 +15,11 @@ import {
   type GoodId,
   type StatKey,
   good,
+  restBonus,
+  staffRow,
   type FeedPlan,
 } from '@sdr/engine';
+import { StaffCard, commissionLine } from '../components/StaffCard';
 import { DogCard } from '../components/DogCard';
 import { Panel } from '../components/Panel';
 import { Badge, KV, Notes } from '../components/ui';
@@ -52,14 +55,14 @@ const STAT_LABEL: Record<StatKey, string> = {
  */
 function fitnessLine(d: Dog, me: Player, declared: boolean): string {
   const status = weekStatusOf(d);
-  const f = fitnessOutlook(d);
+  const f = fitnessOutlook(d, restBonus(me));
   if (status === 'layoff')
-    return `on layoff, +${weeklyFitnessDelta(d, 0, false)} fitness (${f.now} → ${f.resting})`;
+    return `on layoff, +${weeklyFitnessDelta(d, restBonus(me), false)} fitness (${f.now} → ${f.resting})`;
   if (status === 'race')
     return declared
       ? `racing: −${balance.fitnessPerRace} fitness (${f.now} → ${f.racing}; ${f.resting} if you rest it instead)`
       : `set to race but not entered — it will take the week off (${f.now} → ${f.resting})`;
-  return `resting: +${weeklyFitnessDelta(d, 0, false)} fitness (${f.now} → ${f.resting})`;
+  return `resting: +${weeklyFitnessDelta(d, restBonus(me), false)} fitness (${f.now} → ${f.resting})`;
 }
 
 /**
@@ -117,6 +120,21 @@ export function Stable({ s, me }: { s: GameState; me: Player }) {
           lines={[
             `This week's dinner: ${bill.foodNeeded} crate${bill.foodNeeded === 1 ? '' : 's'}, ${bill.foodFromHold} of them in the hold. Food is the only running cost in the game — no upkeep, no wages, no fuel, no debt — and it is not charged in Bones: a dog the hold cannot feed loses ${balance.emptyHoldFitness} fitness and gains nothing.`,
             `Every dog either races or rests. Race costs ${balance.fitnessPerRace} fitness, Rest returns ${balance.fitnessRest} — more for a young dog, less for an old one. Every dog eats one crate either way. Fitness multiplies every stat at every level: a dog at 60 is slower than a dog at 90, but it is still a runner.`,
+          ]}
+        />
+      </Panel>
+
+      {/* GDD_V3 §8: the two trainers, what they do and what they take. */}
+      <Panel title="Trainers" sub="two slots · paid a cut of race prize money, never anything else">
+        <div className="staffcards">
+          {me.staff.map((id) => (
+            <StaffCard key={id} row={staffRow(id)} />
+          ))}
+        </div>
+        <Notes
+          lines={[
+            commissionLine(me),
+            'The only way to change a trainer is to meet one looking for work — in a Bar.',
           ]}
         />
       </Panel>

@@ -25,13 +25,13 @@ Everything is loaded lazily and per planet, so the whole set is never fetched at
 | Race-view ground | 18 | 200 kB | 3.5 MB | 6.2 MB | 2 |
 | Racing surface tiles | 18 | 40 kB | 0.7 MB | 1.2 MB | 2 |
 | Dog run cycles | 12 | 45 kB | 0.5 MB | 0.9 MB | 2 |
-| Event cards | 86 | 70 kB | 5.9 MB | 10.9 MB | 3 |
+| Event cards | 93 | 70 kB | 6.4 MB | 11.8 MB | 3 |
 | Explore doors | 54 | 60 kB | 3.2 MB | 5.8 MB | 2 |
-| Character portraits | 19 | 50 kB | 0.9 MB | 1.7 MB | 3 |
+| Character portraits | 41 | 50 kB | 2.0 MB | 3.6 MB | 3 |
 | UI furniture | 11 | 8/25/30/40 kB | 0.2 MB | 0.4 MB | 3 |
-| **All of it** | **256** | | **18.3 MB** | **33.4 MB** | |
+| **All of it** | **285** | | **19.8 MB** | **36.2 MB** | |
 
-**256 files, about 18.3 MB if you hit the targets and 33.4 MB if every one lands on its cap.** That is the whole library, not a download: no player ever fetches all of it, because backdrops, ground and surfaces are per planet and a season visits thirteen of eighteen.
+**285 files, about 19.8 MB if you hit the targets and 36.2 MB if every one lands on its cap.** That is the whole library, not a download: no player ever fetches all of it, because backdrops, ground and surfaces are per planet and a season visits thirteen of eighteen.
 
 Two levers if that total wants to come down:
 
@@ -1306,7 +1306,7 @@ photorealism, 3D render, photograph, text, letters, words, readable signage, wat
 
 ## Tier 3
 
-### Event cards — 86 files, ~5.9 MB
+### Event cards — 93 files, ~6.4 MB
 
 One 8:5 illustration per event id in the engine deck. The id is the filename; add an event to content/events.ts and it wants a new file with that name.
 
@@ -1756,9 +1756,41 @@ photorealism, 3D render, photograph, text, letters, words, readable signage, wat
 1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: A man with a price board. A commodities man in a velvet jacket has a little chalk board of next week’s prices. He will rub out all but three and let you look. 150. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
 ```
 
-#### Off the back of a freighter — `src/assets/events/stolenFood.webp` (or `.svg`)
+#### A trainer between yards — `src/assets/events/trainerBetweenYards.webp` (or `.svg`)
 
 800×500 · WebP · target 70 kB, cap 130 kB · seeds 6100–6119
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: A trainer between yards. Somebody at the end of the bar has a whistle round their neck and nobody to blow it at. They have heard about your dogs. They would like to hear more — and to talk about money. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
+```
+
+#### Walked out this morning — `src/assets/events/trainerWalkedOut.webp` (or `.svg`)
+
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 6120–6139
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: Walked out this morning. A trainer threw a bucket at a stable owner at breakfast and has been drinking to it ever since. Good with dogs, they say. Less good with owners. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
+```
+
+#### An old hand — `src/assets/events/trainerOldHand.webp` (or `.svg`)
+
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 6140–6159
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: An old hand. The barman points you at a corner table. "Trained three Grand Final winners, that one. Not lately." The old hand looks up. One trick, done properly, for a small cut. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
+```
+
+#### An agent with a list — `src/assets/events/trainerAgent.webp` (or `.svg`)
+
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 6160–6179
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: An agent with a list. A sharp little agent in a sharper suit slides a card across the bar. "I represent talent. Expensive talent. Two tricks each, minimum." The list is short and every name on it is dear. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
+```
+
+#### Off the back of a freighter — `src/assets/events/stolenFood.webp` (or `.svg`)
+
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 6180–6199
 
 ```text
 1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: Off the back of a freighter. A man in a long coat opens it to show you crates, not watches. Good food, he says, at sixty per cent of the shelf price. Cash. Now. Do not ask where it came from. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
@@ -1766,7 +1798,7 @@ photorealism, 3D render, photograph, text, letters, words, readable signage, wat
 
 #### Jumped — `src/assets/events/mugging.webp` (or `.svg`)
 
-800×500 · WebP · target 70 kB, cap 130 kB · seeds 6120–6139
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 6200–6219
 
 ```text
 1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: Jumped. Two of them, one with a pipe. "Wallet." Your dogs are back at the ship. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
@@ -1774,7 +1806,7 @@ photorealism, 3D render, photograph, text, letters, words, readable signage, wat
 
 #### A vet with no licence — `src/assets/events/backstreetVet.webp` (or `.svg`)
 
-800×500 · WebP · target 70 kB, cap 130 kB · seeds 6140–6159
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 6220–6239
 
 ```text
 1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: A vet with no licence. He was struck off on three planets. He also once put a dog back together that four vets had given up on. He will look at your laid-up dog for 250. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
@@ -1782,7 +1814,7 @@ photorealism, 3D render, photograph, text, letters, words, readable signage, wat
 
 #### The chemist — `src/assets/events/chemistPill.webp` (or `.svg`)
 
-800×500 · WebP · target 70 kB, cap 130 kB · seeds 6160–6179
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 6240–6259
 
 ```text
 1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: The chemist. A chemist with yellow fingers holds out a pill. "One of these on Sunday morning and your dog will run through a wall." 300. Some dogs, he admits, try to run through the wall. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
@@ -1790,7 +1822,7 @@ photorealism, 3D render, photograph, text, letters, words, readable signage, wat
 
 #### A good rate — `src/assets/events/counterfeitBones.webp` (or `.svg`)
 
-800×500 · WebP · target 70 kB, cap 130 kB · seeds 6180–6199
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 6260–6279
 
 ```text
 1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: A good rate. A woman will change your Bones for newer Bones at two for one. Only five hundred. She shows you one: it looks real. It feels real. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
@@ -1798,7 +1830,7 @@ photorealism, 3D render, photograph, text, letters, words, readable signage, wat
 
 #### Light fingers — `src/assets/events/pickpocket.webp` (or `.svg`)
 
-800×500 · WebP · target 70 kB, cap 130 kB · seeds 6200–6219
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 6280–6299
 
 ```text
 1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: Light fingers. Somebody bumps into you, apologises beautifully, and is gone. So is your purse. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
@@ -1806,7 +1838,7 @@ photorealism, 3D render, photograph, text, letters, words, readable signage, wat
 
 #### A sealed crate — `src/assets/events/sealedCrate.webp` (or `.svg`)
 
-800×500 · WebP · target 70 kB, cap 130 kB · seeds 6220–6239
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 6300–6319
 
 ```text
 1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: A sealed crate. A man needs a crate carried to the next planet. It is sealed, it is heavy, it hums. 500 now. Do not open it and do not declare it. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
@@ -1814,7 +1846,7 @@ photorealism, 3D render, photograph, text, letters, words, readable signage, wat
 
 #### Down the wet alley — `src/assets/events/alleySprint.webp` (or `.svg`)
 
-800×500 · WebP · target 70 kB, cap 130 kB · seeds 6240–6259
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 6320–6339
 
 ```text
 1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: Down the wet alley. A local runs a sprint down the length of the alley on Saturday nights, 500 a side, no stewards, no rules, a bin at the finish. His dog has never lost. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
@@ -1822,7 +1854,7 @@ photorealism, 3D render, photograph, text, letters, words, readable signage, wat
 
 #### Nice kennel — `src/assets/events/protection.webp` (or `.svg`)
 
-800×500 · WebP · target 70 kB, cap 130 kB · seeds 6260–6279
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 6340–6359
 
 ```text
 1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: Nice kennel. "Nice kennel. Nice dogs. Be a shame if the door came open in the night." He wants 250 a week. He means this week. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
@@ -1830,7 +1862,7 @@ photorealism, 3D render, photograph, text, letters, words, readable signage, wat
 
 #### The alley cat — `src/assets/events/alleyCat.webp` (or `.svg`)
 
-800×500 · WebP · target 70 kB, cap 130 kB · seeds 6280–6299
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 6360–6379
 
 ```text
 1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: The alley cat. The biggest cat anybody has ever seen sits on a wall and looks at your dogs. Your dogs look back. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
@@ -1838,7 +1870,7 @@ photorealism, 3D render, photograph, text, letters, words, readable signage, wat
 
 #### The fence — `src/assets/events/fence.webp` (or `.svg`)
 
-800×500 · WebP · target 70 kB, cap 130 kB · seeds 6300–6319
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 6380–6399
 
 ```text
 1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: The fence. A fence who deals in "surplus" will take food off you at over the odds — no paperwork, no questions. Twenty per cent over the shelf, for up to ten crates of one thing. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
@@ -1846,7 +1878,7 @@ photorealism, 3D render, photograph, text, letters, words, readable signage, wat
 
 #### A kennel-boy for hire — `src/assets/events/kennelBoy.webp` (or `.svg`)
 
-800×500 · WebP · target 70 kB, cap 130 kB · seeds 6320–6339
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 6400–6419
 
 ```text
 1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: A kennel-boy for hire. A kennel-boy from a rival stable waits by the bins. For the right money he will tell you what really goes on in his yard — or anybody else’s. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
@@ -1854,15 +1886,39 @@ photorealism, 3D render, photograph, text, letters, words, readable signage, wat
 
 #### The bookie’s runner — `src/assets/events/bookiesRunner.webp` (or `.svg`)
 
-800×500 · WebP · target 70 kB, cap 130 kB · seeds 6340–6359
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 6420–6439
 
 ```text
 1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: The bookie’s runner. The bookie’s runner hears everything the bookie hears, and the bookie hears everything. He is underpaid and he knows it. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
 ```
 
+#### A man with a syringe — `src/assets/events/syringeMan.webp` (or `.svg`)
+
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 6440–6459
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: A man with a syringe. He does not say what is in it. He says it is not illegal, exactly, and that it wears off by Tuesday. He can get into one kennel in every yard on the planet. Pick a yard. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
+```
+
+#### A kennel-boy with debts — `src/assets/events/kennelBoyBribe.webp` (or `.svg`)
+
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 6460–6479
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: A kennel-boy with debts. A kennel-boy who works nights at half the yards on the planet owes money to the wrong people. He could leave a bowl of something in the wrong pen. He could use the money. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
+```
+
+#### A steward with a clipboard — `src/assets/events/stewardBox.webp` (or `.svg`)
+
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 6480–6499
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: A steward with a clipboard. One of the track stewards is having a cigarette where he should not be. He does the trap draw. For a consideration, he can do it a little less randomly — for one dog, in one race, your choice once you know it. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
+```
+
 #### Find the lady — `src/assets/events/threeCardMonte.webp` (or `.svg`)
 
-800×500 · WebP · target 70 kB, cap 130 kB · seeds 6360–6379
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 6500–6519
 
 ```text
 1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: Find the lady. Three cards on an upturned crate and a man with very fast hands. "Find the lady, double your money." A tourist just won. The tourist looks a lot like him. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
@@ -1870,7 +1926,7 @@ photorealism, 3D render, photograph, text, letters, words, readable signage, wat
 
 #### Sponsor: Zapp! Energy — `src/assets/events/zappSponsor.webp` (or `.svg`)
 
-800×500 · WebP · target 70 kB, cap 130 kB · seeds 6380–6399
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 6520–6539
 
 ```text
 1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: Sponsor: Zapp! Energy. Zapp! Energy ("It Makes You Go") will pay 900 to have your dogs photographed drinking it. They will have to actually drink it. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
@@ -1878,7 +1934,7 @@ photorealism, 3D render, photograph, text, letters, words, readable signage, wat
 
 #### Clamped — `src/assets/events/clamped.webp` (or `.svg`)
 
-800×500 · WebP · target 70 kB, cap 130 kB · seeds 6400–6419
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 6540–6559
 
 ```text
 1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: Clamped. You come back to the ship to find a clamp on the landing gear and a note: 300 to release. You were parked in a loading bay. There is no sign saying so. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
@@ -1886,7 +1942,7 @@ photorealism, 3D render, photograph, text, letters, words, readable signage, wat
 
 #### The Big Bone slot machine — `src/assets/events/slotMachine.webp` (or `.svg`)
 
-800×500 · WebP · target 70 kB, cap 130 kB · seeds 6420–6439
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 6560–6579
 
 ```text
 1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: The Big Bone slot machine. A slot machine the size of a shuttle, flashing a jackpot of 1,500. A pull is 100. It has not paid out since the old sheriff died. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
@@ -1894,7 +1950,7 @@ photorealism, 3D render, photograph, text, letters, words, readable signage, wat
 
 #### The calendar — `src/assets/events/calendarShoot.webp` (or `.svg`)
 
-800×500 · WebP · target 70 kB, cap 130 kB · seeds 6440–6459
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 6580–6599
 
 ```text
 1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: The calendar. A glossy wants your dogs for the Dogs of the Circuit calendar. 300, a morning under hot lights, and a stylist with strong opinions about ears. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
@@ -1902,7 +1958,7 @@ photorealism, 3D render, photograph, text, letters, words, readable signage, wat
 
 #### Free samples — `src/assets/events/freeSamples.webp` (or `.svg`)
 
-800×500 · WebP · target 70 kB, cap 130 kB · seeds 6460–6479
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 6600–6619
 
 ```text
 1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: Free samples. A food brand is handing out samples on the Strip. If you have a hold, they will fill a corner of it with Scrapmeat and call it marketing. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
@@ -1910,7 +1966,7 @@ photorealism, 3D render, photograph, text, letters, words, readable signage, wat
 
 #### A caterer in a hurry — `src/assets/events/caterer.webp` (or `.svg`)
 
-800×500 · WebP · target 70 kB, cap 130 kB · seeds 6480–6499
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 6620–6639
 
 ```text
 1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: A caterer in a hurry. A wedding caterer has three hundred guests and no Grey Mash — do not ask what kind of wedding. She will pay double the shelf for ten crates, right now. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
@@ -1918,7 +1974,7 @@ photorealism, 3D render, photograph, text, letters, words, readable signage, wat
 
 #### The Strip tax man — `src/assets/events/taxMan.webp` (or `.svg`)
 
-800×500 · WebP · target 70 kB, cap 130 kB · seeds 6500–6519
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 6640–6659
 
 ```text
 1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: The Strip tax man. A man with a ledger says there is a Strip levy on visiting stables: five per cent of what you are carrying. There is also, he says quietly, a cash discount. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
@@ -1926,7 +1982,7 @@ photorealism, 3D render, photograph, text, letters, words, readable signage, wat
 
 #### A timed trial — `src/assets/events/trialRun.webp` (or `.svg`)
 
-800×500 · WebP · target 70 kB, cap 130 kB · seeds 6520–6539
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 6660–6679
 
 ```text
 1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: A timed trial. The track is open for trials this morning. Put a dog in the boxes, run it round alone against the clock, and see how it likes to race. The rail is lined with clockers taking notes. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
@@ -1934,7 +1990,7 @@ photorealism, 3D render, photograph, text, letters, words, readable signage, wat
 
 #### Hill gallops — `src/assets/events/hillGallops.webp` (or `.svg`)
 
-800×500 · WebP · target 70 kB, cap 130 kB · seeds 6540–6559
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 6680–6699
 
 ```text
 1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: Hill gallops. There is a hill behind the track that the old trainers swear by. Up it, down it, up it again. It builds a dog. It also flattens one for a week. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
@@ -1942,7 +1998,7 @@ photorealism, 3D render, photograph, text, letters, words, readable signage, wat
 
 #### A private match — `src/assets/events/privateMatch.webp` (or `.svg`)
 
-800×500 · WebP · target 70 kB, cap 130 kB · seeds 6560–6579
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 6700–6719
 
 ```text
 1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: A private match. A local owner with a good dog and a bad temper wants a match race after the gallops: your fittest against his, one lap, 700 a side, no bookies. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
@@ -1950,7 +2006,7 @@ photorealism, 3D render, photograph, text, letters, words, readable signage, wat
 
 #### Starting-gate school — `src/assets/events/gateSchool.webp` (or `.svg`)
 
-800×500 · WebP · target 70 kB, cap 130 kB · seeds 6580–6599
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 6720–6739
 
 ```text
 1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: Starting-gate school. An old starter runs a school for dogs that miss the break. A week of bells, flaps and treats. 300. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
@@ -1958,7 +2014,7 @@ photorealism, 3D render, photograph, text, letters, words, readable signage, wat
 
 #### The hydro pool — `src/assets/events/hydroPool.webp` (or `.svg`)
 
-800×500 · WebP · target 70 kB, cap 130 kB · seeds 6600–6619
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 6740–6759
 
 ```text
 1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: The hydro pool. The track has a heated pool for tired legs. An hour in it for every dog, 250. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
@@ -1966,7 +2022,7 @@ photorealism, 3D render, photograph, text, letters, words, readable signage, wat
 
 #### A schooling race — `src/assets/events/schoolingRace.webp` (or `.svg`)
 
-800×500 · WebP · target 70 kB, cap 130 kB · seeds 6620–6639
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 6760–6779
 
 ```text
 1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: A schooling race. The track is running an unofficial schooling race for dogs that need a run. No purse, no rating, just the experience. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
@@ -1974,7 +2030,7 @@ photorealism, 3D render, photograph, text, letters, words, readable signage, wat
 
 #### The sprint coach — `src/assets/events/sprintCoach.webp` (or `.svg`)
 
-800×500 · WebP · target 70 kB, cap 130 kB · seeds 6640–6659
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 6780–6799
 
 ```text
 1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: The sprint coach. A sprint coach with a whistle and a stopwatch says he can find a dog another yard of pace in a week. 400, and he is not cheap because he is good. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
@@ -1982,7 +2038,7 @@ photorealism, 3D render, photograph, text, letters, words, readable signage, wat
 
 #### The telemetry treadmill — `src/assets/events/treadmill.webp` (or `.svg`)
 
-800×500 · WebP · target 70 kB, cap 130 kB · seeds 6660–6679
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 6800–6819
 
 ```text
 1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: The telemetry treadmill. A technician will put one of your dogs on a sensor treadmill and print out exactly how it runs. The print-out goes on the public board. That is the law here. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
@@ -1990,7 +2046,7 @@ photorealism, 3D render, photograph, text, letters, words, readable signage, wat
 
 #### Bog gallops — `src/assets/events/bogGallops.webp` (or `.svg`)
 
-800×500 · WebP · target 70 kB, cap 130 kB · seeds 6680–6699
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 6820–6839
 
 ```text
 1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: Bog gallops. The swamp trainers gallop their dogs through knee-deep mud. It builds legs like tree trunks. It also builds swamp fever. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
@@ -1998,13 +2054,13 @@ photorealism, 3D render, photograph, text, letters, words, readable signage, wat
 
 #### Work on the ice — `src/assets/events/iceWork.webp` (or `.svg`)
 
-800×500 · WebP · target 70 kB, cap 130 kB · seeds 6700–6719
+800×500 · WebP · target 70 kB, cap 130 kB · seeds 6840–6859
 
 ```text
 1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Event card illustration: Work on the ice. Glassfall trainers teach their dogs to corner on sheet ice. A dog that can hold a bend on ice can hold one anywhere. Some of them learn by falling over. A single readable comic moment on a grimy retro-future dog-racing circuit, acid green #9BE84B and hot pink #F04E98 accents over charcoal #1B1A22 and rust #6B3A22. Dark rather than cruel — nothing dies on screen. No text, no humans (aliens and dogs only), 8:5.
 ```
 
-### Character portraits — 19 files, ~0.9 MB
+### Character portraits — 41 files, ~2.0 MB
 
 Twelve AI stable owners (indexed like Dog.look, by stable number), six hireables and Fat Tony Nebula.
 
@@ -2164,6 +2220,182 @@ photorealism, 3D render, photograph, text, letters, watermark, signature, real c
 
 ```text
 1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Character portrait: Fat Tony Nebula: an enormous, immaculately dressed loan shark, all rings and teeth. Head and shoulders, facing the viewer, comic and characterful, grimy retro-future dog-racing circuit. Acid green #9BE84B and hazard yellow #F4C542 accents over charcoal #1B1A22. Transparent background or a flat charcoal one, no text, square 1:1.
+```
+
+#### staff-osk — `src/assets/portraits/staff-osk.webp` (or `.svg`)
+
+512×512 · WebP with alpha · target 50 kB, cap 90 kB · seeds 7950–7999
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Character portrait: Madame Osk, a dog trainer: a stern four-armed alien physiotherapist with bandage rolls in every hand. Head and shoulders, facing the viewer, comic and characterful, grimy retro-future dog-racing circuit. Acid green #9BE84B and hazard yellow #F4C542 accents over charcoal #1B1A22. Transparent background or a flat charcoal one, no text, square 1:1.
+```
+
+#### staff-rumbold — `src/assets/portraits/staff-rumbold.webp` (or `.svg`)
+
+512×512 · WebP with alpha · target 50 kB, cap 90 kB · seeds 8000–8049
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Character portrait: Doc Rumbold, a dog trainer: a jowly back-street dog doctor with a head lamp and a leather bag. Head and shoulders, facing the viewer, comic and characterful, grimy retro-future dog-racing circuit. Acid green #9BE84B and hazard yellow #F4C542 accents over charcoal #1B1A22. Transparent background or a flat charcoal one, no text, square 1:1.
+```
+
+#### staff-jhett — `src/assets/portraits/staff-jhett.webp` (or `.svg`)
+
+512×512 · WebP with alpha · target 50 kB, cap 90 kB · seeds 8050–8099
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Character portrait: Whisper Jhett, a dog trainer: a thin, grinning alien gossip with oversized ears and a cocktail. Head and shoulders, facing the viewer, comic and characterful, grimy retro-future dog-racing circuit. Acid green #9BE84B and hazard yellow #F4C542 accents over charcoal #1B1A22. Transparent background or a flat charcoal one, no text, square 1:1.
+```
+
+#### staff-pim — `src/assets/portraits/staff-pim.webp` (or `.svg`)
+
+512×512 · WebP with alpha · target 50 kB, cap 90 kB · seeds 8100–8149
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Character portrait: Ledger Pim, a dog trainer: a small bespectacled mole-like clerk buried in shipping manifests. Head and shoulders, facing the viewer, comic and characterful, grimy retro-future dog-racing circuit. Acid green #9BE84B and hazard yellow #F4C542 accents over charcoal #1B1A22. Transparent background or a flat charcoal one, no text, square 1:1.
+```
+
+#### staff-vell — `src/assets/portraits/staff-vell.webp` (or `.svg`)
+
+512×512 · WebP with alpha · target 50 kB, cap 90 kB · seeds 8150–8199
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Character portrait: Duchess Vell, a dog trainer: a haughty feathered alien aristocrat in a fraying ballgown and opera gloves. Head and shoulders, facing the viewer, comic and characterful, grimy retro-future dog-racing circuit. Acid green #9BE84B and hazard yellow #F4C542 accents over charcoal #1B1A22. Transparent background or a flat charcoal one, no text, square 1:1.
+```
+
+#### staff-anselm — `src/assets/portraits/staff-anselm.webp` (or `.svg`)
+
+512×512 · WebP with alpha · target 50 kB, cap 90 kB · seeds 8200–8249
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Character portrait: Brother Anselm, a dog trainer: a calm hooded monk-alien with a lantern and a knowing half-smile. Head and shoulders, facing the viewer, comic and characterful, grimy retro-future dog-racing circuit. Acid green #9BE84B and hazard yellow #F4C542 accents over charcoal #1B1A22. Transparent background or a flat charcoal one, no text, square 1:1.
+```
+
+#### staff-grubb — `src/assets/portraits/staff-grubb.webp` (or `.svg`)
+
+512×512 · WebP with alpha · target 50 kB, cap 90 kB · seeds 8250–8299
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Character portrait: Nan Grubb, a dog trainer: a tiny ancient grandmother alien stirring a steaming pot of broth. Head and shoulders, facing the viewer, comic and characterful, grimy retro-future dog-racing circuit. Acid green #9BE84B and hazard yellow #F4C542 accents over charcoal #1B1A22. Transparent background or a flat charcoal one, no text, square 1:1.
+```
+
+#### staff-sarge — `src/assets/portraits/staff-sarge.webp` (or `.svg`)
+
+512×512 · WebP with alpha · target 50 kB, cap 90 kB · seeds 8300–8349
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Character portrait: Sarge K-9, a dog trainer: a barrel-chested cyborg drill sergeant with a megaphone and a buzz cut. Head and shoulders, facing the viewer, comic and characterful, grimy retro-future dog-racing circuit. Acid green #9BE84B and hazard yellow #F4C542 accents over charcoal #1B1A22. Transparent background or a flat charcoal one, no text, square 1:1.
+```
+
+#### staff-lucky — `src/assets/portraits/staff-lucky.webp` (or `.svg`)
+
+512×512 · WebP with alpha · target 50 kB, cap 90 kB · seeds 8350–8399
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Character portrait: Lucky Oyelaran, a dog trainer: a dapper smiling hustler in a gold waistcoat holding up a winner’s cheque. Head and shoulders, facing the viewer, comic and characterful, grimy retro-future dog-racing circuit. Acid green #9BE84B and hazard yellow #F4C542 accents over charcoal #1B1A22. Transparent background or a flat charcoal one, no text, square 1:1.
+```
+
+#### staff-glass — `src/assets/portraits/staff-glass.webp` (or `.svg`)
+
+512×512 · WebP with alpha · target 50 kB, cap 90 kB · seeds 8400–8449
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Character portrait: Mother Glass, a dog trainer: a glassy translucent alien matron peering through a jeweller’s loupe. Head and shoulders, facing the viewer, comic and characterful, grimy retro-future dog-racing circuit. Acid green #9BE84B and hazard yellow #F4C542 accents over charcoal #1B1A22. Transparent background or a flat charcoal one, no text, square 1:1.
+```
+
+#### staff-brack — `src/assets/portraits/staff-brack.webp` (or `.svg`)
+
+512×512 · WebP with alpha · target 50 kB, cap 90 kB · seeds 8450–8499
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Character portrait: The Brack Twins, a dog trainer: identical burly twin trainers in matching tracksuits, one with a whistle. Head and shoulders, facing the viewer, comic and characterful, grimy retro-future dog-racing circuit. Acid green #9BE84B and hazard yellow #F4C542 accents over charcoal #1B1A22. Transparent background or a flat charcoal one, no text, square 1:1.
+```
+
+#### staff-mossgrave — `src/assets/portraits/staff-mossgrave.webp` (or `.svg`)
+
+512×512 · WebP with alpha · target 50 kB, cap 90 kB · seeds 8500–8549
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Character portrait: Old Mossgrave, a dog trainer: an ancient mossy tree-bark alien vet with a pipe and splints. Head and shoulders, facing the viewer, comic and characterful, grimy retro-future dog-racing circuit. Acid green #9BE84B and hazard yellow #F4C542 accents over charcoal #1B1A22. Transparent background or a flat charcoal one, no text, square 1:1.
+```
+
+#### staff-fontaine — `src/assets/portraits/staff-fontaine.webp` (or `.svg`)
+
+512×512 · WebP with alpha · target 50 kB, cap 90 kB · seeds 8550–8599
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Character portrait: Zeb Fontaine, a dog trainer: a slick informant in a trench coat with a notebook full of secrets. Head and shoulders, facing the viewer, comic and characterful, grimy retro-future dog-racing circuit. Acid green #9BE84B and hazard yellow #F4C542 accents over charcoal #1B1A22. Transparent background or a flat charcoal one, no text, square 1:1.
+```
+
+#### staff-ruin — `src/assets/portraits/staff-ruin.webp` (or `.svg`)
+
+512×512 · WebP with alpha · target 50 kB, cap 90 kB · seeds 8600–8649
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Character portrait: Contessa Ruin, a dog trainer: an imperious cybernetic countess with a riding crop and a monocle. Head and shoulders, facing the viewer, comic and characterful, grimy retro-future dog-racing circuit. Acid green #9BE84B and hazard yellow #F4C542 accents over charcoal #1B1A22. Transparent background or a flat charcoal one, no text, square 1:1.
+```
+
+#### staff-hex — `src/assets/portraits/staff-hex.webp` (or `.svg`)
+
+512×512 · WebP with alpha · target 50 kB, cap 90 kB · seeds 8650–8699
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Character portrait: Hex, a dog trainer: a mysterious hooded fortune-teller alien with glowing eyes and tarot cards. Head and shoulders, facing the viewer, comic and characterful, grimy retro-future dog-racing circuit. Acid green #9BE84B and hazard yellow #F4C542 accents over charcoal #1B1A22. Transparent background or a flat charcoal one, no text, square 1:1.
+```
+
+#### staff-umbo — `src/assets/portraits/staff-umbo.webp` (or `.svg`)
+
+512×512 · WebP with alpha · target 50 kB, cap 90 kB · seeds 8700–8749
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Character portrait: Big Umbo, a dog trainer: an enormous gentle blob-like alien carrying a sleepy greyhound. Head and shoulders, facing the viewer, comic and characterful, grimy retro-future dog-racing circuit. Acid green #9BE84B and hazard yellow #F4C542 accents over charcoal #1B1A22. Transparent background or a flat charcoal one, no text, square 1:1.
+```
+
+#### staff-quillon — `src/assets/portraits/staff-quillon.webp` (or `.svg`)
+
+512×512 · WebP with alpha · target 50 kB, cap 90 kB · seeds 8750–8799
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Character portrait: Dr Quillon, a dog trainer: a spiky porcupine-like alien vet in a stained white coat. Head and shoulders, facing the viewer, comic and characterful, grimy retro-future dog-racing circuit. Acid green #9BE84B and hazard yellow #F4C542 accents over charcoal #1B1A22. Transparent background or a flat charcoal one, no text, square 1:1.
+```
+
+#### staff-sixeyes — `src/assets/portraits/staff-sixeyes.webp` (or `.svg`)
+
+512×512 · WebP with alpha · target 50 kB, cap 90 kB · seeds 8800–8849
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Character portrait: Marta Six-Eyes, a dog trainer: a six-eyed alien businesswoman with a ticker tape and an abacus. Head and shoulders, facing the viewer, comic and characterful, grimy retro-future dog-racing circuit. Acid green #9BE84B and hazard yellow #F4C542 accents over charcoal #1B1A22. Transparent background or a flat charcoal one, no text, square 1:1.
+```
+
+#### staff-rook — `src/assets/portraits/staff-rook.webp` (or `.svg`)
+
+512×512 · WebP with alpha · target 50 kB, cap 90 kB · seeds 8850–8899
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Character portrait: Rook, a dog trainer: a hulking armoured bird-headed bodyguard with a leash in each claw. Head and shoulders, facing the viewer, comic and characterful, grimy retro-future dog-racing circuit. Acid green #9BE84B and hazard yellow #F4C542 accents over charcoal #1B1A22. Transparent background or a flat charcoal one, no text, square 1:1.
+```
+
+#### staff-varga — `src/assets/portraits/staff-varga.webp` (or `.svg`)
+
+512×512 · WebP with alpha · target 50 kB, cap 90 kB · seeds 8900–8949
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Character portrait: Pops Varga, a dog trainer: a grizzled old mechanic-turned-trainer with oily hands and a flat cap. Head and shoulders, facing the viewer, comic and characterful, grimy retro-future dog-racing circuit. Acid green #9BE84B and hazard yellow #F4C542 accents over charcoal #1B1A22. Transparent background or a flat charcoal one, no text, square 1:1.
+```
+
+#### staff-ondine — `src/assets/portraits/staff-ondine.webp` (or `.svg`)
+
+512×512 · WebP with alpha · target 50 kB, cap 90 kB · seeds 8950–8999
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Character portrait: Silk Ondine, a dog trainer: a glamorous aquatic alien in sunglasses and a silk robe at a dog spa. Head and shoulders, facing the viewer, comic and characterful, grimy retro-future dog-racing circuit. Acid green #9BE84B and hazard yellow #F4C542 accents over charcoal #1B1A22. Transparent background or a flat charcoal one, no text, square 1:1.
+```
+
+#### staff-grubs — `src/assets/portraits/staff-grubs.webp` (or `.svg`)
+
+512×512 · WebP with alpha · target 50 kB, cap 90 kB · seeds 9000–9049
+
+```text
+1990s PC-game digital painting, chunky black outlines, flat cel shading, saturated grime — Gazillionaire's pastel cartooning crossed with Death Rally's soot and neon, everything slightly held together with tape. Character portrait: Grub & Grub, a dog trainer: two scruffy grub-like alien brothers leaning on a battered freight van. Head and shoulders, facing the viewer, comic and characterful, grimy retro-future dog-racing circuit. Acid green #9BE84B and hazard yellow #F4C542 accents over charcoal #1B1A22. Transparent background or a flat charcoal one, no text, square 1:1.
 ```
 
 ### UI furniture — 11 files, ~0.2 MB

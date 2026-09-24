@@ -119,10 +119,22 @@ function planetTurn(s: GameState, p: Player): Action[] {
         out.push({ t: 'Declare', playerId: p.id, race, dogId: pick.id });
       }
     }
+    // GDD_V3 §9.3: a stable that bought the steward's box names it here — one press on the box,
+    // on the richest race it entered. Counted, like Explore, rather than assumed free.
+    const race = [...thisWeeksCard()]
+      .reverse()
+      .find((r) => out.some((a) => a.t === 'Declare' && a.race === r));
+    if (race && s.jobs.some((j) => j.by === p.id && j.kind === 'box')) {
+      out.push({ t: 'ChooseBox', playerId: p.id, race, box: 1 });
+      boxPresses++;
+    }
   }
   out.push({ t: 'EndPhase', playerId: p.id });
   return out;
 }
+
+/** Presses on the Race Office's box buttons, across the whole walk (Phase D2). */
+let boxPresses = 0;
 
 interface Tally {
   phases: number;
@@ -248,9 +260,12 @@ const weekends = tally.weekends;
 // click. And the results screen's "Fly on" makes "back to the planet" + "end turn" one press on a
 // weekend with nothing to do after the races. Both are counted from the walk, not assumed.
 const explorePresses = tally.explore / weekends;
+// ⚠️ Phase D2 adds one more line, and says so: naming a bought box is a press in the Race Office.
+const boxPerWeekend = boxPresses / weekends;
 const flyOnSaved = tally.flyOn / weekends;
-const before = tally.before / weekends + FIXED_PER_WEEKEND + explorePresses;
-const after = tally.after / weekends + FIXED_PER_WEEKEND + explorePresses - flyOnSaved;
+const before = tally.before / weekends + FIXED_PER_WEEKEND + explorePresses + boxPerWeekend;
+const after =
+  tally.after / weekends + FIXED_PER_WEEKEND + explorePresses + boxPerWeekend - flyOnSaved;
 const seasonBefore = before * balance.weeks;
 const seasonAfter = after * balance.weeks;
 
@@ -262,7 +277,10 @@ console.log(
   `Explore a weekend: ${explorePresses.toFixed(2)} presses (a door, and a choice when the card has one)`,
 );
 console.log(`"Fly on" from the results: ${flyOnSaved.toFixed(2)} presses saved a weekend`);
-console.log(`\nClicks a weekend (venues + ${FIXED_PER_WEEKEND} fixed + Explore − Fly on)`);
+console.log(
+  `The steward's box, named in the Race Office: ${boxPerWeekend.toFixed(2)} presses a weekend`,
+);
+console.log(`\nClicks a weekend (venues + ${FIXED_PER_WEEKEND} fixed + Explore + box − Fly on)`);
 console.log(`  before : ${before.toFixed(1)}`);
 console.log(`  after  : ${after.toFixed(1)}   (${(100 * (1 - after / before)).toFixed(0)}% fewer)`);
 console.log(

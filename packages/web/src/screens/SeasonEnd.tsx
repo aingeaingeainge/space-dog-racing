@@ -3,6 +3,7 @@ import { formatBones, planetOf, roadSplit, type GameState } from '@sdr/engine';
 import { Panel } from '../components/Panel';
 import { StableName } from '../components/ui';
 import { OwnerBlurb, OwnerFace } from '../components/Owner';
+import { staffLine } from '../components/StaffCard';
 import { NeonButton } from '../components/NeonButton';
 import { WorthChart } from '../components/WorthChart';
 import { moments } from '../lib/seasonEnd';
@@ -72,6 +73,8 @@ export function SeasonEnd({ s }: { s: GameState }) {
                 <th className="num">Net worth</th>
                 <th className="num">Open</th>
                 <th className="num">Prize money</th>
+                <th className="num">Trainers took</th>
+                <th>Trainers</th>
               </tr>
             </thead>
             <tbody>
@@ -89,6 +92,8 @@ export function SeasonEnd({ s }: { s: GameState }) {
                   </td>
                   <td className="num">{r.goldCupWins}</td>
                   <td className="num">{formatBones(r.player.stats.prizeIncome)}</td>
+                  <td className="num">{formatBones(r.player.stats.commission)}</td>
+                  <td className="wrap small">{staffLine(r.player)}</td>
                 </tr>
               ))}
             </tbody>

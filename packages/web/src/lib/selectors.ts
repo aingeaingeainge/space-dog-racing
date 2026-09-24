@@ -182,10 +182,10 @@ export interface FitnessOutlook {
  * seven-year-old +30 and the jump gave it +20. A display that mirrors the engine has to mirror the
  * engine.
  */
-export function fitnessOutlook(d: Dog): FitnessOutlook {
-  // ⚠️ No vet to add to the rest any more (BUILD_PLAN_V3 §2.1). GDD_V3 §8.2's staff bonuses put
-  // "+5 fitness recovery per week" back in Phase D, and `me` is kept in the signature for it.
-  const rest = restRateFor(d.age);
+export function fitnessOutlook(d: Dog, bonus = 0): FitnessOutlook {
+  // GDD_V3 §8.2: a trainer who rests them well adds `bonus` to a dog that does not run (the
+  // stable's `restBonus`), the same number `weeklyFitnessDelta` is handed at the jump.
+  const rest = restRateFor(d.age) + bonus;
   const cap = (n: number) => Math.max(0, Math.min(100, Math.round(n)));
   return {
     now: d.fitness,

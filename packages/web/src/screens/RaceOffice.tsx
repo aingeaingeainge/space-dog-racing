@@ -5,6 +5,7 @@ import {
   planetOf,
   publicStyle,
   purseFor,
+  restBonus,
   STYLE_BY_ID,
   STYLE_IDS,
   thisWeeksCard,
@@ -32,7 +33,81 @@ import {
   raceTone,
   TRAPS,
 } from '../lib/selectors';
+import { NeonButton } from '../components/NeonButton';
 import { useGame } from '../store/gameStore';
+
+/**
+ * GDD_V3 §9.3's bought trap draw, spent: a stable that slipped the steward something in the Back
+ * Alley names its box here, once it knows the race. One press on a box (and one on the race, if it
+ * has runners in more than one). It is honoured at the lock, if the dog is still declared, and the
+ * screen says what a box is worth on this track: about 3.5 points of win rate on tight bends, and
+ * nothing on a straight.
+ */
+function BoxChooser({ s, me }: { s: GameState; me: Player }) {
+  const dispatch = useGame((g) => g.dispatch);
+  const job = s.jobs.find((j) => j.by === me.id && j.kind === 'box');
+  if (!job || s.phase !== 'planetPre') return null;
+  const bends = planetOf(s.planet.planetId).track.bends;
+  const entered = thisWeeksCard().filter((r) => s.declarations[r][me.id]);
+  const race = job.race && entered.includes(job.race) ? job.race : entered[entered.length - 1];
+  const worth =
+    bends === 'tight'
+      ? 'Tight bends: the rail (box 1) is the short way round — worth about 3.5 points of win rate.'
+      : bends === 'none'
+        ? 'A straight: the box is worth nothing here. You paid for it anyway.'
+        : `${bends === 'wide' ? 'Wide' : 'Medium'} bends: the inside is worth something, less than on tight ones.`;
+  return (
+    <Panel
+      title="The steward's box"
+      sub="bought in the Back Alley — name it once you know the race"
+    >
+      <p className="flush">{worth}</p>
+      {!race ? (
+        <p className="muted">Declare a runner first; then choose its box.</p>
+      ) : (
+        <>
+          {entered.length > 1 ? (
+            <p className="row tight">
+              {entered.map((r) => (
+                <NeonButton
+                  key={r}
+                  small
+                  variant={r === race ? 'primary' : undefined}
+                  onClick={() =>
+                    dispatch({ t: 'ChooseBox', playerId: me.id, race: r, box: job.box ?? 1 })
+                  }
+                >
+                  {raceLabel(r)}
+                </NeonButton>
+              ))}
+            </p>
+          ) : null}
+          <p className="row tight">
+            <span className="muted">
+              {s.dogs[s.declarations[race][me.id]!]?.name ?? 'Your runner'} in the {raceLabel(race)}{' '}
+              goes in box:
+            </span>
+            {Array.from({ length: TRAPS }, (_, i) => i + 1).map((b) => (
+              <NeonButton
+                key={b}
+                small
+                variant={job.race === race && job.box === b ? 'primary' : undefined}
+                onClick={() => dispatch({ t: 'ChooseBox', playerId: me.id, race, box: b })}
+              >
+                {b}
+              </NeonButton>
+            ))}
+          </p>
+          <p className="muted small">
+            {job.box && job.race
+              ? `Box ${job.box} in the ${raceLabel(job.race)}. You can change it until the card locks.`
+              : 'Not named yet: a box you do not name is a box you do not get.'}
+          </p>
+        </>
+      )}
+    </Panel>
+  );
+}
 
 /**
  * What the week costs, dog by dog (GDD §5.7, §6.5).
@@ -64,7 +139,7 @@ function WeekLedger({ s, me, dogs }: { s: GameState; me: Player; dogs: Dog[] }) 
       </thead>
       <tbody>
         {dogs.map((d) => {
-          const f = fitnessOutlook(d);
+          const f = fitnessOutlook(d, restBonus(me));
           const barred = cannotRunReason(s, d);
           const race = declaredRace(s, me.id, d.id);
           return (
@@ -197,6 +272,7 @@ export function RaceOffice({ s, me }: { s: GameState; me: Player }) {
           </p>
         ) : null}
       </Panel>
+      <BoxChooser s={s} me={me} />
       <Whispers s={s} me={me} where="a knock on your own dog is a reason to rest it" />
 
       <div className="grid3">
@@ -246,7 +322,7 @@ export function RaceOffice({ s, me }: { s: GameState; me: Player }) {
                   {dogs.map((d) => {
                     const bad = ineligibleReason(d, race);
                     const other = declaredRace(s, me.id, d.id);
-                    const f = fitnessOutlook(d);
+                    const f = fitnessOutlook(d, restBonus(me));
                     const st = publicStyle(d);
                     return (
                       <option key={d.id} value={d.id} disabled={!!bad}>

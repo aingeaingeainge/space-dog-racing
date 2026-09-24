@@ -6,7 +6,7 @@
  * the other, and neither can drift from the engine's content, because the planets and events
  * come out of @sdr/engine rather than being retyped here.
  */
-import { EVENTS, PLANETS, type Planet } from '@sdr/engine';
+import { EVENTS, PLANETS, STAFF, type Planet } from '@sdr/engine';
 import {
   arrangementNameFor,
   ARRANGEMENTS,
@@ -406,6 +406,13 @@ const STAFF_BRIEFS: [string, string][] = [
     'fat-tony',
     'Fat Tony Nebula: an enormous, immaculately dressed loan shark, all rings and teeth',
   ],
+  // Phase D2 (GDD_V3 §8): every trainer row carries a portrait stem and a brief. The first two rows
+  // reuse trainer-01 and trainer-02 above; the rest are `staff-<id>`, briefed from the row's `looks`
+  // in the house style.
+  ...STAFF.filter((r) => !r.portrait.startsWith('trainer-')).map((r): [string, string] => [
+    r.portrait,
+    `${r.name}, a dog trainer: ${r.looks}`,
+  ]),
 ];
 
 const ownerPortraits: AssetSpec[] = OWNER_BRIEFS.map((brief, i) => ({
