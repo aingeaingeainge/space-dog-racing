@@ -3,7 +3,7 @@
 > **Status: CURRENT.** Build from this document.
 >
 > Canonical copy: `design/BUILD_PLAN_V3.md` in the `space-dog-racing` repo. A copy in a claude.ai
-> Project is a **mirror**, last synced 24 September 2026 (at `v3d1`) — edit the repo, never the mirror. See
+> Project is a **mirror**, last synced 24 September 2026 (at `v3d2`) — edit the repo, never the mirror. See
 > `design/CANON.md`.
 >
 > Supersedes `design/BUILD_PLAN.md` from §6 onward. **That document's §§1–5 — architecture, tech
@@ -287,21 +287,25 @@ in a crowd +2.3), but it does not read it yet. Accel over stamina at 480 m is on
 
 ### Phase D — Explore and the deck (2 sessions) → `v3d`
 
-> **Status: D1 done, tagged `v3d1` (24 September 2026); D2 (staff, sabotage, the trap draw, Hard's
-> field read) to come.** D1 built the Explore screen, 54 named doors, an 86-card deck, dog offers
-> that can lie, next week's shelf in the Bar, race-day conditions sold as tips, and the free local
-> runner — GDD_V3 D1–D8, `claude/V3_PHASE_D1_NOTES.md`. D1's rows at 800 seasons:
+> **Status: COMPLETE — D1 tagged `v3d1`, D2 tagged `v3d2` (24 September 2026).** D1 built the
+> Explore screen, 54 named doors, the deck, dog offers that can lie, next week's shelf in the Bar,
+> race-day tips and the free local runner (GDD_V3 D1–D8, `claude/V3_PHASE_D1_NOTES.md`). D2 built
+> staff on commission, trainers in the Bar, sabotage and the bought box, Hard's field read, and
+> dropped the plan-the-week press (GDD_V3 D9–D16, `claude/V3_PHASE_D2_NOTES.md`). At 800 seasons:
 >
-> | Measure | Target | `v3d1` |
-> |---|---|---|
-> | Events in the deck | ≥ 70 in D1, each category ≥ 12 | 86 (19 / 19 / 17 / 16 / 15) |
-> | Doors chosen per category | none below 12% | 16.8–22.5% |
-> | Dog offers for a stable that wants one | ≥ 2 | 2.89 |
-> | Tipped buzzing / blind stable dog / house margin | +10–30% / ≤ +2% / −12 to −15% | +20.1% / −1.3% / −12.6% |
-> | Consecutive seasons share ≤ ⅓ of events | ✅ | 13.3% a seat (53.8% the table) |
-> | Decisions per weekend (`hub-clicks`) | ≤ 10.5 | **11.3 — missed** (Explore 1.75, Fly on −0.78; D7) |
-> | Mean end worth | 25–40k | 39,710 |
-> | Hard beats Normal | reported | 50.5% |
+> | Measure | Target | `v3d1` | `v3d2` |
+> |---|---|---|---|
+> | Events in the deck | ≥ 80, each category ≥ 12 | 86 | **93** (19 / 23 / 20 / 16 / 15) |
+> | Doors chosen per category | none below 12% | 16.8–22.5% | 17.2–22.7% |
+> | Commission, share of prize money | 4–14% | — | **13.2%** |
+> | Swings for a stable that wants a dog / a trainer | ≥ 2 each | 2.89 / — | 2.93 / **2.19** |
+> | Seasons with a sabotage, 6 AI | 40–70% | — | **69.1%** |
+> | Tipped buzzing / blind stable dog / house margin | +10–30% / ≤ +2% / −12 to −15% | +20.1 / −1.3 / −12.6% | +27.5 / −0.4 / **−11.6%** ⚠️ on the line |
+> | Consecutive seasons share ≤ ⅓ of events | ✅ | 13.3% a seat | 13.0% a seat |
+> | Decisions per weekend (`hub-clicks`) | ≤ 10.5 (target 10) | 11.3 ❌ | **9.4** |
+> | Mean end worth | 25–40k | 39,710 | **39,193** |
+> | Hard beats Normal | 63–68% | 50.5% | **50.7% ❌** — each piece reported (D15) |
+> | `season-check` fails on zero sabotages, dog offers, staff offers | ✅ | — | ✅ (sabotage run-wide) |
 
 **Goal:** the screen that carries v3's entire content budget.
 

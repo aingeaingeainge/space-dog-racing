@@ -3,7 +3,7 @@
 > **Status: CURRENT.** Build from this document.
 >
 > Canonical copy: `design/GDD_V3.md` in the `space-dog-racing` repo. A copy in a claude.ai Project
-> is a **mirror**, last synced 24 September 2026 (at `v3d1`) — edit the repo, never the mirror. See `design/CANON.md`.
+> is a **mirror**, last synced 24 September 2026 (at `v3d2`) — edit the repo, never the mirror. See `design/CANON.md`.
 >
 > Supersedes `design/GDD.md` (v2, shipped at tag `v2e`), which is kept as historical reference and
 > is cited by name throughout this document.
@@ -667,6 +667,15 @@ must come up often enough that every stable gets two or three swings a season, a
 range must be genuinely expensive — a 10% trainer on a stable earning 30,000 in prizes costs 3,000,
 which should be enough that taking one is a decision.
 
+*Built at `v3d2` (D9–D12): 24 trainers, twelve with one bonus and twelve with two, two dealt to each
+stable; a trainer's cut is the sum of its bonuses' cuts plus 2% for a pair, capped at 10%, taken
+where a purse is paid and nowhere else. "+1 to one stat" is one stat on one dog a week, the
+lowest-rated (D10). The cuts were re-priced by regressing end worth on the dealt bonuses: +1 stat 3%,
++5 recovery 5%, injuries halved 4%, layoff −1 week 2%, a style read 2%, next week's prices 8%, +10%
+prize money 6%, safer Explore 3%. Commission is 13.2% of a stable's purses. A stable that opens the
+Bar whenever there is one meets 2.2 trainers a season; four Bar cards carry them. The style read is
+public (D11).*
+
 ---
 
 ## 9. Explore — where everything unpredictable comes from
@@ -748,6 +757,14 @@ pile onto one person, or onto whoever is most annoying rather than whoever is wi
 with friends that is either the best part of the evening or the end of it. Playtest it before
 deciding whether the leader needs to be the cheaper target.
 
+*Built at `v3d2` (D13, D14): two nobble cards (500 and 350) with a button per rival, each naming one
+of that rival's sound dogs; the job is booked against the dog and bites if it runs, −25 on the runner
+after the book has priced it. The steward sells the right to a box at Explore and it is named in the
+Race Office (`ChooseBox`). Caught at the planet's rate (Lagrange Lows 20%, Holy Bark 60%, 35%
+elsewhere): 800 plus a quarter of the stake, and a public "Stewards' enquiry" on everybody's Results.
+69% of all-AI seasons see one; Normal targets the leader 45% of the time without being told to. **A
+box is worth about 2 points on tight bends, not 3.5** — re-measured on the v3 race model (D14).*
+
 ### 9.4 Information
 
 The fog (§2.1) is kept, but there is no dossier to buy and no Tipster to hire. Information reaches
@@ -791,6 +808,9 @@ The arithmetic: one Explore door + up to six market lines (realistically two) + 
 
 ⚠️ **v2's hard-won principle carries over verbatim (D34): a hotspot flags what CHANGES, not what is
 always there.**
+
+*`v3d2`: Race/Rest is no longer a press — the week follows the declarations (D16) — and `hub-clicks`
+reads 9.4 a weekend.*
 
 ---
 
@@ -904,13 +924,24 @@ All 18 planets survive as data. What changes is which fields do work:
 | 2026-09-24 | **D6 — the free local runner goes to a stable with fewer than three uninjured dogs at 30+ fitness, for the Bronze Dash** | §4.4. Lent after Explore, drawn on the stable's own stream, nobody's asset (`Dog.loan`: never in the kennel, net worth or a rating table, not rolled for injury, swept at the jump). At the injury-doubling line of 50 it was lent 4.8 times a stable-season — a purse, not a guard; at 30, 1.2 |
 | 2026-09-24 | **D7 — `hub-clicks` counts Explore, and Results gains "Fly on"** | §10.1. The old count never included the arrival card. Explore is 1.75 presses a weekend (a door, and a choice on ~75% of cards); "Fly on" does back-to-the-planet and end-turn in one press when there is nothing left to do, saving 0.78. 11.3 against the 10.5 limit — **missed**, reported, and a candidate saving named in the D1 notes (Race/Rest is inert for an undeclared dog) |
 | 2026-09-24 | **D8 — "two consecutive seasons share ≤ a third of their events" is read per seat** | One seat's cards recur 13.3% season to season; the whole table's 53.8%, because six stables draw 60 cards from 86. The row asks whether a player's third play-through is samey, which is a seat's question; both numbers are printed |
+| 2026-09-24 | **D9 — staff: two trainers dealt at the start; a trainer is one or two bonus rows and a derived cut; commission on purses only, after the winnings tax and the prize bonus** | §8.1–8.2. The engine reads a bonus, never a name, so a trainer is data. The cut is §8.2's table summed, plus 2% for a pair, capped at 10%. Commission is taken where the purse is paid and banked net; the income split counts the purse before it and the cut as a cost (`roadSplit`). 13.2% of a stable's purses at 800 seasons |
+| 2026-09-24 | **D10 — "+1 to one stat a week" is one stat on one dog: the lowest-rated dog's weakest stat** | Built first as +1 to every dog, a 3% trainer was worth ~3,900 of end worth and mean end worth left its band (40,449). Measured by regressing end worth on the dealt bonuses — the deal is random, so it is a clean experiment. Read as written, it is worth ~640. The cuts for +5 recovery (5%), next week's prices (8%) and +10% prize money (6%) were re-priced by the same regression |
+| 2026-09-24 | **D11 — a trainer's style read is public** | C4: nobody knows a style privately. The trainer "has a word around the kennels", the best-rated unread rival dog is made public to the whole table, and what the stable buys is which dog. As D1 did for tips on styles |
+| 2026-09-24 | **D12 — "less likely to go badly" is a kit helper, `risk()` / `luck()`, not a branch** | Nineteen mishap rolls across the deck read the stable's staff through it. Gambles — cards, dice, arm-wrestles, match races, the slot machine, a dog offer's lie — stay on `rng.chance`: a trainer who made you better at dice would be an edge, not a minder. With no such trainer each helper is the same single draw |
+| 2026-09-24 | **D13 — sabotage: a nobble is booked against a dog; the stewards draw once per stable every race day** | §9.3. Explore comes before the Race Office, so the job names a dog and bites if it runs, on the runner, after the book has priced it. The catch draws are made whether or not a job was booked, so the game's stream never depends on a door (a determinism test checks it). Freely targetable; Normal's rule is the best-rated rival dog on offer if it outrates its own best, with six times the price in cash. 69% of seasons see one |
+| 2026-09-24 | **D14 — the bought box is a Race Office action (`ChooseBox`), honoured at the lock, not rolled for by the stewards, and worth ~2 points** | The right is bought at Explore and spent once the race is known; it is placed after the shuffle and the wide runners, before the book prices the field. The stewards do not enquire into their own man. `race/draw.ts` still said v2's 3.5 points (D37); re-measured on the v3 race model it is +2.1 tight, +1.2 medium, +0.7 wide, 0 on a straight, and the screens read it |
+| 2026-09-24 | **D15 — Hard reads the field: the board in its entries, the field's shape at the bookie; and a card can have a `hardChoice`** | §7.3, §5.6, §14. Worth ~1,200 of Hard's mean and nothing measurable in the head-to-head (50.7% at 800 seasons; each piece inside the standard error; all five off 52.8%). Hard's own betting spread is what holds its median under Normal's: with Normal's bets it reads 54.4% |
+| 2026-09-24 | **D16 — the plan-the-week press is dropped: the week's state follows the declarations** | Jesse's call. Race/Rest was inert for an undeclared dog, so the Race Office sets it — a declared dog races, the rest rest — at arrival, on every Declare and at the lock, and the Kennels shows it. `hub-clicks` 11.3 → 9.4 (fixed presses 8 → 7; the Kennels is no longer worth a weekly walk) |
 
 ---
 
 ## 14. Open questions ❓
 
 1. **Does free-target sabotage survive contact with eight friends?** §9.3. Either the best part of
-   the evening or the end of it, and nothing but playtest will say which.
+   the evening or the end of it, and nothing but playtest will say which. *`v3d2`: built freely
+   targetable (D13). All-AI, 69% of seasons see a nobble and 45% of nobbles land on the leader
+   without any rule saying so — the leader's dogs are the best-rated. Caught 36% of the time; the
+   `v3d2` checklist asks it.*
 2. **How big is the field-shape betting overlay?** §5.6. If backing the lone closer blind beats the
    margin, the book needs to see one more thing.
 3. **Is one race enough to read a style?** §5.4 assumes yes, on the strength of the commentary. If
@@ -918,6 +949,9 @@ All 18 planets survive as data. What changes is which fields do work:
 4. **Is an injury too punishing with three dogs?** §4.4. The free local runner is the guard; the
    base rate is the dial. *`v3d1`: both guards are built (D6) — the runner, and a vet behind the
    Pound and the Back Alley.*
+   *`v3d2`: perhaps not punishing enough. A trainer who halves injuries is worth nothing
+   measurable, because an injury nearly always lends the stable a free Bronze runner: the stables
+   with half the injuries raced slightly less (21.4 v 21.8 a season).*
 5. **Should the three races run in split view?** §7.5. Cuts watching time by two thirds at a cost
    in drama.
 6. **Does the Target mode produce a good ending or an anticlimax?** Somebody crossing the line on
@@ -930,6 +964,8 @@ All 18 planets survive as data. What changes is which fields do work:
 12. **Is Explore worth its clicks?** §10.1. It costs 1.75 presses a weekend and `hub-clicks` reads
    11.3 against 10.5 (D7). Race/Rest is inert for an undeclared dog, so retiring the weekly "plan
    the week" press would pay for it — a presentation change for Jesse to call.
+   *`v3d2`: Jesse called it (D16). The press is gone and the week follows the declarations;
+   `hub-clicks` reads 9.4 with Explore and the steward's box counted.*
 9. **Should the book price fitness and form?** §5.6 says yes, §1.1 says ratings and styles, and the
    code has only ever priced the rating (C6). Pricing fitness would close the edge a player who reads
    the card has over the book — the only one left since the Fixer went.
