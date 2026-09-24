@@ -3,7 +3,7 @@
 > **Status: CURRENT.** Build from this document.
 >
 > Canonical copy: `design/GDD_V3.md` in the `space-dog-racing` repo. A copy in a claude.ai Project
-> is a **mirror**, last synced 24 September 2026 (at `v3d2`) — edit the repo, never the mirror. See `design/CANON.md`.
+> is a **mirror**, last synced 24 September 2026 (at `v3e1`) — edit the repo, never the mirror. See `design/CANON.md`.
 >
 > Supersedes `design/GDD.md` (v2, shipped at tag `v2e`), which is kept as historical reference and
 > is cited by name throughout this document.
@@ -114,6 +114,14 @@ and neon. Cartoonish grime. Dogs get hurt, stewards take money, nothing dies on 
   next week's planet by name only. The fog is what makes the food trade a judgement rather than a
   lookup, and it is now the *only* thing information is for.
 
+*Built at `v3e1` (E2, E3): `SeasonSetup.length` is 1–5 seasons or a target, and no length is one
+season. Target mode checks worth once, at the end of each weekend after the dinner, and caps a game
+at 10 seasons (never reached in 400 games). ⚠️ **Because worth is checked once, the richest stable at
+the check has always crossed too**, so "not necessarily the stable that crossed" can only mean two
+stables crossing on the same weekend (9% of 60,000 games) or the stable that led into the last
+weekend being caught (27%). A 60,000 game lasts 13 weekends on average (p10 10, p90 17): usually
+into season 2, which is §14 Q6's worry.*
+
 ### 2.2 Between seasons — the off-season
 
 Multi-season play needs dogs to turn over, or a 5-season game ends with everyone shepherding three
@@ -129,6 +137,16 @@ seven-year-olds. Between seasons, in one short screen:
 
 That is the whole off-season: at most three clicks, and it exists so a long game has an arc rather
 than a slow decay.
+
+*Built at `v3e1` (E4, E5): the order is age, then retirement, then the staff notice. The stable sees
+the replacement first (§9.2's age, one true stat and patter that lies at 0.35) and then chooses
+"retire *name*" or "keep them all"; a retirement pays `dogValue` and the new dog arrives unknown and
+not dealt. Each trainer leaves at 15%; a stable left short is offered one candidate, never its own
+leaver and never one offered to another stable. Everything is rolled when the off-season opens, on
+each stable's own stream, from one game-stream seed per stable, so no answer moves anything else.
+Normal retires any dog of 6 or older, or its cheapest dog when the offer reads 500 Bones better;
+Hard uses half the margin. In 5-season games 64% of stables retire a dog each off-season, and a
+kennel turns over 1.81 dogs per two seasons (1.02 retired, 0.79 taken in the Pound).*
 
 ### 2.3 The weekend
 
@@ -253,6 +271,13 @@ All ⚖️ **[estimate]**. Growth is *on top of* whatever the dog's food gives i
 well compounds and an old dog fed well merely holds station. That is the shape that makes the
 retirement window a real decision rather than a formality.
 
+*Built at `v3e1` (E6): age ticks in the off-season and nowhere else. Until `v3e1` the build ticked it
+at week 7, which §4.3 never said, so a one-season game now has no ageing at all. This raised
+one-season mean end worth from 39,194 to 42,151, above the 25–40k band. All of the rise is book
+value: the 4-year-olds no longer turn 5 mid-season and fall from ×0.85 to ×0.65. Jesse's call:
+leave it and report. Over five seasons the kennels do not age into 7s (mean age 3.0 → 4.0; 1.9% are
+seven at the start of season 5).*
+
 ### 4.4 Rating, form, injury
 
 - **Rating 0–99**, public, moved only by race results, Elo-style, exactly as v2 §5.3:
@@ -274,6 +299,11 @@ layoff. If playtest says injuries still feel like being sent off, the base rate 
 *Built at `v3d1` (D6): the runner is lent after Explore to a stable with fewer than three uninjured
 dogs at 30+ fitness, 1.2 times a stable-season; the vet door is the Pound's "A vet who owes somebody
 a favour" (and a riskier one in the Back Alley).*
+
+*⚠️ **Deleted at `v3e1` (E1, Jesse's call): there is no free local runner.** The vet cards are the
+one guard left. Removing the runner moved almost nothing: races entered went 2.16 → 2.11 a weekend,
+mean end worth stayed at 39.2k, and injuries went 1.15 → 1.14 a stable-season. The injury-halving
+trainer still regresses at about −1,160 (± 320) on end worth.*
 
 ### 4.5 Traits
 
@@ -835,6 +865,14 @@ v2's harness survives and most of its measures still mean something. New and cha
 | Net worth gap, 1st to last, at the end of a season | narrower than v2's | §1's "nobody is out before the end" |
 | Seed + action log reproduces a game | exactly, on any JS engine | unchanged and non-negotiable |
 
+*Measured at `v3e1` (`--game`, six Normal):*
+- *Stables ending a season on less than they started: **0.8%** against 10–25% ❌. There are no costs
+  but food, so almost every stable grows every season. Going backwards is §11's only failure state,
+  and the game has almost none of it.*
+- *1st-to-last gap at a season's end: 26,510 (62% of the table's mean, 1st/last 1.85×), against
+  v2e's 63,530 (195%, 8.16×) ✅.*
+- *Stables mathematically out at week 8 (E7): 0% in a one-season game ✅.*
+
 ⚠️ **Two v2 measures are retired.** `bankruptRate` has nothing to measure. The three-road printout
 (`trainer` / `trader` / `crook` agents) goes with the three roads — v3 has one road with a trading
 sideline and a betting sideline, and the honest replacement is the income split on the season-end
@@ -932,6 +970,13 @@ All 18 planets survive as data. What changes is which fields do work:
 | 2026-09-24 | **D14 — the bought box is a Race Office action (`ChooseBox`), honoured at the lock, not rolled for by the stewards, and worth ~2 points** | The right is bought at Explore and spent once the race is known; it is placed after the shuffle and the wide runners, before the book prices the field. The stewards do not enquire into their own man. `race/draw.ts` still said v2's 3.5 points (D37); re-measured on the v3 race model it is +2.1 tight, +1.2 medium, +0.7 wide, 0 on a straight, and the screens read it |
 | 2026-09-24 | **D15 — Hard reads the field: the board in its entries, the field's shape at the bookie; and a card can have a `hardChoice`** | §7.3, §5.6, §14. Worth ~1,200 of Hard's mean and nothing measurable in the head-to-head (50.7% at 800 seasons; each piece inside the standard error; all five off 52.8%). Hard's own betting spread is what holds its median under Normal's: with Normal's bets it reads 54.4% |
 | 2026-09-24 | **D16 — the plan-the-week press is dropped: the week's state follows the declarations** | Jesse's call. Race/Rest was inert for an undeclared dog, so the Race Office sets it — a declared dog races, the rest rest — at arrival, on every Declare and at the lock, and the Kennels shows it. `hub-clicks` 11.3 → 9.4 (fixed presses 8 → 7; the Kennels is no longer worth a weekly walk) |
+| 2026-09-24 | **E1 — the free local runner is deleted; the vet cards are §4.4's one guard** | Jesse's call before Phase E1. D2 found an injury nearly free because of the runner: an injury almost always lent the stable a Bronze runner. Deleted whole (`lendRunners`, `Dog.loan`, `Player.loanerId`, `localRunnerFitAt`). Measured: races entered 2.16 → 2.11 a weekend, races per dog 6.59 → 6.47, mean end worth unchanged, injuries 1.15 → 1.14 a stable-season. The injury-halving trainer's coefficient barely moved (−1,188 → −1,156, se ~320). So an injury was cheap because the stable raced its other two dogs, not because of the runner, and the injury rate was not tuned |
+| 2026-09-24 | **E2 — game length is set up front: 1–5 seasons or a target; no length means one season** | §2.1. `SeasonSetup.length` is optional so a pre-E setup, seed link or harness call means what it meant. The limits (1–5), the targets (60,000 and 150,000) and the cap (10 seasons) are sheet cells. `finalStandings` is the game's, and each finished season is archived (standings, stats, Gold Cups, wins, calendar). `stats` stays per season, and game totals are summed from the archive |
+| 2026-09-24 | **E3 — Target mode checks worth once, at the end of each weekend after the dinner; ties go to Gold Cups, then races won, across the game** | §2.1, §2.4. The check reads the same figure as `worthByWeek`. Because it is the only check, the richest stable at that moment has always crossed, so "not necessarily the stable that crossed" can only happen as two stables crossing together or a leader caught on the last weekend. `--game` reports both. v2's second tie-break (most Majors) becomes §2.4's races won |
+| 2026-09-24 | **E4 — the off-season runs age → retirement (offer first) → staff notice → carry-over, and every answer is an Action** | §2.2. `Retire { dogId \| null }` and `ResolveStaffNotice { hire }`, then EndPhase, at most three presses. Our reading of "you see what you are being offered before you accept": the offer is on screen before the choice to retire *name* or keep them all. Carried over: cash, cargo, You Paid, dogs (fitness and layoffs included), trainers, styles and `dealtGone`. Cleared: the calendar, prices, conditions, jobs, bets, declarations, results, the log, and `intel`, which is keyed by week numbers that repeat |
+| 2026-09-24 | **E5 — each stable's off-season runs on its own stream, rolled in full when it opens** | Decision D1's pattern. The game's stream draws one seed per stable in seating order and nothing else. From its seed each stable rolls its offer and its trainers' notices, then its candidate in a second pass once everybody's leavers are in the pool. Answers draw nothing, so no choice moves the game's stream or another stable's draws, which a determinism test checks |
+| 2026-09-24 | **E6 — age ticks in the off-season only, not at week 7** | §4.3 as written. The week-7 tick was a build artefact, never a rule, and removing it means a one-season game has no ageing. One-season mean end worth went 39,194 → 42,151 (band 25–40k); all of the rise is dog book value. Jesse's call: leave it and report. It also moved the betting rows: a stable dog backed blind went +1.5% → +2.6% (the band is ≤ +2%), because young dogs now grow all season while their rating lags. `oddsScale` was not touched |
+| 2026-09-24 | **E7 — "mathematically out" is a purse definition: at the start of week 8, worth plus every first-place purse left in the season is under the leader's** | Defined before it was measured. Multipliers and the stable's prize-money trainers are counted; commission, tax, trading and betting are not. One-season games: 0.0% of stables out ✅. In the last season of a long game the gap has grown for years: 12.8% of stables are out in 3-season games, 42.2% in 5-season games and 27.8% in 150,000 games ❌ reported. Pillar 5 holds for a season, not for the fifth season of a long game |
 
 ---
 
@@ -952,10 +997,18 @@ All 18 planets survive as data. What changes is which fields do work:
    *`v3d2`: perhaps not punishing enough. A trainer who halves injuries is worth nothing
    measurable, because an injury nearly always lends the stable a free Bronze runner: the stables
    with half the injuries raced slightly less (21.4 v 21.8 a season).*
+   *`v3e1`: the runner is gone (E1), and that changed almost nothing. Races entered went 2.16 →
+   2.11 and the halving trainer still reads about −1,160. An injury costs little because three dogs
+   and a fitness budget already keep one dog resting most weeks. If it should hurt, the base rate is
+   the dial. The `v3e1` checklist asks whether injuries felt worse.*
 5. **Should the three races run in split view?** §7.5. Cuts watching time by two thirds at a cost
    in drama.
 6. **Does the Target mode produce a good ending or an anticlimax?** Somebody crossing the line on
    week 4 of season 2 may end the game before it has a shape.
+   *`v3e1`: built (E2, E3). At 60,000 a game lasts 13.2 weekends (p10 10, p90 17), which is usually
+   week 3 of season 2, the case this question worries about. At 150,000 it lasts 40.6 weekends,
+   finishing in season 5. The leader going into the last weekend loses 27% / 12% of the time, and
+   two stables cross together 9% / 6.5%. Whether that is worth watching is E2's playtest row.*
 7. **Are 80 events enough for a fifth play-through?** §9.1. The deck is the whole content budget
    now. *`v3d1`: 86 before D2's staff and sabotage; a seat sees 13% of last season's cards again.*
 8. **Do 18 planets still feel distinct** when the only things that vary are the track, the food band

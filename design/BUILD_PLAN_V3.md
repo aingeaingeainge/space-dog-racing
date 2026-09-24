@@ -3,7 +3,7 @@
 > **Status: CURRENT.** Build from this document.
 >
 > Canonical copy: `design/BUILD_PLAN_V3.md` in the `space-dog-racing` repo. A copy in a claude.ai
-> Project is a **mirror**, last synced 24 September 2026 (at `v3d2`) — edit the repo, never the mirror. See
+> Project is a **mirror**, last synced 24 September 2026 (at `v3e1`) — edit the repo, never the mirror. See
 > `design/CANON.md`.
 >
 > Supersedes `design/BUILD_PLAN.md` from §6 onward. **That document's §§1–5 — architecture, tech
@@ -343,6 +343,24 @@ in a crowd +2.3), but it does not read it yet. Accel over stamina at 480 m is on
 ---
 
 ### Phase E — the table (1–2 sessions) → `v3e`
+
+> **Status: E1 COMPLETE, tagged `v3e1` (24 September 2026); E2 to come.** E1 built the game's
+> shape: the free local runner removed, 1–5 seasons or a Target, the off-season (age, retirement,
+> staff notice), multi-season save and replay with a second golden, CI on Node 20/22/24, a
+> minimal UI and `--game` (GDD_V3 E1–E7, `claude/V3_PHASE_E1_NOTES.md`). E2 is the table:
+> simultaneous hotseat, skippable races, the real season-end and game-end screens, and the
+> playtest.
+>
+> | Measure (E1's rows) | Target | `v3e1` |
+> |---|---|---|
+> | Stables ending a season on less than they started | 10–25% | **0.8%** ❌ reported |
+> | Net worth gap, 1st to last, end of season | narrower than v2's | 26,510 / 1.85× against v2e's 63,530 / 8.16× ✅ |
+> | Nobody mathematically out before week 8 (E7) | ✅ | one season 0.0% ✅ · last season of a 3 / 5-season game 12.8% / 42.2% ❌ reported |
+> | A 5-season game's roster turns over | ≥ 1 per stable per 2 seasons | **1.81** (1.02 retired + 0.79 Pound) ✅ |
+> | Seed + log reproduces a multi-season game | ✅ tests; Node 20/22/24 in CI | ✅ two-season golden; CI matrix added, **not yet run** (runs on push) |
+> | One-season rows | in band or reported | mean end worth **42,151** ❌ (Jesse: leave it) · races 2.12 · races/dog 6.54 · Phase B ✅ · house margin −10.9% ❌ · blind stable dog +2.6% ❌ · buzzing +30.0% ✅ |
+> | `npm test`; `npm run build` | ✅ | 43 green; build ✅ |
+> | 🎲 25 min for 4 humans (races skipped), 40 watched, 70 for 8; a Target finish worth watching | E2 | outstanding |
 
 **Goal:** three to eight humans finish a game in forty minutes and want another.
 
