@@ -1,4 +1,5 @@
-import type { ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
+import { bucketOf } from './lib/pace';
 import { EventModal } from './components/EventModal';
 import { LeaderboardOverlay } from './components/LeaderboardOverlay';
 import { Nav } from './components/Nav';
@@ -19,7 +20,7 @@ import { Stable } from './screens/Stable';
 import { AfterRaces, Arrival, Board } from './screens/Table';
 import { Title } from './screens/Title';
 import { PlanetTheme } from './theme/planetTheme';
-import { screenFor } from './store/loop';
+import { screenFor, weekKey } from './store/loop';
 import { useGame } from './store/gameStore';
 
 /**
@@ -42,6 +43,43 @@ export function App() {
   const postTrade = useGame((g) => g.postTrade);
   const error = useGame((g) => g.error);
   const clearError = useGame((g) => g.clearError);
+  const markPace = useGame((g) => g.markPace);
+
+  // Phase E2's pace timer. Every change of screen kind (or of weekend) closes one timed stretch and
+  // opens the next; a hidden window stops the clock. UI only — nothing here reaches the engine.
+  const screenNow = state
+    ? screenFor(state, {
+        racesWatchedWeek,
+        resultsSeenWeek,
+        fieldsSeenWeek,
+        passAck,
+        bustAck,
+        seasonSeen,
+        arrivalSeenWeek,
+        boardSeenWeek,
+        postTrade,
+      }).kind
+    : null;
+  const bucket =
+    !state || !screenNow
+      ? null
+      : screenNow === 'seasonEnd'
+        ? state.phase === 'offSeason'
+          ? 'between'
+          : null
+        : bucketOf(screenNow);
+  const paceKey = state ? weekKey(state) : 0;
+  useEffect(() => {
+    markPace(bucket, paceKey);
+  }, [bucket, paceKey, markPace]);
+  useEffect(() => {
+    const onVis = () => {
+      if (document.hidden) markPace(null, paceKey);
+      else markPace(bucket, paceKey);
+    };
+    document.addEventListener('visibilitychange', onVis);
+    return () => document.removeEventListener('visibilitychange', onVis);
+  }, [bucket, paceKey, markPace]);
 
   if (!state) {
     return (

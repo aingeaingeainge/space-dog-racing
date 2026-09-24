@@ -1,4 +1,5 @@
 import type { Action, SeasonSetup } from '@sdr/engine';
+import type { Pace } from '../lib/pace';
 
 /**
  * The save file is the seed plus the action log — never the derived state (CLAUDE.md).
@@ -23,6 +24,8 @@ export interface SaveUi {
   /** Phase E2, a hotseat table: the weekend whose arrival, and whose locked board, the table read. */
   arrivalSeenWeek?: number;
   boardSeenWeek?: number;
+  /** Phase E2: the pace timer. Wall-clock time lives here, in the UI block, and never in the log. */
+  pace?: Pace;
 }
 
 export interface SaveBlob {

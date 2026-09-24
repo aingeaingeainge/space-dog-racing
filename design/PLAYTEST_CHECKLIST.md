@@ -1,5 +1,98 @@
 # Space Dog Racing — playtest checklist
 
+> **Current section: "v3 Phase E2 — the table", directly below.** It is the playtest for tag `v3e2`
+> and closes BUILD_PLAN_V3 Phase E's four 🎲 rows. Everything after it — the "One season" template
+> and the two seasons filled in on 7 September 2026 — is **v1's checklist (milestone M1)**, kept as the
+> record of what those seasons found. Its venues (the Docks, the Saloon, borrowing) no longer exist.
+
+---
+
+## v3 Phase E2 — the table
+
+Three to eight people round one laptop. What `v3e2` needs from a table is four timed games and four
+answers. The game times itself: nobody has to start a stopwatch.
+
+### The four timed rows (BUILD_PLAN_V3 Phase E)
+
+| Row | Target | Setup | This table's time |
+|---|---|---|---|
+| 1 | ≤ 25 min | 4 humans, 1 season, **races skipped** (press "Skip the rest of race day" each weekend) | |
+| 2 | ≤ 40 min | 4 humans, 1 season, races **watched** | |
+| 3 | ≤ 70 min | 8 humans, 1 season | |
+| 4 | worth watching | any table, **Race to 60,000** (or a figure of your own), played to its finish | |
+
+AI stables can fill a table out, but they do not count as humans: rows 1–3 are about people passing a
+laptop. Four humans and two AIs is fine for rows 1 and 2.
+
+### How to read the timer
+
+The game-end screen has a panel, **"The clock"**:
+
+> This game took *m* minutes, *s* a weekend, of which race day *r*.
+
+Under it, a weekend is split four ways:
+
+- **private screens**: a door and its card, the market, the kennels and the Race Office, the Bookie
+- **race day**: the race view, the locked card on a no-bookie weekend, and the results
+- **passing the laptop**: the "Pass to …" screens
+- **the table's own screens**: the arrival (the planet and the turn order), the locked board before
+  the Bookie, and the roll-call after the races
+
+Between seasons (the season's end and the off-season) is counted separately and is in the total.
+
+Three things to know:
+
+- A stretch on one screen counts for **ten minutes at most**, and the clock **stops while the window
+  is hidden**. A laptop left open over dinner does not make the game slow.
+- The clock lives in the save's UI block, so it survives a reload. **"Play again" starts it from
+  zero.** It is wall-clock time and never enters the game: the same seed and the same presses are the
+  same game however long they took.
+- Row 1 minus row 2 is roughly what watching costs. If race day is most of a weekend, that is the
+  split view question (GDD_V3 §7.5's ❓).
+
+### What the passing should feel like
+
+- The laptop moves **only when somebody's private business is about to go on screen**, and the pass
+  screen says who is next and why ("Market, Kennels and Race Office — in turn order …").
+- The arrival, the locked board and the roll-call after the races are **public**: read them together.
+  Their button is the pass when the laptop has to move ("I am Jesse").
+- **The Bookie is in any order**: whoever holds the laptop after the Race Office bets first.
+- After the races, each human **flies on from the roll-call** with one press; only somebody who wants
+  to trade takes the laptop.
+- Slips are private: each human sees their own settled slips on their next private screen (the next
+  door, or the off-season), not on the public results.
+
+`hub-clicks` measures the loop at `v3e2`: 10.7 passes a weekend at four humans (14.5 at `v3e1`) and
+22.4 at eight (30.4). If it feels like more than that, something is wrong.
+
+### Still unplayed by a human (carried from the `v3e1` checklist)
+
+Jesse's race to 60,000 ended at week 6 of season 1, so nobody has yet reached an off-season. Play a
+**two- or three-season game** at least once and answer these:
+
+1. **Did a second season feel different from the first?** *Yes, the kennel had changed · A bit, the
+   ages showed · No, it was the same season again*
+2. **Was the retirement a real decision?** *Yes, I weighed the offer against my dog · Easy, an old dog
+   had to go · I always kept them all · The offer was never worth it*
+3. **Did starting the season fresh feel right?** (new in E2: every dog back to full fitness, layoffs
+   healed) *Yes · It made the off-season too kind · Didn't notice*
+
+### One game, filled in
+
+| | |
+|---|---|
+| Date | |
+| Seed, and the game's length | |
+| Humans / AIs | |
+| Races skipped or watched | |
+| **The clock**: minutes, a weekend, race day | |
+| Who won, and how (seasons ran out / target crossed) | |
+| Did the game-end screen tell the story of the game? | |
+
+---
+
+# v1's checklist (milestone M1) — historical
+
 From BUILD_PLAN §7. Fill this in after **each** season you play (M1 asks for two, M4 for two more).
 Copy the whole "One season" block per playthrough. When you are done, write the findings up in
 `design/PLAYTEST_NOTES.md` and bring them to the next planning conversation — rule changes go into

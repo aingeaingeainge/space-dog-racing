@@ -11,6 +11,7 @@ import {
 } from '@sdr/engine';
 import { clearSave, readSave, writeSave, SAVE_VERSION, type SaveUi } from './persist';
 import { applyActions, weekKey } from './loop';
+import { addPace, EMPTY_PACE, type Pace, type PaceBucket } from '../lib/pace';
 
 /** Where the human is looking during their own phase. Never part of game state. */
 export type View = 'hub' | 'stable' | 'market' | 'office' | 'map';
@@ -40,6 +41,10 @@ export interface GameStore {
   boardSeenWeek: number;
   /** Phase E2: the human who took the laptop back to the planet after the races, to trade. */
   postTrade: Id | null;
+  /** Phase E2: the pace timer — wall-clock seconds a weekend, by kind of screen. UI only, saved. */
+  pace: Pace;
+  /** When the screen now showing started being timed, and where its seconds go. Never saved. */
+  paceMark: { at: number; key: number; bucket: PaceBucket | 'between' } | null;
   /** 1× or 2×. UI only. */
   raceSpeed: RaceSpeed;
   /** The human whose "pass the laptop" screen has been acknowledged. */
@@ -66,6 +71,11 @@ export interface GameStore {
   ackBoard: (passTo?: Id) => void;
   /** Phase E2: after the races, this human takes the laptop to trade before flying on. */
   tradeAfterRaces: (playerId: Id) => void;
+  /**
+   * Phase E2's pace timer: the screen has changed (or the window was hidden, `bucket` null). The time
+   * since the last mark goes to the last mark's weekend and bucket, and a new stretch starts.
+   */
+  markPace: (bucket: PaceBucket | 'between' | null, key: number) => void;
   ackBust: (playerId: Id) => void;
   clearError: () => void;
 }
@@ -83,6 +93,7 @@ export const useGame = create<GameStore>((set, get) => {
       seasonSeen: g.seasonSeen,
       arrivalSeenWeek: g.arrivalSeenWeek,
       boardSeenWeek: g.boardSeenWeek,
+      pace: g.pace,
       ...over,
     };
   }
@@ -108,6 +119,8 @@ export const useGame = create<GameStore>((set, get) => {
     arrivalSeenWeek: 0,
     boardSeenWeek: 0,
     postTrade: null,
+    pace: EMPTY_PACE,
+    paceMark: null,
     raceSpeed: 2,
     passAck: null,
     hasSave: readSave() !== null,
@@ -131,6 +144,7 @@ export const useGame = create<GameStore>((set, get) => {
           seasonSeen: 0,
           arrivalSeenWeek: 0,
           boardSeenWeek: 0,
+          pace: EMPTY_PACE,
         },
       });
       set({
@@ -148,6 +162,8 @@ export const useGame = create<GameStore>((set, get) => {
         arrivalSeenWeek: 0,
         boardSeenWeek: 0,
         postTrade: null,
+        pace: EMPTY_PACE,
+        paceMark: null,
         passAck: null,
         hasSave: true,
       });
@@ -194,6 +210,8 @@ export const useGame = create<GameStore>((set, get) => {
           arrivalSeenWeek: blob.ui?.arrivalSeenWeek ?? 0,
           boardSeenWeek: blob.ui?.boardSeenWeek ?? 0,
           postTrade: null,
+          pace: blob.ui?.pace ?? EMPTY_PACE,
+          paceMark: null,
           raceSpeed: speed,
           passAck: null,
           hasSave: true,
@@ -218,6 +236,8 @@ export const useGame = create<GameStore>((set, get) => {
         arrivalSeenWeek: 0,
         boardSeenWeek: 0,
         postTrade: null,
+        pace: EMPTY_PACE,
+        paceMark: null,
       });
     },
 
@@ -306,6 +326,16 @@ export const useGame = create<GameStore>((set, get) => {
     },
 
     tradeAfterRaces: (playerId) => set({ postTrade: playerId, view: 'market' }),
+
+    markPace: (bucket, key) => {
+      const { paceMark, pace } = get();
+      const now = Date.now();
+      const next = paceMark
+        ? addPace(pace, paceMark.key, paceMark.bucket, Math.round((now - paceMark.at) / 100) / 10)
+        : pace;
+      set({ pace: next, paceMark: bucket ? { at: now, key, bucket } : null });
+      if (next !== pace) save({ pace: next });
+    },
 
     ackBust: (playerId) => {
       const bustAck = [...get().bustAck, playerId];

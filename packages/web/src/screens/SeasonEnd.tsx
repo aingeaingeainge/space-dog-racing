@@ -21,6 +21,7 @@ import {
 import { seasonLinkFor } from '../lib/seedLink';
 import { playerById, standings } from '../lib/selectors';
 import { useGame } from '../store/gameStore';
+import { clock, summarisePace } from '../lib/pace';
 
 /**
  * The end of a season, or of the game (GDD_V3 §10 screen 9). Between seasons the table reads how the
@@ -234,6 +235,8 @@ function GameOver({ s }: { s: GameState }) {
         <p className="muted">{gameLengthText(s)}</p>
       </div>
 
+      <PaceLine />
+
       {finish ? <TargetPanel s={s} finish={finish} /> : null}
 
       {multi ? null : rec ? <SeasonPodium rows={seasonRows(s, rec)} /> : null}
@@ -280,6 +283,35 @@ function GameOver({ s }: { s: GameState }) {
         </p>
       </Panel>
     </div>
+  );
+}
+
+/**
+ * Phase E2's pace timer, read back (the playtest's 🎲 rows): how long the game took at the table, a
+ * weekend's share, and how much of that was race day. Nothing is shown for a game with no clock.
+ */
+function PaceLine() {
+  const pace = useGame((g) => g.pace);
+  const p = summarisePace(pace);
+  if (!p.weekends) return null;
+  const minutes = Math.round(p.total / 60);
+  return (
+    <Panel title="The clock" sub="wall-clock time at the table, from the pace timer">
+      <p className="flush">
+        This game took{' '}
+        <b>
+          {minutes} minute{minutes === 1 ? '' : 's'}
+        </b>
+        , <b>{clock(p.perWeekend)}</b> a weekend, of which race day <b>{clock(p.raceDay)}</b>.
+      </p>
+      <p className="muted">
+        A weekend: {clock(p.private)} on private screens · {clock(p.raceDay)} on race day ·{' '}
+        {clock(p.pass)} passing the laptop · {clock(p.table)} on the table's own screens (arrival,
+        board, after the races), over {p.weekends} weekend{p.weekends === 1 ? '' : 's'}
+        {p.between ? `; ${clock(p.between)} between seasons` : ''}. A stretch on one screen counts
+        for ten minutes at most, and the clock stops while the window is hidden.
+      </p>
+    </Panel>
   );
 }
 
