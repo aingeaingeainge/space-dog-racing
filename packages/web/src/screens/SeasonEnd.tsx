@@ -1,22 +1,203 @@
 import { useState } from 'react';
-import { formatBones, planetOf, roadSplit, type GameState } from '@sdr/engine';
+import {
+  formatBones,
+  planetOf,
+  roadSplit,
+  type GameState,
+  type Player,
+  type RoadSplit,
+} from '@sdr/engine';
 import { Panel } from '../components/Panel';
 import { StableName } from '../components/ui';
 import { OwnerBlurb, OwnerFace } from '../components/Owner';
 import { staffLine } from '../components/StaffCard';
 import { NeonButton } from '../components/NeonButton';
 import { WorthChart } from '../components/WorthChart';
-import { moments } from '../lib/seasonEnd';
+import { lastSeason, moments, seasonRows, type SeasonRow } from '../lib/seasonEnd';
 import { seasonLinkFor } from '../lib/seedLink';
 import { standings } from '../lib/selectors';
 import { useGame } from '../store/gameStore';
 
 /**
- * GDD §15.11 — the podium, the worth chart, the moments and the full table. This is the last
- * screen of an hour of play, so it is the one place in the game that is allowed to simply be
- * worth looking at.
+ * The end of a season, or of the game (GDD_V3 §10 screen 9). Between seasons the table reads how the
+ * season went and then goes into the off-season; at the game's end it reads how the game went.
  */
 export function SeasonEnd({ s }: { s: GameState }) {
+  const rec = lastSeason(s);
+  if (s.phase === 'offSeason' && rec) return <SeasonOver s={s} rows={seasonRows(s, rec)} />;
+  return <GameOver s={s} />;
+}
+
+/**
+ * Phase E2 — **the season's end, between seasons** (BUILD_PLAN_V3 Phase E item 5): the podium, where
+ * the money came from, the net-worth chart and the moments, then on to the off-season. Everything is
+ * read off the season's archive record, because the off-season has already aged the dogs and a worth
+ * read off the live state would not be the figure the season ended on.
+ */
+function SeasonOver({ s, rows }: { s: GameState; rows: SeasonRow[] }) {
+  const ackSeason = useGame((g) => g.ackSeason);
+  const top = rows[0];
+  const last = s.calendar[s.week - 1];
+  return (
+    <div className="app">
+      <div className="centre">
+        <h1>Season {s.season} over</h1>
+        <p className="muted">
+          {last ? `${planetOf(last.planetId).name}, week ${s.week}` : null} · {gameLengthText(s)}
+        </p>
+        {top ? (
+          <p className="game-end">
+            {top.player.name} tops season {s.season} on {formatBones(top.netWorth)}
+            {top.goldCups ? ` · ${top.goldCups} Gold Cup${top.goldCups === 1 ? '' : 's'}` : ''}.
+          </p>
+        ) : null}
+      </div>
+
+      <div className="row centre">
+        <NeonButton variant="primary" onClick={ackSeason}>
+          On to season {s.season + 1}
+        </NeonButton>
+        <span className="muted">
+          The off-season first: every dog a year older and back to full fitness, one retirement, the
+          staff notice.
+        </span>
+      </div>
+
+      <SeasonPodium rows={rows} />
+
+      <IncomeSplit
+        rows={rows.map((r) => ({
+          player: r.player,
+          split: r.split,
+          commission: r.stats.commission,
+        }))}
+        sub={`season ${s.season}: where each stable's money came from`}
+      />
+
+      <Panel title="The season" sub="net worth, week by week">
+        <WorthChart s={s} />
+      </Panel>
+
+      <Moments s={s} />
+
+      <Panel title={`Season ${s.season} standings`} tight>
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Stable</th>
+                <th className="num">Net worth</th>
+                <th className="num">Gold Cups</th>
+                <th className="num">Races won</th>
+                <th>Trainers</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r, i) => (
+                <tr key={r.player.id} className={r.player.kind === 'human' ? 'me' : ''}>
+                  <td>{i + 1}</td>
+                  <td>
+                    <StableName player={r.player} />
+                  </td>
+                  <td className="num">
+                    <b>{formatBones(r.netWorth)}</b>
+                  </td>
+                  <td className="num">{r.goldCups}</td>
+                  <td className="num">{r.raceWins}</td>
+                  <td className="wrap small">{staffLine(r.player)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Panel>
+    </div>
+  );
+}
+
+/** The top three, as they finished the season. */
+function SeasonPodium({ rows }: { rows: SeasonRow[] }) {
+  return (
+    <Panel title="Podium" sub="highest net worth; tie-break Gold Cups, then races won">
+      <div className="podium">
+        {rows.slice(0, 3).map((r, i) => (
+          <div key={r.player.id} className={i === 0 ? 'first' : undefined}>
+            <div className="medal">{['🥇', '🥈', '🥉'][i]}</div>
+            <OwnerFace player={r.player} big />
+            <div>
+              <StableName player={r.player} />
+            </div>
+            <OwnerBlurb player={r.player} />
+            <div className="worth">{formatBones(r.netWorth)}</div>
+            <div className="muted">
+              {r.goldCups} Gold Cup{r.goldCups === 1 ? '' : 's'} · {r.raceWins} race
+              {r.raceWins === 1 ? '' : 's'} won
+            </div>
+          </div>
+        ))}
+      </div>
+    </Panel>
+  );
+}
+
+/**
+ * GDD_V3 §11's income split, with the trainers' cut on its own line (Phase E2): purses before the cut,
+ * the cut, trading, betting, and the food and bills that went out whatever a stable did.
+ */
+export function IncomeSplit({
+  rows,
+  sub,
+}: {
+  rows: { player: Player; split: RoadSplit; commission: number }[];
+  sub: string;
+}) {
+  return (
+    <Panel title="Where the money came from" sub={sub} tight>
+      <div className="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Stable</th>
+              <th className="num">Prize money</th>
+              <th className="num">Trainers' cut</th>
+              <th className="num">Trading</th>
+              <th className="num">Betting</th>
+              <th className="num">Food &amp; bills</th>
+              <th className="num">Ledger</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.player.id} className={r.player.kind === 'human' ? 'me' : ''}>
+                <td>
+                  <StableName player={r.player} />
+                </td>
+                <td className="num">{formatBones(r.split.prize)}</td>
+                <td className="num">{formatBones(-r.commission)}</td>
+                <td className="num">{signed(r.split.trade)}</td>
+                <td className="num">{signed(r.split.betting)}</td>
+                <td className="num">{formatBones(-(r.split.costs - r.commission))}</td>
+                <td className="num">
+                  <b>{signed(r.split.net)}</b>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="muted">
+        Prize money is what the purses paid, before the trainers took their cut. Trading is goods
+        sold less goods bought; betting is returns less stakes. Food and bills are what went out
+        whatever you were doing. The ledger is those columns — what is left over is in the dogs and
+        the hold, which is why it does not match net worth.
+      </p>
+    </Panel>
+  );
+}
+
+/** The game's end, and the end of a one-season game. */
+function GameOver({ s }: { s: GameState }) {
   const abandon = useGame((g) => g.abandon);
   const playAgain = useGame((g) => g.playAgain);
   const setup = useGame((g) => g.setup);

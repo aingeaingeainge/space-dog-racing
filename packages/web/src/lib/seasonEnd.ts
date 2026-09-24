@@ -1,13 +1,18 @@
 import {
   dogValue,
   formatBones,
+  gameTotal,
   planetOf,
+  roadSplit,
   type Dog,
   type GameState,
   type Id,
   type Player,
+  type PlayerSeasonStats,
   type RaceEntry,
   type RaceResult,
+  type RoadSplit,
+  type SeasonRecord,
 } from '@sdr/engine';
 import { playerById, raceLabel, standings } from './selectors';
 
@@ -196,4 +201,172 @@ export function moments(s: GameState): Moment[] {
   return [biggestUpset(s), bestDog(s), bestBet(s), leadChange(s)].filter(
     (m): m is Moment => m !== null,
   );
+}
+
+// ---------------------------------------------------------------------------------------------------
+// Phase E2: the season's end and the game's end read the **archive** (`s.seasons`), which the engine
+// writes at `finishSeason`. Between seasons the dogs have already aged a year, so a net worth read off
+// the live state would not be the figure the season ended on; the archive's is.
+
+/** The season that has just ended — the last one archived. */
+export function lastSeason(s: GameState): SeasonRecord | undefined {
+  return s.seasons[s.seasons.length - 1];
+}
+
+export interface SeasonRow {
+  player: Player;
+  netWorth: number;
+  goldCups: number;
+  raceWins: number;
+  stats: PlayerSeasonStats;
+  split: RoadSplit;
+}
+
+/** One season's table, from its archive record, in the order it finished. */
+export function seasonRows(s: GameState, rec: SeasonRecord): SeasonRow[] {
+  return rec.standings.flatMap(({ playerId, netWorth }) => {
+    const player = playerById(s, playerId);
+    const stats = rec.stats[playerId];
+    if (!player || !stats) return [];
+    return [
+      {
+        player,
+        netWorth,
+        goldCups: rec.goldCups[playerId] ?? 0,
+        raceWins: rec.raceWins[playerId] ?? 0,
+        stats,
+        split: roadSplit(s, { ...player, stats }),
+      },
+    ];
+  });
+}
+
+/** Two splits added together, for a whole game's ledger. */
+function addSplit(a: RoadSplit, b: RoadSplit): RoadSplit {
+  return {
+    prize: a.prize + b.prize,
+    trade: a.trade + b.trade,
+    betting: a.betting + b.betting,
+    costs: a.costs + b.costs,
+    net: a.net + b.net,
+  };
+}
+
+/** The trainers' cut for a season's stats — a cost inside `RoadSplit.costs`, shown on its own. */
+export function commissionOf(stats: PlayerSeasonStats): number {
+  return stats.commission;
+}
+
+export interface GameRow {
+  player: Player;
+  netWorth: number;
+  goldCups: number;
+  raceWins: number;
+  /** Seasons this stable topped. */
+  titles: number;
+  split: RoadSplit;
+  commission: number;
+}
+
+/** The whole game's table: final standings, with every season's ledger summed from the archive. */
+export function gameRows(s: GameState): GameRow[] {
+  const cups = gameTotal(s, (r) => r.goldCups);
+  const wins = gameTotal(s, (r) => r.raceWins);
+  return (s.finalStandings ?? []).flatMap(({ playerId, netWorth }) => {
+    const player = playerById(s, playerId);
+    if (!player) return [];
+    let split: RoadSplit = { prize: 0, trade: 0, betting: 0, costs: 0, net: 0 };
+    let commission = 0;
+    for (const rec of s.seasons) {
+      const stats = rec.stats[playerId];
+      if (!stats) continue;
+      split = addSplit(split, roadSplit(s, { ...player, stats }));
+      commission += stats.commission;
+    }
+    return [
+      {
+        player,
+        netWorth,
+        goldCups: cups[playerId] ?? 0,
+        raceWins: wins[playerId] ?? 0,
+        titles: s.seasons.filter((r) => r.standings[0]?.playerId === playerId).length,
+        split,
+        commission,
+      },
+    ];
+  });
+}
+
+/** A marker on the worth chart's time axis: a Major, the Grand Final, or an off-season. */
+export interface ChartMark {
+  /** Weekend index along the axis, 1-based; a half is between two weekends. */
+  at: number;
+  label: string;
+  strong?: boolean;
+}
+
+/**
+ * The whole game's worth, one line per stable across every season, from the archive's
+ * `worthByWeek` (Phase E2): the seasons laid end to end, so the axis is the game's weekends.
+ */
+export function gameWorthSeries(s: GameState): WorthSeries[] {
+  const order = s.finalStandings ?? s.seasons[s.seasons.length - 1]?.standings ?? [];
+  return order.flatMap(({ playerId }, i) => {
+    const player = playerById(s, playerId);
+    if (!player) return [];
+    const points = s.seasons.flatMap((r) => r.stats[playerId]?.worthByWeek ?? []);
+    return [{ player, points, bustWeek: null, rank: i + 1 }];
+  });
+}
+
+/** Where each off-season falls on the whole-game axis: between a season's last weekend and the next's first. */
+export function seasonMarks(s: GameState): ChartMark[] {
+  const marks: ChartMark[] = [];
+  let at = 0;
+  for (const r of s.seasons.slice(0, -1)) {
+    at += r.weeks;
+    marks.push({ at: at + 0.5, label: `S${r.season + 1}`, strong: true });
+  }
+  return marks;
+}
+
+/**
+ * How a Target game finished (GDD_V3 §2.1, E3): who crossed and when, whether two crossed together,
+ * and whether the stable that led into the last weekend was caught on it. Read off the whole-game
+ * worth lines, which are the same figures the Target check read.
+ */
+export interface TargetFinish {
+  crossers: Player[];
+  season: number;
+  week: number;
+  /** The game's weekend the target was crossed on, counting every season. */
+  weekend: number;
+  together: boolean;
+  /** The stable that led at the end of the weekend before, if it is not the winner. */
+  caught: Player | null;
+}
+
+export function targetFinish(s: GameState): TargetFinish | null {
+  const over = s.gameOver;
+  if (!over || over.reason !== 'target') return null;
+  const series = gameWorthSeries(s);
+  const weekend = series.reduce((n, x) => Math.max(n, x.points.length), 0);
+  let before: Player | null = null;
+  let best = -Infinity;
+  for (const line of series) {
+    const v = line.points[weekend - 2];
+    if (v !== undefined && v > best) {
+      best = v;
+      before = line.player;
+    }
+  }
+  const winner = s.finalStandings?.[0]?.playerId;
+  return {
+    crossers: over.crossers.flatMap((id) => playerById(s, id) ?? []),
+    season: over.season,
+    week: over.week,
+    weekend,
+    together: over.crossers.length > 1,
+    caught: before && before.id !== winner ? before : null,
+  };
 }

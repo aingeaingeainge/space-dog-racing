@@ -1,7 +1,13 @@
 import { useEffect, useRef, useState, type RefObject } from 'react';
 import { formatBones, type GameState } from '@sdr/engine';
 import { STABLE_COLOURS, Swatch } from './ui';
-import { weeksPlayed, worthSeries, type WorthSeries } from '../lib/seasonEnd';
+import {
+  gameWorthSeries,
+  seasonMarks,
+  worthSeries,
+  type ChartMark,
+  type WorthSeries,
+} from '../lib/seasonEnd';
 
 /**
  * GDD §15.11's net-worth-over-time chart. Inline SVG, no chart library, kit colours only, and
@@ -68,11 +74,17 @@ function useMeasuredWidth(fallback = 640): [RefObject<HTMLDivElement>, number] {
   return [ref, width];
 }
 
-export function WorthChart({ s }: { s: GameState }) {
+/**
+ * `game` (Phase E2): the whole game rather than the season — every season's line laid end to end from
+ * the archive, with the off-seasons marked where the Majors would be.
+ */
+export function WorthChart({ s, game }: { s: GameState; game?: boolean }) {
   const [ref, W] = useMeasuredWidth();
-  const series = worthSeries(s);
-  const weeks = weeksPlayed(s);
+  const series = game ? gameWorthSeries(s) : worthSeries(s);
+  const weeks = series.reduce((n, x) => Math.max(n, x.points.length), 0);
   const all = series.flatMap((x) => x.points);
+  // One human reads "— you" on their line; a hotseat table has no single "you".
+  const solo = s.players.filter((p) => p.kind === 'human').length < 2;
 
   const H = Math.round(Math.min(300, Math.max(190, W * 0.46)));
   const pad = { l: 44, r: 12, t: 12, b: 34 };
@@ -94,9 +106,18 @@ export function WorthChart({ s }: { s: GameState }) {
   const ticks: number[] = [];
   for (let v = min; v <= max + step / 2; v += step) ticks.push(Math.round(v));
 
-  const majors = s.calendar.filter((c) => c.major && c.week <= weeks);
+  const marks: ChartMark[] = game
+    ? seasonMarks(s)
+    : s.calendar
+        .filter((c) => c.major && c.week <= weeks)
+        .map((c) => ({ at: c.week, label: c.grandFinal ? 'GF' : 'M', strong: c.grandFinal }));
   const champion = series[0];
   const narrow = W < 420;
+  const every = game
+    ? Math.max(narrow ? 4 : 2, Math.ceil(weeks / (narrow ? 5 : 12)))
+    : narrow
+      ? 4
+      : 2;
 
   // Humans last so a human line is never buried under an AI's.
   const drawOrder = [...series].sort(
@@ -134,28 +155,29 @@ export function WorthChart({ s }: { s: GameState }) {
             </g>
           ))}
 
-          {/* The Majors, because the snowball usually starts at one. */}
-          {majors.map((c) => (
-            <g key={`m${c.week}`}>
+          {/* The Majors, because the snowball usually starts at one — or, across a whole game, the
+              off-seasons, so each season reads as its own stretch. */}
+          {marks.map((c) => (
+            <g key={`m${c.at}`}>
               <line
-                x1={x(c.week)}
-                x2={x(c.week)}
+                x1={x(c.at)}
+                x2={x(c.at)}
                 y1={pad.t}
                 y2={pad.t + plotH}
-                stroke={c.grandFinal ? 'var(--hazard)' : 'var(--edge)'}
-                strokeWidth={c.grandFinal ? 2 : 1}
+                stroke={c.strong ? 'var(--hazard)' : 'var(--edge)'}
+                strokeWidth={c.strong ? 2 : 1}
                 strokeDasharray="4 5"
-                opacity={c.grandFinal ? 0.75 : 0.5}
+                opacity={c.strong ? 0.75 : 0.5}
               />
-              <text x={x(c.week)} y={pad.t + plotH + 28} textAnchor="middle" className="axis major">
-                {c.grandFinal ? 'GF' : 'M'}
+              <text x={x(c.at)} y={pad.t + plotH + 28} textAnchor="middle" className="axis major">
+                {c.label}
               </text>
             </g>
           ))}
 
           {/* Weeks along the bottom: the ends always, and a thinned-out set between. */}
           {Array.from({ length: weeks }, (_, i) => i + 1)
-            .filter((w) => w === 1 || w === weeks || w % (narrow ? 4 : 2) === 0)
+            .filter((w) => w === 1 || w === weeks || w % every === 0)
             .map((w) => (
               <text
                 key={`w${w}`}
@@ -225,7 +247,9 @@ export function WorthChart({ s }: { s: GameState }) {
       ) : null}
 
       <p className="muted chart-axis-note">
-        Net worth in Bones by race weekend. M is a Major, GF the Grand Final.
+        {game
+          ? 'Net worth in Bones by race weekend, across the whole game. Each dashed line is an off-season: S2 is where season 2 begins.'
+          : 'Net worth in Bones by race weekend. M is a Major, GF the Grand Final.'}
       </p>
 
       <ul className="chart-key">
@@ -237,7 +261,9 @@ export function WorthChart({ s }: { s: GameState }) {
               <Swatch colour={line.player.colour} />
               <span className="who">
                 {line.player.name}
-                {line.player.kind === 'human' ? <span className="muted"> — you</span> : null}
+                {solo && line.player.kind === 'human' ? (
+                  <span className="muted"> — you</span>
+                ) : null}
               </span>
               <span className="fig">{formatBones(lastV ?? 0)}</span>
               {line.bustWeek ? <span className="muted">bust, week {line.bustWeek}</span> : null}
