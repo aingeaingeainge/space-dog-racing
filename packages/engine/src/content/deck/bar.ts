@@ -24,7 +24,87 @@ import {
   luck,
 } from '../eventKit';
 import { weakestStat } from '../../economy/dogValue';
+import { hireSlot, unemployedStaff } from '../../economy/staff';
+import { cutOf, STAFF_BONUS_BY_ID, staffRow, type StaffRow } from '../staff';
 import { GOOD_IDS, type Dog, type GoodId } from '../../types';
+import type { EventChoice, EventCtx } from '../eventKit';
+
+/** What a trainer's offer says: who they are, what they do, what they take (GDD_V3 §8.2). */
+export function describeTrainer(row: StaffRow): string {
+  const does = row.bonuses.map((b) => STAFF_BONUS_BY_ID[b].text).join('; and ');
+  return `${row.name}. ${row.blurb} ${does}. Takes ${Math.round(cutOf(row) * 100)}% of your race prize money — purses only, never a bet or a trade.`;
+}
+
+/**
+ * A Bar card that offers a trainer looking for work (GDD_V3 §8, Phase D2 item 2). You see who they
+ * are, what they do and what they take. You can hire them into a slot — letting that trainer go,
+ * named on the button — or walk away. **Walk away comes first**, as D1's dog offers do, so Enter
+ * never fires anybody. The card is one of a kind on the planet-week (`unique`), and the trainer is
+ * drawn on the stable's own stream from whoever nobody employs.
+ */
+function trainerCard(
+  id: string,
+  name: string,
+  text: string,
+  weight: number,
+  pickFrom: (free: StaffRow[]) => StaffRow[] = (free) => free,
+  planets?: { ids: string[]; boost: number },
+): EventCard {
+  const hire = (slot: number): EventChoice => ({
+    label: `Hire — let trainer ${slot + 1} go`,
+    apply: (ctx: EventCtx) => {
+      const row = staffRow(String(ctx.params.staffId));
+      if (ctx.s.players.some((x) => x.staff.includes(row.id))) {
+        ctx.log(`${row.name} has already taken a job with somebody else.`);
+        return;
+      }
+      const gone = ctx.p.staff[slot];
+      if (gone) ctx.p.staff[slot] = row.id;
+      else ctx.p.staff.push(row.id);
+      ctx.p.stats.staffHired++;
+      ctx.log(
+        gone
+          ? `${row.name} is hired, at ${Math.round(cutOf(row) * 100)}% of the purses. ${staffRow(gone).name} packs a bag and goes.`
+          : `${row.name} is hired, at ${Math.round(cutOf(row) * 100)}% of the purses.`,
+      );
+    },
+  });
+  return {
+    id,
+    name,
+    text,
+    weight,
+    kind: 'choice',
+    category: 'bar',
+    unique: true,
+    ...(planets ? { planets: planets.ids, planetBoost: planets.boost } : {}),
+    roll: (ctx) => {
+      const free = pickFrom(unemployedStaff(ctx.s));
+      if (!free.length) return null;
+      ctx.p.stats.staffOffers++;
+      return { staffId: ctx.rng.pick(free).id };
+    },
+    detail: (ctx) => describeTrainer(staffRow(String(ctx.params.staffId))),
+    labels: (ctx) => [
+      'Walk away',
+      ...[0, 1].map((i) => {
+        const now = ctx.p.staff[i];
+        return now ? `Hire — let ${staffRow(now).name} go` : 'Hire into the empty slot';
+      }),
+    ],
+    choices: [
+      {
+        label: 'Walk away',
+        apply: (ctx) => ctx.log(`You wish ${staffRow(String(ctx.params.staffId)).name} luck.`),
+      },
+      hire(0),
+      hire(1),
+    ],
+    // Normal: hire into the slot of the trainer worth least to it, if the offer beats that trainer
+    // by two points of its weekly prize money (economy/staff.ts `hireSlot`).
+    aiChoice: (ctx) => 1 + hireSlot(ctx.s, ctx.p, staffRow(String(ctx.params.staffId))),
+  };
+}
 
 export const BAR: readonly EventCard[] = [
   {
@@ -358,4 +438,40 @@ export const BAR: readonly EventCard[] = [
     ],
     aiChoice: (ctx) => (ctx.p.cash > 1500 ? 0 : 1),
   },
+
+  // ---- Trainers looking for work (GDD_V3 §8, Phase D2 item 2). One of a kind a planet-week. ----
+  trainerCard(
+    'trainerBetweenYards',
+    'A trainer between yards',
+    'Somebody at the end of the bar has a whistle round their neck and nobody to blow it at. They have heard about your dogs. They would like to hear more — and to talk about money.',
+    14,
+  ),
+  trainerCard(
+    'trainerWalkedOut',
+    'Walked out this morning',
+    'A trainer threw a bucket at a stable owner at breakfast and has been drinking to it ever since. Good with dogs, they say. Less good with owners.',
+    12,
+  ),
+  trainerCard(
+    'trainerOldHand',
+    'An old hand',
+    'The barman points you at a corner table. "Trained three Grand Final winners, that one. Not lately." The old hand looks up. One trick, done properly, for a small cut.',
+    11,
+    (free) => {
+      const singles = free.filter((r) => r.bonuses.length === 1);
+      return singles.length ? singles : free;
+    },
+    { ids: ['oldWembley', 'ossuary', 'kibbleton'], boost: 2 },
+  ),
+  trainerCard(
+    'trainerAgent',
+    'An agent with a list',
+    'A sharp little agent in a sharper suit slides a card across the bar. "I represent talent. Expensive talent. Two tricks each, minimum." The list is short and every name on it is dear.',
+    10,
+    (free) => {
+      const pairs = free.filter((r) => r.bonuses.length > 1);
+      return pairs.length ? pairs : free;
+    },
+    { ids: ['neonSnout', 'collarPrime', 'cosmodrome'], boost: 2 },
+  ),
 ];
