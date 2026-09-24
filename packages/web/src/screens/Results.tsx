@@ -12,7 +12,7 @@ import { NeonButton } from '../components/NeonButton';
 import { BettingSlip, type SlipRow } from '../components/BettingSlip';
 import { OwnerFace } from '../components/Owner';
 import { useKeys } from '../lib/keys';
-import { playerById, raceLabel } from '../lib/selectors';
+import { humans, playerById, raceLabel } from '../lib/selectors';
 import { useGame } from '../store/gameStore';
 
 function RaceTable({ s, r, meId }: { s: GameState; r: RaceResult; meId: string }) {
@@ -97,7 +97,12 @@ export function Results({ s, me }: { s: GameState; me: Player }) {
   // Phase D1 (§10.1's click budget): "Back to the planet" then "End turn" is two presses for a
   // player with nothing left to do here — and after the races, most weeks, there is nothing. One
   // press does both. The hub is still one press away for anyone who wants to sell.
-  const canFly = s.phase === 'planetPost' && s.activePlayer === me.id;
+  // ⚠️ **At a hotseat table this screen is public** (Phase E2, GDD_V3 §3): the whole table reads it,
+  // so it shows every stable's purses and nobody's slips or Back Alley business — each human sees
+  // their own settled slips on their next private screen (LastSlips). Flying on is the roll-call's
+  // (screens/Table.tsx), one press a human, in public.
+  const table = humans(s).length > 1;
+  const canFly = !table && s.phase === 'planetPost' && s.activePlayer === me.id;
   const next = s.calendar[s.week];
   const flyOn = () => {
     ackResults();
@@ -130,7 +135,9 @@ export function Results({ s, me }: { s: GameState; me: Player }) {
           </>
         }
       >
-        {mine.length ? (
+        {table ? (
+          <TablePurses s={s} />
+        ) : mine.length ? (
           <p className="flush">
             You picked up <b>{formatBones(won)}</b>:{' '}
             {mine
@@ -154,11 +161,11 @@ export function Results({ s, me }: { s: GameState; me: Player }) {
 
       <Stewards s={s} />
 
-      <YourJobs s={s} me={me} />
+      {table ? null : <YourJobs s={s} me={me} />}
 
       <Revealed s={s} />
 
-      <BetsSettled s={s} me={me} />
+      {table ? null : <BetsSettled s={s} me={me} />}
 
       {s.races.map((r) => {
         const winner = r.entries.find((e) => e.dogId === r.order[0]);
@@ -169,11 +176,35 @@ export function Results({ s, me }: { s: GameState; me: Player }) {
             sub={`won by ${r.margin} m${r.photoFinish ? ' — photo finish!' : ''} · purse ${formatBones(r.purse[0])}`}
             tight
           >
-            <RaceTable s={s} r={r} meId={me.id} />
+            <RaceTable s={s} r={r} meId={table ? '' : me.id} />
           </Panel>
         );
       })}
     </div>
+  );
+}
+
+/** Phase E2: what every stable picked up this weekend, for a table reading the results together. */
+function TablePurses({ s }: { s: GameState }) {
+  const won = new Map<string, number>();
+  for (const r of s.races ?? [])
+    for (const p of r.payouts) won.set(p.playerId, (won.get(p.playerId) ?? 0) + p.amount);
+  const rows = [...won.entries()].sort((a, b) => b[1] - a[1]);
+  if (!rows.length) return <p className="muted flush">No stable in the money this weekend.</p>;
+  return (
+    <p className="flush">
+      Prize money this weekend:{' '}
+      {rows.map(([id, n], i) => (
+        <span key={id}>
+          {i ? ' · ' : ''}
+          <b>{playerById(s, id)?.name ?? id}</b> {formatBones(n)}
+        </span>
+      ))}
+      .{' '}
+      <span className="muted">
+        Slips are private: each of you sees your own next time you hold the laptop.
+      </span>
+    </p>
   );
 }
 
@@ -258,9 +289,31 @@ function Revealed({ s }: { s: GameState }) {
   );
 }
 
+/**
+ * Phase E2: at a hotseat table the results are public, so a human reads their own settled slips on
+ * their next private screen — the next weekend's door, or the off-season. The book keeps a whole
+ * season's slips, so last weekend's are still there to read.
+ */
+export function LastSlips({ s, me }: { s: GameState; me: Player }) {
+  if (humans(s).length < 2) return null;
+  const week = s.phase === 'offSeason' ? s.week : s.week - 1;
+  if (week < 1) return null;
+  return <BetsSettled s={s} me={me} week={week} title={`Your slips, week ${week}`} />;
+}
+
 /** GDD §10: every slip you had on this weekend, and what it did to the cash. */
-function BetsSettled({ s, me }: { s: GameState; me: Player }) {
-  const bets = s.bets.filter((b) => b.playerId === me.id && b.week === s.week);
+function BetsSettled({
+  s,
+  me,
+  week = s.week,
+  title = 'Your bets',
+}: {
+  s: GameState;
+  me: Player;
+  week?: number;
+  title?: string;
+}) {
+  const bets = s.bets.filter((b) => b.playerId === me.id && b.week === week && b.settled);
   if (!bets.length) return null;
   const staked = bets.reduce((sum, b) => sum + b.stake, 0);
   const returned = bets.reduce((sum, b) => sum + (b.settled?.payout ?? 0), 0);
@@ -280,7 +333,7 @@ function BetsSettled({ s, me }: { s: GameState; me: Player }) {
   return (
     <div className="slip-wrap">
       <BettingSlip
-        title="Your bets"
+        title={title}
         settled
         rows={rows}
         net={`${net >= 0 ? '+' : ''}${formatBones(net)} on the day`}

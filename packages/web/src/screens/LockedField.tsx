@@ -24,9 +24,21 @@ import { useGame } from '../store/gameStore';
  * trap draw and the prices are all in `s.fields` on every weekend already. On a betting week the
  * bookie's own screen shows the same table with the odds as buttons.
  */
-export function LockedField({ s, me }: { s: GameState; me: Player }) {
+export function LockedField({
+  s,
+  me,
+  board,
+}: {
+  s: GameState;
+  me: Player;
+  /**
+   * Phase E2: the same card read by a hotseat table on a betting weekend, before anybody bets. The
+   * table's own button (screens/Table.tsx) ends it, so this one has none.
+   */
+  board?: boolean;
+}) {
   const ackFields = useGame((g) => g.ackFields);
-  useKeys({ Enter: ackFields, ' ': ackFields });
+  useKeys(board ? {} : { Enter: ackFields, ' ': ackFields });
   const planet = planetOf(s.planet.planetId);
   // The same margin lockDeclarations priced this field with, so these are the stored odds and not
   // a second opinion.
@@ -37,18 +49,22 @@ export function LockedField({ s, me }: { s: GameState; me: Player }) {
     <>
       <Panel
         title="The card is locked"
-        sub={`${planet.name} · week ${s.week} — no bookie here`}
+        sub={`${planet.name} · week ${s.week} — ${board ? 'the prices are up' : 'no bookie here'}`}
         actions={
-          <NeonButton variant="primary" onClick={ackFields} title="key: Enter">
-            Watch the races
-          </NeonButton>
+          board ? null : (
+            <NeonButton variant="primary" onClick={ackFields} title="key: Enter">
+              Watch the races
+            </NeonButton>
+          )
         }
       >
         <Notes
           lines={[
-            s.toggles.betting
-              ? `${planet.name} has no bookie, so there is nothing to back this weekend — but this is still the field you are running into.`
-              : 'No Betting is on for this season, so the prices below are only the market talking.',
+            board
+              ? 'Every declaration is in and the traps are drawn. This is the field — read it together, then everybody bets in private, in any order.'
+              : s.toggles.betting
+                ? `${planet.name} has no bookie, so there is nothing to back this weekend — but this is still the field you are running into.`
+                : 'No Betting is on for this season, so the prices below are only the market talking.',
             'Traps are drawn. Wide runners are pushed to the outside boxes and a bribed steward has already had his say.',
           ]}
         />

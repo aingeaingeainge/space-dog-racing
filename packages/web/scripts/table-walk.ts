@@ -33,10 +33,13 @@ import {
   type RaceTypeId,
   type SeasonSetup,
 } from '@sdr/engine';
-import { applyActions, screenFor, weekKey, type Screen, type ScreenUi } from '../src/store/loop';
-
-/** Screens that show one human's own business. Everything else is watched by the table. */
-const PRIVATE_KINDS = new Set<Screen['kind']>(['explore', 'planet', 'betting', 'offSeason']);
+import {
+  applyActions,
+  PRIVATE_SCREENS,
+  screenFor,
+  weekKey,
+  type ScreenUi,
+} from '../src/store/loop';
 
 export interface TableWalk {
   humans: number;
@@ -88,6 +91,9 @@ function planetTurn(s: GameState, p: Player): Action[] {
       }
     }
   }
+  if (s.phase === 'planetPost' && s.toggles.trading && p.cargo[STAPLE_ID] > 0)
+    // Back at the planet after the races: sell a crate, which is why anybody comes back.
+    out.push({ t: 'TradeFood', playerId: p.id, good: STAPLE_ID, units: -1 });
   out.push({ t: 'EndPhase', playerId: p.id });
   return out;
 }
@@ -116,12 +122,21 @@ function offSeasonPress(s: GameState, me: Player): Action {
   return { t: 'EndPhase', playerId: me.id };
 }
 
+export interface WalkOptions {
+  length?: GameLength;
+  /** After the races, does this human take the laptop back to trade? Never, unless a caller says. */
+  tradeAfterRaces?: (s: GameState, me: Player) => boolean;
+  /** Called on every screen, before it is answered — for a caller with a check of its own. */
+  onScreen?: (s: GameState, ui: ScreenUi, kind: string) => void;
+}
+
 export function walkTable(
   seed: number,
   humans: number,
   ais: number,
-  length?: GameLength,
+  opts: WalkOptions = {},
 ): TableWalk {
+  const { length } = opts;
   const setup: SeasonSetup = {
     seed,
     ...(length ? { length } : {}),
@@ -167,6 +182,7 @@ export function walkTable(
 
   const send = (who: Id, actions: Action[]) => {
     const applied = applyActions(state, actions);
+    if (applied.state.activePlayer !== state.activePlayer) ui.postTrade = null;
     state = applied.state;
     log.push(...applied.added);
     walk.presses[who] = (walk.presses[who] ?? 0) + actions.length;
@@ -175,6 +191,7 @@ export function walkTable(
   for (let step = 0; step < 400000; step++) {
     const screen = screenFor(state, ui);
     walk.screens[screen.kind] = (walk.screens[screen.kind] ?? 0) + 1;
+    opts.onScreen?.(state, ui, screen.kind);
     if (screen.kind === 'seasonEnd') {
       walk.tablePresses++;
       if (state.phase !== 'offSeason') break;
@@ -183,7 +200,7 @@ export function walkTable(
     }
     if (screen.kind === 'noHuman') throw new Error(`seed ${seed}: no human at the table`);
     const me = screen.me!;
-    if (PRIVATE_KINDS.has(screen.kind)) {
+    if (PRIVATE_SCREENS.has(screen.kind)) {
       if (holder !== null && holder !== me.id && !passedSince)
         walk.leaks.push(
           `season ${state.season} week ${state.week}: ${me.name}'s ${screen.kind} screen followed ${holder}'s with no pass`,
@@ -202,11 +219,35 @@ export function walkTable(
         continue;
       case 'results':
         // The results screen's "Fly on" is the active stable's, when it has nothing to do after the
-        // races (Phase D1) — and this line never does.
+        // races (Phase D1) — and this line never does. At a hotseat table the results are public and
+        // the roll-call after them does the flying (Phase E2).
         walk.tablePresses++;
         ui.resultsSeenWeek = weekKey(state);
-        if (state.phase === 'planetPost' && state.activePlayer === me.id)
+        if (humans < 2 && state.phase === 'planetPost' && state.activePlayer === me.id)
           send(me.id, [{ t: 'EndPhase', playerId: me.id }]);
+        continue;
+      case 'arrival':
+      case 'board':
+        // Phase E2: a public moment whose button is the pass when the laptop has to move.
+        if (screen.kind === 'arrival') ui.arrivalSeenWeek = weekKey(state);
+        else ui.boardSeenWeek = weekKey(state);
+        if (ui.passAck === me.id) {
+          walk.tablePresses++;
+          continue;
+        }
+        walk.passes++;
+        walk.presses[me.id] = (walk.presses[me.id] ?? 0) + 1;
+        ui.passAck = me.id;
+        passedSince = true;
+        continue;
+      case 'afterRaces':
+        // The roll-call after the races: fly on in public, or take the laptop back to trade.
+        if (opts.tradeAfterRaces?.(state, me)) {
+          walk.presses[me.id] = (walk.presses[me.id] ?? 0) + 1;
+          ui.postTrade = me.id;
+          continue;
+        }
+        send(me.id, [{ t: 'EndPhase', playerId: me.id }]);
         continue;
       case 'pass':
         walk.passes++;

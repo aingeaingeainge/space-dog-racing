@@ -16,6 +16,7 @@ import { RaceOffice } from './screens/RaceOffice';
 import { Results } from './screens/Results';
 import { SeasonEnd } from './screens/SeasonEnd';
 import { Stable } from './screens/Stable';
+import { AfterRaces, Arrival, Board } from './screens/Table';
 import { Title } from './screens/Title';
 import { PlanetTheme } from './theme/planetTheme';
 import { screenFor } from './store/loop';
@@ -36,6 +37,9 @@ export function App() {
   const passAck = useGame((g) => g.passAck);
   const bustAck = useGame((g) => g.bustAck);
   const seasonSeen = useGame((g) => g.seasonSeen);
+  const arrivalSeenWeek = useGame((g) => g.arrivalSeenWeek);
+  const boardSeenWeek = useGame((g) => g.boardSeenWeek);
+  const postTrade = useGame((g) => g.postTrade);
   const error = useGame((g) => g.error);
   const clearError = useGame((g) => g.clearError);
 
@@ -58,6 +62,9 @@ export function App() {
     passAck,
     bustAck,
     seasonSeen,
+    arrivalSeenWeek,
+    boardSeenWeek,
+    postTrade,
   });
 
   const wrap = (node: ReactNode) => <PlanetTheme planetId={planetId}>{node}</PlanetTheme>;
@@ -85,6 +92,10 @@ export function App() {
     );
   if (screen.kind === 'results') return wrap(<Results s={state} me={me} />);
   if (screen.kind === 'pass') return wrap(<PassTo s={state} next={me} />);
+  // Phase E2: a hotseat table's public moments — read together, passed to nobody.
+  if (screen.kind === 'arrival') return wrap(<Arrival s={state} me={me} />);
+  if (screen.kind === 'board') return wrap(<Board s={state} me={me} />);
+  if (screen.kind === 'afterRaces') return wrap(<AfterRaces s={state} me={me} />);
 
   const s = state;
   const inTurn = s.phase === 'planetPre' || s.phase === 'planetPost';

@@ -20,6 +20,9 @@ export interface SaveUi {
   bustAck?: string[];
   /** The last season whose end the table has read (GDD_V3 §2.2). */
   seasonSeen?: number;
+  /** Phase E2, a hotseat table: the weekend whose arrival, and whose locked board, the table read. */
+  arrivalSeenWeek?: number;
+  boardSeenWeek?: number;
 }
 
 export interface SaveBlob {

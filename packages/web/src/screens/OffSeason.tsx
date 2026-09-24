@@ -14,6 +14,7 @@ import { StaffCard } from '../components/StaffCard';
 import { Notes } from '../components/ui';
 import { ownedDogs } from '../lib/selectors';
 import { useGame } from '../store/gameStore';
+import { LastSlips } from './Results';
 
 /**
  * GDD_V3 §2.2 — the off-season, one screen per human, **at most three presses**: the retirement
@@ -40,6 +41,8 @@ export function OffSeason({ s, me }: { s: GameState; me: Player }) {
           {me.name} · between season {s.season} and season {next}
         </p>
       </div>
+
+      <LastSlips s={s} me={me} />
 
       <Panel title="A year older" sub="every dog on the circuit ages once, now (GDD §4.3)">
         <div className="table-wrap">

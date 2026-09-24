@@ -12,7 +12,7 @@ import {
 import { Panel } from '../components/Panel';
 import { Badge, Delta, STABLE_COLOURS } from '../components/ui';
 import { NeonButton } from '../components/NeonButton';
-import { playerById, raceLabel } from '../lib/selectors';
+import { humans, playerById, raceLabel } from '../lib/selectors';
 import { useGame, type RaceSpeed } from '../store/gameStore';
 import { buildCommentary, lineAt, type CommentaryLine } from '../race-view/commentary';
 import { createRenderer, type RaceSample, type RunnerStyle } from '../race-view/renderer';
@@ -109,7 +109,9 @@ function RaceReplay({
     return result.entries.map((e): RunnerStyle => {
       const owner = e.local ? undefined : playerById(s, e.ownerId as Id);
       const colour = owner ? STABLE_COLOURS[owner.colour % STABLE_COLOURS.length]! : '#7c7889';
-      return { colour, ink: ink(colour), local: e.local, mine: !!owner && owner.id === me.id };
+      // At a hotseat table the race is the table's (Phase E2): nobody's dogs are "mine".
+      const mine = !!owner && owner.id === me.id && humans(s).length < 2;
+      return { colour, ink: ink(colour), local: e.local, mine };
     });
   }, [result, s, me.id]);
 
@@ -361,7 +363,9 @@ function ResultCard({
   onNext: () => void;
 }) {
   const won = mine.reduce((sum, p) => sum + p.amount, 0);
-  const myRunner = result.entries.find((e) => e.ownerId === me.id);
+  // A hotseat table watches together (Phase E2), so there is no "you" on this card.
+  const myRunner =
+    humans(s).length < 2 ? result.entries.find((e) => e.ownerId === me.id) : undefined;
   return (
     <div className="race-result">
       <h3>

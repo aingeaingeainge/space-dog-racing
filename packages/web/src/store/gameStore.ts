@@ -35,6 +35,11 @@ export interface GameStore {
   bustAck: Id[];
   /** The last season whose end the table has read (GDD_V3 §2.2). UI only. */
   seasonSeen: number;
+  /** Phase E2, a hotseat table: the weekend whose arrival and whose locked board the table has read. */
+  arrivalSeenWeek: number;
+  boardSeenWeek: number;
+  /** Phase E2: the human who took the laptop back to the planet after the races, to trade. */
+  postTrade: Id | null;
   /** 1× or 2×. UI only. */
   raceSpeed: RaceSpeed;
   /** The human whose "pass the laptop" screen has been acknowledged. */
@@ -56,6 +61,11 @@ export interface GameStore {
   ackPass: (playerId: Id) => void;
   /** The table has read the season's end: on to the off-season. */
   ackSeason: () => void;
+  /** Phase E2: the table has read the arrival, or the locked board. A pass too, when `passTo` is set. */
+  ackArrival: (passTo?: Id) => void;
+  ackBoard: (passTo?: Id) => void;
+  /** Phase E2: after the races, this human takes the laptop to trade before flying on. */
+  tradeAfterRaces: (playerId: Id) => void;
   ackBust: (playerId: Id) => void;
   clearError: () => void;
 }
@@ -71,6 +81,8 @@ export const useGame = create<GameStore>((set, get) => {
       bustAck: g.bustAck,
       raceSpeed: g.raceSpeed,
       seasonSeen: g.seasonSeen,
+      arrivalSeenWeek: g.arrivalSeenWeek,
+      boardSeenWeek: g.boardSeenWeek,
       ...over,
     };
   }
@@ -93,6 +105,9 @@ export const useGame = create<GameStore>((set, get) => {
     fieldsSeenWeek: 0,
     bustAck: [],
     seasonSeen: 0,
+    arrivalSeenWeek: 0,
+    boardSeenWeek: 0,
+    postTrade: null,
     raceSpeed: 2,
     passAck: null,
     hasSave: readSave() !== null,
@@ -114,6 +129,8 @@ export const useGame = create<GameStore>((set, get) => {
           bustAck: [],
           raceSpeed: speed,
           seasonSeen: 0,
+          arrivalSeenWeek: 0,
+          boardSeenWeek: 0,
         },
       });
       set({
@@ -128,6 +145,9 @@ export const useGame = create<GameStore>((set, get) => {
         fieldsSeenWeek: 0,
         bustAck: [],
         seasonSeen: 0,
+        arrivalSeenWeek: 0,
+        boardSeenWeek: 0,
+        postTrade: null,
         passAck: null,
         hasSave: true,
       });
@@ -171,6 +191,9 @@ export const useGame = create<GameStore>((set, get) => {
           fieldsSeenWeek: blob.ui?.fieldsSeenWeek ?? 0,
           bustAck: blob.ui?.bustAck ?? [],
           seasonSeen: blob.ui?.seasonSeen ?? 0,
+          arrivalSeenWeek: blob.ui?.arrivalSeenWeek ?? 0,
+          boardSeenWeek: blob.ui?.boardSeenWeek ?? 0,
+          postTrade: null,
           raceSpeed: speed,
           passAck: null,
           hasSave: true,
@@ -192,6 +215,9 @@ export const useGame = create<GameStore>((set, get) => {
         bustAck: [],
         fieldsSeenWeek: 0,
         seasonSeen: 0,
+        arrivalSeenWeek: 0,
+        boardSeenWeek: 0,
+        postTrade: null,
       });
     },
 
@@ -218,6 +244,10 @@ export const useGame = create<GameStore>((set, get) => {
           error: null,
           hasSave: true,
           ...(moved ? { view: 'hub' as View } : {}),
+          // A trip back to the planet after the races lasts until the stable flies on (Phase E2).
+          ...(next.phase !== 'planetPost' || waitingOn(next) !== beforeWho
+            ? { postTrade: null }
+            : {}),
         });
       } catch (e) {
         set({ error: (e as Error).message });
@@ -260,6 +290,22 @@ export const useGame = create<GameStore>((set, get) => {
       set({ seasonSeen, passAck: null });
       save({ seasonSeen });
     },
+
+    ackArrival: (passTo) => {
+      const st = get().state;
+      const week = st ? weekKey(st) : 0;
+      set({ arrivalSeenWeek: week, ...(passTo ? { passAck: passTo } : {}) });
+      save({ arrivalSeenWeek: week });
+    },
+
+    ackBoard: (passTo) => {
+      const st = get().state;
+      const week = st ? weekKey(st) : 0;
+      set({ boardSeenWeek: week, ...(passTo ? { passAck: passTo } : {}) });
+      save({ boardSeenWeek: week });
+    },
+
+    tradeAfterRaces: (playerId) => set({ postTrade: playerId, view: 'market' }),
 
     ackBust: (playerId) => {
       const bustAck = [...get().bustAck, playerId];

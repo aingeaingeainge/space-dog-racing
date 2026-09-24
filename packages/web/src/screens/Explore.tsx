@@ -5,6 +5,7 @@ import { Notes } from '../components/ui';
 import { doorArt } from '../lib/assets';
 import { useKeys } from '../lib/keys';
 import { useGame } from '../store/gameStore';
+import { LastSlips } from './Results';
 
 /** What each kind of door is called in general, under the planet's own name for it (GDD_V3 §9.1). */
 export const DOOR_KIND: Record<DoorCategory, { label: string; offers: string }> = {
@@ -30,46 +31,49 @@ export function Explore({ s, me }: { s: GameState; me: Player }) {
   useKeys({ '1': () => go(0), '2': () => go(1), '3': () => go(2) });
 
   return (
-    <Panel
-      title={`Explore ${planet.name}`}
-      sub="pick one door — what is behind it is a card, and it is yours alone"
-    >
-      <div className="doors">
-        {planet.exploreDoors.map((d, i) => {
-          const art = doorArt(planet.id, d.category);
-          return (
-            <button key={d.category} className={`door door-${d.category}`} onClick={() => go(i)}>
-              <span className="door-art">
-                {art ? <img src={art.url} alt="" decoding="async" /> : null}
-                {!art || art.placeholder ? <span className="ph">placeholder</span> : null}
-              </span>
-              <span className="door-name">{d.name}</span>
-              <span className="door-kind">
-                {DOOR_KIND[d.category].label} · key {i + 1}
-              </span>
-              <span className="door-blurb">{d.blurb}</span>
-              <span className="door-offers muted">{DOOR_KIND[d.category].offers}</span>
-            </button>
-          );
-        })}
-      </div>
-      <Notes
-        lines={[
-          'Everything unpredictable in the game comes through a door: dogs, tips, money, trouble. Every stable picks one, privately; where two want the same one-of-a-kind thing, the first in the turn order gets it.',
-        ]}
-      />
-      <div className="row">
-        {planet.exploreDoors.map((d, i) => (
-          <NeonButton
-            key={d.category}
-            variant="default"
-            onClick={() => go(i)}
-            title={`key: ${i + 1}`}
-          >
-            {d.name}
-          </NeonButton>
-        ))}
-      </div>
-    </Panel>
+    <>
+      <LastSlips s={s} me={me} />
+      <Panel
+        title={`Explore ${planet.name}`}
+        sub="pick one door — what is behind it is a card, and it is yours alone"
+      >
+        <div className="doors">
+          {planet.exploreDoors.map((d, i) => {
+            const art = doorArt(planet.id, d.category);
+            return (
+              <button key={d.category} className={`door door-${d.category}`} onClick={() => go(i)}>
+                <span className="door-art">
+                  {art ? <img src={art.url} alt="" decoding="async" /> : null}
+                  {!art || art.placeholder ? <span className="ph">placeholder</span> : null}
+                </span>
+                <span className="door-name">{d.name}</span>
+                <span className="door-kind">
+                  {DOOR_KIND[d.category].label} · key {i + 1}
+                </span>
+                <span className="door-blurb">{d.blurb}</span>
+                <span className="door-offers muted">{DOOR_KIND[d.category].offers}</span>
+              </button>
+            );
+          })}
+        </div>
+        <Notes
+          lines={[
+            'Everything unpredictable in the game comes through a door: dogs, tips, money, trouble. Every stable picks one, privately; where two want the same one-of-a-kind thing, the first in the turn order gets it.',
+          ]}
+        />
+        <div className="row">
+          {planet.exploreDoors.map((d, i) => (
+            <NeonButton
+              key={d.category}
+              variant="default"
+              onClick={() => go(i)}
+              title={`key: ${i + 1}`}
+            >
+              {d.name}
+            </NeonButton>
+          ))}
+        </div>
+      </Panel>
+    </>
   );
 }
