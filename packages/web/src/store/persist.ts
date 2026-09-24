@@ -30,6 +30,11 @@ export interface SaveBlob {
 }
 
 /**
+ * 10 for v3 Phase E1. A setup may carry a game `length`, and a log may run through an off-season
+ * (`Retire`, `ResolveStaffNotice`) into a second season. The free local runner is gone and dogs no
+ * longer age at week 7, so a v3d2 log is a different season here; this check sends it to the title
+ * screen. The UI's week marks are `weekKey`s and `seasonSeen` is new — both read as before in season 1.
+ *
  * 9 for v3 Phase D2. Two trainers are dealt to every stable at createSeason, which moves every draw
  * after the deal; the log can carry `ChooseBox`; injury rolls, the stewards and the Race Office's
  * week all draw or set differently. A v3d1 log is a different season here.
@@ -66,7 +71,7 @@ export interface SaveBlob {
  * player on the title screen with a new season rather than half a season that no longer means
  * what it meant.
  */
-export const SAVE_VERSION = 9;
+export const SAVE_VERSION = 10;
 const KEY = 'sdr.save.v1';
 
 export function writeSave(blob: SaveBlob): void {

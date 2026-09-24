@@ -242,7 +242,7 @@ exports[`golden game (seed 42, 6 Normal AIs, two seasons) > matches the golden d
       "playerId": "p6",
     },
   ],
-  "stateHash": "e932ca8b8b444f7f060c6244ca572ad6601dc75506ac56c2ccf78fd3318212e9",
+  "stateHash": "e68d8f282262aaf5f987cdbdb6911e2020807981e8e5078e547116784621fd48",
 }
 `;
 
@@ -611,6 +611,6 @@ exports[`golden season (seed 42, 6 Normal AIs) > matches the golden digest 1`] =
       "playerId": "p4",
     },
   ],
-  "stateHash": "05c3a50c3a1aca9acabb08420ea3dc7c691e26deb1eaa79225c8a2576f9341bc",
+  "stateHash": "777d21bfc53ff5757bd451340d806e85577f08624fda27ccff254711e0cf08ab",
 }
 `;

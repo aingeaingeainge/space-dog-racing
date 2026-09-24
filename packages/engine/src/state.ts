@@ -29,6 +29,13 @@ import type {
 import { ActionError, RACE_TYPE_IDS, STYLE_IDS } from './types';
 
 /**
+ * 11 for v3 Phase E1: a game is one to five seasons or a race to a target. The state carries the
+ * `season`, the game's `length`, an archive of finished `seasons`, `gameOver` and, between seasons,
+ * the `offSeason`; `Action` gains `Retire` and `ResolveStaffNotice`; a phase can be `offSeason` or
+ * `newSeason`. The free local runner is gone (`Dog.loan`, `Player.loanerId`), and the age tick moved
+ * from week 7 to the off-season — so a v3d2 log replays into a different season from week 7 on (and,
+ * wherever a stable was short of fit dogs, from its first Declare).
+ *
  * 10 for v3 Phase D2: a stable carries two `staff` and new season stats (commission, nobbles, fines,
  * boxes, trainer offers); the state carries this weekend's Back Alley `jobs`; a race result carries
  * the `stewards`' findings and a payout its `commission`; `Action` gains `ChooseBox`. The deal draws
@@ -83,7 +90,7 @@ import { ActionError, RACE_TYPE_IDS, STYLE_IDS } from './types';
  * The web save is seed + log (store/persist.ts), which is why SAVE_VERSION moves with it and an
  * old save fails soft to the title screen rather than replaying into a different game.
  */
-export const STATE_VERSION = 10;
+export const STATE_VERSION = 11;
 /**
  * The Major weekends. **One, at week 5 (GDD_V3 §2.1)**, where v2 had three.
  *
