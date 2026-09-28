@@ -1,4 +1,5 @@
 import type { Difficulty, GameLength, PlayerSetup, SeasonSetup, Toggles } from '@sdr/engine';
+import { resolveColours } from './faces';
 
 /**
  * A whole season in a link: `?seed=12345&players=h,normal,normal,hard`.
@@ -28,6 +29,11 @@ export interface SharedSeason {
 /**
  * `h` is human. Hard is spelled out, because `h` cannot mean both — that ambiguity is the one
  * real trap in a scheme this small, so `e`/`n` get shorthand and hard does not.
+ *
+ * Phase J: a human who picked a face is `h` plus the colour's number, 1–8 (`h8` is Pink). A plain
+ * `h` still means "not picked". Parsed leniently: `h` and any one character after it (`h0`, `h9`,
+ * `hx`) is a human, with a pick only for 1–8, so a mistyped digit never drops a seat. `hard` is looked
+ * up first, as an AI token, and stays Hard.
  */
 const AI_TOKENS: Record<string, Difficulty> = {
   e: 'easy',
@@ -46,14 +52,29 @@ const TOGGLE_TOKENS: Record<string, keyof Toggles> = {
 
 const MAX_STABLES = 8;
 
-function tokenFor(p: PlayerSetup): string {
-  if (p.kind === 'human') return 'h';
-  return p.difficulty ?? 'normal';
-}
+const HUMAN_PICK = /^h(.)$/;
 
-/** The roster as a link would spell it, e.g. `h,normal,normal,hard,hard,normal`. */
+/**
+ * The roster as a link would spell it, e.g. `h,normal,normal,hard,hard,normal`, or with faces
+ * `h8,normal,h3,hard` (Phase J).
+ *
+ * A setup that has been played carries an explicit colour on every row (the Title resolves them at
+ * Start), and nothing says which humans picked. So: if the table's colours are exactly what a table
+ * of unpicked humans would get, the link is the short `v3i` spelling, `h` for every human. Otherwise
+ * every human is written with their colour, which `resolveColours` places first on the way back in,
+ * and the AIs then walk to the same colours they had. Either way the link comes back to the colours
+ * the table played with.
+ */
 export function playersParam(players: readonly PlayerSetup[]): string {
-  return players.map(tokenFor).join(',');
+  const unpicked = resolveColours(players.map((p) => ({ kind: p.kind })));
+  const seatOnly = players.every((p, i) => p.colour === undefined || p.colour % 8 === unpicked[i]);
+  return players
+    .map((p) => {
+      if (p.kind !== 'human') return p.difficulty ?? 'normal';
+      if (seatOnly || p.colour === undefined) return 'h';
+      return `h${(p.colour % 8) + 1}`;
+    })
+    .join(',');
 }
 
 /** Only the toggles that are *not* at their defaults, so a default season gets a short link. */
@@ -117,14 +138,25 @@ export function parseSeasonLink(search: string): SharedSeason | null {
   if (!Number.isFinite(seed) || Math.abs(seed) > Number.MAX_SAFE_INTEGER) return null;
 
   const players: PlayerSetup[] = [];
+  const picked = new Set<number>();
   const raw = params.get('players');
   if (raw) {
     for (const part of raw.split(',')) {
       const token = part.trim().toLowerCase();
       if (!token) continue;
-      if (HUMAN_TOKENS.includes(token)) players.push({ name: '', kind: 'human' });
-      else if (AI_TOKENS[token])
-        players.push({ name: '', kind: 'ai', difficulty: AI_TOKENS[token] });
+      const pick = HUMAN_PICK.exec(token);
+      if (AI_TOKENS[token]) players.push({ name: '', kind: 'ai', difficulty: AI_TOKENS[token] });
+      else if (HUMAN_TOKENS.includes(token)) players.push({ name: '', kind: 'human' });
+      else if (pick) {
+        // Phase J: a face the link names is filled in as a pick, as if the human had pressed it. A
+        // digit out of range, or a face another human already holds, reads as a plain `h`.
+        const n = Number(pick[1]);
+        const colour = Number.isInteger(n) && n >= 1 && n <= 8 ? n - 1 : undefined;
+        if (colour !== undefined && !picked.has(colour)) {
+          picked.add(colour);
+          players.push({ name: '', kind: 'human', colour });
+        } else players.push({ name: '', kind: 'human' });
+      }
       if (players.length >= MAX_STABLES) break;
     }
   }

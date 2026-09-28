@@ -95,8 +95,9 @@ export function Title() {
       {shared ? (
         <div className="notice">
           Somebody shared <b>seed {shared.seed}</b> with you
-          {shared.players.length ? ` and a table of ${shared.players.length}` : ''}. It is filled in
-          below — press <b>Start season</b> when you are ready.
+          {shared.players.length ? ` and a table of ${shared.players.length}` : ''}
+          {shared.players.some((p) => p.colour !== undefined) ? ', faces and all' : ''}. It is
+          filled in below — press <b>Start season</b> when you are ready.
           {hasSave ? ' Starting it will replace the season you have saved.' : ''}
         </div>
       ) : null}
