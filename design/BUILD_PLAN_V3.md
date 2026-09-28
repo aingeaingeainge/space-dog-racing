@@ -3,7 +3,7 @@
 > **Status: CURRENT.** Build from this document.
 >
 > Canonical copy: `design/BUILD_PLAN_V3.md` in the `space-dog-racing` repo. A copy in a claude.ai
-> Project is a **mirror**, last synced 28 September 2026 (at `v3g`) — edit the repo, never the mirror. See
+> Project is a **mirror**, last synced 28 September 2026 (at `v3h`) — edit the repo, never the mirror. See
 > `design/CANON.md`.
 >
 > Supersedes `design/BUILD_PLAN.md` from §6 onward. **That document's §§1–5 — architecture, tech
@@ -474,6 +474,37 @@ in a crowd +2.3), but it does not read it yet. Accel over stamina at 480 m is on
 
 **Deliverables:** the flat ceiling as one sheet row; the rule in `maxStakeFor`; Neon Snout's ×2 as a
 planet row; the Bookie and local rules saying the cap; `SAVE_VERSION` 12; a ledger probe.
+
+---
+
+### Phase H — balance pass 2: the season's money (1 session) → `v3h`
+
+> **Status: DONE at `v3h` (28 September 2026). Jesse chose to change nothing.** The phase went after
+> §11's two rows that had been ❌ since `v3e1`: mean end worth (42,334 against 25–40k) and stables
+> ending a season poorer (0.8% against 10–25%). It measured where a Normal stable's money comes from,
+> committed a sweep knob (`--set`), and swept four levers. Only a new kennel rent or dogs eating more
+> food reached both bands. Jesse turned both down: food stays the only running cost at one crate a
+> dog, and a table growing richer together is fine (GDD_V3 V22). No rule, sheet row, golden or save
+> version moved. Notes: `claude/V3_PHASE_H_NOTES.md`.
+>
+> | Measure | Target | `v3h` |
+> |---|---|---|
+> | `--set key=value` on `--seasons` and `--game`, refuses an unknown key | ✅ | `scripts/balance-set.ts`, first import of `harness.ts`; refuses an unknown key, a non-numeric key and a non-number; printed in the header ✅ |
+> | Where the money comes from, worth at weeks 1 / 5 / 10, dog value against cash, losing weeks | measured | 25,558 / 32,476 / 42,334; dogs 17.4k → 18.6k, cash 6.0k → 23.6k; 94% have ≥ 2 losing weeks, 0.8% a losing season ✅ |
+> | Two to three levers, three to five values each, against §11 at one, two and five seasons | swept | four levers: dog value curve, trainers' cuts, crates a dog eats, a kennel rent ✅ |
+> | Mean end worth, all-Normal, one season | 25–40k, or Jesse's call | **42,334, unchanged: Jesse's call (V22)** |
+> | Stables ending a season poorer | 10–25%, or reported with the lever | **0.8%, unchanged**; reached by a 250–350 rent or 3–4 crates, both declined (V22) |
+> | 1st-to-last gap; food share; races entered | still in band | 26,510 (< 63,530); 32.6%; 2.12, unchanged ✅ |
+> | Hard vs Normal (2 Hard + 4 Normal, two seasons) | reported, not tuned | 62.1% → 62.1% (nothing changed) |
+> | Out at week 8 of the last season, five-season games | reported | 48.8% → 48.8% |
+> | Goldens, tests, lint, `season-check`, build, `asset-check` | ✅ | **neither golden moved** (no rule changed); 47 green; clean; passes; ✅; 288 / 0 / 0 |
+> | A `v3g` save | loads, or goes softly to the title | loads: `SAVE_VERSION` stays 12, because a `v3g` log replays into the same game ✅ |
+> | 🎲 Does the table still feel right growing richer together? Is Hard too strong? | 🎲 | **outstanding**: the `v3h` checklist |
+
+**Goal:** find out why nobody goes backwards, and let Jesse decide whether that matters.
+
+**Deliverables:** the `--set` harness knob; the measurement and the sweep, in the notes; the decision in
+GDD_V3 §6.3, §11 and V22.
 
 ---
 

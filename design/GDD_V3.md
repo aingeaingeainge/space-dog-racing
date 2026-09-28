@@ -3,7 +3,7 @@
 > **Status: CURRENT.** Build from this document.
 >
 > Canonical copy: `design/GDD_V3.md` in the `space-dog-racing` repo. A copy in a claude.ai Project
-> is a **mirror**, last synced 28 September 2026 (at `v3g`) — edit the repo, never the mirror. See `design/CANON.md`.
+> is a **mirror**, last synced 28 September 2026 (at `v3h`) — edit the repo, never the mirror. See `design/CANON.md`.
 >
 > Supersedes `design/GDD.md` (v2, shipped at tag `v2e`), which is kept as historical reference and
 > is cited by name throughout this document.
@@ -575,6 +575,11 @@ is v3's entire running cost. There is no upkeep, no fuel, no wages charged in th
 debt, so **food is the only pressure keeping money scarce** — which means the penalty for not paying
 it has to be real, or the market becomes optional and the economy floats away.
 
+*Reaffirmed at `v3h` (V22). Phase H measured two ways to make money scarcer: a per-dog kennel rent, and
+dogs eating three crates a week. Jesse turned both down. Food stays the only running cost, at one crate
+a dog a week. A flat charge "punishes the poorer players the most", and stables growing richer is fine
+"as it is the same for everyone".*
+
 ### 6.4 The decision this creates
 
 Feeding a dog one unit of Ambrosia costs you 720 Bones of opportunity when it is peaked and 90 when
@@ -900,8 +905,8 @@ v2's harness survives and most of its measures still mean something. New and cha
 | Winning margin, median / photo finishes | 4–7 m / ≥ 3% | §14 Q11 · *`v3c2`: 6.3 m / 3.5% (v3c 10.6 m / 1.8%)* |
 | Style expression's share of race variance | below fitness's, above form's | §5.2 — the ±30% must not swamp the stats |
 | Field-shape betting overlay, backing the lone closer blind | below the 15% margin | §5.6 — an edge for a player who reads, not free money |
-| Mean end worth, all-Normal, one season | 25–40k | roughly v2's band on a 10-week season |
-| Stables ending a season on less than they started | 10–25% | there is no bankruptcy; going backwards is the only failure state |
+| Mean end worth, all-Normal, one season | 25–40k | roughly v2's band on a 10-week season · *reported, not tuned, since `v3h` (V22)* |
+| Stables ending a season on less than they started | 10–25% | there is no bankruptcy; going backwards is the only failure state · *reported, not tuned, since `v3h` (V22)* |
 | Explore doors chosen, spread across five categories | none below 12% | a door nobody opens is dead content |
 | Food sold as a share of gross income | 20–35% | the trade is a real road, not a side hustle |
 | Net worth gap, 1st to last, at the end of a season | narrower than v2's | §1's "nobody is out before the end" |
@@ -914,6 +919,25 @@ v2's harness survives and most of its measures still mean something. New and cha
 - *1st-to-last gap at a season's end: 26,510 (62% of the table's mean, 1st/last 1.85×), against
   v2e's 63,530 (195%, 8.16×) ✅.*
 - *Stables mathematically out at week 8 (E7): 0% in a one-season game ✅.*
+
+*Measured at `v3h` (six Normal; 400 one-season games, 200 each at two and five seasons; nothing changed,
+V22):*
+- *Mean end worth, one season: **42,334** (❌ against 25–40k). It starts at 23,631 (6,000 cash, 17,432
+  in dogs) and ends with 18,639 in dogs and 23,602 in cash. Dogs are 44% of end worth but move only
+  +1.2k across a season, so the gain is cash: purses 21,685 gross, the trainers' cut −2,868, trading
+  +3,516, betting −1,072, food eaten −3,231, bills and fines −914.*
+- *Poorer than they started: **0.8%** (❌ against 10–25%). The 10th-percentile stable gains 6,700 a
+  season. 94% of stables have two or more weeks their worth falls (buying cargo), but a losing season
+  needs 7–10k a season taken from everybody.*
+- *Swept with `--set` (Phase H): only a new running cost (a per-dog kennel rent, 250–350 a week) or dogs
+  eating more (3–4 crates a week) reaches the poorer band. A lower dog book value (`valueCurve`
+  1.8 / 1.4 / 1.0) brings worth into band and leaves poorer at 0.6–0.7%. A bigger trainers' cut (×1.5–×3)
+  narrows the gap and is the only lever that moves the long game's out-at-week-8 (48.8% → 36.8% at ×3).
+  **Jesse's call: neither.** Food stays the only running cost at one crate a dog, and both rows stay as
+  they are, **knowingly** — "it doesn't matter if people get a bit richer, as it is the same for
+  everyone" (V22). They are reported, not targets to tune, until he says otherwise.*
+- *Hard vs Normal (2 Hard + 4 Normal, two seasons): 62.1%, reported, not tuned. Out at week 8 of the
+  last season of a five-season game: 48.8%, unchanged.*
 
 ⚠️ **Two v2 measures are retired.** `bankruptRate` has nothing to measure. The three-road printout
 (`trainer` / `trader` / `crook` agents) goes with the three roads — v3 has one road with a trading
@@ -1028,6 +1052,7 @@ All 18 planets survive as data. What changes is which fields do work:
 | 2026-09-25 | **E10 — each season's moments are archived at `finishSeason`, as facts** | `SeasonRecord.moments`: the longest-priced winner, the best slip over its stake (names copied in) and slips struck. Chosen over "the game end shows only the last season's" because each new season clears the results and the book, so a five-season game's end could otherwise tell a fifth of its story. A state change (`STATE_VERSION` 12). The game end reads the archive: winner, reason, whole-game chart with the off-seasons marked, the game's moments, a table of seasons, the whole game's income split, and in a Target game who crossed, whether two crossed together and whether the leader was caught |
 | 2026-09-25 | **E11 — the pace timer is UI-only** | Wall-clock seconds a weekend, arrival to "Fly on", split into private screens, race day, pass screens and the table's own screens, plus the time between seasons. Kept in the save's `ui` block, never in state or the log. A stretch counts ten minutes at most; a hidden window stops it. Read back on the game-end screen. It exists for the four 🎲 rows |
 | 2026-09-28 | **V21 — a flat stake ceiling is back: a stable's stake on one race is the lesser of 50% of cash and 1,000 Bones; Neon Snout doubles it** | Jesse's two-season game at `v3f2` (one human against five AIs): Sly Pete Manx, Hard, won on 285,151 with +197,908 from betting against 55,875 in purses; the best racing stable (13 wins, 5 Gold Cups, the most prize money) finished on 94,054; the other Hard stable lost 19,721 betting. Hard stakes a share of its cash, so its bets compound, and §7.4's 50% could not bind it. BUILD_PLAN_V3 §2.1 cut v2's flat ceiling as a guard against borrowed bankrolls; this one guards against compounding. Jesse's picks: only the cap changes (no odds cap, no change to Hard), one flat number from the sheet, 1,000 from a sweep of none / 1,000 / 1,500 / 2,000 / 3,000 / 5,000 (2 Hard + 4 Normal, two-season games): won by a stable whose betting beat its purses 32.5% → 5.3%, the most-prize stable wins 55.9% → 63.5%, Hard's betting p10/p90 −27,704 / +107,037 → −15,198 / +33,302. Neither golden moved (both are six Normal stables, whose stakes are under 500). `SAVE_VERSION` 12 |
+| 2026-09-28 | **V22 — food stays the only running cost, at one crate a dog a week; §11's end-worth and poorer-than-they-started rows stay out of band, knowingly** | Phase H measured the two rows that had been ❌ since `v3e1`, then swept four levers with the harness's new `--set` (six Normal stables, one season): the dog value curve (2.2 → 1.8 / 1.4 / 1.0), trainers' cuts (×1.5 / ×2 / ×3), crates a dog eats a week (1 → 2 / 3 / 4), and a new kennel rent a dog a week (150 / 250 / 300 / 350). Only the rent (300: 33.7k end worth, 15.2% poorer) and 3–4 crates (3: 34.9k, 11.6%) reached both bands. Jesse turned down both. The rent is "kind of pointless, if anything it punishes the poorer players the most". The extra crates: "leave it at 1 crate a week, it doesn't matter if people get a bit richer, as it is the same for everyone". Nothing changed in the engine or the sheet. The goldens did not move, and `SAVE_VERSION` stays 12. The rows are now reported, not tuned. |
 
 ---
 
