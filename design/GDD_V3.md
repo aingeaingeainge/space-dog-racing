@@ -3,7 +3,7 @@
 > **Status: CURRENT.** Build from this document.
 >
 > Canonical copy: `design/GDD_V3.md` in the `space-dog-racing` repo. A copy in a claude.ai Project
-> is a **mirror**, last synced 29 September 2026 (at `v3i`) — edit the repo, never the mirror. See `design/CANON.md`.
+> is a **mirror**, last synced 29 September 2026 (at `v3j`) — edit the repo, never the mirror. See `design/CANON.md`.
 >
 > Supersedes `design/GDD.md` (v2, shipped at tag `v2e`), which is kept as historical reference and
 > is cited by name throughout this document.
@@ -883,6 +883,15 @@ unpicked humans on their seat index, then the AI rows, so a human's pick beats a
 table nobody touches is exactly as before. The twelve painted owners are not offered: they are the AI
 stables. Colour touches no draw (`test/colour.test.ts`), so a seed link, which carries no colours,
 still replays the game.)*
+
+*(`v3j`: **the faces at the table.** The pass screen shows the next human's face, big, above "Pass to …",
+because it is the one screen read from across the table. A seed link carries the humans' faces: a human
+whose colour is not the one an unpicked human would get is spelled `h1`…`h8` (`h8` is Pink), a plain `h`
+is still "not picked", and the Title fills the picks back in, so the link replays with the colours the
+table played with; `hard` is still Hard. A renamed AI's face is keyed by a hash of its name, not its
+colour, and walks to the next of the twelve painted owners nobody at the table wears, so a human's pick
+never changes an AI's face and no two stables share one. AIs on the list keep their own owners. UI only;
+no decision was needed, so there is no §13 entry.)*
 
 ### 10.1 The click budget
 

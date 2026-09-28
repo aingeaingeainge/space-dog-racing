@@ -20,6 +20,7 @@ document read out of context can still tell you what it is.
 | `design/BUILD_PLAN.md` §6 onward | historical | v1's milestones and v2's five phases, complete through tag `v2e`. §7a's harness methodology still applies. |
 | `design/GDD.md` | historical | v2, shipped at `v2e`. **Do not build from it.** Kept because its measurements and its decision log (D1–D53) are the record of *why* the game works as it does, and GDD_V3 cites it throughout. |
 | `claude/*_NOTES.md`, `claude/*_PROMPT.md` | historical, write-once | The build log, one pair per session. **Write-once from the moment the file lands in this repo**, not from the moment it was drafted — see below. |
+| `design/PLAYTEST_CHECKLIST.md` | **CURRENT** (its top section) | The playtest sheet. At `v3j` it is one evening, with every open 🎲 row mapped to a game. Mirrored to the Project from `v3j`, so it can be read on a phone at the table. |
 | `design/space_dog_racing_economy.xlsx` | **CURRENT** | The source of truth for *numbers*. `packages/engine/src/content/balance.json` is generated from it — never hand-edit the JSON. |
 
 ⚠️ **v2's documents are marked historical but are still referenced.** GDD_V3 leans on v2's measured
@@ -48,7 +49,7 @@ them back to the Project. Update the `last synced` date in the status header whe
 
 ### What can actually drift
 
-Only the markdown documents in `design/` — this file and the four above it. Everything in `claude/`
+Only the markdown documents in `design/` — this file, the four above it, and `PLAYTEST_CHECKLIST.md` since `v3j`. Everything in `claude/`
 is a write-once record of a session that has already happened; the spreadsheet has no Project copy
 at all; and `CLAUDE.md` is deliberately **not** mirrored, because it is read by a builder standing
 in the working tree and a Project copy would be drift surface for no benefit.
@@ -74,6 +75,6 @@ correction goes in the next phase's notes.
 |---|---|---|
 | v1 | `m4` | `design/GDD.md` 0.1, `design/BUILD_PLAN.md` §6 |
 | v2 | `v2a` … `v2e` | `design/GDD.md` 0.2–0.7, `design/BUILD_PLAN.md` §6b |
-| **v3** | `v3a`, `v3b`, `v3c`, `v3c2`, `v3d1`, `v3d2`, `v3e1`, `v3e2`, `v3f1`, `v3f2`, `v3g`, `v3h`, `v3i` | **`design/GDD_V3.md` 3.0, `design/BUILD_PLAN_V3.md`** |
+| **v3** | `v3a`, `v3b`, `v3c`, `v3c2`, `v3d1`, `v3d2`, `v3e1`, `v3e2`, `v3f1`, `v3f2`, `v3g`, `v3h`, `v3i`, `v3j` | **`design/GDD_V3.md` 3.0, `design/BUILD_PLAN_V3.md`** |
 
-Last reviewed and **synced to the claude.ai Project: 29 September 2026**, at `v3i` (Phase I: a human picks their face on the Title, and the draft: the stable last on a season's standings is offered an off-season replacement 15 points above the ordinary, so a long game's back of the table can come back (GDD_V3 V23). Phase E's four-human playtest rows and the F1, `v3g`, `v3h` and `v3i` checklists are outstanding). The Project mirrors match this repo for `CANON.md`, `GDD_V3.md`, `BUILD_PLAN_V3.md`, `BUILD_PLAN.md` and `GDD.md`. `design/ASSET_LIST.md` is not mirrored: it is a working list for the art, read in the repo.
+Last reviewed and **synced to the claude.ai Project: 29 September 2026**, at `v3j` (Phase J: ready for the table. The pass screen shows the next human's face, a seed link carries the humans' faces, a renamed AI's face is keyed by its name, "Copy the report" on the game's end, and `PLAYTEST_CHECKLIST.md` rewritten as one evening that answers every open 🎲 row. No rule changed). The Project mirrors match this repo for `CANON.md`, `GDD_V3.md`, `BUILD_PLAN_V3.md`, `BUILD_PLAN.md`, `GDD.md` and, from `v3j`, `PLAYTEST_CHECKLIST.md`. `design/ASSET_LIST.md` is not mirrored: it is a working list for the art, read in the repo.

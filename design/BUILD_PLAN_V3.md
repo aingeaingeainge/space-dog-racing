@@ -3,7 +3,7 @@
 > **Status: CURRENT.** Build from this document.
 >
 > Canonical copy: `design/BUILD_PLAN_V3.md` in the `space-dog-racing` repo. A copy in a claude.ai
-> Project is a **mirror**, last synced 29 September 2026 (at `v3i`) — edit the repo, never the mirror. See
+> Project is a **mirror**, last synced 29 September 2026 (at `v3j`) — edit the repo, never the mirror. See
 > `design/CANON.md`.
 >
 > Supersedes `design/BUILD_PLAN.md` from §6 onward. **That document's §§1–5 — architecture, tech
@@ -535,6 +535,33 @@ GDD_V3 §6.3, §11 and V22.
 
 **Deliverables:** the face picker; the long-game measures in `harness --game`; the draft's sheet row, rule,
 screen text and `SAVE_VERSION` 13; GDD_V3 §2.2, §10, §11 and V23.
+
+### Phase J — ready for the table (1 session) → `v3j`
+
+> **Status: DONE at `v3j` (29 September 2026).** No rule, sheet row, golden or save version moved. The
+> design is waiting on people, so Phase J makes one evening with friends answer as many 🎲 rows as it
+> can. Two parts. **Hotseat polish:** the pass screen shows the next human's face; a seed link carries
+> the humans' faces (`h1`…`h8`); a renamed AI's face is keyed by its name and never shared at the table.
+> **The evening:** a "Copy the report" button on the game's end (the build, the link, the table, the
+> result, the clock, each season's draft, as plain text), and `design/PLAYTEST_CHECKLIST.md` rewritten
+> as one ordered evening of three games, with every open 🎲 row mapped to the game that answers it.
+> Notes: `claude/V3_PHASE_J_NOTES.md`.
+>
+> | Measure | Target | `v3j` |
+> |---|---|---|
+> | The pass screen shows the next human's face | ✅, 4 and 8 humans, 1280 and 390 | ✅ `shots/j-pass-{4h,8h}-*` |
+> | A seed link carries picked faces and round-trips them; a `v3i` link parses as before; `hard` is Hard | ✅ | 1, 4, 8 humans, with and without picks: 3,006 checks, 0 failures ✅ |
+> | A renamed AI's face is keyed by its name, never shared; unrenamed AIs unchanged | ✅ | 3, 6, 8 stables × 300 seeds × 0–3 renamed: 24,800 checks, 0 failures ✅ |
+> | "Copy the report": link, table, result, clock, each season's draft, plain text; fails soft | ✅ | ✅ clipboard read back; a refused clipboard opens a text box ✅ |
+> | The playtest sheet is one evening, ordered, every open 🎲 row mapped | ✅ | 27 rows, three games, ≤ 8 questions a game ✅ |
+> | No engine change; goldens; `SAVE_VERSION`; tests; lint; `season-check`; build; `asset-check` | ✅ | `git diff v3i -- packages/engine/src design/*.xlsx` empty; `41a8c8b5…` / `d4bb14c3…` unmoved; 13; **51 green**; clean; passes; ✅; 288 / 0 / 0 |
+> | `hub-clicks`; the table walk; `harness --seasons 50` | unchanged | 9.4; 10.7 / 22.4; identical to `v3i` ✅ |
+> | 🎲 **Every row still open** | 🎲 | **outstanding**: `design/PLAYTEST_CHECKLIST.md`, "v3 Phase J — the evening" |
+
+**Goal:** one evening with friends answers as many 🎲 rows as possible, and comes back as text.
+
+**Deliverables:** the pass screen's face; faces in a seed link; a renamed AI's face by its name;
+"Copy the report"; the evening's sheet; GDD_V3 §10's note.
 
 ---
 

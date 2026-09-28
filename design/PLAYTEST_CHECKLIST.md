@@ -1,5 +1,10 @@
 # Space Dog Racing — playtest checklist
 
+> **Status: CURRENT (the top section).** Canonical copy: `design/PLAYTEST_CHECKLIST.md` in the
+> `space-dog-racing` repo. A copy in a claude.ai Project is a **mirror**, last synced 29 September
+> 2026 (at `v3j`), for reading on a phone at the table — edit the repo, never the mirror. See
+> `design/CANON.md`.
+
 > **Current section: "v3 Phase J — the evening", directly below.** It is one plan for one evening with
 > friends, written at tag `v3j`, and it carries every 🎲 row still open. Below it, kept as the record:
 > **"v3 Phase E2 — the table"** (the `v3e2` checklist, superseded by this one; nothing in it was
@@ -59,6 +64,9 @@ row 14); `v3e2` Q1 and Q3 (the clock and the report now carry them).
 - Nothing to start or stop: the game times itself. **The clock stops while the window is hidden** and
   counts at most ten minutes on one screen, so dinner in the middle is fine.
 - AI stables fill a table out, but rows 1–3 are about people passing a laptop: count only the humans.
+- **Leave the AI rows' names blank.** An AI the table names draws its personality from the game's
+  stream, and a seed link carries no names, so that game's link would not replay it. Humans can be
+  called anything.
 
 ### How the evening comes back
 
