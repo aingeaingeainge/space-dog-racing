@@ -3,7 +3,7 @@
 > **Status: CURRENT.** Build from this document.
 >
 > Canonical copy: `design/BUILD_PLAN_V3.md` in the `space-dog-racing` repo. A copy in a claude.ai
-> Project is a **mirror**, last synced 25 September 2026 (at `v3f2`) — edit the repo, never the mirror. See
+> Project is a **mirror**, last synced 28 September 2026 (at `v3g`) — edit the repo, never the mirror. See
 > `design/CANON.md`.
 >
 > Supersedes `design/BUILD_PLAN.md` from §6 onward. **That document's §§1–5 — architecture, tech
@@ -442,6 +442,38 @@ in a crowd +2.3), but it does not read it yet. Accel over stamina at 480 m is on
 | `asset-check` | 0 stand-ins, 0 missing, nothing over cap |
 | Neither golden moves | ✅ — art is data the engine never reads |
 | Checked where each piece is seen, desktop and phone | ✅ |
+
+---
+
+### Phase G — balance: a stake cap a rich stable hits (1 session) → `v3g`
+
+> **Status: DONE at `v3g` (28 September 2026).** The first balance phase since the art, and it came
+> from Jesse's own game: a two-season game, one human against five AIs (two Hard), won by a Hard
+> stable on **+197,908 at the bookie** while the best racing stable (13 wins, 5 Gold Cups, the most
+> prize money) finished on a third of its worth. Hard stakes a share of its cash, so its bets
+> compound, and §7.4's 50%-of-cash cap could not bind it. §2.1 had cut v2's flat ceiling as a guard
+> against borrowed bankrolls; Phase G puts one back as a guard against compounding (GDD_V3 V21).
+> Notes: `claude/V3_PHASE_G_NOTES.md`.
+>
+> | Measure | Target | `v3g` |
+> |---|---|---|
+> | A stable's stake on a race is the lesser of 50% of cash and the flat ceiling; Neon Snout's is 2× | ✅, `maxStakeFor`, from the sheet and a planet row | `maxStake` row under Betting; `maxStakeMultiplier: 2` on Neon Snout ✅ |
+> | The ceiling | Jesse's pick from the sweep | **1,000** (Neon Snout 2,000) ✅ |
+> | Won by a stable whose betting beat its purses, 2 Hard + 4 Normal, two seasons | well under today's | 32.5% → **5.3%**; betting's share of the winner's income 28.8% → 15.8% ✅ |
+> | The stable with the most prize money wins | more often than today | 55.9% → **63.5%** (5 seasons 61.7% → 74.7%) ✅ |
+> | Hard's betting total, p10 / p90 | much narrower | −27,704 / +107,037 → **−15,198 / +33,302** ✅ |
+> | Mean end worth, all-Normal, one season | 25–40k | 42,170, unchanged — Normal's stakes are under the ceiling (❌ since `v3e1`, not this phase's) |
+> | Hard vs Normal | reported, not tuned | 3 v 3, one season 49.7% → 54.0%; 2 v 4, two seasons 50.6% → 62.1% |
+> | The Bookie says the cap a player has; Neon Snout says its doubled ceiling | ✅, 1280 and 390 | "max stake 1,000 Bones a race"; "Stake ceiling ×2: 2,000 Bones a race" ✅ |
+> | Food bought and fed is counted once on the ledger | ✅, probed | counted once — the markup on food eaten stays in Trading ✅ |
+> | A `v3f2` save goes softly to the title screen | ✅ | `SAVE_VERSION` 12, a v11 blob reads null ✅ |
+> | Goldens, tests, lint, `season-check`, build, `asset-check` | ✅ | **neither golden moved** (both are six Normal; see the notes); 47 green; clean; passes; ✅; 288 / 0 / 0 |
+> | 🎲 A big bet still feels worth making; the best racing stable wins; the cap is clear; Neon Snout is still the place for a big bet | 🎲 | **outstanding** — the `v3g` checklist |
+
+**Goal:** betting is a sideline again, not the way to win the game.
+
+**Deliverables:** the flat ceiling as one sheet row; the rule in `maxStakeFor`; Neon Snout's ×2 as a
+planet row; the Bookie and local rules saying the cap; `SAVE_VERSION` 12; a ledger probe.
 
 ---
 

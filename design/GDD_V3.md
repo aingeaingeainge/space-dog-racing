@@ -3,7 +3,7 @@
 > **Status: CURRENT.** Build from this document.
 >
 > Canonical copy: `design/GDD_V3.md` in the `space-dog-racing` repo. A copy in a claude.ai Project
-> is a **mirror**, last synced 25 September 2026 (at `v3f1`) — edit the repo, never the mirror. See `design/CANON.md`.
+> is a **mirror**, last synced 28 September 2026 (at `v3g`) — edit the repo, never the mirror. See `design/CANON.md`.
 >
 > Supersedes `design/GDD.md` (v2, shipped at tag `v2e`), which is kept as historical reference and
 > is cited by name throughout this document.
@@ -653,11 +653,17 @@ into the Gold Cup can see two front-runners already in it and put their closer i
 ### 7.4 Betting
 
 Win and Place, any race, any dog, including your own. `odds = (1 − margin) / p`. Margin 15% ⚖️
-(10% on Neon Snout; no betting on Holy Bark). **Max stake 50% of cash** ⚖️.
+(10% on Neon Snout; no betting on Holy Bark). **A stable's stake on one race — every slip it has on
+that race together — is capped at the lesser of 50% of its cash and a flat 1,000 Bones** ⚖️. Neon
+Snout doubles the flat ceiling to 2,000; Collar Prime's fraction is 100% of cash, under the same
+1,000. The fraction protects a poor stable, the ceiling stops a rich one, and an AI is capped by the
+same rule as a human.
 
-No flat stake ceiling is needed — v2 added one because the crook could borrow a bankroll, and there
-is no borrowing in v3. Bets are always affordable by construction, which is part of how the game
-avoids debt.
+*This read "No flat stake ceiling is needed": v2's went because the crook could borrow a bankroll,
+and with no borrowing bets are affordable by construction. That is still true, and it was not
+enough — a share-of-cash stake compounds for a rich stable, and a fractional ceiling cannot bind a
+stable whose cash has grown. Jesse's two-season game at `v3f2` was won at the bookie. The ceiling is
+back as V21, and it is about compounding, not debt.*
 
 ### 7.5 Watching
 
@@ -931,6 +937,10 @@ All 18 planets survive as data. What changes is which fields do work:
   styles interact with it: a tight-bend track favours a front-runner who gets the rail, a long
   straight favours a closer.
 - **`marketBias`**, ship shops, banks, sharks, staff halls and the supplement rules are **cut**.
+- **The book's specials stay, as planet rows:** Neon Snout, the casino moon, has a 10% margin and
+  **twice the flat stake ceiling** (`maxStakeMultiplier: 2`, V21) — still the place for a big bet,
+  not an unlimited one; Collar Prime lets a stable stake all its cash, up to the ceiling; Holy Bark
+  has no betting.
 
 ---
 
@@ -1017,6 +1027,7 @@ All 18 planets survive as data. What changes is which fields do work:
 | 2026-09-25 | **E9 — the off-season is a long rest: every dog starts a new season on `seasonStartFitness` (100), with no layoff** | Jesse's call. A sheet row. The two-season golden moved; the one-season golden did not. 5-season games: races entered in seasons 2–5 went 1.89/1.88/1.86/1.86 → 2.12/2.09/2.06/2.04; mean worth at the end of season 5 136,740 → 147,689; poorer than they began 0.6% → 0.6%; out at week 8 of the last season 42.2% → 48.8%. Nothing tuned |
 | 2026-09-25 | **E10 — each season's moments are archived at `finishSeason`, as facts** | `SeasonRecord.moments`: the longest-priced winner, the best slip over its stake (names copied in) and slips struck. Chosen over "the game end shows only the last season's" because each new season clears the results and the book, so a five-season game's end could otherwise tell a fifth of its story. A state change (`STATE_VERSION` 12). The game end reads the archive: winner, reason, whole-game chart with the off-seasons marked, the game's moments, a table of seasons, the whole game's income split, and in a Target game who crossed, whether two crossed together and whether the leader was caught |
 | 2026-09-25 | **E11 — the pace timer is UI-only** | Wall-clock seconds a weekend, arrival to "Fly on", split into private screens, race day, pass screens and the table's own screens, plus the time between seasons. Kept in the save's `ui` block, never in state or the log. A stretch counts ten minutes at most; a hidden window stops it. Read back on the game-end screen. It exists for the four 🎲 rows |
+| 2026-09-28 | **V21 — a flat stake ceiling is back: a stable's stake on one race is the lesser of 50% of cash and 1,000 Bones; Neon Snout doubles it** | Jesse's two-season game at `v3f2` (one human against five AIs): Sly Pete Manx, Hard, won on 285,151 with +197,908 from betting against 55,875 in purses; the best racing stable (13 wins, 5 Gold Cups, the most prize money) finished on 94,054; the other Hard stable lost 19,721 betting. Hard stakes a share of its cash, so its bets compound, and §7.4's 50% could not bind it. BUILD_PLAN_V3 §2.1 cut v2's flat ceiling as a guard against borrowed bankrolls; this one guards against compounding. Jesse's picks: only the cap changes (no odds cap, no change to Hard), one flat number from the sheet, 1,000 from a sweep of none / 1,000 / 1,500 / 2,000 / 3,000 / 5,000 (2 Hard + 4 Normal, two-season games): won by a stable whose betting beat its purses 32.5% → 5.3%, the most-prize stable wins 55.9% → 63.5%, Hard's betting p10/p90 −27,704 / +107,037 → −15,198 / +33,302. Neither golden moved (both are six Normal stables, whose stakes are under 500). `SAVE_VERSION` 12 |
 
 ---
 
