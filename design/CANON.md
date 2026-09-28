@@ -74,6 +74,6 @@ correction goes in the next phase's notes.
 |---|---|---|
 | v1 | `m4` | `design/GDD.md` 0.1, `design/BUILD_PLAN.md` §6 |
 | v2 | `v2a` … `v2e` | `design/GDD.md` 0.2–0.7, `design/BUILD_PLAN.md` §6b |
-| **v3** | `v3a`, `v3b`, `v3c`, `v3c2`, `v3d1`, `v3d2`, `v3e1`, `v3e2`, `v3f1`, `v3f2`, `v3g`, `v3h` | **`design/GDD_V3.md` 3.0, `design/BUILD_PLAN_V3.md`** |
+| **v3** | `v3a`, `v3b`, `v3c`, `v3c2`, `v3d1`, `v3d2`, `v3e1`, `v3e2`, `v3f1`, `v3f2`, `v3g`, `v3h`, `v3i` | **`design/GDD_V3.md` 3.0, `design/BUILD_PLAN_V3.md`** |
 
-Last reviewed and **synced to the claude.ai Project: 28 September 2026**, at `v3h` (Phase H: a `--set` sweep knob for the harness, and a measured decision to change nothing. Food stays the only running cost, and §11's end-worth and poorer rows are reported, not tuned (V22). Phase E's four-human playtest rows, the F1 checklist and the `v3g` and `v3h` checklists are outstanding). The Project mirrors match this repo for `CANON.md`, `GDD_V3.md`, `BUILD_PLAN_V3.md`, `BUILD_PLAN.md` and `GDD.md`. `design/ASSET_LIST.md` is not mirrored: it is a working list for the art, read in the repo.
+Last reviewed and **synced to the claude.ai Project: 29 September 2026**, at `v3i` (Phase I: a human picks their face on the Title, and the draft: the stable last on a season's standings is offered an off-season replacement 15 points above the ordinary, so a long game's back of the table can come back (GDD_V3 V23). Phase E's four-human playtest rows and the F1, `v3g`, `v3h` and `v3i` checklists are outstanding). The Project mirrors match this repo for `CANON.md`, `GDD_V3.md`, `BUILD_PLAN_V3.md`, `BUILD_PLAN.md` and `GDD.md`. `design/ASSET_LIST.md` is not mirrored: it is a working list for the art, read in the repo.

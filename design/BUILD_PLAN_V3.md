@@ -3,7 +3,7 @@
 > **Status: CURRENT.** Build from this document.
 >
 > Canonical copy: `design/BUILD_PLAN_V3.md` in the `space-dog-racing` repo. A copy in a claude.ai
-> Project is a **mirror**, last synced 28 September 2026 (at `v3h`) — edit the repo, never the mirror. See
+> Project is a **mirror**, last synced 29 September 2026 (at `v3i`) — edit the repo, never the mirror. See
 > `design/CANON.md`.
 >
 > Supersedes `design/BUILD_PLAN.md` from §6 onward. **That document's §§1–5 — architecture, tech
@@ -505,6 +505,36 @@ planet row; the Bookie and local rules saying the cap; `SAVE_VERSION` 12; a ledg
 
 **Deliverables:** the `--set` harness knob; the measurement and the sweep, in the notes; the decision in
 GDD_V3 §6.3, §11 and V22.
+
+### Phase I — a human picks their face, then the long game (1 session) → `v3i`
+
+> **Status: DONE at `v3i` (29 September 2026).** Two parts. **The face picker:** a human chooses one of
+> the eight human faces on the Title, and the pick is the row's saddle-cloth colour (GDD_V3 §10). **The
+> long game:** E7's 48.8% out at week 8 of a five-season game's last season was measured against
+> pillar 5's own question. At the last season's *start* only 0.8% are out, but the back of the table did
+> not come back, because its dogs were worse. Three levers were swept; Jesse picked **the draft**: the
+> stable last on a season's standings is offered an off-season replacement 15 points above the
+> ordinary (GDD_V3 §2.2, V23). Notes: `claude/V3_PHASE_I_NOTES.md`.
+>
+> | Measure | Target | `v3i` |
+> |---|---|---|
+> | A human picks one of eight faces on the Title; the pick sets their colour | ✅, 1 / 4 / 8 humans, 1280 and 390 | ✅ `shots/title-*` |
+> | No two humans share a face; a human's pick beats an AI's seat colour; defaults unchanged | ✅ | `resolveColours`: picks, then unpicked humans, then AIs; a table nobody touches is colour = seat ✅ |
+> | Colour touches no draw | proven | `test/colour.test.ts`: four humans, two seasons, default vs permuted colours, same log and state ✅ |
+> | A resumed game keeps the face; an old save loads | ✅ | resumed ✅; a colour-less setup still means seat index; a `v3h` save goes to the title (`SAVE_VERSION` 13, for the draft) |
+> | Picker keyboard- and screen-reader-usable | ✅ | buttons named "Red — goggled pilot"; taken faces `aria-disabled` and name the holder; focus in, Escape out ✅ |
+> | The long game measured: E7, E7 at the last season's start, comebacks, the richer half's ledger | ✅ | 48.8% / 0.8%; last → top 3 from season 3 12%; the richer half's extra is purses from better dogs ✅ |
+> | Two or three levers swept, Jesse asked one question | ✅ | trainers' cut, last arrives first, the draft; **the draft at +15** |
+> | Out at week 8, last season, 5-season games | before → after | 48.8% → **41.3%** |
+> | Comebacks, 5-season games | reported | last → top 3 from s3 / s4 / s5: 12 / 7.5 / 3% → **31 / 18.5 / 6%**; last wins the last season 6% → 14% |
+> | Hard vs Normal; §11's one-season rows | before → after | 62.1% → 61.6%; one season untouched: 42,334, 0.8%, 26,510, 32.8%, 2.12 |
+> | Goldens once, in the rule's commit; tests; lint; `season-check`; build; `asset-check` | ✅ | both moved in `484f308` (the one-season golden only by `STATE_VERSION` 13 in its hash); 51 green; clean; passes; ✅; 288 / 0 / 0 |
+> | 🎲 Does the trailing stable still have something to play for in a long game's last season? | 🎲 | **outstanding**: the `v3i` checklist |
+
+**Goal:** let a human be themselves at the table, and give a long game's back of the table a way back.
+
+**Deliverables:** the face picker; the long-game measures in `harness --game`; the draft's sheet row, rule,
+screen text and `SAVE_VERSION` 13; GDD_V3 §2.2, §10, §11 and V23.
 
 ---
 

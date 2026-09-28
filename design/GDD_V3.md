@@ -3,7 +3,7 @@
 > **Status: CURRENT.** Build from this document.
 >
 > Canonical copy: `design/GDD_V3.md` in the `space-dog-racing` repo. A copy in a claude.ai Project
-> is a **mirror**, last synced 28 September 2026 (at `v3h`) — edit the repo, never the mirror. See `design/CANON.md`.
+> is a **mirror**, last synced 29 September 2026 (at `v3i`) — edit the repo, never the mirror. See `design/CANON.md`.
 >
 > Supersedes `design/GDD.md` (v2, shipped at tag `v2e`), which is kept as historical reference and
 > is cited by name throughout this document.
@@ -153,6 +153,14 @@ set to `seasonStartFitness` (100) and any layoff clears, so step 4's "carry over
 covers fitness. Races entered in seasons 2–5 went from about 1.87 a weekend to 2.04–2.12, level with
 season 1. The season's end is now a real screen (E10): podium, where the money came from, the chart
 and the moments, then "On to season N".*
+
+*`v3i` (V23, Jesse's call): **the draft.** Step 2's replacement is rolled `draftLevelShift` (15) points
+above the ordinary offer for **the stable last on the season's standings** (§2.4's order, the one the
+season's end shows). Everyone else's offer, and every other draw, is unchanged. It is still an offer:
+the stable sees the age, one true stat and the patter, and can keep them all. The season's end names
+who gets it ("Last at the table: … gets the breeder's pick"), and their retirement window says why.
+Why dogs: in a long game the back of the table stayed at the back because its dogs were worse, not
+because it had less cash (§11, `v3i`).*
 
 ### 2.3 The weekend
 
@@ -868,6 +876,14 @@ Down from eleven to seven. The Docks and the Saloon are gone entirely.
 *(Phase F1: a human stable has a face too — one of eight, keyed by its saddle-cloth colour, the
 colour worn at the neck or on the head. UI only; the engine knows nothing of it.)*
 
+*(`v3i`: **a human picks their face on the Title.** A human row shows its face, and pressing it opens the
+eight. Picking one sets the row's `PlayerSetup.colour`, so a face and a colour are the same choice and
+nothing new is stored. A face another human holds is shown taken. Humans' picks are placed first, then
+unpicked humans on their seat index, then the AI rows, so a human's pick beats an AI's seat colour and a
+table nobody touches is exactly as before. The twelve painted owners are not offered: they are the AI
+stables. Colour touches no draw (`test/colour.test.ts`), so a seed link, which carries no colours,
+still replays the game.)*
+
 ### 10.1 The click budget
 
 v2 measured 13.3–14.3 decisions a weekend for one player and treated 14.5 as a ceiling. **v3's
@@ -910,6 +926,9 @@ v2's harness survives and most of its measures still mean something. New and cha
 | Explore doors chosen, spread across five categories | none below 12% | a door nobody opens is dead content |
 | Food sold as a share of gross income | 20–35% | the trade is a real road, not a side hustle |
 | Net worth gap, 1st to last, at the end of a season | narrower than v2's | §1's "nobody is out before the end" |
+| Out at the start of a long game's last season (E7's test with the whole season's purses left) | reported · *`v3i`: 0.1%* | pillar 5: nobody is out before the end *(V23)* |
+| The poorest stable at the start of season 3 finishes a 5-season game in the top 3 | reported · *`v3i`: 31% (chance 50%)* | pillar 5: the back of the table can come back *(V23)* |
+| The poorest stable at the last season's start has that season's biggest gain | reported · *`v3i`: 14% (chance 17%)* | pillar 5: "something interesting on week 9" *(V23)* |
 | Seed + action log reproduces a game | exactly, on any JS engine | unchanged and non-negotiable |
 
 *Measured at `v3e1` (`--game`, six Normal):*
@@ -938,6 +957,23 @@ V22):*
   everyone" (V22). They are reported, not targets to tune, until he says otherwise.*
 - *Hard vs Normal (2 Hard + 4 Normal, two seasons): 62.1%, reported, not tuned. Out at week 8 of the
   last season of a five-season game: 48.8%, unchanged.*
+
+*Measured at `v3i` (`--game`, six Normal; 200 games a mode; the long-game rows are new at `v3i`):*
+- *E7's week-8 test in the last season of a 5-season game read 48.8% at `v3h`. Run at the **start** of
+  that season, with the whole season's first-place purses left, it read 0.8%. So most of the 48.8% is
+  the window: three weeks of purses set against a lead built over four and a half seasons.*
+- *But the back of the table did not come back. The poorest stable at the start of season 3 finished a
+  5-season game in the top 3 12% of the time (chance is 50%), and the poorest at the last season's start
+  had that season's biggest gain 6% of the time (chance 17%). The richer half gained 7.1k more a season,
+  almost all of it purses (+8.9k gross), from better dogs (rating at declaration 55.3 against 52.7).
+  Trading, betting, cash in hand and trainers were level between the halves.*
+- *Swept: trainers' cuts ×1.5–×3 (out at week 8 48.8% → 36.8%, comebacks unchanged); the stable last on
+  the leaderboard arriving first (+3, +6, always: comebacks up to 31% and the one-season gap down to 24k);
+  and a draft for the last stable's off-season offer (+8, +15, +25, and +15 for the bottom three).
+  **Jesse picked the draft at +15 (V23).** 5-season games at `v3i`: out at week 8 of the last season
+  **41.3%**; at its start 0.1%; last → top 3 from seasons 3 / 4 / 5: 31% / 18.5% / 6%; the last season's
+  leader overtaken 29% (22%); last wins the last season 14%; 1st-to-last gap 60,868 (67,668). One-season
+  games are untouched (42,334, 0.8% poorer, gap 26,510). Hard vs Normal 62.1% → 61.6%.*
 
 ⚠️ **Two v2 measures are retired.** `bankruptRate` has nothing to measure. The three-road printout
 (`trainer` / `trader` / `crook` agents) goes with the three roads — v3 has one road with a trading
@@ -1053,6 +1089,7 @@ All 18 planets survive as data. What changes is which fields do work:
 | 2026-09-25 | **E11 — the pace timer is UI-only** | Wall-clock seconds a weekend, arrival to "Fly on", split into private screens, race day, pass screens and the table's own screens, plus the time between seasons. Kept in the save's `ui` block, never in state or the log. A stretch counts ten minutes at most; a hidden window stops it. Read back on the game-end screen. It exists for the four 🎲 rows |
 | 2026-09-28 | **V21 — a flat stake ceiling is back: a stable's stake on one race is the lesser of 50% of cash and 1,000 Bones; Neon Snout doubles it** | Jesse's two-season game at `v3f2` (one human against five AIs): Sly Pete Manx, Hard, won on 285,151 with +197,908 from betting against 55,875 in purses; the best racing stable (13 wins, 5 Gold Cups, the most prize money) finished on 94,054; the other Hard stable lost 19,721 betting. Hard stakes a share of its cash, so its bets compound, and §7.4's 50% could not bind it. BUILD_PLAN_V3 §2.1 cut v2's flat ceiling as a guard against borrowed bankrolls; this one guards against compounding. Jesse's picks: only the cap changes (no odds cap, no change to Hard), one flat number from the sheet, 1,000 from a sweep of none / 1,000 / 1,500 / 2,000 / 3,000 / 5,000 (2 Hard + 4 Normal, two-season games): won by a stable whose betting beat its purses 32.5% → 5.3%, the most-prize stable wins 55.9% → 63.5%, Hard's betting p10/p90 −27,704 / +107,037 → −15,198 / +33,302. Neither golden moved (both are six Normal stables, whose stakes are under 500). `SAVE_VERSION` 12 |
 | 2026-09-28 | **V22 — food stays the only running cost, at one crate a dog a week; §11's end-worth and poorer-than-they-started rows stay out of band, knowingly** | Phase H measured the two rows that had been ❌ since `v3e1`, then swept four levers with the harness's new `--set` (six Normal stables, one season): the dog value curve (2.2 → 1.8 / 1.4 / 1.0), trainers' cuts (×1.5 / ×2 / ×3), crates a dog eats a week (1 → 2 / 3 / 4), and a new kennel rent a dog a week (150 / 250 / 300 / 350). Only the rent (300: 33.7k end worth, 15.2% poorer) and 3–4 crates (3: 34.9k, 11.6%) reached both bands. Jesse turned down both. The rent is "kind of pointless, if anything it punishes the poorer players the most". The extra crates: "leave it at 1 crate a week, it doesn't matter if people get a bit richer, as it is the same for everyone". Nothing changed in the engine or the sheet. The goldens did not move, and `SAVE_VERSION` stays 12. The rows are now reported, not tuned. |
+| 2026-09-29 | **V23 — the draft: at the off-season, the stable last on the season's standings is offered a replacement 15 points above the ordinary** | Phase I measured the long game. E7's 48.8% (week 8, last season, 5-season games) is mostly the window: at the last season's start only 0.8% are out. But the back of the table did not come back (the poorest at season 3's start finished top 3 in 12% of games, against 50% by chance), and the reason was dogs: the richer half declared dogs rated 2.6 higher and won 8.9k more in purses a season, with trading, betting, cash and trainers level. Swept with `--set` and two scratch rules: trainers' cuts ×1.5 / ×2 / ×3; the last stable arriving first (+3 / +6 / always); the draft (+8 / +15 / +25 / +15 for the bottom three). Jesse's pick: **the draft at +15**, a sheet row (`draftLevelShift`). It goes at the cause, it is an offer the stable reads and can decline (pillar 2), and it only touches games with an off-season. Last → top 3 from season 3: 12% → 31%; last wins the last season 6% → 14%; out at week 8 of the last season 48.8% → 41.3%. E7 is kept as defined, alongside three new reported rows in §11. Both goldens moved (the one-season golden only by `STATE_VERSION` 13 in its hash); `SAVE_VERSION` 13 |
 
 ---
 
