@@ -1,7 +1,7 @@
 /**
  * `npm run harness -- --game` — whole games (BUILD_PLAN_V3 Phase E, v3 Phase E1 item 5).
  *
- *   npm run harness -- --game [--games 200] [--ai normal,normal,…] [--seed 1]
+ *   npm run harness -- --game [--games 200] [--ai normal,normal,…] [--seed 1] [--set key=value …]
  *
  * Plays full games at **1, 3 and 5 seasons** and in **Target mode** at both suggested targets, six
  * Normal stables unless `--ai` says otherwise, and reports every row of Phase E1's acceptance table
@@ -15,6 +15,7 @@
  * under the leader's net worth. It ignores trading and betting, which can make anything possible, so
  * it is a *purse* definition: a stable that is out could still win only by the market or the bookie.
  */
+import { overridesLine } from './balance-set';
 import { balance } from '../src/content/balance';
 import { planetOf } from '../src/content/planets';
 import { CARD, raceType } from '../src/content/raceTypes';
@@ -199,8 +200,9 @@ export function runGames(games: number, seed: number, ai: AiAgent[]): string {
   ];
   out.push(
     `Space Dog Racing — whole games (Phase E1), stables: ${ai.join(', ')}, seeds from ${seed}`,
-    '',
   );
+  if (overridesLine()) out.push(overridesLine());
+  out.push('');
 
   const all: { mode: ModeRow; obs: GameObs[]; ms: number }[] = [];
   for (const mode of modes) {

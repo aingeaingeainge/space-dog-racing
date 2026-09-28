@@ -14,6 +14,8 @@
  *   npm run harness -- --game [--games 200]   # Phase E1: whole games at 1/3/5 seasons and both targets
  *   npm run harness -- --explore --seasons 400   # Phase D1: doors, the deck's outcomes, dog offers,
  *                                        # lies, the race-day tip rows and the Bar's shelf
+ *   … --set key=value [--set key=value …]   # Phase H: override a numeric balance key for this run
+ *                                        # only, on any mode (see balance-set.ts); printed in the header
  *
  * The standard printout carries **BUILD_PLAN_V3 Phase B's market rows** — food as a share of gross,
  * the cash-bound → hold-bound crossover week, the p99 best trading leg against mean end worth, the
@@ -35,6 +37,8 @@
  * the harness steps the season the way `drive()` does and samples the state at the instant
  * declarations lock, which costs nothing and leaves the engine alone.
  */
+// ⚠️ First, before anything that reads `balance` at load: `--set` writes its overrides on import.
+import { overridesLine } from './balance-set';
 import { balance } from '../src/content/balance';
 import { GOODS, good } from '../src/content/goods';
 import { createDog, fitRating } from '../src/economy/dogs';
@@ -148,6 +152,8 @@ function parseArgs(argv: string[]): Args {
     else if (a === '--game') args.game = true;
     else if (a === '--games') args.games = Number(next());
     else if (a === '--quiet') args.quiet = true;
+    // Applied already, at import, by balance-set.ts; step over its value.
+    else if (a === '--set') next();
     else throw new Error(`Unknown flag ${a}. See the usage block at the top of this file.`);
   }
   return args;
@@ -1046,6 +1052,7 @@ export function runHarness(args: Args): string {
   lines.push(
     `Space Dog Racing harness — ${args.seasons} seasons, stables: ${args.ai.join(', ')}, seeds ${args.seed}…${args.seed + args.seasons - 1}`,
   );
+  if (overridesLine()) lines.push(overridesLine());
   lines.push(
     `Elapsed ${elapsed.toFixed(1)} s (${((elapsed / args.seasons) * 1000).toFixed(0)} ms/season, ${fmt(actions / args.seasons)} actions/season)`,
   );
@@ -2693,6 +2700,10 @@ export function runExplore(seasons = 400, seed = 1): string {
 
 function main() {
   const args = parseArgs(process.argv.slice(2));
+  // The plain run and --game print the overrides in their own headers; every other mode says so here.
+  const plain = !(args.calibrate || args.stats || args.autoplan || args.styles || args.explore);
+  if (overridesLine() && !args.game && !(plain && !args.hardD2 && !args.hardAblation))
+    console.log(overridesLine());
   if (args.game) console.log(runGames(args.games, args.seed, args.ai));
   else if (args.calibrate) console.log(runCalibration());
   else if (args.stats) console.log(runStatLeverage());
