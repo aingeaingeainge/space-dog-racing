@@ -1,10 +1,12 @@
-import { useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 import { balance, formatBones } from '@sdr/engine';
 import type { Difficulty, GameLength, PlayerSetup, Toggles } from '@sdr/engine';
 import { Panel } from '../components/Panel';
 import { Notes, Swatch } from '../components/ui';
 import { NeonButton } from '../components/NeonButton';
 import { parseSeasonLink } from '../lib/seedLink';
+import { portraitArt } from '../lib/assets';
+import { HUMAN_FACES, humanFaceStem, resolveColours } from '../lib/owners';
 import { useGame } from '../store/gameStore';
 
 const MAX_STABLES = 8;
@@ -57,6 +59,12 @@ export function Title() {
   const update = (i: number, patch: Partial<PlayerSetup>) =>
     setRoster((r) => r.map((p, j) => (i === j ? { ...p, ...patch } : p)));
 
+  // Phase I: a human's face is their saddle-cloth colour. Every row's colour is resolved here, picks
+  // first, and passed explicitly, so a human's pick beats an AI's seat colour (lib/owners.ts).
+  const colours = resolveColours(roster);
+  const [picking, setPicking] = useState<number | null>(null);
+  const rowName = (p: PlayerSetup, i: number) => p.name.trim() || `Stable ${i + 1}`;
+
   const humans = roster.filter((p) => p.kind === 'human').length;
   const canStart = roster.length >= 1 && roster.length <= MAX_STABLES && humans >= 1;
 
@@ -68,6 +76,7 @@ export function Title() {
       players: roster.map((p, i) => ({
         ...p,
         name: p.name.trim() || (p.kind === 'human' ? `Stable ${i + 1}` : ''),
+        colour: colours[i],
       })),
     });
 
@@ -141,50 +150,88 @@ export function Title() {
             </thead>
             <tbody>
               {roster.map((p, i) => (
-                <tr key={i}>
-                  <td>
-                    <Swatch colour={i} />
-                  </td>
-                  <td>
-                    <input
-                      value={p.name}
-                      placeholder={p.kind === 'ai' ? '(random stable name)' : `Stable ${i + 1}`}
-                      onChange={(e) => update(i, { name: e.target.value })}
-                    />
-                  </td>
-                  <td>
-                    <select
-                      value={p.kind}
-                      onChange={(e) => update(i, { kind: e.target.value as PlayerSetup['kind'] })}
-                    >
-                      <option value="human">Human</option>
-                      <option value="ai">AI</option>
-                    </select>
-                  </td>
-                  <td>
-                    {p.kind === 'ai' ? (
+                <Fragment key={i}>
+                  <tr>
+                    <td>
+                      {p.kind === 'human' ? (
+                        <FaceButton
+                          colour={colours[i]!}
+                          open={picking === i}
+                          onClick={() => setPicking(picking === i ? null : i)}
+                        />
+                      ) : (
+                        <Swatch colour={colours[i]!} />
+                      )}
+                    </td>
+                    <td>
+                      <input
+                        value={p.name}
+                        placeholder={p.kind === 'ai' ? '(random stable name)' : `Stable ${i + 1}`}
+                        onChange={(e) => update(i, { name: e.target.value })}
+                      />
+                    </td>
+                    <td>
                       <select
-                        value={p.difficulty ?? 'normal'}
-                        onChange={(e) => update(i, { difficulty: e.target.value as Difficulty })}
+                        value={p.kind}
+                        onChange={(e) => {
+                          // A pick belongs to a human row; a row that changes hands starts unpicked.
+                          update(i, {
+                            kind: e.target.value as PlayerSetup['kind'],
+                            colour: undefined,
+                          });
+                          if (picking === i) setPicking(null);
+                        }}
                       >
-                        <option value="easy">Easy</option>
-                        <option value="normal">Normal</option>
-                        <option value="hard">Hard</option>
+                        <option value="human">Human</option>
+                        <option value="ai">AI</option>
                       </select>
-                    ) : (
-                      <span className="muted">—</span>
-                    )}
-                  </td>
-                  <td>
-                    <NeonButton
-                      variant="link"
-                      disabled={roster.length <= 1}
-                      onClick={() => setRoster((r) => r.filter((_, j) => j !== i))}
-                    >
-                      remove
-                    </NeonButton>
-                  </td>
-                </tr>
+                    </td>
+                    <td>
+                      {p.kind === 'ai' ? (
+                        <select
+                          value={p.difficulty ?? 'normal'}
+                          onChange={(e) => update(i, { difficulty: e.target.value as Difficulty })}
+                        >
+                          <option value="easy">Easy</option>
+                          <option value="normal">Normal</option>
+                          <option value="hard">Hard</option>
+                        </select>
+                      ) : (
+                        <span className="muted">—</span>
+                      )}
+                    </td>
+                    <td>
+                      <NeonButton
+                        variant="link"
+                        disabled={roster.length <= 1}
+                        onClick={() => {
+                          setRoster((r) => r.filter((_, j) => j !== i));
+                          setPicking(null);
+                        }}
+                      >
+                        remove
+                      </NeonButton>
+                    </td>
+                  </tr>
+                  {picking === i && p.kind === 'human' ? (
+                    <tr className="face-picker-row">
+                      <td colSpan={5}>
+                        <FacePicker
+                          who={rowName(p, i)}
+                          current={colours[i]!}
+                          takenBy={(c) => {
+                            const j = roster.findIndex(
+                              (q, k) => k !== i && q.kind === 'human' && colours[k] === c,
+                            );
+                            return j >= 0 ? rowName(roster[j]!, j) : null;
+                          }}
+                          onPick={(c) => update(i, { colour: c })}
+                          onClose={() => setPicking(null)}
+                        />
+                      </td>
+                    </tr>
+                  ) : null}
+                </Fragment>
               ))}
             </tbody>
           </table>
@@ -347,5 +394,113 @@ function Toggle({
         <span className="muted">{blurb}</span>
       </span>
     </label>
+  );
+}
+
+/** A human row's face on the roster: the portrait in its saddle-cloth colour, and the picker's toggle. */
+function FaceButton({
+  colour,
+  open,
+  onClick,
+}: {
+  colour: number;
+  open: boolean;
+  onClick: () => void;
+}) {
+  const face = HUMAN_FACES[colour % 8]!;
+  const art = portraitArt(humanFaceStem(colour));
+  return (
+    <button
+      type="button"
+      className="face-pick"
+      data-face-trigger
+      aria-expanded={open}
+      aria-label={`Face: ${face.colour} — ${face.who}. Change face`}
+      title="Pick your face"
+      onClick={onClick}
+    >
+      {art && !art.placeholder ? <img src={art.url} alt="" decoding="async" /> : null}
+      <Swatch colour={colour} />
+    </button>
+  );
+}
+
+/**
+ * Phase I: the eight human faces. Picking one sets the row's colour. A face another human holds is
+ * shown taken, `aria-disabled`, and names whose it is. The twelve painted owners are not offered:
+ * they are the AI stables' identities.
+ */
+function FacePicker({
+  who,
+  current,
+  takenBy,
+  onPick,
+  onClose,
+}: {
+  who: string;
+  current: number;
+  takenBy: (colour: number) => string | null;
+  onPick: (colour: number) => void;
+  onClose: () => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    ref.current?.querySelector<HTMLButtonElement>('[aria-pressed="true"]')?.focus();
+  }, []);
+  const close = () => {
+    const trigger = ref.current
+      ?.closest('tr')
+      ?.previousElementSibling?.querySelector<HTMLButtonElement>('[data-face-trigger]');
+    onClose();
+    trigger?.focus();
+  };
+  return (
+    <div
+      ref={ref}
+      className="face-picker"
+      role="group"
+      aria-label={`Choose a face for ${who}`}
+      onKeyDown={(e) => {
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          close();
+        }
+      }}
+    >
+      <div className="face-grid">
+        {HUMAN_FACES.map((f, c) => {
+          const holder = takenBy(c);
+          const mine = c === current;
+          const art = portraitArt(humanFaceStem(c));
+          const label = `${f.colour} — ${f.who}${mine ? ', your face' : ''}${holder ? `, taken by ${holder}` : ''}`;
+          return (
+            <button
+              key={c}
+              type="button"
+              className={`face-choice${mine ? ' mine' : ''}${holder ? ' taken' : ''}`}
+              aria-pressed={mine}
+              aria-disabled={holder ? true : undefined}
+              aria-label={label}
+              title={label}
+              onClick={() => {
+                if (holder) return;
+                onPick(c);
+                close();
+              }}
+            >
+              {art && !art.placeholder ? <img src={art.url} alt="" decoding="async" /> : null}
+              <span className="face-cap">
+                <Swatch colour={c} />
+                {f.colour}
+              </span>
+              {holder ? <span className="face-taken">{holder}</span> : null}
+            </button>
+          );
+        })}
+      </div>
+      <p className="muted flush">
+        Your face wears your saddle-cloth colour. A face another human has picked is taken.
+      </p>
+    </div>
   );
 }

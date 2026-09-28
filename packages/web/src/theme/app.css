@@ -2417,3 +2417,95 @@ table.market tr.held td:first-child {
   padding-left: 18px;
   font-size: 13px;
 }
+
+/* Phase I: a human picks their face on the Title. */
+.face-pick {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 4px 2px 2px;
+  border: 1px solid var(--ink);
+  border-radius: 20px;
+  background: var(--pitch);
+  cursor: pointer;
+}
+.face-pick img {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: block;
+}
+.face-pick .swatch {
+  margin-right: 0;
+}
+.face-pick[aria-expanded='true'],
+.face-pick:focus-visible {
+  outline: 2px solid var(--hazard);
+  outline-offset: 1px;
+}
+.face-picker {
+  /* The roster scrolls sideways on a phone; keep the picker in view at its left edge. */
+  position: sticky;
+  left: 0;
+  max-width: min(640px, calc(100vw - 56px));
+  padding: 6px 0;
+  white-space: normal;
+}
+.face-grid {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 6px;
+  max-width: 640px;
+}
+@media (max-width: 640px) {
+  .face-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+.face-choice {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 4px;
+  border: 1px solid var(--ink);
+  border-radius: 4px;
+  background: var(--pitch);
+  color: inherit;
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+.face-choice img {
+  width: 100%;
+  max-width: 64px;
+  aspect-ratio: 1;
+  border-radius: 4px;
+  display: block;
+}
+.face-choice.mine {
+  outline: 2px solid var(--hazard);
+}
+.face-choice:focus-visible {
+  outline: 2px solid var(--hazard);
+  outline-offset: 2px;
+}
+.face-choice.taken {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+.face-choice.taken img {
+  filter: grayscale(1);
+}
+.face-cap {
+  white-space: nowrap;
+}
+.face-taken {
+  font-size: 10px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
