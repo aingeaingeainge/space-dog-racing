@@ -1,4 +1,4 @@
-import type { Planet, Track } from '@sdr/engine';
+import { balance, formatBones, type Planet, type Track } from '@sdr/engine';
 
 export function trackText(t: Track): string {
   const bends = t.bends === 'none' ? 'straight' : `${t.bends} bends`;
@@ -32,6 +32,10 @@ export function specialText(p: Planet): string[] {
   if (s.noBetting) out.push('No betting');
   if (s.bettingMargin !== undefined) out.push(`Bookie margin ${pct(s.bettingMargin)}`);
   if (s.maxStakeFraction !== undefined) out.push(`Max stake ${pct(s.maxStakeFraction)} of cash`);
+  if (s.maxStakeMultiplier)
+    out.push(
+      `Stake ceiling ×${s.maxStakeMultiplier}: ${formatBones(balance.maxStake * s.maxStakeMultiplier)} a race`,
+    );
   if (s.purseMult) out.push(`Purses ×${s.purseMult}`);
   if (s.winningsTax) out.push(`${pct(s.winningsTax)} tax on winnings`);
   if (s.fitnessOnArrival)

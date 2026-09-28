@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import {
+  balance,
   bettingMargin,
   formatBones,
+  maxStakeCeiling,
   maxStakeFor,
   maxStakeFraction,
   planetOf,
@@ -43,6 +45,10 @@ export function Bookie({ s, me }: { s: GameState; me: Player }) {
   const planet = planetOf(s.planet.planetId);
   const margin = bettingMargin(s);
   const frac = maxStakeFraction(s);
+  // What this stable may have on one race here: the lesser of the fraction and the flat ceiling
+  // (GDD_V3 §7.4, V21), whichever binds — a poor stable still sees its half of cash.
+  const cap = maxStakeFor(s, me);
+  const ceiling = maxStakeCeiling(s);
   const myBets = s.bets.filter((b) => b.playerId === me.id && b.week === s.week);
   const staked = myBets.reduce((sum, b) => sum + b.stake, 0);
   const potential = myBets.reduce((sum, b) => sum + Math.round(b.stake * b.odds), 0);
@@ -52,7 +58,7 @@ export function Bookie({ s, me }: { s: GameState; me: Player }) {
       <Whispers s={s} me={me} where="the book prices the rating and the style, never this" />
       <Panel
         title="The bookie"
-        sub={`${planet.name} · margin ${Math.round(margin * 100)}% · max stake ${Math.round(frac * 100)}% of cash`}
+        sub={`${planet.name} · margin ${Math.round(margin * 100)}% · max stake ${formatBones(cap)} a race`}
         actions={
           <NeonButton variant="primary" onClick={runRaces} title="key: Enter">
             Run the races
@@ -72,7 +78,7 @@ export function Bookie({ s, me }: { s: GameState; me: Player }) {
             margin < 0.15
               ? `A ${Math.round(margin * 100)}% book — the friendliest odds on the circuit.`
               : `The book takes ${Math.round(margin * 100)}%, so betting is a losing game unless you know something.`,
-            `You may not have more than ${Math.round(frac * 100)}% of your cash on one race.`,
+            `You may have up to ${formatBones(cap)} on one race: ${Math.round(frac * 100)}% of your cash or ${formatBones(ceiling)}, whichever is less${ceiling > balance.maxStake ? ` — the ceiling is doubled here` : ''}.`,
             'You can back your own dogs, or lay into a rival. Nobody else at this table sees your slips.',
           ]}
         />
