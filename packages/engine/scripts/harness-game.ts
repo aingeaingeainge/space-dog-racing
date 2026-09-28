@@ -20,7 +20,7 @@ import { balance } from '../src/content/balance';
 import { planetOf } from '../src/content/planets';
 import { CARD, raceType } from '../src/content/raceTypes';
 import { netWorth } from '../src/economy/netWorth';
-import { staffBonus } from '../src/economy/staff';
+import { commissionRate, staffBonus } from '../src/economy/staff';
 import { decide } from '../src/ai';
 import { isSeasonOver, needsAdvance, reduceMut } from '../src/reduce';
 import { createSeason, player } from '../src/state';
@@ -59,6 +59,34 @@ interface GameObs {
   weeksPlayed: number;
   /** The richest stable at the end of the weekend before the last — who led into the finish. */
   leaderBefore: Id | null;
+  /**
+   * Phase I: per season, E7's test run at the season's first arrival with **the whole season's**
+   * first-place purses left, rather than at week 8 with three weeks' worth.
+   */
+  outAtStart: { out: number; of: number }[];
+  /** Phase I: per season, per stable (seat order), where its money came from and what it had. */
+  ledger: Ledger[][];
+  /** Phase I: the game's final standings, best first. */
+  finalOrder: Id[];
+}
+
+/** Phase I: one stable's season, for "where does the richer half's extra come from". */
+interface Ledger {
+  /** Purses won, gross (before the trainers' cut), and the cut. */
+  prize: number;
+  cut: number;
+  trade: number;
+  bet: number;
+  /** Food bought for eating, and stewards' fines. */
+  food: number;
+  fines: number;
+  /** Mean rating of the dogs it declared, over the season; races it entered. */
+  ratingSum: number;
+  entries: number;
+  /** At the season's first arrival: cash, the trainers' combined cut, prize-money trainers. */
+  cash: number;
+  cutRate: number;
+  prizeUp: number;
 }
 
 /** The first-place purse this race pays in this calendar week (§7.1), before any trainer's bonus. */
@@ -71,11 +99,19 @@ function winPurse(entry: CalendarEntry, race: (typeof CARD)[number]): number {
 /** Share of stables mathematically out at the start of week 8, by the definition at the top. */
 function outAtWeek8(s: GameState): { out: number; of: number } {
   const worth = s.players.map((p) => p.stats.worthByWeek[6] ?? netWorth(s, p));
+  return outWith(s, worth, 7);
+}
+
+/**
+ * E7's test with the purses from calendar index `from` onward: a stable is out if its worth plus
+ * every first-place purse left (raised by its prize-money trainers) is under the leader's worth.
+ */
+function outWith(s: GameState, worth: number[], from: number): { out: number; of: number } {
   const leader = Math.max(...worth);
   let out = 0;
   s.players.forEach((p, i) => {
     let most = 0;
-    for (const e of s.calendar.slice(7)) for (const race of CARD) most += winPurse(e, race);
+    for (const e of s.calendar.slice(from)) for (const race of CARD) most += winPurse(e, race);
     most = Math.round(most * (1 + staffBonus(p, 'prizeUp') * balance.staffPrizeUp));
     if (worth[i]! + most < leader) out++;
   });
@@ -106,6 +142,9 @@ export function playGame(seed: number, ai: AiAgent[], length: GameLength): GameO
     winner: '',
     weeksPlayed: 0,
     leaderBefore: null,
+    outAtStart: [],
+    ledger: [],
+    finalOrder: [],
   };
   let startedSeason = 0;
   let week8Season = 0;
@@ -119,6 +158,23 @@ export function playGame(seed: number, ai: AiAgent[], length: GameLength): GameO
       obs.start.push(s.players.map((p) => netWorth(s, p)));
       obs.ages.push(s.players.flatMap((p) => p.dogIds.map((id) => s.dogs[id]!.age)));
       obs.entered.push([]);
+      const worth = obs.start[obs.start.length - 1]!;
+      obs.outAtStart.push(outWith(s, worth, 0));
+      obs.ledger.push(
+        s.players.map((p) => ({
+          prize: 0,
+          cut: 0,
+          trade: 0,
+          bet: 0,
+          food: 0,
+          fines: 0,
+          ratingSum: 0,
+          entries: 0,
+          cash: p.cash,
+          cutRate: commissionRate(p),
+          prizeUp: staffBonus(p, 'prizeUp'),
+        })),
+      );
     }
     if (s.phase === 'arrival' && s.week === 8 && week8Season !== s.season) {
       week8Season = s.season;
@@ -127,11 +183,18 @@ export function playGame(seed: number, ai: AiAgent[], length: GameLength): GameO
     const key = `${s.season}.${s.week}`;
     if (s.fields && !s.races && lockedKey !== key) {
       lockedKey = key;
-      for (const p of s.players) {
+      s.players.forEach((p, i) => {
         let n = 0;
-        for (const race of CARD) if (s.declarations[race][p.id]) n++;
+        const l = obs.ledger[obs.ledger.length - 1]![i]!;
+        for (const race of CARD) {
+          const dogId = s.declarations[race][p.id];
+          if (!dogId) continue;
+          n++;
+          l.entries++;
+          l.ratingSum += s.dogs[dogId]?.rating ?? 0;
+        }
         obs.entered[obs.entered.length - 1]!.push(n);
-      }
+      });
     }
     if (s.phase === 'offSeason' && s.offSeason && offSeasonSeen !== s.season) {
       offSeasonSeen = s.season;
@@ -153,6 +216,19 @@ export function playGame(seed: number, ai: AiAgent[], length: GameLength): GameO
       reduceMut(s, a);
     }
   }
+  s.seasons.forEach((r, k) => {
+    s.players.forEach((p, i) => {
+      const st = r.stats[p.id]!;
+      const l = obs.ledger[k]![i]!;
+      l.prize = st.prizeIncome + st.commission;
+      l.cut = st.commission;
+      l.trade = st.tradeIncome;
+      l.bet = st.betIncome;
+      l.food = st.costs;
+      l.fines = st.fines;
+    });
+  });
+  obs.finalOrder = s.finalStandings!.map((x) => x.playerId);
   for (const r of s.seasons) {
     obs.end.push(s.players.map((p) => r.standings.find((x) => x.playerId === p.id)!.netWorth));
     obs.poundDogs += Object.values(r.stats).reduce((a, st) => a + st.dogsTaken, 0);
@@ -313,6 +389,9 @@ export function runGames(games: number, seed: number, ai: AiAgent[]): string {
     '',
   );
 
+  // ---- Phase I: the long game — is E7 the right measure, and where does the lead come from? ----
+  out.push(...longGame(all), '');
+
   // ---- The roster turns over (5-season games) ----
   const stableGames = five.obs.reduce((a, o) => a + o.stables, 0);
   const perTwo = (n: number) => (n / stableGames) * (2 / 5);
@@ -384,4 +463,124 @@ export function runGames(games: number, seed: number, ai: AiAgent[]): string {
     `Engine wall-clock: ${(pw.ms / pw.n).toFixed(2)} ms a player-weekend (${fmt(pw.n)} player-weekends in ${(pw.ms / 1000).toFixed(1)} s), AI decisions included.`,
   );
   return out.join('\n');
+}
+
+/**
+ * Phase I: the long game. E7's week-8 test in the last season sets three weeks of purses against a
+ * lead built over years, so alongside it: the same test at the last season's first arrival with the
+ * whole season's purses left, and two comeback measures that ask pillar 5's question directly. Then
+ * the richer half's extra gain in seasons 2+, split into where it came from.
+ */
+function longGame(all: { mode: ModeRow; obs: GameObs[] }[]): string[] {
+  const out: string[] = [];
+  const modes = all.filter(
+    (x) => x.mode.label !== '1 season' && x.mode.label !== `Target ${fmt(balance.targetShort)}`,
+  );
+  out.push(
+    'The long game (Phase I) — the last season, and whether the back of the table can still come back',
+    '  mode            out@8 last  out@start last  last→top 3, from the start of season 3 / 4 / 5    leader overtaken   last wins the last season',
+  );
+  for (const { mode, obs } of modes) {
+    let o8 = 0;
+    let of8 = 0;
+    let os = 0;
+    let ofs = 0;
+    const cb: { hit: number; n: number }[] = [3, 4, 5].map(() => ({ hit: 0, n: 0 }));
+    let overtaken = 0;
+    let withLast = 0;
+    let bestSeason = 0;
+    for (const o of obs) {
+      const n = o.seasons;
+      if (o.outAt8.length === n) {
+        o8 += o.outAt8[n - 1]!.out;
+        of8 += o.outAt8[n - 1]!.of;
+      }
+      const st = o.outAtStart[n - 1];
+      if (st) {
+        os += st.out;
+        ofs += st.of;
+      }
+      [3, 4, 5].forEach((k, j) => {
+        const start = o.start[k - 1];
+        if (!start || k > n) return;
+        const last = start.indexOf(Math.min(...start));
+        cb[j]!.n++;
+        if (o.finalOrder.indexOf(`p${last + 1}`) < 3) cb[j]!.hit++;
+      });
+      if (n >= 2) {
+        const start = o.start[n - 1]!;
+        withLast++;
+        if (`p${start.indexOf(Math.max(...start)) + 1}` !== o.winner) overtaken++;
+        // The poorest stable at the last season's start has that season's biggest gain.
+        const gain = o.end[n - 1]!.map((w, i) => w - start[i]!);
+        if (gain.indexOf(Math.max(...gain)) === start.indexOf(Math.min(...start))) bestSeason++;
+      }
+    }
+    const cbCell = cb.map((c) => (c.n ? pct(c.hit / c.n) : '—').padStart(6)).join(' / ');
+    out.push(
+      `  ${mode.label.padEnd(15)} ${pct(o8 / Math.max(1, of8)).padStart(9)}  ${pct(os / Math.max(1, ofs)).padStart(13)}  ${cbCell.padStart(47)}    ${(withLast ? pct(overtaken / withLast) : '—').padStart(12)}   ${(withLast ? pct(bestSeason / withLast) : '—').padStart(20)}`,
+    );
+  }
+  out.push(
+    '  out@start last: E7 run at the last season’s first arrival, with that whole season’s first-place purses left.',
+    '  last→top 3: the stable poorest at the start of season k finishes the game in the top 3 (3 of 6 by chance: 50%).',
+    '  leader overtaken: the richest stable at the last season’s first arrival does not win.',
+    '  last wins the last season: the poorest stable at that first arrival gains the most in it (1 in 6 by chance).',
+    '',
+  );
+
+  // Where the richer half's extra comes from, seasons 2+ of 5-season games.
+  const five = all.find((x) => x.mode.label === '5 seasons');
+  if (!five) return out;
+  type Key = 'prize' | 'cut' | 'trade' | 'bet' | 'food' | 'fines';
+  const keys: Key[] = ['prize', 'cut', 'trade', 'bet', 'food', 'fines'];
+  const halves = {
+    top: [] as { l: Ledger; gain: number }[],
+    bottom: [] as { l: Ledger; gain: number }[],
+  };
+  for (const o of five.obs)
+    for (let k = 1; k < o.end.length; k++) {
+      const start = o.start[k]!;
+      const mid = median(start);
+      start.forEach((w, i) =>
+        (w >= mid ? halves.top : halves.bottom).push({
+          l: o.ledger[k]![i]!,
+          gain: o.end[k]![i]! - w,
+        }),
+      );
+    }
+  const m = (xs: { l: Ledger; gain: number }[], f: (x: { l: Ledger; gain: number }) => number) =>
+    mean(xs.map(f));
+  const line = (label: string, f: (x: { l: Ledger; gain: number }) => number, dp = 0) => {
+    const a = m(halves.top, f);
+    const b = m(halves.bottom, f);
+    const show = (n: number) => (dp ? n.toFixed(dp) : fmt(n));
+    out.push(
+      `  ${label.padEnd(30)} ${show(a).padStart(9)} ${show(b).padStart(9)} ${show(a - b).padStart(9)}`,
+    );
+  };
+  out.push(
+    'Where the richer half’s extra comes from (5-season games, seasons 2–5, split at the median start worth)',
+    `  ${''.padEnd(30)} ${'richer'.padStart(9)} ${'poorer'.padStart(9)} ${'diff'.padStart(9)}`,
+  );
+  line('worth gained in the season', (x) => x.gain);
+  const names: Record<(typeof keys)[number], string> = {
+    prize: 'purses, gross',
+    cut: 'trainers’ cut (−)',
+    trade: 'trading',
+    bet: 'betting',
+    food: 'food eaten (−)',
+    fines: 'stewards’ fines (−)',
+  };
+  for (const k of keys) line(names[k], (x) => x.l[k]);
+  line(
+    'the rest (dogs, cargo, bills)',
+    (x) => x.gain - (x.l.prize - x.l.cut + x.l.trade + x.l.bet - x.l.food - x.l.fines),
+  );
+  line('mean rating at declaration', (x) => (x.l.entries ? x.l.ratingSum / x.l.entries : 0), 1);
+  line('races entered', (x) => x.l.entries, 1);
+  line('cash at the season’s start', (x) => x.l.cash);
+  line('trainers’ combined cut', (x) => x.l.cutRate * 100, 1);
+  line('prize-money trainers', (x) => x.l.prizeUp, 2);
+  return out;
 }
