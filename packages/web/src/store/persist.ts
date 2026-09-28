@@ -36,6 +36,11 @@ export interface SaveBlob {
 }
 
 /**
+ * 12 for v3 Phase G. A stable's stake on one race is now capped at the lesser of 50% of its cash and a
+ * flat ceiling (GDD_V3 §7.4, V21), so a v3f2 log can hold a bet the rule now refuses, and would stop
+ * at replay with an error. This check sends every v3f2 save to the title screen instead. Verified at
+ * v3g by writing a v3f2-shaped blob (`v: 11`) and reading it back: null.
+ *
  * 11 for v3 Phase E2. Every dog starts a new season fresh, so a v3e1 log that reached a second season
  * replays into a different game from there; the check sends every v3e1 save to the title screen rather
  * than deciding which were one-season games. The UI block gains the hotseat marks (`arrivalSeenWeek`,
@@ -82,7 +87,7 @@ export interface SaveBlob {
  * player on the title screen with a new season rather than half a season that no longer means
  * what it meant.
  */
-export const SAVE_VERSION = 11;
+export const SAVE_VERSION = 12;
 const KEY = 'sdr.save.v1';
 
 export function writeSave(blob: SaveBlob): void {
