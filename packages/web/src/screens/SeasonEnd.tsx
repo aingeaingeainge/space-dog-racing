@@ -22,6 +22,7 @@ import { seasonLinkFor } from '../lib/seedLink';
 import { playerById, standings } from '../lib/selectors';
 import { useGame } from '../store/gameStore';
 import { clock, summarisePace } from '../lib/pace';
+import { buildReport, gameEndLine, gameLengthText } from '../lib/report';
 
 /**
  * The end of a season, or of the game (GDD_V3 §10 screen 9). Between seasons the table reads how the
@@ -285,11 +286,13 @@ function GameOver({ s }: { s: GameState }) {
           </NeonButton>
           <NeonButton onClick={abandon}>New game</NeonButton>
           {setup ? <ShareSeed setup={setup} /> : null}
+          {setup ? <CopyReport s={s} setup={setup} /> : null}
         </div>
         <p className="muted">
           Play again is the same table, the same seed and the same length, from the first weekend:
           the same dogs on offer, the same events, the same trap draws. What you do with them is up
-          to you.
+          to you. <b>Copy the report</b> for the playtest: the link, the table, the result, the
+          clock and each season&apos;s draft, as plain text to paste into the next Cowork session.
         </p>
       </Panel>
     </div>
@@ -459,34 +462,6 @@ function FinalStandings({ s, rows }: { s: GameState; rows: GameRow[] }) {
   );
 }
 
-/** The game's length in a phrase (GDD_V3 §2.1). */
-function gameLengthText(s: GameState): string {
-  if (s.length.kind === 'seasons') return `season ${s.season} of ${s.length.seasons}`;
-  return `season ${s.season}, racing to ${formatBones(s.length.worth)}`;
-}
-
-/**
- * Why the game ended, in a line (GDD_V3 §2.1): the seasons ran out, a target was crossed, or a Target
- * game hit the season cap. ⚠️ E1's line could say "Overtaken on the line!", which cannot happen with one
- * worth check a weekend (E3); the finish panel says what can — two crossing together, a leader caught.
- */
-function gameEndLine(s: GameState): string {
-  const over = s.gameOver!;
-  const top = s.finalStandings?.[0];
-  const winner = s.players.find((p) => p.id === top?.playerId);
-  const wins = winner && top ? `${winner.name} wins with ${formatBones(top.netWorth)}.` : '';
-  if (over.reason === 'target') {
-    const crossers = over.crossers
-      .map((id) => s.players.find((p) => p.id === id)?.name ?? id)
-      .join(' and ');
-    const target = s.length.kind === 'target' ? formatBones(s.length.worth) : 'the target';
-    return `Target crossed: ${crossers} passed ${target} at week ${over.week} of season ${over.season}. ${wins}`;
-  }
-  if (over.reason === 'cap')
-    return `The season cap: nobody reached the target in ${over.season} seasons. ${wins}`;
-  return over.season > 1 ? `The seasons ran out: after ${over.season}, ${wins}` : wins;
-}
-
 /** A figure that can go either way reads better with its sign on the front. */
 function signed(n: number): string {
   return n > 0 ? `+${formatBones(n)}` : formatBones(n);
@@ -543,6 +518,70 @@ function ShareSeed({ setup }: { setup: Parameters<typeof seasonLinkFor>[0] }) {
           value={link}
           onFocus={(e) => e.currentTarget.select()}
         />
+      ) : null}
+    </>
+  );
+}
+
+/**
+ * Phase J — **"Copy the report"**: the game as plain text (lib/report.ts), for the playtest evening.
+ * A copy that cannot reach the clipboard — no permission, no secure context, an old browser — falls
+ * back to a selectable text box, and nothing here ever throws.
+ */
+function CopyReport({ s, setup }: { s: GameState; setup: Parameters<typeof seasonLinkFor>[0] }) {
+  const log = useGame((g) => g.log);
+  const pace = useGame((g) => g.pace);
+  const [state, setState] = useState<'idle' | 'copied' | 'shown'>('idle');
+  const [text, setText] = useState('');
+
+  const copy = () => {
+    let report = '';
+    try {
+      report = buildReport({
+        s,
+        setup,
+        log,
+        pace,
+        base: window.location.href,
+        build: typeof __SDR_BUILD__ === 'string' ? __SDR_BUILD__ : 'unknown',
+        copiedAt: new Date().toLocaleString(),
+      });
+    } catch (e) {
+      report = `The report could not be built: ${(e as Error).message}`;
+    }
+    setText(report);
+    try {
+      const done = navigator.clipboard?.writeText(report);
+      if (!done) setState('shown');
+      else
+        done.then(
+          () => setState('copied'),
+          () => setState('shown'),
+        );
+    } catch {
+      setState('shown');
+    }
+  };
+
+  return (
+    <>
+      <NeonButton
+        onClick={copy}
+        title="The game as plain text: the link, the table, the result, the clock, each season's draft"
+      >
+        {state === 'copied' ? 'Report copied' : 'Copy the report'}
+      </NeonButton>
+      {state === 'shown' ? (
+        <div className="report-box">
+          <p className="muted">The clipboard said no. Select the text below and copy it by hand.</p>
+          <textarea
+            className="report-text"
+            readOnly
+            rows={16}
+            value={text}
+            onFocus={(e) => e.currentTarget.select()}
+          />
+        </div>
       ) : null}
     </>
   );

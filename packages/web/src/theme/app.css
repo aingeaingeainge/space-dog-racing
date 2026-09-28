@@ -2524,3 +2524,25 @@ table.market tr.held td:first-child {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* Phase J: the report's fallback, when the clipboard says no. Full width, selectable, monospace. */
+.report-box {
+  flex: 1 1 100%;
+  min-width: 0;
+}
+.report-text {
+  box-sizing: border-box;
+  width: 100%;
+  font:
+    12px/1.4 ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Consolas,
+    monospace;
+  color: var(--text);
+  background: var(--pitch);
+  border: 1px solid var(--ink);
+  padding: 8px;
+  white-space: pre-wrap;
+  overflow: auto;
+}
