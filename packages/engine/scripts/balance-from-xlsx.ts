@@ -256,6 +256,8 @@ const LABELS: Record<string, string> = {
   'Off-season: AI retires a dog this old, whatever the offer': 'aiRetireAge',
   // Phase E2, GDD_V3 §2.2: the off-season is a long rest (Jesse's call).
   'Off-season: every dog starts the new season on this fitness': 'seasonStartFitness',
+  // Phase I, GDD_V3 §2.2 and V23: the draft (Jesse's call).
+  "Off-season: the draft, last stable's offer level above the ordinary (points)": 'draftLevelShift',
 };
 
 const wb = XLSX.read(readFileSync(xlsxPath));

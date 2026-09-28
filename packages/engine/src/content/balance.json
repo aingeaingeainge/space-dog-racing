@@ -59,6 +59,7 @@
   "dogOfferRatingMean": 42,
   "dogOfferRatingSd": 7,
   "dogStatSd": 8,
+  "draftLevelShift": 15,
   "eloScale": 15,
   "emptyHoldFitness": 10,
   "finalMult": 3,
