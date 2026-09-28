@@ -3,17 +3,22 @@ import { NeonButton } from './NeonButton';
 import { PHASE_LABEL } from '../lib/selectors';
 import { passReason } from '../store/loop';
 import { useGame } from '../store/gameStore';
+import { OwnerFace } from './Owner';
 
 /**
  * Hotseat handover: nothing of the next player's business is on screen until they say go. It names who
  * is next and why — what they are about to do, and whether the order is the turn order's (Phase E2).
  * `screenFor` never shows it to the human already holding the laptop.
+ *
+ * Phase J: the next human's face, big, above their name. This is the one screen four people read from
+ * across a table, and a face carries further than a name.
  */
 export function PassTo({ s, next }: { s: GameState; next: Player }) {
   const ackPass = useGame((g) => g.ackPass);
   return (
     <div className="app">
-      <div className="centre">
+      <div className="centre pass-to">
+        <OwnerFace player={next} big />
         <h1>Pass to {next.name}</h1>
         <p className="muted">
           Week {s.week} of {s.calendar.length} · {PHASE_LABEL[s.phase]}

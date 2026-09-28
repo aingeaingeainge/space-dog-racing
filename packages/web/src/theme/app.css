@@ -1156,6 +1156,21 @@ ul.notes li::before {
   border-radius: 4px;
   margin: 0 auto 6px;
 }
+/* Phase J: the pass screen is read from across the table, so the next human's face is bigger. */
+.pass-to .ownerface.big {
+  display: block;
+  width: 144px;
+  height: 144px;
+  border-width: 3px;
+  border-radius: 8px;
+  margin: 0 auto 14px;
+}
+@media (max-width: 480px) {
+  .pass-to .ownerface.big {
+    width: 112px;
+    height: 112px;
+  }
+}
 .ownerface.big.ph {
   display: grid;
   place-items: center;
