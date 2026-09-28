@@ -149,8 +149,8 @@ export const PLANETS: readonly Planet[] = [
     major: true,
     track: standard('medium'),
     foodBand: taste(1.1, -0.25),
-    // The fraction has let you stake everything you own here since v1, and with the flat ceiling
-    // gone (BUILD_PLAN_V3 §2.1 — there is no borrowed bankroll to cap) it is the whole of the rule.
+    // The fraction has let you stake everything you own here since v1. Since Phase G (V21) the flat
+    // ceiling applies here as everywhere, so it is the lesser of all your cash and the ceiling.
     special: { bettingMargin: 0.1, maxStakeFraction: 1 },
     accents: ['#F04E98', '#3FD6E0'],
     exploreDoors: [
@@ -235,7 +235,9 @@ export const PLANETS: readonly Planet[] = [
     major: false,
     track: standard('medium'),
     foodBand: taste(1.2, -0.1),
-    special: { bettingMargin: 0.1 },
+    // The casino moon stays the place for a big bet, not an unlimited one (Phase G, V21): the
+    // friendliest book on the circuit, and twice the flat ceiling on a race.
+    special: { bettingMargin: 0.1, maxStakeMultiplier: 2 },
     accents: ['#F04E98', '#9BE84B'],
     exploreDoors: [
       {

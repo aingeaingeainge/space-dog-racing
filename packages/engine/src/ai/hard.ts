@@ -330,7 +330,8 @@ function placeBets(plan: Plan): void {
     }
 
     if (tippedAgainst(s, playerId, pick.dogId)) continue;
-    // The flat ceiling as well as the fractional one, now that §20 Q7 has put one in.
+    // Both ceilings, through the same function `placeBet` checks (GDD_V3 §7.4, V21). A stake over
+    // the flat ceiling is clamped to it and still placed.
     const cap = maxStakeFor(s, { ...p, cash: plan.cash });
     const stake = Math.floor(Math.min(plan.cash * fraction, cap));
     if (stake < 50) continue;

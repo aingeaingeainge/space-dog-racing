@@ -279,17 +279,31 @@ export function maxStakeFraction(s: GameState): number {
 }
 
 /**
- * What a stable may have on one race: a fraction of its cash (GDD_V3 §7.4).
+ * The flat ceiling on one race here, in Bones: `balance.maxStake`, times the planet's
+ * `maxStakeMultiplier` (Neon Snout's ×2). GDD_V3 §7.4, V21.
+ */
+export function maxStakeCeiling(s: GameState): number {
+  return balance.maxStake * (currentPlanet(s).special.maxStakeMultiplier ?? 1);
+}
+
+/**
+ * What a stable may have on one race (GDD_V3 §7.4): **the lesser of** a fraction of its cash and the
+ * flat ceiling. The fraction protects a poor stable; the ceiling stops a rich one.
  *
- * ⚠️ **The flat ceiling is gone (BUILD_PLAN_V3 §2.1).** v2 added it because §10 called max stake a
- * rich-get-richer channel and the crook's percentage edge turned that into a real problem — a
- * fractional ceiling cannot bind a rich stable, because it *is* a fraction of a bigger number. v3
- * deletes both halves of that: there is no fixing to earn the percentage and no borrowing to build
- * a bankroll, so §7.4 is explicit that bets are affordable by construction and the fraction is the
- * whole of the rule.
+ * ⚠️ **The flat ceiling is back (Phase G, V21), and it is not about debt.** v2 had one because the
+ * crook could borrow a bankroll; v3 deleted it (BUILD_PLAN_V3 §2.1) on the grounds that with no
+ * borrowing, bets are affordable by construction. That is true, and it was not enough. Jesse's
+ * two-season game was won by a Hard stable that made +197,908 at the bookie against 55,875 in purses,
+ * while the best racing stable at the table (13 wins, 5 Gold Cups) finished on a third of its worth,
+ * and the other Hard stable lost almost 20,000 betting. Hard stakes a *share of its cash*, so its bets
+ * grow with its bank and compound; and a fractional ceiling cannot bind a rich stable, because it *is*
+ * a fraction of a bigger number. Only a flat number stops the compounding. The sweep and Jesse's pick
+ * of 1,000 are in `claude/V3_PHASE_G_NOTES.md`.
+ *
+ * The AIs size their stakes through this function too, so they are capped by the same rule as a human.
  */
 export function maxStakeFor(s: GameState, p: Player): number {
-  return Math.floor(p.cash * maxStakeFraction(s));
+  return Math.min(Math.floor(p.cash * maxStakeFraction(s)), maxStakeCeiling(s));
 }
 
 /*

@@ -147,9 +147,9 @@ export function placeBet(ctx: Ctx, action: Extract<Action, { t: 'PlaceBet' }>): 
   const alreadyStaked = s.bets
     .filter((b) => b.playerId === p.id && b.week === s.week && b.race === action.race)
     .reduce((sum, b) => sum + b.stake, 0);
-  // One ceiling: a fraction of cash (GDD_V3 §7.4). The flat stake ceiling went with the crook's
-  // road — v2 added it because a crook could borrow a bankroll, and there is no borrowing in v3, so
-  // bets are affordable by construction.
+  // Two ceilings, the lower binding (GDD_V3 §7.4): a fraction of cash, and the flat ceiling that
+  // Phase G put back because a share-of-cash stake compounds for a rich stable (V21). Summed over
+  // every slip this stable already has on the race.
   const cap = maxStakeFor(s, p);
   if (alreadyStaked + stake > cap) fail(`Max stake on this race is ${cap}`, action);
   pay(p, stake, action);

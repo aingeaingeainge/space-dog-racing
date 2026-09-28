@@ -170,6 +170,7 @@ export interface PlanetSpecial {
   noBetting?: boolean;
   bettingMargin?: number; // overrides balance.bettingMargin
   maxStakeFraction?: number; // overrides balance.maxStakeFraction
+  maxStakeMultiplier?: number; // multiplies balance.maxStake, the flat ceiling (Neon Snout ×2)
   purseMult?: number; // Old Wembley: purse +20%
   winningsTax?: number; // Port Slobber: tax on prize money
   fitnessOnArrival?: number; // Sunbleach −5, Holy Bark +5
