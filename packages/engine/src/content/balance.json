@@ -112,6 +112,7 @@
   "localRatingSilver": 45,
   "majorMult": 2,
   "majorWeek": 5,
+  "maxStake": 1000,
   "maxStakeFraction": 0.5,
   "nobbleFitness": -25,
   "oddsFloor": 0.005,

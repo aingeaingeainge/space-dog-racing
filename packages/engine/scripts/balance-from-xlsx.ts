@@ -58,6 +58,7 @@ const LABELS: Record<string, string> = {
   'Age factor: 6+ (retire soon)': 'ageFactor6',
   'House margin (overround)': 'bettingMargin',
   'Max stake per race (% of cash)': 'maxStakeFraction',
+  'Max stake per race (flat ceiling, Bones)': 'maxStake',
   // The race simulation (GDD §6.2). Unchanged in v3 (BUILD_PLAN_V3 §2.3) except that the break
   // from the boxes reads Acceleration rather than Trap.
   'Race: base speed (m/s)': 'raceBaseSpeed',
