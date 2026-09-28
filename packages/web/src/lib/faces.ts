@@ -62,3 +62,58 @@ export function resolveColours(
   });
   return out;
 }
+
+/**
+ * A stable-name hash for a renamed AI's face (Phase J): FNV-1a over the name's UTF-16 code units, in
+ * 32-bit integer arithmetic (`Math.imul`), so it is the same number in every browser. No
+ * `Math.random`, no `Date`: a face must be the same on every screen and after a reload.
+ */
+export function nameHash(name: string): number {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < name.length; i++) {
+    h ^= name.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return h >>> 0;
+}
+
+/**
+ * Which of the twelve painted owners each AI stable at the table wears (GDD §14; Phase J), by seat,
+ * null for a human. A pure function of the table, so every screen and every reload agree.
+ *
+ * 1. An AI on the list (`AI_STABLE_NAMES`, which is every AI row the table left blank) wears its own
+ *    owner, keyed by name, exactly as before: Baroness Vex is the baroness every season.
+ * 2. Then each AI the table renamed, in seat order, starts at `nameHash(name) % 12` and walks to the
+ *    next owner nobody at the table wears yet — never the face of an AI on the list, never the face of
+ *    an earlier renamed AI. Before Phase J a renamed AI fell back to `colour % 12`, so a human's face
+ *    pick that moved its colour also changed its face (the I notes, Read this first 5).
+ *
+ * A listed name worn twice (two rows typed the same list name) is walked the same way from its own
+ * owner. A table has at most eight stables and there are twelve owners, so the walk always ends.
+ */
+export function aiOwnerIndices(
+  table: readonly { kind: 'human' | 'ai'; name: string }[],
+  list: readonly string[],
+): (number | null)[] {
+  const n = list.length;
+  const out: (number | null)[] = table.map(() => null);
+  const worn = new Set<number>();
+  const later: number[] = [];
+  table.forEach((p, i) => {
+    if (p.kind !== 'ai') return;
+    const named = list.indexOf(p.name);
+    if (named >= 0 && !worn.has(named)) {
+      worn.add(named);
+      out[i] = named;
+    } else later.push(i);
+  });
+  for (const i of later) {
+    const name = table[i]!.name;
+    const named = list.indexOf(name);
+    let k = named >= 0 ? named : nameHash(name) % n;
+    for (let step = 0; step < n && worn.has(k); step++) k = (k + 1) % n;
+    worn.add(k);
+    out[i] = k;
+  }
+  return out;
+}

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { Player } from '@sdr/engine';
 import { ownerArtFor, ownerLine } from '../lib/owners';
+import { useGame } from '../store/gameStore';
 
 /**
  * The face across the table (GDD §14: "a name, a colour, a portrait and a one-line
@@ -14,7 +15,9 @@ import { ownerArtFor, ownerLine } from '../lib/owners';
  */
 export function OwnerFace({ player, big }: { player: Player; big?: boolean }) {
   const [broken, setBroken] = useState(false);
-  const art = ownerArtFor(player);
+  // Phase J: a renamed AI's face depends on who else is at the table, so read the table.
+  const table = useGame((g) => g.state?.players);
+  const art = ownerArtFor(player, table);
   const line = ownerLine(player);
   const usable = art && !art.placeholder && !broken;
 
