@@ -36,6 +36,14 @@ export interface SaveBlob {
 }
 
 /**
+ * 13 for v3 Phase I. The draft (GDD_V3 §2.2, V23): at the off-season, the stable last on the season's
+ * standings is offered a replacement rolled above everybody else's. A v3h log that reached an
+ * off-season took a different dog there, so it replays into a different game from season 2 on; this
+ * check sends every v3h save to the title screen rather than deciding which were one-season games.
+ * The Title's face picker (Phase I) changed nothing here: a face is `setup.colour`, which the setup
+ * always carried, and a save without one still means seat index. Verified at v3i by writing a
+ * v3h-shaped blob (`v: 12`) and reading it back: null.
+ *
  * 12 for v3 Phase G. A stable's stake on one race is now capped at the lesser of 50% of its cash and a
  * flat ceiling (GDD_V3 §7.4, V21), so a v3f2 log can hold a bet the rule now refuses, and would stop
  * at replay with an error. This check sends every v3f2 save to the title screen instead. Verified at
@@ -87,7 +95,7 @@ export interface SaveBlob {
  * player on the title screen with a new season rather than half a season that no longer means
  * what it meant.
  */
-export const SAVE_VERSION = 12;
+export const SAVE_VERSION = 13;
 const KEY = 'sdr.save.v1';
 
 export function writeSave(blob: SaveBlob): void {
