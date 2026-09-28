@@ -47,16 +47,29 @@ export function openOffSeason(ctx: Ctx): void {
     s.players.map((p) => [p.id, mulberry32(Math.floor(rng.next() * 4294967296))]),
   );
   const notices: Record<Id, OffSeasonNotice> = {};
+  // GDD_V3 §2.2 step 2 and V23 — **the draft** (Jesse's call, Phase I). The stable last on the
+  // season's standings is offered the breeder's pick: its replacement is rolled `draftLevelShift`
+  // points above everybody else's. Phase I measured why a long game's back of the table rarely came
+  // back: not cash, trading, betting or trainers, but dogs (the poorer half declared dogs rated 2.6
+  // lower and won 8.9k less in purses a season). So the rule goes at the dogs, as an offer the stable
+  // reads and can turn down (pillar 2). "Last" is §2.4's order, the one the season's end shows, so a
+  // tie goes the way the table reads it. It changes the level only: the offer makes the same draws.
+  const standings = s.seasons[s.seasons.length - 1]?.standings ?? [];
+  const drafted = s.players.length > 1 ? (standings[standings.length - 1]?.playerId ?? null) : null;
   // 2 and 3, first pass: the replacement on offer, then a draw for each trainer's notice. Every
   // stable makes the same number of draws whatever they land on.
   for (const p of s.players) {
     const r = streams.get(p.id)!;
-    const offer = rollOffer(r, { lieMult: balance.retireOfferLieMult });
+    const draft = p.id === drafted;
+    const offer = rollOffer(r, {
+      lieMult: balance.retireOfferLieMult,
+      levelShift: draft ? balance.draftLevelShift : 0,
+    });
     const left = p.staff.filter(() => r.chance(balance.staffNoticeChance));
     p.staff = p.staff.filter((id) => !left.includes(id));
     for (const id of left)
       log(s, `${staffRow(id).name} has left ${p.name} for a better stable.`, p.id);
-    notices[p.id] = { offer, left, candidate: null };
+    notices[p.id] = { offer, left, candidate: null, ...(draft ? { draft: true } : {}) };
   }
   // Second pass, once everybody's notices are in: a stable left short is offered one candidate,
   // never one of its own leavers, never one already offered to somebody else.
@@ -76,6 +89,11 @@ export function openOffSeason(ctx: Ctx): void {
 
 /** The text a stable reads about the replacement it would be offered. */
 export function describeRetirementOffer(n: OffSeasonNotice): string {
+  if (n.draft)
+    return (
+      `Last at the table, so the breeder's agent brings you the pick of the litter — a better dog ` +
+      `than anybody else is offered, for whoever retires one: ${describeOffer(n.offer)}`
+    );
   return `A breeder's agent has a dog for whoever retires one: ${describeOffer(n.offer)}`;
 }
 

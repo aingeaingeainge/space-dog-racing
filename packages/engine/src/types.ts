@@ -723,6 +723,11 @@ export interface OffSeasonNotice {
   candidate: Id | null;
   /** Unset until answered, if there is a candidate. */
   hired?: boolean;
+  /**
+   * Phase I, GDD_V3 V23: this stable finished the season last, so its offer is the draft's — rolled
+   * `draftLevelShift` above the ordinary. Absent for everybody else.
+   */
+  draft?: boolean;
 }
 
 /** The off-season (GDD_V3 §2.2): each stable's notice, by id. Null outside the off-season. */

@@ -29,6 +29,11 @@ import type {
 import { ActionError, RACE_TYPE_IDS, STYLE_IDS } from './types';
 
 /**
+ * 13 for v3 Phase I: the draft (GDD_V3 §2.2, V23). An off-season notice can carry `draft`, and the
+ * stable last on the season's standings is offered a replacement rolled `draftLevelShift` above the
+ * ordinary. The offer makes the same draws, but a v3h log that took a dog at an off-season takes a
+ * different dog here, so it replays into a different game from season 2 on.
+ *
  * 12 for v3 Phase E2: a season's archive record carries its `moments` (the longest-priced winner, the
  * best slip, the slips struck), so the game's end can tell every season's story. Every dog starts a
  * new season on `seasonStartFitness` with no layoff, so a v3e1 log replays into a different game from
@@ -96,7 +101,7 @@ import { ActionError, RACE_TYPE_IDS, STYLE_IDS } from './types';
  * The web save is seed + log (store/persist.ts), which is why SAVE_VERSION moves with it and an
  * old save fails soft to the title screen rather than replaying into a different game.
  */
-export const STATE_VERSION = 12;
+export const STATE_VERSION = 13;
 /**
  * The Major weekends. **One, at week 5 (GDD_V3 §2.1)**, where v2 had three.
  *

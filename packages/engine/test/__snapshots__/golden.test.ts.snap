@@ -2,14 +2,14 @@
 
 exports[`golden game (seed 42, 6 Normal AIs, two seasons) > matches the golden digest 1`] = `
 {
-  "actions": 1298,
+  "actions": 1341,
   "hires": 1,
   "players": [
     {
       "dogs": [
-        "Steaming of Shimmer:53:3:2/13",
-        "Bone the Madam:54:4:4/14",
-        "Yapping Pickle:54:4:3/14",
+        "Steaming of Shimmer:45:3:1/14",
+        "Bone the Madam:59:4:2/14",
+        "Yapping Pickle:53:4:3/13",
       ],
       "id": "p1",
       "staff": [
@@ -17,17 +17,17 @@ exports[`golden game (seed 42, 6 Normal AIs, two seasons) > matches the golden d
         "vell",
       ],
       "worth": {
-        "cargo": 88,
-        "cash": 53242,
-        "dogs": 18166,
-        "total": 71496,
+        "cargo": 135,
+        "cash": 50312,
+        "dogs": 17297,
+        "total": 67744,
       },
     },
     {
       "dogs": [
-        "Gentle Slate:47:5:2/14",
-        "Cousin Drifter:53:3:2/14",
-        "Kevin:55:4:2/14",
+        "Gentle Slate:54:5:1/14",
+        "Cousin Drifter:58:3:2/14",
+        "Kevin:52:4:2/13",
       ],
       "id": "p2",
       "staff": [
@@ -35,17 +35,17 @@ exports[`golden game (seed 42, 6 Normal AIs, two seasons) > matches the golden d
         "rook",
       ],
       "worth": {
-        "cargo": 44,
-        "cash": 47673,
-        "dogs": 15996,
-        "total": 63713,
+        "cargo": 0,
+        "cash": 49947,
+        "dogs": 17627,
+        "total": 67574,
       },
     },
     {
       "dogs": [
-        "Mister of Cannonball:47:5:1/14",
-        "Crispy Bandit:54:3:0/14",
-        "Quiet of Rocket:58:4:4/14",
+        "Mister of Cannonball:48:5:4/14",
+        "Crispy Bandit:53:3:1/14",
+        "Quiet of Rocket:57:4:4/14",
       ],
       "id": "p3",
       "staff": [
@@ -53,17 +53,17 @@ exports[`golden game (seed 42, 6 Normal AIs, two seasons) > matches the golden d
         "ruin",
       ],
       "worth": {
-        "cargo": 0,
-        "cash": 39283,
-        "dogs": 16865,
-        "total": 56148,
+        "cargo": 45,
+        "cash": 57666,
+        "dogs": 16551,
+        "total": 74262,
       },
     },
     {
       "dogs": [
-        "Final Chalice:55:4:1/14",
-        "Nebular of Peril:55:5:4/13",
-        "Notorious Sideburn:64:4:6/13",
+        "Final Chalice:51:4:3/15",
+        "Sudden Bone:51:1:2/7",
+        "Notorious Sideburn:65:4:4/12",
       ],
       "id": "p4",
       "staff": [
@@ -71,17 +71,17 @@ exports[`golden game (seed 42, 6 Normal AIs, two seasons) > matches the golden d
         "grubb",
       ],
       "worth": {
-        "cargo": 44,
-        "cash": 44109,
-        "dogs": 18583,
-        "total": 62736,
+        "cargo": 135,
+        "cash": 52691,
+        "dogs": 20486,
+        "total": 73312,
       },
     },
     {
       "dogs": [
-        "Mild Peril:63:3:2/14",
-        "Fearless Burp:50:5:0/7",
-        "Lukewarm Torpedo:59:4:2/14",
+        "Mild Peril:53:3:1/14",
+        "Grumpy Pebble:48:3:1/5",
+        "Lukewarm Torpedo:57:4:2/14",
       ],
       "id": "p5",
       "staff": [
@@ -89,17 +89,17 @@ exports[`golden game (seed 42, 6 Normal AIs, two seasons) > matches the golden d
         "lucky",
       ],
       "worth": {
-        "cargo": 44,
-        "cash": 60933,
-        "dogs": 19816,
-        "total": 80793,
+        "cargo": 0,
+        "cash": 46199,
+        "dogs": 18465,
+        "total": 64664,
       },
     },
     {
       "dogs": [
-        "Airlock Whiplash:59:4:2/13",
-        "Madam of Saucer:57:5:1/14",
-        "Sudden Jumble:47:5:0/15",
+        "Airlock Whiplash:51:4:1/15",
+        "Madam of Saucer:55:5:2/15",
+        "Sudden Jumble:59:5:1/15",
       ],
       "id": "p6",
       "staff": [
@@ -108,14 +108,14 @@ exports[`golden game (seed 42, 6 Normal AIs, two seasons) > matches the golden d
       ],
       "worth": {
         "cargo": 0,
-        "cash": 32616,
-        "dogs": 15174,
-        "total": 47790,
+        "cash": 41937,
+        "dogs": 15028,
+        "total": 56965,
       },
     },
   ],
-  "retirements": 1,
-  "rng": 4292809899,
+  "retirements": 2,
+  "rng": 2468820386,
   "seasons": [
     {
       "calendar": [
@@ -181,36 +181,36 @@ exports[`golden game (seed 42, 6 Normal AIs, two seasons) > matches the golden d
       ],
       "goldCups": {
         "p1": 0,
-        "p2": 1,
-        "p3": 0,
-        "p4": 2,
-        "p5": 0,
+        "p2": 0,
+        "p3": 1,
+        "p4": 3,
+        "p5": 1,
         "p6": 1,
       },
       "season": 2,
       "standings": [
         {
-          "netWorth": 80793,
-          "playerId": "p5",
-        },
-        {
-          "netWorth": 71496,
-          "playerId": "p1",
-        },
-        {
-          "netWorth": 63713,
-          "playerId": "p2",
-        },
-        {
-          "netWorth": 62736,
-          "playerId": "p4",
-        },
-        {
-          "netWorth": 56148,
+          "netWorth": 74262,
           "playerId": "p3",
         },
         {
-          "netWorth": 47790,
+          "netWorth": 73312,
+          "playerId": "p4",
+        },
+        {
+          "netWorth": 67744,
+          "playerId": "p1",
+        },
+        {
+          "netWorth": 67574,
+          "playerId": "p2",
+        },
+        {
+          "netWorth": 64664,
+          "playerId": "p5",
+        },
+        {
+          "netWorth": 56965,
           "playerId": "p6",
         },
       ],
@@ -218,31 +218,31 @@ exports[`golden game (seed 42, 6 Normal AIs, two seasons) > matches the golden d
   ],
   "standings": [
     {
-      "netWorth": 80793,
-      "playerId": "p5",
-    },
-    {
-      "netWorth": 71496,
-      "playerId": "p1",
-    },
-    {
-      "netWorth": 63713,
-      "playerId": "p2",
-    },
-    {
-      "netWorth": 62736,
-      "playerId": "p4",
-    },
-    {
-      "netWorth": 56148,
+      "netWorth": 74262,
       "playerId": "p3",
     },
     {
-      "netWorth": 47790,
+      "netWorth": 73312,
+      "playerId": "p4",
+    },
+    {
+      "netWorth": 67744,
+      "playerId": "p1",
+    },
+    {
+      "netWorth": 67574,
+      "playerId": "p2",
+    },
+    {
+      "netWorth": 64664,
+      "playerId": "p5",
+    },
+    {
+      "netWorth": 56965,
       "playerId": "p6",
     },
   ],
-  "stateHash": "dc3574225602834ef9231ef3cf7dcf5c2fb47253b350fd2e6223f5802eb25e17",
+  "stateHash": "d4bb14c325b87744c38220c36d96765ff63316f6945ab01774344dd980b35dfa",
 }
 `;
 
@@ -611,6 +611,6 @@ exports[`golden season (seed 42, 6 Normal AIs) > matches the golden digest 1`] =
       "playerId": "p4",
     },
   ],
-  "stateHash": "8dc05e068c47b4e35d68f73330b5a3cf0474ed7c2be024d53ef47cc4dfe22ed3",
+  "stateHash": "41a8c8b50994984dd2d2b9095b1bb4ee88bb62077a0c98bd73e039ffa785eebf",
 }
 `;
