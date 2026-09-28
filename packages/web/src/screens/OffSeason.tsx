@@ -75,7 +75,11 @@ export function OffSeason({ s, me }: { s: GameState; me: Player }) {
 
       <Panel
         title="The retirement window"
-        sub="retire one dog for its book value and take the dog on offer — or keep them all"
+        sub={
+          n.draft
+            ? "last at the table: the breeder's pick — a better dog than anybody else is offered"
+            : 'retire one dog for its book value and take the dog on offer — or keep them all'
+        }
       >
         <p className="event-detail">{describeRetirementOffer(n)}</p>
         {retiredAnswered ? (

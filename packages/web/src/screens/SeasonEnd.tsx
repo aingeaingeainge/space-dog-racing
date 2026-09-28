@@ -43,6 +43,9 @@ function SeasonOver({ s, rows }: { s: GameState; rows: SeasonRow[] }) {
   const ackSeason = useGame((g) => g.ackSeason);
   const top = rows[0];
   const last = s.calendar[s.week - 1];
+  // Phase I, GDD_V3 V23: the draft is public — the whole table reads who gets the breeder's pick.
+  const draftedId = Object.entries(s.offSeason?.notices ?? {}).find(([, n]) => n.draft)?.[0];
+  const drafted = s.players.find((p) => p.id === draftedId);
   return (
     <div className="app">
       <div className="centre">
@@ -65,6 +68,13 @@ function SeasonOver({ s, rows }: { s: GameState; rows: SeasonRow[] }) {
         <span className="muted">
           The off-season first: every dog a year older and back to full fitness, one retirement, the
           staff notice.
+          {drafted ? (
+            <>
+              {' '}
+              <b>Last at the table: {drafted.name} gets the breeder&apos;s pick</b>, a better dog
+              than anybody else is offered.
+            </>
+          ) : null}
         </span>
       </div>
 
