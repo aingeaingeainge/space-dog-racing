@@ -3,7 +3,7 @@
 > **Status: CURRENT.** Build online multiplayer from this document.
 >
 > Canonical copy: `design/ONLINE_PLAN.md` in the `space-dog-racing` repo. A copy in a claude.ai
-> Project is a **mirror**, last synced 29 September 2026 (at `v3k`) — edit the repo, never the mirror.
+> Project is a **mirror**, last synced 29 September 2026 (at `v3l1`) — edit the repo, never the mirror.
 > See `design/CANON.md`.
 >
 > Written in v3 Phase K (`v3k`). It replaces `design/BUILD_PLAN.md` §6b.9 and "Prompt M6", which were
@@ -190,12 +190,23 @@ already shows every door, bet, box and card choice as it is made.
 | `players[].paid` | You Paid (§6.2) | that stable | own only (others zeroed) |
 | `offSeason.notices[x]` | a retirement offer (true stats, lie), the draft's pick, a candidate | that stable, as §9.2 shows it | own only, `offer` cut to what `describeRetirementOffer` shows |
 | `eventLog` lines with a `playerId` | private card text, tips, "your man got to…" | that stable (the hub already filters so) | own and public lines only |
+| `players[].stats`, the private counters *(added at `v3l1`)* | `betIncome`, `dogOffers`, `tips`, `nobbles`, `boxes`, `staffOffers` and the rest move **the moment** a slip, a card, a tip, a nobble or a box happens, so another stable's counters say "Ruby just booked a nobble" | that stable; the season's archive (`seasons[].stats`) is public once the season ends | zeroed on every other stable; `prizeIncome`, `commission`, `tradeIncome`, `costs`, `caught`, `fines` and `worthByWeek` stay (all public already) |
+| `dogs[d].raceBonus` (another's) *(added at `v3l1`)* | a card's edge for this weekend's race (the lucky bone) | the dog's owner | `0` |
 
 **Public, and left alone:** cash, cargo (it is in net worth, and the leaderboard shows its value), every
 dog's stats, rating, fitness, form, age, traits and injuries, `styleKnown` styles, `declarations` (public
 as made, §7.3), `fields` and `races` (after the lock; `RaceResult.runs` names styles only of dogs that
 have now raced), `results`, the Stewards' findings, `turnOrder` and its reasons, `done`, `seasons`,
 `finalStandings`, staff.
+
+⚠️ **Cash is public, so spending shows** (found building `v3l1`). A nobble, a box, a Bar tip and a stake
+all leave a stable's cash the moment they are paid, and cash is on the leaderboard. A view shows that
+Ruby spent 300 Bones; it never shows on what, on whom or on which dog. That is the same as hotseat's
+leaderboard and is left alone: hiding cash would hide net worth, and pillar 4 says the scoreboard is
+public.
+
+⚠️ **The table is the code.** `SEAT_SECRETS` in `packages/engine/src/view.ts` is this table, row for row
+(twenty rows at `v3l1`), and `test/view.test.ts` fails if a row has no test.
 
 ⚠️ **Rumours** (`web/lib/rumours.ts`) read the seed and the calendar two weeks out. They move into the
 engine as a pure `rumoursFor(s)` with the same output, and the view carries the list; the web's hotseat
@@ -211,6 +222,9 @@ calls the same function.
 
 ## 4. The engine changes
 
+> **Built at `v3l1` (29 September 2026).** All four, as below; neither golden moved. The off-season's
+> any-order needed one more piece than planned: see item 3. Notes: `claude/V3_PHASE_L1_NOTES.md`.
+
 All additive and pure, in one phase (`v3l1`). **None moves a golden**: the goldens are all-AI tables
 driven in turn order, which nothing below changes. `STATE_VERSION` and `SAVE_VERSION` stay 13.
 
@@ -223,6 +237,13 @@ driven in turn order, which nothing below changes. `STATE_VERSION` and `SAVE_VER
    stable answers draws anything (§2.2), so `Retire`, `ResolveStaffNotice` and `EndPhase` can accept any
    stable not yet finished, as the Bookie's did at `v3e2` (E8). Proven the same way: every order of four
    humans gives the same state, byte for byte. Online this lets everybody do the off-season at once.
+   *Built:* two things in the off-season do depend on order, and both are bookkeeping — a replacement dog
+   takes the next id off the counter, and each answer appends to the event log. `fileInTurnOrder`
+   (`phases/offSeason.ts`) re-files them as turn order would have, the Bookie's `slipIndex` pattern:
+   replacements are renumbered in turn order from where the counter stood, and each stable's answer
+   lines kept together, stables in turn order (the notice counts its own lines in an optional
+   `logLines`, gone with the off-season at the new season). Answered in turn order both are no-ops, so no
+   AI table, golden or hotseat game moves.
 4. **`PROTOCOL_VERSION`** exported (§7).
 
 **Not needed:**
@@ -414,6 +435,18 @@ it cannot change how the playtest evening plays (no rule, no hotseat screen); "a
 the evening's results.
 
 ### Phase L1 — the engine's half: `viewFor` (1 session) → `v3l1` · **before the evening**
+
+> **Status: DONE at `v3l1` (29 September 2026).** Built in the session after K, at Jesse's call.
+>
+> | Measure | `v3l1` |
+> |---|---|
+> | Every §3.1 row hidden / shown | ✅ 20 rows × 2 tables, a plant each; the test fails on a row without one |
+> | Indistinguishability | ✅ every row, 4 humans + 2 AIs and 8 humans, byte-identical views |
+> | Views through the web, every seat, every screen | ✅ `npm run view-walk`: two seasons, 617 moments × 4 seats × 19 screens, 46,892 renders, **0 throws** the state does not also throw; GalaxyMap's dark-week lookup (§6 item 4) counted apart, 14 weekends |
+> | Off-season in any order | ✅ 24 orders and 40 random interleavings of presses, one state |
+> | `decide` plays a human seat | ✅ four human seats, a season, and the log replays |
+> | `rumoursFor` unchanged | ✅ 50 seasons, 417 rumours, same hash as the web's at `v3j` |
+> | Goldens, versions, tests, lint, hotseat checks, harness | `41a8c8b5…` / `d4bb14c3…` unmoved; 13 / 13; 184 green (51 + 133 new); clean; `season-check`, `hub-clicks`, `race-view-check` byte-identical to `v3k`; harness identical |
 
 **Goal:** the engine can say what each seat may see, and the off-season can be answered at once.
 

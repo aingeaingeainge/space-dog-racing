@@ -3,7 +3,7 @@
 > **Status: CURRENT.** Build from this document.
 >
 > Canonical copy: `design/BUILD_PLAN_V3.md` in the `space-dog-racing` repo. A copy in a claude.ai
-> Project is a **mirror**, last synced 29 September 2026 (at `v3k`) — edit the repo, never the mirror. See
+> Project is a **mirror**, last synced 29 September 2026 (at `v3l1`) — edit the repo, never the mirror. See
 > `design/CANON.md`.
 >
 > Supersedes `design/BUILD_PLAN.md` from §6 onward. **That document's §§1–5 — architecture, tech
@@ -589,12 +589,16 @@ screen text and `SAVE_VERSION` 13; GDD_V3 §2.2, §10, §11 and V23.
 
 ### Phases L1–L4 — online multiplayer (4 sessions) → `v3l1` … `v3l4`
 
-> **Status: PLANNED.** The spec, acceptance tables and order are in **`design/ONLINE_PLAN.md` §10**; this
-> is only the outline.
+> **Status: L1 DONE at `v3l1` (29 September 2026); L2–L4 PLANNED.** The spec, acceptance tables and
+> order are in **`design/ONLINE_PLAN.md` §10**, with L1's results there; this is only the outline. L1:
+> `viewFor` and twenty secret rows, `rumoursFor`, the off-season in any order (GDD_V3 L1a, L1b),
+> `PROTOCOL_VERSION`, `test/view.test.ts` (133 tests) and `npm run view-walk` (0 throws). No rule, golden
+> or save version moved; the hotseat checks read byte for byte as at `v3k`. Notes:
+> `claude/V3_PHASE_L1_NOTES.md`.
 >
 > | Phase | Goal | When |
 > |---|---|---|
-> | **L1** `v3l1` | the engine's half: `viewFor` and its secret table, `rumoursFor`, the off-season in any order, `PROTOCOL_VERSION`. No golden moves | before the evening |
+> | **L1** `v3l1` ✅ | the engine's half: `viewFor` and its secret table, `rumoursFor`, the off-season in any order, `PROTOCOL_VERSION`. No golden moves | before the evening — **done** |
 > | **L2** `v3l2` | the room: `packages/server`, a Worker and a Durable Object, the protocol, headless clients against `wrangler dev`. No deploy | before the evening |
 > | **L3** `v3l3` | the web online: lobby, the store on a socket, `screenFor` without pass screens, two browsers. Hotseat untouched | either; after is safer |
 > | **L4** `v3l4` | live on Jesse's Cloudflare account, and the first online evening | after the evening |
