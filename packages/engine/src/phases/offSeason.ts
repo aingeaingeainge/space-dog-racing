@@ -5,7 +5,14 @@ import { dogValue } from '../economy/dogValue';
 import { unemployedStaff } from '../economy/staff';
 import { mulberry32 } from '../rng';
 import { dog, log, player, type Ctx } from '../state';
-import { ActionError, type Action, type GameState, type Id, type OffSeasonNotice } from '../types';
+import {
+  ActionError,
+  type Action,
+  type Dog,
+  type GameState,
+  type Id,
+  type OffSeasonNotice,
+} from '../types';
 import { revealStyles } from './raceDay';
 import { startPlayerPhase } from './turn';
 
@@ -100,7 +107,11 @@ export function describeRetirementOffer(n: OffSeasonNotice): string {
 function noticeFor(s: GameState, playerId: Id, action: Action): OffSeasonNotice {
   if (s.phase !== 'offSeason' || !s.offSeason)
     throw new ActionError('It is not the off-season', action);
-  if (s.activePlayer !== playerId) throw new ActionError(`It is not ${playerId}'s turn`, action);
+  // v3 Phase L1: the off-season is answered in any order (ONLINE_PLAN §4 item 3), as the Bookie
+  // has been since E8. Every answer was rolled when the off-season opened and none of them draws, so
+  // the only thing order could move is bookkeeping, and `fileInTurnOrder` puts that back.
+  if (s.done.includes(playerId))
+    throw new ActionError(`${playerId} has finished the off-season`, action);
   const n = s.offSeason.notices[playerId];
   if (!n) throw new ActionError('No off-season for this stable', action);
   return n;
@@ -112,9 +123,11 @@ export function retire(ctx: Ctx, action: Extract<Action, { t: 'Retire' }>): void
   const n = noticeFor(s, action.playerId, action);
   if (n.retired !== undefined) throw new ActionError('The retirement window is answered', action);
   const p = player(s, action.playerId);
+  const before = s.eventLog.length;
   if (action.dogId === null) {
     n.retired = null;
     log(s, `${p.name} keeps them all.`, p.id);
+    fileInTurnOrder(s, p.id, before);
     return;
   }
   if (!p.dogIds.includes(action.dogId)) throw new ActionError('Not your dog', action);
@@ -130,6 +143,7 @@ export function retire(ctx: Ctx, action: Extract<Action, { t: 'Retire' }>): void
   );
   // A dealt dog leaving takes its style with it (dealtGone): the §5.5 elimination stays sound.
   revealStyles(s, []);
+  fileInTurnOrder(s, p.id, before);
 }
 
 /** GDD_V3 §2.2 step 3: take the candidate on, or not. */
@@ -142,11 +156,75 @@ export function resolveStaffNotice(
   if (!n.candidate) throw new ActionError('Nobody is on offer', action);
   if (n.hired !== undefined) throw new ActionError('The staff notice is answered', action);
   const p = player(s, action.playerId);
+  const before = s.eventLog.length;
   n.hired = action.hire;
   if (action.hire) {
     p.staff.push(n.candidate);
     log(s, `${p.name} takes on ${staffRow(n.candidate).name}.`, p.id);
   }
+  fileInTurnOrder(s, p.id, before);
+}
+
+/**
+ * v3 Phase L1 (ONLINE_PLAN §4 item 3): **file an off-season answer as if it had been given in turn
+ * order**, whatever order it was actually given in — the Bookie's `slipIndex` pattern (E8). An answer
+ * touches only its own stable, with two exceptions, and both are bookkeeping:
+ *
+ * - **the event log.** Each stable's answer lines are kept together, stables in turn order, a
+ *   stable's own lines in the order it gave them. `logLines` counts each stable's, so the tail of the
+ *   log can be read without tagging a line (which would move the goldens).
+ * - **the new dogs' ids.** A retirement's replacement takes the next id off the counter, so the id a
+ *   dog gets would depend on who retired first. The replacements are re-numbered in turn order from
+ *   where the counter stood when the off-season opened, and re-filed in `s.dogs` in that order.
+ *
+ * Answered in turn order — every AI table, every golden, every hotseat game — both are no-ops, so no
+ * state moves. Answered in any other order, the state is the same to the byte (`test/view.test.ts`).
+ */
+function fileInTurnOrder(s: GameState, playerId: Id, before: number): void {
+  const notices = s.offSeason!.notices;
+  const rank = (id: Id) => s.turnOrder.indexOf(id);
+  const n = notices[playerId]!;
+  const added = s.eventLog.length - before;
+  if (added > 0) {
+    n.logLines = (n.logLines ?? 0) + added;
+    let total = 0;
+    let ahead = 0;
+    for (const [id, x] of Object.entries(notices)) {
+      total += x.logLines ?? 0;
+      if (rank(id) < rank(playerId)) ahead += x.logLines ?? 0;
+    }
+    const at = s.eventLog.length - total + ahead + (n.logLines - added);
+    if (at < s.eventLog.length - added) {
+      const lines = s.eventLog.splice(s.eventLog.length - added, added);
+      s.eventLog.splice(at, 0, ...lines);
+    }
+  }
+  const retirers = s.players
+    .filter((p) => typeof notices[p.id]?.retired === 'string')
+    .sort((a, b) => rank(a.id) - rank(b.id));
+  if (!retirers.length) return;
+  const base = s.nextId - retirers.length;
+  const serial = (id: Id) => parseInt(id.slice(id.lastIndexOf('_') + 1), 36);
+  const fresh: Dog[] = [];
+  for (const p of retirers) {
+    const d = p.dogIds.map((id) => s.dogs[id]!).find((x) => serial(x.id) >= base);
+    if (!d) return; // not a replacement this off-season made: nothing to re-file
+    fresh.push(d);
+  }
+  const target = fresh.map((_, k) => `dog_${(base + k).toString(36)}`);
+  const keys = Object.keys(s.dogs);
+  const tail = keys.slice(keys.length - fresh.length);
+  if (fresh.every((d, k) => d.id === target[k] && tail[k] === target[k])) return;
+  const dogs: Record<Id, Dog> = {};
+  const moving = new Set(fresh.map((d) => d.id));
+  for (const k of keys) if (!moving.has(k)) dogs[k] = s.dogs[k]!;
+  fresh.forEach((d, k) => {
+    const p = player(s, d.ownerId as Id);
+    p.dogIds[p.dogIds.indexOf(d.id)] = target[k]!;
+    d.id = target[k]!;
+    dogs[d.id] = d;
+  });
+  s.dogs = dogs;
 }
 
 /** What a stable still has to answer before it may leave the off-season screen. */

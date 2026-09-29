@@ -3,6 +3,8 @@ export * from './rng';
 export * from './state';
 export * from './reduce';
 export * from './season';
+export * from './rumours';
+export * from './view';
 export * from './economy';
 export * from './race/simulateRace';
 export * from './race/odds';

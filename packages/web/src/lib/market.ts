@@ -14,10 +14,10 @@ import {
   expectedPrice,
   intelPrice,
   GOODS,
+  mostNotable,
   planetOf,
   type GameState,
   type Good,
-  type GoodId,
   type Planet,
   type Player,
 } from '@sdr/engine';
@@ -113,16 +113,7 @@ export function marketHeadline(
 }
 
 /**
- * The good a planet is most notable for, and which way — what a rumour or a map line would say
- * about it. Null for a planet that is middling for everything.
+ * The good a planet is most notable for, and which way. ⚠️ The engine's since Phase L1, where it
+ * moved with the rumours (`rumoursFor`); re-exported so every screen still asks it here.
  */
-export function mostNotable(planet: Planet): { id: GoodId; cheap: boolean; bias: number } | null {
-  let best: { id: GoodId; cheap: boolean; bias: number } | null = null;
-  for (const g of GOODS) {
-    const bias = planet.foodBand[g.id];
-    if (Math.abs(bias - 1) < 0.25) continue;
-    if (!best || Math.abs(bias - 1) > Math.abs(best.bias - 1))
-      best = { id: g.id, cheap: bias < 1, bias };
-  }
-  return best;
-}
+export { mostNotable };

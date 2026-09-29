@@ -103,6 +103,14 @@ import { ActionError, RACE_TYPE_IDS, STYLE_IDS } from './types';
  */
 export const STATE_VERSION = 13;
 /**
+ * **The online protocol's version** (ONLINE_PLAN §7), v3 Phase L1. A browser says it in `hello`; a
+ * room on another answers `reload`, and the browser offers to reload rather than play a subtly
+ * different game — `SAVE_VERSION`'s promise, for a socket. It moves when a message's shape, the view's
+ * shape (`viewFor`, `SEAT_SECRETS`) or a rule moves: anything that would make an old browser misread a
+ * new room. Hotseat never reads it.
+ */
+export const PROTOCOL_VERSION = 1;
+/**
  * The Major weekends. **One, at week 5 (GDD_V3 §2.1)**, where v2 had three.
  *
  * Kept as a list rather than collapsed to a number because the shape of the season is a list — the

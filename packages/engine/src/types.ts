@@ -728,6 +728,12 @@ export interface OffSeasonNotice {
    * `draftLevelShift` above the ordinary. Absent for everybody else.
    */
   draft?: boolean;
+  /**
+   * v3 Phase L1: how many event-log lines this stable's answers have written, so an answer given out
+   * of turn can be filed where turn order would have put it (`fileInTurnOrder`). Absent until the
+   * stable's first answer writes a line; gone with the rest of the off-season when the season starts.
+   */
+  logLines?: number;
 }
 
 /** The off-season (GDD_V3 §2.2): each stable's notice, by id. Null outside the off-season. */
@@ -810,6 +816,12 @@ export interface GameState {
   gameOver: GameOver | null;
   /** Between seasons, each stable's off-season (GDD_V3 §2.2); null the rest of the time. */
   offSeason: OffSeasonState | null;
+  /**
+   * v3 Phase L1: **only ever set on a seat's view** (`viewFor`), never in a game's state, so it is in
+   * no save, log or golden. The Saloon's rumours, worked out by the room from the whole state because
+   * they read the seed and the calendar two weeks out, which a view does not carry.
+   */
+  rumours?: { key: string; text: string }[];
 }
 
 export interface PlayerSetup {
