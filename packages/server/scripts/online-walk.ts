@@ -55,6 +55,7 @@ import type {
   RoomMsg,
   WelcomeMsg,
 } from '../src/protocol';
+import { driveRoom } from '../src/game';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const SERVER = resolve(HERE, '..');
@@ -287,6 +288,8 @@ class Client {
   lobby: LobbyStateMsg | null = null;
   ended: EndedMsg | null = null;
   welcome: WelcomeMsg | null = null;
+  /** `v3l3`: the successor's code, from a `moved` (Play again, §2.6). */
+  moved: string | null = null;
   private seq = 0;
   private waiting = new Map<number, (m: RoomMsg | DebugReplyMsg) => void>();
   busy: number | null = null;
@@ -388,6 +391,9 @@ class Client {
       }
       case 'nudged':
         this.nudged++;
+        break;
+      case 'moved':
+        this.moved = msg.code;
         break;
       case 'ended':
         this.ended = msg;
@@ -606,6 +612,18 @@ async function gameOne(wr: Wrangler): Promise<void> {
   ]);
   const [a, b, c] = clients as [Client, Client, Client, Client];
 
+  // v3l3: a browser at the door, only looking, is sent the lobby (the faces taken) and no seat.
+  const looker = new Client(code, { name: 'Looking', colour: 0, early: false });
+  const look = await looker.connect({});
+  await looker.close();
+  row(
+    'a look-only hello gets the lobby and no seat',
+    look.t === 'lobby' && look.seats.length === 4 && !looker.welcome && !looker.seat,
+    look.t === 'lobby'
+      ? `${look.seats.length} seats, faces ${look.seats.map((x) => x.colour).join(', ')} taken, started ${look.started}; seated: ${looker.seat || 'nobody'}`
+      : JSON.stringify(look).slice(0, 200),
+  );
+
   // Joining: a face already taken is refused; the host is the first to sit down.
   const dup = new Client(code, { name: 'Eve', colour: 0, early: false });
   const dupReply = await dup.connect({ name: 'Eve', colour: 0 });
@@ -787,7 +805,61 @@ async function gameOne(wr: Wrangler): Promise<void> {
     `room ${room.hash.slice(0, 16)}…, Node ${rep.finalHash.slice(0, 16)}… over ${rep.logRows} actions`,
   );
   summary(clients, 'game one', rep, t0);
+  await playAgain(clients, code, rep);
   for (const x of clients) await x.close();
+}
+
+/**
+ * v3l3, Play again (§2.6): only the host, only after the end. The room makes a successor with the
+ * same seats (names, faces, tokens), AI rows, length and setup — so the same seed — starts it, and
+ * sends everybody `moved`; a later `hello` on the old room is sent there too. Each client follows
+ * with its own token. The successor's state at its first rev must hash the same as Node's
+ * `createSeason(setup)` driven to the first human, over the old room's `ended` setup.
+ */
+async function playAgain(clients: Client[], code: string, rep: Replayed): Promise<void> {
+  const [a, b] = clients as [Client, Client];
+  const setup = clients.find((x) => x.ended)!.ended!.setup;
+  const notHost = await b.request({ t: 'playAgain' });
+  const first = await a.request({ t: 'playAgain' });
+  await until('everybody told', () => clients.every((x) => x.moved));
+  const second = await a.request({ t: 'playAgain' });
+  const next = first.t === 'moved' ? first.code : '';
+  const probe = new Client(code, { name: 'Probe', colour: 0, early: false });
+  const later = await probe.connect({ token: b.token });
+  await probe.close();
+  const followers: Client[] = [];
+  for (const x of clients) {
+    const y = new Client(next, x.opts);
+    const w = await y.connect({ token: x.token });
+    if (w.t !== 'welcome' || w.seat !== x.seat) throw new Error(`${x.opts.name} did not follow`);
+    followers.push(y);
+  }
+  await until('the successor views', () => followers.every((y) => y.view));
+  const room = await debug(followers[0]!);
+  const st = createSeason(setup);
+  const log: Action[] = [];
+  driveRoom(st, log, { standIn: new Set(), queue: new Map() });
+  const nodeHash = sha(JSON.stringify(st));
+  const v = followers[0]!.view!;
+  const ok =
+    notHost.t === 'rejected' &&
+    first.t === 'moved' &&
+    second.t === 'moved' &&
+    second.code === next &&
+    later.t === 'moved' &&
+    later.code === next &&
+    clients.every((x) => x.moved === next) &&
+    room.hash === nodeHash &&
+    room.rev === log.length &&
+    v.season === 1 &&
+    v.week === 1 &&
+    followers.every((y) => y.host === (y.seat === a.seat));
+  row(
+    'Play again: a new room, same seats and seed, every browser follows',
+    ok,
+    `${code} → ${next}; the non-host: "${notHost.t === 'rejected' ? notHost.error : notHost.t}"; a second press and a later hello on ${code}: moved to ${second.t === 'moved' ? second.code : second.t} and ${later.t === 'moved' ? later.code : later.t}; ${followers.length} clients back in seats ${followers.map((y) => y.seat).join(', ')}; the successor at rev ${room.rev} hashes ${room.hash.slice(0, 12)}…, Node's createSeason(setup, seed ${setup.seed}) driven ${nodeHash.slice(0, 12)}… (the old game ended at rev ${rep.logRows})`,
+  );
+  for (const y of followers) await y.close();
 }
 
 /**

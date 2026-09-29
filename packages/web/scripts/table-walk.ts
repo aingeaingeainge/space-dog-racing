@@ -70,7 +70,7 @@ function eligible(d: Dog, race: RaceTypeId): boolean {
 }
 
 /** Market, Kennels and Race Office: two weeks of staple if short, then the best three declared. */
-function planetTurn(s: GameState, p: Player): Action[] {
+export function planetTurn(s: GameState, p: Player): Action[] {
   const out: Action[] = [];
   const dogs = ownDogs(s, p);
   if (s.phase === 'planetPre') {
@@ -102,7 +102,7 @@ function planetTurn(s: GameState, p: Player): Action[] {
 }
 
 /** The Bookie: 100 on each race's favourite, inside the cap. */
-function bettingTurn(s: GameState, p: Player): Action[] {
+export function bettingTurn(s: GameState, p: Player): Action[] {
   const out: Action[] = [];
   let cash = p.cash;
   for (const { race, entries } of s.fields ?? []) {
@@ -117,7 +117,7 @@ function bettingTurn(s: GameState, p: Player): Action[] {
 }
 
 /** The off-season: keep them all, take a candidate, on to the next season. */
-function offSeasonPress(s: GameState, me: Player): Action {
+export function offSeasonPress(s: GameState, me: Player): Action {
   const n = s.offSeason!.notices[me.id]!;
   if (n.retired === undefined) return { t: 'Retire', playerId: me.id, dogId: null };
   if (n.candidate && n.hired === undefined)

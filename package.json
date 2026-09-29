@@ -26,7 +26,9 @@
     "server:install": "npm install --prefix packages/server",
     "server:dev": "npm run dev --prefix packages/server",
     "server:test": "npm test --prefix packages/server",
-    "online-walk": "npm run walk --prefix packages/server"
+    "online-walk": "npm run walk --prefix packages/server",
+    "online-table-walk": "vite-node --root packages/web packages/web/scripts/online-table-walk.ts",
+    "browser-walk": "npm run browser-walk --prefix packages/server"
   },
   "devDependencies": {
     "@eslint/js": "^9.30.0",
