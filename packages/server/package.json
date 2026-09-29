@@ -1,0 +1,23 @@
+{
+  "name": "@sdr/server",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "description": "The online room (ONLINE_PLAN §2): a Worker that routes, and a Durable Object per game. Not a root workspace, so the Pages build never installs wrangler.",
+  "scripts": {
+    "dev": "wrangler dev",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.tools.json --noEmit",
+    "test": "npm run typecheck && tsx --test test/*.test.ts",
+    "walk": "tsx scripts/online-walk.ts"
+  },
+  "dependencies": {
+    "@sdr/engine": "file:../engine"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260929.1",
+    "@types/node": "^22.10.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.8.0",
+    "wrangler": "^4.143.0"
+  }
+}

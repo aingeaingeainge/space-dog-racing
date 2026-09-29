@@ -4,7 +4,8 @@
   "version": "0.0.1",
   "description": "Greyhound stable management on the grimy underground dog-racing circuit of a cartoon future.",
   "workspaces": [
-    "packages/*"
+    "packages/engine",
+    "packages/web"
   ],
   "engines": {
     "node": ">=20"
@@ -21,7 +22,11 @@
     "asset-list": "tsx packages/web/scripts/asset-list.ts",
     "asset-check": "tsx packages/web/scripts/asset-check.ts",
     "view-walk": "vite-node --root packages/web packages/web/scripts/view-walk.tsx",
-    "dev": "npm run dev -w @sdr/web"
+    "dev": "npm run dev -w @sdr/web",
+    "server:install": "npm install --prefix packages/server",
+    "server:dev": "npm run dev --prefix packages/server",
+    "server:test": "npm test --prefix packages/server",
+    "online-walk": "npm run walk --prefix packages/server"
   },
   "devDependencies": {
     "@eslint/js": "^9.30.0",

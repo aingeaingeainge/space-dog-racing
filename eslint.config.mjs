@@ -19,7 +19,7 @@ const BASE_ENGINE_RESTRICTIONS = [
 ];
 
 export default tseslint.config(
-  { ignores: ['**/dist/**', '**/node_modules/**', 'backups/**'] },
+  { ignores: ['**/dist/**', '**/node_modules/**', 'backups/**', '**/.wrangler/**'] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
@@ -27,6 +27,17 @@ export default tseslint.config(
     languageOptions: { globals: globals.node },
   },
   { files: ['packages/web/src/**/*.{ts,tsx}'], languageOptions: { globals: globals.browser } },
+  {
+    // The room (v3l2): a Worker and a Durable Object, and the Node scripts and tests that drive it.
+    files: ['packages/server/src/**/*.ts'],
+    languageOptions: { globals: globals.serviceworker },
+    rules: { '@typescript-eslint/no-explicit-any': 'error' },
+  },
+  {
+    files: ['packages/server/scripts/**/*.ts', 'packages/server/test/**/*.ts'],
+    languageOptions: { globals: globals.node },
+    rules: { '@typescript-eslint/no-explicit-any': 'error' },
+  },
   {
     files: ['packages/engine/src/**/*.ts'],
     rules: {

@@ -1,0 +1,13 @@
+// The rooms Worker (ONLINE_PLAN §2). Local only at v3l2: no account_id, and nothing deploys it.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "sdr-rooms",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-20",
+  "durable_objects": {
+    "bindings": [{ "name": "ROOM", "class_name": "Room" }]
+  },
+  // The free plan's Durable Objects are SQLite-backed only.
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Room"] }],
+  "observability": { "enabled": false }
+}

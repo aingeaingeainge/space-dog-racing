@@ -152,3 +152,7 @@ backups/
 
 # Screenshots and files the Claude desktop app drops into the project folder
 Claude outputs/
+
+# wrangler dev's local state and secrets (packages/server)
+.wrangler/
+.dev.vars*
