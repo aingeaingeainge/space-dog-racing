@@ -14,6 +14,10 @@ import type { Action, AiAgent, GameLength, GameState, Id, SeasonSetup } from '@s
 /**
  * On every (re)connect. With a `token`, take that seat back, before or after Start. Without one, a
  * `name` and a `colour` (a face, 0–7) take a new seat in the lobby; after Start that is refused.
+ *
+ * *Added at `v3l3`:* with none of the three, the browser is **only looking**: the room answers with
+ * the `lobby` (the seats, the faces taken, whether it has started) and keeps sending it as it
+ * changes, and seats nobody. That is how a joiner at the door sees which faces are taken (§5.5).
  */
 export interface HelloMsg {
   t: 'hello';
@@ -63,7 +67,18 @@ export interface StandInMsg {
   on: boolean;
 }
 
-export type ClientMsg = HelloMsg | ActMsg | NudgeMsg | LobbyMsg | StartMsg | StandInMsg;
+/**
+ * *Added at `v3l3` (§2.6):* the host, once the game is over. The room makes a successor with the same
+ * seats (names, faces and tokens), the same AI rows, the same length and the same seed, starts it,
+ * and sends every socket `moved`.
+ */
+export interface PlayAgainMsg {
+  t: 'playAgain';
+  seq?: number;
+}
+
+export type ClientMsg =
+  HelloMsg | ActMsg | NudgeMsg | LobbyMsg | StartMsg | StandInMsg | PlayAgainMsg;
 
 // ── Room → client ────────────────────────────────────────────────────────────────────────────────
 
@@ -170,8 +185,19 @@ export interface ReloadMsg {
   need: number;
 }
 
+/**
+ * *Added at `v3l3` (§2.6):* this room's game is over and its host pressed Play again: the game goes on
+ * in room `code`, where every seat's token is the same. Sent to every socket, and to every later
+ * `hello`, in place of anything else.
+ */
+export interface MovedMsg {
+  t: 'moved';
+  seq?: number;
+  code: string;
+}
+
 export type RoomMsg =
-  WelcomeMsg | LobbyStateMsg | ViewMsg | RejectedMsg | NudgedMsg | EndedMsg | ReloadMsg;
+  WelcomeMsg | LobbyStateMsg | ViewMsg | RejectedMsg | NudgedMsg | EndedMsg | ReloadMsg | MovedMsg;
 
 // ── Dev only ─────────────────────────────────────────────────────────────────────────────────────
 

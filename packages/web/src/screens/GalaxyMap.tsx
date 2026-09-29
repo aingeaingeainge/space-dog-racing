@@ -66,7 +66,9 @@ export function GalaxyMap({ s }: { s: GameState; me: Player }) {
             <tbody>
               {s.calendar.map((e) => {
                 const level = fogLevel(s, e.week);
-                const p = planetOf(e.planetId);
+                // A dark week's planet is never looked up (ONLINE_PLAN §6 item 4): online its id is
+                // blank in the view, and hotseat never showed it anyway.
+                const p = level === 'dark' ? null : planetOf(e.planetId);
                 const rowClass =
                   level === 'here'
                     ? 'me'
@@ -91,7 +93,7 @@ export function GalaxyMap({ s }: { s: GameState; me: Player }) {
                         </span>
                       ) : null}
                     </td>
-                    {level === 'dark' ? (
+                    {level === 'dark' || !p ? (
                       <td className="muted" colSpan={4}>
                         {e.major
                           ? 'A Major, venue not yet announced'

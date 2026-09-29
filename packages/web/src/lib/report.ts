@@ -31,6 +31,16 @@ export interface ReportInput {
   build: string;
   /** When the report was copied, already formatted. Optional, and only ever a label. */
   copiedAt?: string;
+  /**
+   * Online only (ONLINE_PLAN §5.3, V26): the seats a stand-in played, from the room's
+   * `meta.standInWeekends`. Absent or empty, the report reads exactly as a hotseat one.
+   */
+  standIns?: readonly { name: string; weekends: number }[];
+}
+
+/** "Aroha's seat was played by an AI for 3 weekends." */
+export function standInLine(name: string, weekends: number): string {
+  return `${name}'s seat was played by an AI for ${weekends} weekend${weekends === 1 ? '' : 's'}.`;
 }
 
 const DIFFICULTY: Record<string, string> = { easy: 'Easy', normal: 'Normal', hard: 'Hard' };
@@ -134,6 +144,7 @@ export function buildReport(r: ReportInput): string {
 
   out.push('THE TABLE (seat order)');
   s.players.forEach((p, i) => out.push(`${i + 1}. ${p.name} — ${whoText(p, owners[i] ?? null)}`));
+  for (const x of r.standIns ?? []) if (x.weekends > 0) out.push(standInLine(x.name, x.weekends));
   out.push(hr);
 
   out.push('THE RESULT');

@@ -9,6 +9,7 @@ import {
   type Player,
 } from '@sdr/engine';
 import { bookieOpen } from '../lib/selectors';
+import type { RoomMeta } from '../../../server/src/protocol';
 
 export interface Applied {
   state: GameState;
@@ -57,7 +58,9 @@ export type ScreenKind =
   | 'explore'
   | 'offSeason'
   | 'betting'
-  | 'planet';
+  | 'planet'
+  /** Online only (§5.1): this seat is not on the clock and has nothing it may do but read. Public. */
+  | 'waiting';
 
 export interface ScreenUi {
   /** Week whose races the table has already watched run. */
@@ -93,6 +96,15 @@ export interface Screen {
   kind: ScreenKind;
   /** The human the screen belongs to; null only when no human is left to play. */
   me: Player | null;
+}
+
+/**
+ * Online (ONLINE_PLAN §6 item 3): the browser's own seat and what the room says about the table.
+ * Only the two fields `screenFor` reads, so the loop stays free of the socket.
+ */
+export interface OnlineSeat {
+  seat: Id;
+  meta: Pick<RoomMeta, 'clock' | 'queued'> | null;
 }
 
 /**
@@ -151,7 +163,8 @@ export function passReason(s: GameState): string {
  * Which screen the one human on the clock should be looking at. Kept out of the components so
  * a whole season can be played headlessly in exactly the order a person would see it.
  */
-export function screenFor(s: GameState, ui: ScreenUi): Screen {
+export function screenFor(s: GameState, ui: ScreenUi, online?: OnlineSeat): Screen {
+  if (online) return onlineScreenFor(s, ui, online);
   const table = tableOf(s);
   /** Phase E2: two or more humans round one laptop. One human sees exactly what they always saw. */
   const hotseat = table.length > 1;
@@ -199,4 +212,58 @@ export function screenFor(s: GameState, ui: ScreenUi): Screen {
   if (s.phase === 'offSeason') return { kind: 'offSeason', me };
   if (s.phase === 'betting') return { kind: 'betting', me };
   return { kind: 'planet', me };
+}
+
+/**
+ * Is this seat on the clock (§5.1)? The room's `meta.clock` when there is one; without it, what the
+ * view itself says: every stable not finished at the Bookie and in the off-season, otherwise the
+ * stable whose turn it is.
+ */
+export function onClock(s: GameState, online: OnlineSeat): boolean {
+  if (online.meta) return online.meta.clock.seats.includes(online.seat);
+  if ((s.phase === 'betting' && s.locked) || s.phase === 'offSeason')
+    return !s.done.includes(online.seat);
+  return waitingOn(s) === online.seat;
+}
+
+/**
+ * **`screenFor` online** (ONLINE_PLAN §6 item 3). One browser, one seat: `me` is always this
+ * browser's own stable, and there are **no pass screens** — nobody else ever looks at this screen.
+ * The table's public moments (the arrival, the locked board, race day, the results, the season's
+ * end) are read by each browser alone, once a weekend, through the same `ui` marks hotseat uses; the
+ * after-races roll-call is gone, because each stable flies on from its own screen. A seat that is
+ * not on the clock and has nothing it may do sees **`waiting`**, over the hub.
+ *
+ * What a seat off the clock may still do (§5.1): pick its door early (the room holds it, so the door
+ * screen stays up and says so), fly on early after the races (held the same way, from the waiting
+ * screen), bet at the Bookie and answer the off-season at once.
+ */
+function onlineScreenFor(s: GameState, ui: ScreenUi, online: OnlineSeat): Screen {
+  if (isSeasonOver(s)) return { kind: 'seasonEnd', me: null };
+  if (s.phase === 'offSeason' && (ui.seasonSeen ?? 0) < s.season)
+    return { kind: 'seasonEnd', me: null };
+  const me = s.players.find((p) => p.id === online.seat) ?? null;
+  if (!me) return { kind: 'noHuman', me: null };
+  const wk = weekKey(s);
+  if (s.races && !bookieOpen(s) && ui.fieldsSeenWeek !== wk) return { kind: 'fields', me };
+  if (s.races && ui.racesWatchedWeek !== wk) return { kind: 'race', me };
+  if (s.races && ui.resultsSeenWeek !== wk) return { kind: 'results', me };
+  const done = s.done.includes(me.id);
+  const on = onClock(s, online);
+  const mine = s.pendingEvent?.playerId === me.id;
+  if (s.phase === 'explore') {
+    if ((ui.arrivalSeenWeek ?? 0) !== wk) return { kind: 'arrival', me };
+    if (!(me.id in (s.explore?.picks ?? {}))) return { kind: 'explore', me };
+    return { kind: mine ? 'planet' : 'waiting', me };
+  }
+  if (mine) return { kind: 'planet', me };
+  if (s.phase === 'betting' && s.locked) {
+    if (done) return { kind: 'waiting', me };
+    if ((ui.boardSeenWeek ?? 0) !== wk) return { kind: 'board', me };
+    return { kind: 'betting', me };
+  }
+  if (s.phase === 'offSeason') return { kind: done ? 'waiting' : 'offSeason', me };
+  if ((s.phase === 'planetPre' || s.phase === 'planetPost') && on && !done)
+    return { kind: 'planet', me };
+  return { kind: 'waiting', me };
 }
