@@ -76,7 +76,12 @@ export function Stable({ s, me }: { s: GameState; me: Player }) {
   const dogs = ownedDogs(s, me);
   const worth = netWorthBreakdown(s, me);
   const bill = weeklyBill(s, me);
-  const inTurn = s.phase === 'planetPre' || s.phase === 'planetPost';
+  // Online (v3l3): the diet is set in the stable's own sitting — the engine takes it only from the
+  // stable on the clock — so a seat off the clock reads its kennel without it.
+  const offClock = useGame(
+    (g) => g.source === 'online' && !!g.meta && !g.meta.clock.seats.includes(me.id),
+  );
+  const inTurn = (s.phase === 'planetPre' || s.phase === 'planetPost') && !offClock;
   const plans = dogs.map((d) => weekStatusOf(d));
   const count = (k: string) => plans.filter((x) => x === k).length;
 

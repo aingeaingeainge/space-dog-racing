@@ -87,6 +87,8 @@ function RaceReplay({
   // changes nothing in the engine, so this only marks the weekend's races watched — exactly what
   // reaching the end of the last race does. The per-race Skip stays.
   const skipRaceDay = useGame((g) => g.ackRaces);
+  // Online (v3l3, V27) each browser watches alone, and "you" is this seat's own stable.
+  const solo = useGame((g) => g.source === 'online') || humans(s).length < 2;
   const race: RaceTypeId = result.race;
   const planet = planetOf(result.planetId);
 
@@ -114,10 +116,10 @@ function RaceReplay({
       const owner = e.local ? undefined : playerById(s, e.ownerId as Id);
       const colour = owner ? STABLE_COLOURS[owner.colour % STABLE_COLOURS.length]! : '#7c7889';
       // At a hotseat table the race is the table's (Phase E2): nobody's dogs are "mine".
-      const mine = !!owner && owner.id === me.id && humans(s).length < 2;
+      const mine = !!owner && owner.id === me.id && solo;
       return { colour, ink: ink(colour), local: e.local, mine };
     });
-  }, [result, s, me.id]);
+  }, [result, s, me.id, solo]);
 
   /**
    * The planet's ground and its surface tile. Both are fetched here rather than with the app,
@@ -376,9 +378,11 @@ function ResultCard({
   onNext: () => void;
 }) {
   const won = mine.reduce((sum, p) => sum + p.amount, 0);
-  // A hotseat table watches together (Phase E2), so there is no "you" on this card.
+  // A hotseat table watches together (Phase E2), so there is no "you" on this card. Online each
+  // browser watches alone (v3l3), so there is.
+  const online = useGame((g) => g.source === 'online');
   const myRunner =
-    humans(s).length < 2 ? result.entries.find((e) => e.ownerId === me.id) : undefined;
+    online || humans(s).length < 2 ? result.entries.find((e) => e.ownerId === me.id) : undefined;
   return (
     <div className="race-result">
       <h3>

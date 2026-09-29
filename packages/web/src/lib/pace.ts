@@ -51,9 +51,11 @@ export function bucketOf(kind: ScreenKind): PaceBucket | 'between' | null {
       return 'raceDay';
     case 'pass':
       return 'pass';
+    // Online (v3l3), `waiting` on the stable on the clock is the table's time, as the roll-calls are.
     case 'arrival':
     case 'board':
     case 'afterRaces':
+    case 'waiting':
       return 'table';
     case 'offSeason':
       return 'between';

@@ -56,7 +56,16 @@ function finishedIcon(id: string) {
  * opening a shop to find out it has nothing in it. Nothing is hidden and nothing is disabled
  * that was not already — a shut venue still says why, per M1 note 2.
  */
-export function PlanetHub({ s, me }: { s: GameState; me: Player }) {
+export function PlanetHub({
+  s,
+  me,
+  waiting,
+}: {
+  s: GameState;
+  me: Player;
+  /** Online, off the clock (v3l3): why the Market and the Race Office are shut to this seat. */
+  waiting?: string;
+}) {
   const setView = useGame((g) => g.setView);
   const entry = s.calendar[s.week - 1]!;
   const planet = planetOf(entry.planetId);
@@ -65,7 +74,7 @@ export function PlanetHub({ s, me }: { s: GameState; me: Player }) {
   const bill = weeklyBill(s, me);
   const spots = hotspotsFor(planet.id);
   const status = venueStatus(s, me);
-  const byId = new Map(venues(s).map((v) => [v.id, v]));
+  const byId = new Map(venues(s, waiting).map((v) => [v.id, v]));
   const weekLog = s.eventLog.filter(
     (l) => l.week === s.week && (!l.playerId || l.playerId === me.id),
   );

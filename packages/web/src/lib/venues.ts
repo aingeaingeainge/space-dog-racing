@@ -23,12 +23,14 @@ export interface Venue {
  * A planet that has no bookie says so rather than silently dropping the button, so the planet's
  * special rules are legible from the hub.
  */
-export function venues(s: GameState): Venue[] {
+export function venues(s: GameState, waiting?: string): Venue[] {
   const planet = planetOf(s.planet.planetId);
   const pre = s.phase === 'planetPre';
   const post = s.phase === 'planetPost';
-  const inTurn = pre || post;
-  const shut = inTurn ? undefined : 'Not while the races are on';
+  // Online (v3l3): a seat off the clock reads its kennel and the map; the shelf and the card are the
+  // stable on the clock's until its turn comes. `waiting` is why, and absent is hotseat's code.
+  const inTurn = (pre || post) && !waiting;
+  const shut = waiting ?? (inTurn ? undefined : 'Not while the races are on');
 
   const bookie: Venue = !bookieOpen(s)
     ? {
@@ -49,8 +51,8 @@ export function venues(s: GameState): Venue[] {
     {
       id: 'office',
       label: 'Race Office',
-      open: pre,
-      reason: pre ? undefined : 'The card is closed for this weekend',
+      open: pre && !waiting,
+      reason: waiting ?? (pre ? undefined : 'The card is closed for this weekend'),
     },
     { id: 'map', label: 'Galaxy map', open: true },
   ];

@@ -19,6 +19,11 @@ import { SeasonEnd } from './screens/SeasonEnd';
 import { Stable } from './screens/Stable';
 import { AfterRaces, Arrival, Board } from './screens/Table';
 import { Title } from './screens/Title';
+import { Lobby } from './screens/Lobby';
+import { Waiting } from './screens/Waiting';
+import { AwaySeats, ConnectionStrip, ReloadStrip, WaitingLine } from './components/OnlineTable';
+import { blip, flashTitle } from './lib/nudge';
+import { roomFromUrl, roomsUrl } from './store/online';
 import { PlanetTheme } from './theme/planetTheme';
 import { screenFor, weekKey } from './store/loop';
 import { useGame } from './store/gameStore';
@@ -44,21 +49,64 @@ export function App() {
   const error = useGame((g) => g.error);
   const clearError = useGame((g) => g.clearError);
   const markPace = useGame((g) => g.markPace);
+  // Online (ONLINE_PLAN §6). All of it is inert in hotseat: `source` is 'local' and nothing below
+  // that reads these changes what a hotseat table sees.
+  const source = useGame((g) => g.source);
+  const lobbyOpen = useGame((g) => g.lobbyOpen);
+  const seat = useGame((g) => g.seat);
+  const meta = useGame((g) => g.meta);
+  const code = useGame((g) => g.code);
+  const nudged = useGame((g) => g.nudged);
+  const ackNudge = useGame((g) => g.ackNudge);
+  const joinRoom = useGame((g) => g.joinRoom);
+  const online = source === 'online' && seat ? { seat, meta } : undefined;
+
+  // `?room=KFZQPX` opens the join straight away (§5.5): a browser holding the room's token goes
+  // straight back into its seat. Only in a build that has a rooms server.
+  useEffect(() => {
+    if (!roomsUrl()) return;
+    const room = roomFromUrl(window.location.search);
+    if (room && useGame.getState().source !== 'online') joinRoom(room);
+  }, [joinRoom]);
+  // …and the address bar carries the room while this browser is in one, so a refresh comes back.
+  useEffect(() => {
+    if (!roomsUrl()) return;
+    try {
+      const url = new URL(window.location.href);
+      const want = source === 'online' && code ? code : null;
+      if (url.searchParams.get('room') === want) return;
+      if (want) url.search = `?room=${want}`;
+      else url.searchParams.delete('room');
+      window.history.replaceState(null, '', url.toString());
+    } catch {
+      // An address bar that cannot be written: the room still plays.
+    }
+  }, [source, code]);
+  // A nudge (§5.1): a short sound, and the tab's title flashing until the window has focus.
+  useEffect(() => {
+    if (!nudged) return;
+    blip();
+    return flashTitle(`★ ${nudged.by} nudged you`, ackNudge);
+  }, [nudged, ackNudge]);
 
   // Phase E2's pace timer. Every change of screen kind (or of weekend) closes one timed stretch and
   // opens the next; a hidden window stops the clock. UI only — nothing here reaches the engine.
   const screenNow = state
-    ? screenFor(state, {
-        racesWatchedWeek,
-        resultsSeenWeek,
-        fieldsSeenWeek,
-        passAck,
-        bustAck,
-        seasonSeen,
-        arrivalSeenWeek,
-        boardSeenWeek,
-        postTrade,
-      }).kind
+    ? screenFor(
+        state,
+        {
+          racesWatchedWeek,
+          resultsSeenWeek,
+          fieldsSeenWeek,
+          passAck,
+          bustAck,
+          seasonSeen,
+          arrivalSeenWeek,
+          boardSeenWeek,
+          postTrade,
+        },
+        online,
+      ).kind
     : null;
   const bucket =
     !state || !screenNow
@@ -82,6 +130,14 @@ export function App() {
   }, [bucket, paceKey, markPace]);
 
   if (!state) {
+    if (source === 'online' || lobbyOpen)
+      return (
+        <PlanetTheme>
+          <Lobby />
+          <ConnectionStrip />
+          <ReloadStrip />
+        </PlanetTheme>
+      );
     return (
       <PlanetTheme>
         <Title />
@@ -93,19 +149,36 @@ export function App() {
   // from Planet.accents, so a screen never knows which rock it is on and a new planet tints
   // the whole game from its data row alone.
   const planetId = state.calendar[state.week - 1]?.planetId ?? null;
-  const screen = screenFor(state, {
-    racesWatchedWeek,
-    resultsSeenWeek,
-    fieldsSeenWeek,
-    passAck,
-    bustAck,
-    seasonSeen,
-    arrivalSeenWeek,
-    boardSeenWeek,
-    postTrade,
-  });
+  const screen = screenFor(
+    state,
+    {
+      racesWatchedWeek,
+      resultsSeenWeek,
+      fieldsSeenWeek,
+      passAck,
+      bustAck,
+      seasonSeen,
+      arrivalSeenWeek,
+      boardSeenWeek,
+      postTrade,
+    },
+    online,
+  );
 
-  const wrap = (node: ReactNode) => <PlanetTheme planetId={planetId}>{node}</PlanetTheme>;
+  // Online, the connection and reload strips float over every screen, the race view's included.
+  const wrap = (node: ReactNode) => (
+    <PlanetTheme planetId={planetId}>
+      {online ? (
+        <>
+          {node}
+          <ConnectionStrip />
+          <ReloadStrip />
+        </>
+      ) : (
+        node
+      )}
+    </PlanetTheme>
+  );
 
   if (screen.kind === 'seasonEnd') return wrap(<SeasonEnd s={state} />);
   if (screen.kind === 'noHuman' || !screen.me) {
@@ -150,7 +223,19 @@ export function App() {
   return wrap(
     <>
       <TopBar s={s} me={me} />
+      {online ? (
+        <>
+          {!online.meta?.clock.seats.includes(me.id) ? <WaitingLine s={s} me={me} /> : null}
+          <AwaySeats s={s} me={me} />
+        </>
+      ) : null}
       <div className="app">
+        {online && nudged ? (
+          <div className="notice nudge" onClick={ackNudge}>
+            <b>{nudged.by}</b> nudged you — the table is waiting.{' '}
+            <span className="muted">(click to dismiss)</span>
+          </div>
+        ) : null}
         {error ? (
           <div className="notice error" onClick={clearError}>
             {error} <span className="muted">(click to dismiss)</span>
@@ -163,6 +248,8 @@ export function App() {
           <Explore s={s} me={me} />
         ) : screen.kind === 'betting' ? (
           <Bookie s={s} me={me} />
+        ) : screen.kind === 'waiting' ? (
+          <Waiting s={s} me={me} />
         ) : (
           <>
             {inTurn ? <Nav s={s} me={me} /> : null}

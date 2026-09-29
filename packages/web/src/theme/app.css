@@ -2546,3 +2546,129 @@ table.market tr.held td:first-child {
   white-space: pre-wrap;
   overflow: auto;
 }
+
+/* ---------------------------------------------------------------- online (v3l3, ONLINE_PLAN §5–§6) */
+/* The room's code, big enough to read across a room or down a phone line. */
+.room-code {
+  margin: 4px 0 12px;
+  font-family: var(--font-display);
+  font-size: clamp(40px, 12vw, 72px);
+  line-height: 1;
+  letter-spacing: 0.18em;
+  text-align: center;
+  color: var(--accent-1-text);
+  text-shadow:
+    0 0 18px var(--accent-1-glow),
+    0 3px 0 var(--ink);
+  user-select: all;
+}
+.room-link input {
+  flex: 1 1 260px;
+  min-width: 0;
+}
+.room-code-input {
+  width: 9ch;
+  font-family: var(--font-mono);
+  font-size: 18px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+.lobby-face {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.face-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.face-chip img {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: block;
+}
+.lobby-seats td {
+  vertical-align: middle;
+}
+.centre-row {
+  justify-content: center;
+  margin: 8px 0 20px;
+}
+/* The waiting line (§5.1): a lit strip under the top bar, never over the play. */
+.waiting-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 14px;
+  border-bottom: 2px solid var(--ink);
+  background: linear-gradient(180deg, #2b2638, #1d1a28);
+  box-shadow: inset 0 -1px 0 var(--edge);
+  font-size: 14px;
+}
+.waiting-line .who {
+  font-weight: 700;
+  color: var(--hazard);
+}
+.waiting-line .clock {
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+/* Seats that are away, and the connection's own state. */
+.online-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 14px;
+  font-size: 13px;
+  border-bottom: 2px solid var(--ink);
+  background: #1a1823;
+}
+.away-seat {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+.online-strip.down,
+.online-strip.reload {
+  position: fixed;
+  left: 50%;
+  bottom: 14px;
+  z-index: 60;
+  transform: translateX(-50%);
+  max-width: calc(100vw - 28px);
+  border: 2px solid var(--ink);
+  border-left: 6px solid var(--hazard);
+  border-radius: var(--radius);
+  background: linear-gradient(180deg, #33303f, #232130);
+  box-shadow: var(--shadow-drop);
+}
+.online-strip.reload {
+  border-left-color: var(--pink);
+}
+.notice.held {
+  border-left-color: var(--accent-1);
+}
+.notice.nudge {
+  border-left-color: var(--pink);
+  cursor: pointer;
+}
+.board-race h3 {
+  margin: 0 0 6px;
+  font-size: 14px;
+}
+/* A held door (online, §5.1): the doors stay up, dimmed, and cannot be pressed again. */
+.door:disabled {
+  color: inherit;
+  background: linear-gradient(180deg, rgba(27, 26, 34, 0.9), rgba(12, 11, 17, 0.95));
+  border-style: solid;
+  border-color: var(--ink);
+  cursor: default;
+  opacity: 0.55;
+}

@@ -8,6 +8,7 @@ import { parseSeasonLink } from '../lib/seedLink';
 import { portraitArt } from '../lib/assets';
 import { HUMAN_FACES, humanFaceStem, resolveColours } from '../lib/owners';
 import { useGame } from '../store/gameStore';
+import { roomsUrl } from '../store/online';
 
 const MAX_STABLES = 8;
 
@@ -33,7 +34,9 @@ const DEFAULT_TOGGLES: Toggles = {
 };
 
 export function Title() {
-  const { newSeason, resume, hasSave, error } = useGame();
+  const { newSeason, resume, hasSave, error, openLobby } = useGame();
+  // ONLINE_PLAN §6 item 7: without a rooms server in the build, there is no way online at all.
+  const [online] = useState(() => roomsUrl() !== null);
   /**
    * A shared season link (lib/seedLink.ts), read once. It *fills this screen in* — it does not
    * start a season and it does not touch the save, so opening someone's link in a tab where a
@@ -109,6 +112,19 @@ export function Title() {
               Resume season
             </NeonButton>
             <span className="muted">Picks up exactly where the last save left off.</span>
+          </div>
+        </Panel>
+      ) : null}
+
+      {online ? (
+        <Panel title="Play online" sub="one room, a link, a browser each — friends in other houses">
+          <div className="row">
+            <NeonButton variant="primary" onClick={() => openLobby(true)}>
+              Play online
+            </NeonButton>
+            <span className="muted">
+              Make a room and send the link, or join one with its six-letter code.
+            </span>
           </div>
         </Panel>
       ) : null}
@@ -305,7 +321,7 @@ export function Title() {
  * GDD_V3 §2.1: how long the game is. Seasons, or a target net worth — the two suggestions are sheet
  * cells (`targetShort`, `targetLong`), and any other figure can be typed in.
  */
-function GameLengthPicker({
+export function GameLengthPicker({
   length,
   setLength,
 }: {
@@ -399,7 +415,7 @@ function Toggle({
 }
 
 /** A human row's face on the roster: the portrait in its saddle-cloth colour, and the picker's toggle. */
-function FaceButton({
+export function FaceButton({
   colour,
   open,
   onClick,
@@ -431,7 +447,7 @@ function FaceButton({
  * shown taken, `aria-disabled`, and names whose it is. The twelve painted owners are not offered:
  * they are the AI stables' identities.
  */
-function FacePicker({
+export function FacePicker({
   who,
   current,
   takenBy,

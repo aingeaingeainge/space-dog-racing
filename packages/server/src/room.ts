@@ -26,6 +26,7 @@ import {
   type Id,
   type SeasonSetup,
 } from '@sdr/engine';
+import { codeFrom } from './code';
 import {
   clockOf,
   driveRoom,
@@ -75,6 +76,17 @@ interface RoomRow {
   clockKey?: string;
   standings: StaleRoom['standings'];
   standingsAt: { season: number; week: number };
+  /** *`v3l3`:* Play again made this room's successor (§2.6). Every later `hello` is sent there. */
+  movedTo?: string;
+}
+
+/** What an old room hands its successor (§2.6): the same seats, AI rows, length and setup. */
+interface Successor {
+  host: Id;
+  seats: SeatRow[];
+  length: GameLength;
+  ai: { difficulty: AiAgent }[];
+  setup: SeasonSetup;
 }
 
 interface SeatRow {
@@ -89,6 +101,8 @@ interface SeatRow {
 
 interface Attachment {
   seat: Id | null;
+  /** A socket that said a look-only `hello` (§5.5): it is sent the lobby, and nothing else. */
+  looking?: boolean;
 }
 
 type Socket = WebSocket;
@@ -223,6 +237,30 @@ export class Room extends DurableObject<Env> {
       await this.ctx.storage.setAlarm(Date.now() + LIFETIME_MS);
       return new Response(code, { status: 201 });
     }
+    if (request.method === 'POST' && url.pathname === '/successor') {
+      // Play again (§2.6), asked by the old room: the same seats and setup, started at once.
+      if (this.room) return new Response('taken', { status: 409 });
+      const code = request.headers.get('x-room-code') ?? '';
+      const from = (await request.json()) as Successor;
+      this.room = {
+        code,
+        createdAt: Date.now(),
+        host: from.host,
+        protocol: PROTOCOL_VERSION,
+        stateVersion: STATE_VERSION,
+        length: from.length,
+        ai: from.ai,
+        clockSince: Date.now(),
+        standings: [],
+        standingsAt: { season: 0, week: 0 },
+      };
+      this.saveRoom();
+      this.seats = from.seats.map((x) => ({ ...x, standIn: false, standInWeekends: [] }));
+      this.seats.forEach((_, ord) => this.saveSeat(ord));
+      await this.ctx.storage.setAlarm(Date.now() + LIFETIME_MS);
+      this.begin(from.setup);
+      return new Response(code, { status: 201 });
+    }
     if (request.headers.get('Upgrade')?.toLowerCase() !== 'websocket')
       return new Response('Expected a WebSocket', { status: 426 });
     if (!this.room) return new Response('No such room', { status: 404 });
@@ -298,6 +336,8 @@ export class Room extends DurableObject<Env> {
           return this.start(ws, seat, seq);
         case 'standIn':
           return this.standIn(ws, seat, msg.seat, msg.on, seq);
+        case 'playAgain':
+          return await this.playAgain(ws, seat, seq);
         default:
           return this.reject(ws, `No such message: ${String((msg as { t: unknown }).t)}`, seq);
       }
@@ -328,6 +368,22 @@ export class Room extends DurableObject<Env> {
     const room = this.room!;
     if (msg.v !== PROTOCOL_VERSION) {
       this.send(ws, { t: 'reload', ...(seq !== undefined ? { seq } : {}), need: PROTOCOL_VERSION });
+      return;
+    }
+    // Play again moved this game on (§2.6): the same token is a seat in the successor.
+    if (room.movedTo) {
+      this.send(ws, { t: 'moved', ...(seq !== undefined ? { seq } : {}), code: room.movedTo });
+      return;
+    }
+    const looking =
+      !(typeof msg.token === 'string' && msg.token) &&
+      msg.name === undefined &&
+      msg.colour === undefined;
+    if (looking) {
+      // *`v3l3`:* a browser at the door, only looking: the lobby, and every change to it, but no
+      // seat. How a joiner sees the faces taken before sitting down (§5.5).
+      ws.serializeAttachment({ seat: null, looking: true } satisfies Attachment);
+      this.send(ws, { ...this.lobbyMsg(), ...(seq !== undefined ? { seq } : {}) });
       return;
     }
     let ord = -1;
@@ -429,18 +485,26 @@ export class Room extends DurableObject<Env> {
     ];
   }
 
-  private broadcastLobby(replyTo?: Socket, seq?: number): void {
+  private lobbyMsg(): LobbyStateMsg {
     const room = this.room!;
-    const msg: LobbyStateMsg = {
+    return {
       t: 'lobby',
       seats: this.lobbySeats(),
       length: room.length,
       host: room.host ?? '',
       started: !!this.setup,
     };
+  }
+
+  private looking(ws: Socket): boolean {
+    return !!(ws.deserializeAttachment() as Attachment | null)?.looking;
+  }
+
+  private broadcastLobby(replyTo?: Socket, seq?: number): void {
+    const msg = this.lobbyMsg();
     const text = JSON.stringify(msg);
     for (const ws of this.open()) {
-      if (!this.seatOf(ws)) continue;
+      if (!this.seatOf(ws) && !this.looking(ws)) continue;
       if (ws === replyTo && seq !== undefined) this.send(ws, { ...msg, seq });
       else this.sendRaw(ws, text);
     }
@@ -483,14 +547,22 @@ export class Room extends DurableObject<Env> {
     // The seed is the room's (§2.1): the engine is handed a number and nothing else random.
     const draw = new Uint32Array(1);
     crypto.getRandomValues(draw);
-    const setup: SeasonSetup = {
-      seed: draw[0]! % 2147483647,
-      length: room.length,
-      players: [
-        ...this.seats.map((s) => ({ name: s.name, kind: 'human' as const, colour: s.colour })),
-        ...room.ai.map((a) => ({ name: '', kind: 'ai' as const, difficulty: a.difficulty })),
-      ],
-    };
+    this.begin(
+      {
+        seed: draw[0]! % 2147483647,
+        length: room.length,
+        players: [
+          ...this.seats.map((s) => ({ name: s.name, kind: 'human' as const, colour: s.colour })),
+          ...room.ai.map((a) => ({ name: '', kind: 'ai' as const, difficulty: a.difficulty })),
+        ],
+      },
+      ws,
+      seq,
+    );
+  }
+
+  /** Start a game on `setup`: the first drive, stored, and everybody told. */
+  private begin(setup: SeasonSetup, ws?: Socket, seq?: number): void {
     const state = createSeason(setup);
     const log: Action[] = [];
     driveRoom(state, log, { standIn: new Set(), queue: this.queue });
@@ -501,6 +573,49 @@ export class Room extends DurableObject<Env> {
     this.appendLog(0);
     this.broadcastLobby();
     this.afterChange(ws, seq);
+  }
+
+  // ── Play again (§2.6) ──────────────────────────────────────────────────────────────────────────
+
+  /**
+   * The host, after the end: draw a code, have that room take the same seats (tokens and all), AI
+   * rows, length and setup — so the same seed — and start; then send everybody `moved`. Pressed
+   * twice, the second press just gets `moved` again.
+   */
+  private async playAgain(ws: Socket, seat: Id, seq?: number): Promise<void> {
+    const room = this.room!;
+    if (seat !== room.host) return this.reject(ws, 'Only the host can play again', seq);
+    if (this.state?.phase !== 'seasonEnd' || !this.setup)
+      return this.reject(ws, 'The game is not over yet', seq);
+    if (!room.movedTo) {
+      const from: Successor = {
+        host: room.host,
+        seats: this.seats,
+        length: room.length,
+        ai: room.ai,
+        setup: this.setup,
+      };
+      for (let tries = 0; tries < 8 && !room.movedTo; tries++) {
+        const bytes = new Uint8Array(6);
+        crypto.getRandomValues(bytes);
+        const code = codeFrom(bytes);
+        const stub = this.env.ROOM.get(this.env.ROOM.idFromName(code));
+        const r = await stub.fetch('https://room/successor', {
+          method: 'POST',
+          headers: { 'x-room-code': code, 'Content-Type': 'application/json' },
+          body: JSON.stringify(from),
+        });
+        if (r.status === 201) room.movedTo = code;
+      }
+      if (!room.movedTo) return this.reject(ws, 'No free room code: try again', seq);
+      this.saveRoom();
+    }
+    const text = JSON.stringify({ t: 'moved', code: room.movedTo } satisfies RoomMsg);
+    for (const sock of this.open()) {
+      if (sock === ws && seq !== undefined)
+        this.send(sock, { t: 'moved', seq, code: room.movedTo });
+      else this.sendRaw(sock, text);
+    }
   }
 
   // ── act (§2.4) and the queue (§5.1) ────────────────────────────────────────────────────────────

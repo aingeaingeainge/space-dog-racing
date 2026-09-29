@@ -223,6 +223,10 @@ function GameOver({ s }: { s: GameState }) {
   const abandon = useGame((g) => g.abandon);
   const playAgain = useGame((g) => g.playAgain);
   const setup = useGame((g) => g.setup);
+  // Online (v3l3, §2.6): Play again is the host's, and makes a new room the whole table follows.
+  const online = useGame((g) => g.source === 'online');
+  const host = useGame((g) => g.host);
+  const hostName = useGame((g) => s.players.find((p) => p.id === g.meta?.host)?.name ?? 'the host');
   const rows = gameRows(s);
   const winner = rows[0];
   const multi = s.seasons.length > 1;
@@ -281,13 +285,22 @@ function GameOver({ s }: { s: GameState }) {
 
       <Panel title="Again" sub={`seed ${s.seed}`}>
         <div className="row">
-          <NeonButton variant="primary" onClick={playAgain}>
-            Play again
-          </NeonButton>
-          <NeonButton onClick={abandon}>New game</NeonButton>
+          {!online || host ? (
+            <NeonButton variant="primary" onClick={playAgain}>
+              Play again
+            </NeonButton>
+          ) : null}
+          <NeonButton onClick={abandon}>{online ? 'Leave the room' : 'New game'}</NeonButton>
           {setup ? <ShareSeed setup={setup} /> : null}
           {setup ? <CopyReport s={s} setup={setup} /> : null}
         </div>
+        {online ? (
+          <p className="muted">
+            {host
+              ? 'Play again opens a new room with the same seats, the same seed and the same length, and everybody here follows you into it.'
+              : `If ${hostName} presses Play again, this browser follows into the new room: the same seats, the same seed and the same length.`}
+          </p>
+        ) : null}
         <p className="muted">
           Play again is the same table, the same seed and the same length, from the first weekend:
           the same dogs on offer, the same events, the same trap draws. What you do with them is up
@@ -531,6 +544,8 @@ function ShareSeed({ setup }: { setup: Parameters<typeof seasonLinkFor>[0] }) {
 function CopyReport({ s, setup }: { s: GameState; setup: Parameters<typeof seasonLinkFor>[0] }) {
   const log = useGame((g) => g.log);
   const pace = useGame((g) => g.pace);
+  // Online (§5.3): the seats a stand-in played, for the report's one extra line. Hotseat: none.
+  const standInWeekends = useGame((g) => (g.source === 'online' ? g.meta?.standInWeekends : null));
   const [state, setState] = useState<'idle' | 'copied' | 'shown'>('idle');
   const [text, setText] = useState('');
 
@@ -545,6 +560,14 @@ function CopyReport({ s, setup }: { s: GameState; setup: Parameters<typeof seaso
         base: window.location.href,
         build: typeof __SDR_BUILD__ === 'string' ? __SDR_BUILD__ : 'unknown',
         copiedAt: new Date().toLocaleString(),
+        ...(standInWeekends
+          ? {
+              standIns: Object.entries(standInWeekends).map(([id, weekends]) => ({
+                name: s.players.find((p) => p.id === id)?.name ?? id,
+                weekends,
+              })),
+            }
+          : {}),
       });
     } catch (e) {
       report = `The report could not be built: ${(e as Error).message}`;

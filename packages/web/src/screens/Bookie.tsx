@@ -39,6 +39,7 @@ import { useGame } from '../store/gameStore';
  */
 export function Bookie({ s, me }: { s: GameState; me: Player }) {
   const dispatch = useGame((g) => g.dispatch);
+  const online = useGame((g) => g.source === 'online');
   const runRaces = () => dispatch({ t: 'EndPhase', playerId: me.id });
   useKeys({ Enter: runRaces });
   if (!s.fields) return null;
@@ -61,7 +62,7 @@ export function Bookie({ s, me }: { s: GameState; me: Player }) {
         sub={`${planet.name} · margin ${Math.round(margin * 100)}% · max stake ${formatBones(cap)} a race`}
         actions={
           <NeonButton variant="primary" onClick={runRaces} title="key: Enter">
-            Run the races
+            {online ? 'Done betting' : 'Run the races'}
           </NeonButton>
         }
       >

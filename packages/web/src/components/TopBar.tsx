@@ -7,6 +7,7 @@ import { useGame } from '../store/gameStore';
 export function TopBar({ s, me }: { s: GameState; me: Player | null }) {
   const setLeaderboard = useGame((g) => g.setLeaderboard);
   const abandon = useGame((g) => g.abandon);
+  const online = useGame((g) => g.source === 'online');
   const entry = s.calendar[s.week - 1];
   const planet = entry ? planetOf(entry.planetId) : null;
 
@@ -47,10 +48,13 @@ export function TopBar({ s, me }: { s: GameState; me: Player | null }) {
         small
         variant="danger"
         onClick={() => {
-          if (confirm('Abandon this season? The save is deleted.')) abandon();
+          if (online) {
+            if (confirm('Leave this room? The game goes on, and the link brings you back.'))
+              abandon();
+          } else if (confirm('Abandon this season? The save is deleted.')) abandon();
         }}
       >
-        Quit
+        {online ? 'Leave' : 'Quit'}
       </NeonButton>
     </div>
   );

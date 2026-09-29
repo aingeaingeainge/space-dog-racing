@@ -101,8 +101,14 @@ export function Results({ s, me }: { s: GameState; me: Player }) {
   // so it shows every stable's purses and nobody's slips or Back Alley business — each human sees
   // their own settled slips on their next private screen (LastSlips). Flying on is the roll-call's
   // (screens/Table.tsx), one press a human, in public.
-  const table = humans(s).length > 1;
-  const canFly = !table && s.phase === 'planetPost' && s.activePlayer === me.id;
+  // Online (v3l3) this browser is one stable's alone, so it reads as single-player does; its "Fly on"
+  // is held by the room until the stable's turn comes (§5.1).
+  const online = useGame((g) => g.source === 'online');
+  const table = !online && humans(s).length > 1;
+  const canFly =
+    !table &&
+    s.phase === 'planetPost' &&
+    (online ? !s.done.includes(me.id) : s.activePlayer === me.id);
   const next = s.calendar[s.week];
   const flyOn = () => {
     ackResults();
@@ -295,7 +301,8 @@ function Revealed({ s }: { s: GameState }) {
  * season's slips, so last weekend's are still there to read.
  */
 export function LastSlips({ s, me }: { s: GameState; me: Player }) {
-  if (humans(s).length < 2) return null;
+  const online = useGame((g) => g.source === 'online');
+  if (online || humans(s).length < 2) return null;
   const week = s.phase === 'offSeason' ? s.week : s.week - 1;
   if (week < 1) return null;
   return <BetsSettled s={s} me={me} week={week} title={`Your slips, week ${week}`} />;
