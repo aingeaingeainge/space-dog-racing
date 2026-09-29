@@ -20,6 +20,7 @@
     "placeholders": "tsx packages/web/scripts/make-placeholders.ts",
     "asset-list": "tsx packages/web/scripts/asset-list.ts",
     "asset-check": "tsx packages/web/scripts/asset-check.ts",
+    "view-walk": "vite-node --root packages/web packages/web/scripts/view-walk.tsx",
     "dev": "npm run dev -w @sdr/web"
   },
   "devDependencies": {
