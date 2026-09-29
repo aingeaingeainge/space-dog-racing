@@ -3,7 +3,7 @@
 > **Status: CURRENT.** Build online multiplayer from this document.
 >
 > Canonical copy: `design/ONLINE_PLAN.md` in the `space-dog-racing` repo. A copy in a claude.ai
-> Project is a **mirror**, last synced 30 September 2026 (at `v3l2`) — edit the repo, never the mirror.
+> Project is a **mirror**, last synced 30 September 2026 (at `v3l3`) — edit the repo, never the mirror.
 > See `design/CANON.md`.
 >
 > Written in v3 Phase K (`v3k`). It replaces `design/BUILD_PLAN.md` §6b.9 and "Prompt M6", which were
@@ -110,6 +110,8 @@ in the reply.
 | `lobby` | host, before Start: length, AI rows, empty seats | `{"t":"lobby","length":{"kind":"seasons","seasons":2},"ai":[{"difficulty":"normal"},{"difficulty":"hard"}]}` |
 | `start` | host, once | `{"t":"start"}` |
 | `standIn` | host (§5.3), for a disconnected human | `{"t":"standIn","seat":"p3","on":true}` |
+| `hello`, looking *(added at `v3l3`)* | at the door, before a name: no token, no name, no face | `{"t":"hello","v":1}` — answered with `lobby`, and every change to it; seats nobody |
+| `playAgain` *(added at `v3l3`)* | host, after the game's end (§2.6) | `{"t":"playAgain"}` |
 
 **Room → client**
 
@@ -122,6 +124,7 @@ in the reply.
 | `nudged` | to the nudged seat | `{"t":"nudged","by":"Aroha"}` |
 | `ended` | game over, to everybody | `{"t":"ended","setup":{…},"log":[…]}` |
 | `reload` | the browser's build is not the room's | `{"t":"reload","need":2}` |
+| `moved` *(added at `v3l3`)* | Play again made a successor (§2.6): to every socket, and to every later `hello` | `{"t":"moved","code":"TABFWA"}` |
 
 - **`view`** carries the seat's `viewFor` (§3) as either the whole view (`full:true`, on `hello` and
   whenever `rev` jumps) or **the top-level fields that changed** (`full:false`). Measured on a four-human
@@ -153,6 +156,12 @@ are not secret any more — and every browser shows the game's end exactly as ho
 moments, **Copy the report** (`lib/report.ts` runs on the log unchanged). The room then only answers
 `hello` with the final view. **Play again** on the game's end opens a new room with the same seats and
 the same seed, and the same people's links follow it (the old room sends its successor's code).
+
+*Built at `v3l3` (GDD_V3 L3c):* the host's `playAgain` has the old room draw a code and hand the new
+room its seats (names, faces **and tokens**), AI rows, length and `setup` — so the same seed — which
+starts at once. The old room keeps the code (`movedTo`) and sends `moved` to every socket, and to every
+later `hello`. Each browser copies its token to the new code and follows. A second press gets the same
+`moved`; anyone else's is refused.
 
 ---
 
@@ -275,11 +284,19 @@ are in turn order because the shelf is shared and the declarations are public as
 |---|---|
 | Arrival | each browser reads it and presses on alone |
 | Explore | **anybody picks a door at any time.** The room queues it and applies it when that seat comes up in turn order; the card appears then. The wait is only for the stables ahead to answer their cards |
-| Market + Kennel + Race Office | one sitting a stable, in turn order. Everybody else sees **"Waiting on Ruby — Market and Race Office · 1:20 · Nudge"**, can read their own kennel, the leaderboard and the map, pick next week's diet, and **watch declarations land on the board live** |
+| Market + Kennel + Race Office | one sitting a stable, in turn order. Everybody else sees **"Waiting on Ruby — Market and Race Office · 1:20 · Nudge"**, can read their own kennel, the leaderboard and the map, and **watch declarations land on the board live** |
 | Bookie | everybody at once (E8, already built) |
 | Race day | §5.4 |
 | After the races | "Fly on" is queued (§2.4); a stable that wants the market again takes its turn in order |
 | Off-season | everybody at once (§4 item 3) |
+
+⚠️ *Corrected at `v3l3` (GDD_V3 L3b):* this table said a waiting stable could also "pick next week's
+diet". The engine takes a diet (`SetDogState`) only from the stable on the clock, in `planetPre` or
+`planetPost`, and the engine does not change for online play; so the diet is set in the stable's own
+sitting, as in hotseat, and the Kennels are read-only while waiting.
+
+*Built at `v3l3` (GDD_V3 L3a):* the waiting line names **only the humans** being waited on, in turn
+order; with only AI or stood-in seats left it says "Waiting on the AIs".
 
 A **nudge** plays a short sound and flashes the tab title on the nudged browser, at most once a
 minute per seat. The waiting line shows how long the seat has been on the clock, so the table can
@@ -530,6 +547,34 @@ headless `online-walk.ts` against `wrangler dev`. **No deploy.**
 | Nothing under `packages/engine` or `packages/web` changes | `git diff v3l1 --stat` shows only `packages/server` |
 
 ### Phase L3 — the web online (1 session) → `v3l3` · **before or after the evening; after is safer**
+
+> **Status: DONE at `v3l3` (30 September 2026).** Built before the evening, at Jesse's call, with the
+> rule that made that safe: hotseat reads byte for byte as at `v3l2`, and a build without
+> `VITE_ROOMS_URL` is today's game. No deploy, no account. Notes: `claude/V3_PHASE_L3_NOTES.md`.
+>
+> | Measure | `v3l3` |
+> |---|---|
+> | Two browsers create, join by link and by code, play a weekend, read the results | ✅ three Chromium contexts (`npm run browser-walk`): A creates, B by the link, C by the typed code, the host adds an AI; doors, a declaration, a bet, the races, the results; screenshots at 1280 and 390 |
+> | Waiting line names who and how long; Nudge reaches them | ✅ "Waiting on Bex — Market and Race Office · 0:00 · Nudge"; B's tab title "★ Aroha nudged you" and a notice. Headless: 2,360 waiting screens, every name on the clock |
+> | A refresh mid-sitting comes back to the same screen | ✅ B reloads in its own Market sitting: the same screen, the room still in the address bar |
+> | A held door and a held "Fly on" show as held, and land in turn order | ✅ "Your door is chosen…" in the browser; headless 60 doors and 60 "Fly on"s held; `online-walk` counts 0 out of turn |
+> | Headless stores finish 4 + 2 over two seasons and 8 over one; no pass screen online | ✅ `npm run online-table-walk`: real `gameStore`s in Node, 0 pass or roll-call screens in 4,452 |
+> | The online report equals hotseat's over the room's log, plus the stand-in line | ✅ 12 reports byte-identical; "Cal's seat was played by an AI for 3 weekends." |
+> | Play again: a new room, same seats and seed, every browser follows | ✅ in the browsers, the stores and `online-walk` (the successor hashes as Node's `createSeason(setup)`) |
+> | Build without `VITE_ROOMS_URL` is today's game | ✅ no "Play online"; the Title and a hotseat weekend at 1280 and 390 pixel-identical to `v3l2` |
+> | `season-check`, `hub-clicks` (9.4), table walk (10.7 / 22.4), `race-view-check` | byte-identical to `v3l2` |
+> | A `v3l2` hotseat save loads and plays on; an online game neither reads nor writes it | ✅ same origin, same browser: byte-identical save across an online game, then resumed and played on |
+> | Nothing under `packages/engine`; goldens; tests; `view-walk`; `server:test`; `online-walk`; harness; Pages on Node 20 | ✅ empty diff; unmoved; 184; 0 throws (GalaxyMap 0, from 14); 10; **25 rows** (two new); identical; ✅ +0.3 MB (`partysocket`) |
+>
+> **Choices the plan left open** (the notes have the rest):
+> - **This browser's marks** (race day watched, results read, the arrival and the board) are kept in
+>   `localStorage` beside the seat's token, under the room's own key — never the save's — so a refresh
+>   comes back to the same screen rather than the arrival or the start of race day.
+> - **A look-only `hello`** answers with the lobby, so a joiner sees the faces taken before sitting down.
+> - **Waiting time is the pace timer's "table" time**, as the hotseat roll-calls are.
+> - **`PROTOCOL_VERSION` stays 1**: no room has been deployed and no browser in the wild speaks it, so
+>   the protocol gained `playAgain`, `moved` and the looking `hello` without a bump. **L4's first deploy
+>   freezes v1**: from then on a change to any message is a bump and a `reload`.
 
 **Goal:** two browsers play a weekend together against a local room, and hotseat is untouched.
 
