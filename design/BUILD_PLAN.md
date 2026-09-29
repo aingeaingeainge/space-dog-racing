@@ -11,7 +11,7 @@
 > the table its acceptance row is about.
 >
 > Canonical copy: `design/BUILD_PLAN.md` in the `space-dog-racing` repo. A copy in a claude.ai
-> Project is a **mirror**, last synced 24 September 2026. See `design/CANON.md`.
+> Project is a **mirror**, last synced 29 September 2026 (at `v3k`). See `design/CANON.md`.
 
 Companion to `GDD.md`. This is the *how*: architecture, repo layout, milestones, acceptance criteria, and a ready-to-paste prompt for each milestone to hand to Claude Opus (or whichever model builds it).
 
@@ -60,7 +60,7 @@ Rules that make multiplayer cheap later:
 | Tests | Vitest | Engine has ≥80% coverage; UI smoke tests only |
 | Lint/format | ESLint + Prettier | Pre-commit via `lint-staged` |
 | Hosting | Cloudflare Pages (Git-connected) | Build command `npm run build`, output `packages/web/dist`; every push to `main` deploys, every PR gets a preview URL |
-| Multiplayer (M6) | Cloudflare Workers + Durable Objects (one object per game room), via PartyKit or raw | Same Cloudflare account as hosting; runs the same engine package server-side |
+| Multiplayer (M6) | Cloudflare Workers + Durable Objects (one object per game room), via PartyKit or raw | Same Cloudflare account as hosting; runs the same engine package server-side. **At `v3k`: raw Durable Objects with hibernation, `partysocket` on the client, each seat sent only its own view — see `design/ONLINE_PLAN.md`** |
 
 ## 3. Repository layout
 
@@ -460,6 +460,9 @@ Normal beats Easy **81.0%**, **Hard beats Normal 57.8%**, Hard beats Easy 84.9%.
 
 ### 6b.9 — M6, online multiplayer (2–3 sessions, after v2)
 
+> ⚠️ **Superseded at `v3k` by `design/ONLINE_PLAN.md`**, which plans online on v3's rules. This section
+> and Prompt M6 are kept as the record; do not build from them.
+
 Unchanged from the old M5 in every respect; see §9's Prompt M6. `Action` gains `SetDogState` and the goods record, and `RaceClass` becomes `RaceType`, so the protocol surface is larger than it was — but it is still just the action log.
 
 **Goal:** a lobby code, 2–8 people, same engine.
@@ -650,6 +653,8 @@ Acceptance: deployed URL works on phone and laptop; harness targets met and past
 ```
 
 ### Prompt M6 (after v2)
+
+> ⚠️ Historical: superseded at `v3k` by `design/ONLINE_PLAN.md`.
 ```
 Read CLAUDE.md, design/GDD.md §18, design/BUILD_PLAN.md (§6b.9), and the whole codebase. The engine is already pure and action-driven — do not fork it.
 

@@ -3,7 +3,7 @@
 > **Status: CURRENT.** Build from this document.
 >
 > Canonical copy: `design/BUILD_PLAN_V3.md` in the `space-dog-racing` repo. A copy in a claude.ai
-> Project is a **mirror**, last synced 29 September 2026 (at `v3j`) — edit the repo, never the mirror. See
+> Project is a **mirror**, last synced 29 September 2026 (at `v3k`) — edit the repo, never the mirror. See
 > `design/CANON.md`.
 >
 > Supersedes `design/BUILD_PLAN.md` from §6 onward. **That document's §§1–5 — architecture, tech
@@ -562,6 +562,42 @@ screen text and `SAVE_VERSION` 13; GDD_V3 §2.2, §10, §11 and V23.
 
 **Deliverables:** the pass screen's face; faces in a seed link; a renamed AI's face by its name;
 "Copy the report"; the evening's sheet; GDD_V3 §10's note.
+
+### Phase K — online multiplayer, planned (1 session) → `v3k`
+
+> **Status: DONE at `v3k` (29 September 2026).** A design session, not a build: nothing under
+> `packages/` changed, no rule, sheet row, golden or save version moved, and the evening is still
+> unplayed. Online has been the brief's long-term goal since its first page (M5, then M6 behind v2, GDD
+> D16). Phase K measured what a plan needs, asked Jesse five questions (GDD_V3 V24–V28) and wrote
+> **`design/ONLINE_PLAN.md`**, which replaces `BUILD_PLAN.md` §6b.9 and Prompt M6. The shape: one
+> Cloudflare Durable Object per room runs the engine and sends each seat only its own view; no timer
+> and a nudge; a dropped seat waits and the host can let an AI stand in; race day moves on per browser;
+> a link with a code, one seat a browser. Notes: `claude/V3_PHASE_K_NOTES.md`.
+>
+> | Measure | Target | `v3k` |
+> |---|---|---|
+> | Log, state and tick-log sizes; replay time; the secret list; the engine in a Worker | measured | a 4h+2AI season's log 38 KB (2.3 KB gz), five seasons 203 KB (8.8 KB gz), replay 74–343 ms; state 14 KB at week 1, 182 KB after five seasons; a race day's tick logs 68.5 KB (25.6 KB gz); 18 secret rows; a 6-AI season on `workerd` (`wrangler dev`) in 77–147 ms, standings identical to Node ✅ |
+> | Cloudflare's limits and prices; PartyKit's status | searched, cited | `ONLINE_PLAN.md` §9: DOs on the free plan (SQLite), an evening < 1% of a day's allowance; PartyKit is `partyserver`/`partysocket` libraries ✅ |
+> | Jesse's questions | ≤ 5, one at a time | five: V24 own view, V25 no timer + nudge, V26 wait + host stand-in, V27 each moves on, V28 link + code ✅ |
+> | `design/ONLINE_PLAN.md` | written, CURRENT, mirrored | ✅ |
+> | The build phases | one session each, acceptance tables, before/after the evening | L1–L4 ✅ |
+> | No change under `packages/`; goldens; tests; lint; `season-check`; `asset-check`; harness | ✅ | `git diff v3j --stat -- packages` empty; `41a8c8b5…` / `d4bb14c3…`; 51 green; clean; passes; 288 / 0 / 0; identical to `v3j` ✅ |
+
+**Goal:** a plan for online multiplayer on v3's rules that the next session can start building from.
+
+**Deliverables:** `design/ONLINE_PLAN.md`; GDD_V3 §3's note and V24–V28; this section; CANON's `v3k`.
+
+### Phases L1–L4 — online multiplayer (4 sessions) → `v3l1` … `v3l4`
+
+> **Status: PLANNED.** The spec, acceptance tables and order are in **`design/ONLINE_PLAN.md` §10**; this
+> is only the outline.
+>
+> | Phase | Goal | When |
+> |---|---|---|
+> | **L1** `v3l1` | the engine's half: `viewFor` and its secret table, `rumoursFor`, the off-season in any order, `PROTOCOL_VERSION`. No golden moves | before the evening |
+> | **L2** `v3l2` | the room: `packages/server`, a Worker and a Durable Object, the protocol, headless clients against `wrangler dev`. No deploy | before the evening |
+> | **L3** `v3l3` | the web online: lobby, the store on a socket, `screenFor` without pass screens, two browsers. Hotseat untouched | either; after is safer |
+> | **L4** `v3l4` | live on Jesse's Cloudflare account, and the first online evening | after the evening |
 
 ---
 

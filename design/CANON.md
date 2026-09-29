@@ -16,6 +16,7 @@ document read out of context can still tell you what it is.
 | `design/CANON.md` | **CURRENT** | This file. Which documents are current, and which way the sync runs. |
 | `design/GDD_V3.md` | **CURRENT** | The rules. Build from this. |
 | `design/BUILD_PLAN_V3.md` | **CURRENT** | The phases, the delete list, the acceptance criteria, the builder prompts. |
+| `design/ONLINE_PLAN.md` | **CURRENT** | Online multiplayer, planned at `v3k`: the room, what each browser sees, the engine and web changes, cost, and build phases L1–L4. Replaces `BUILD_PLAN.md` §6b.9 and Prompt M6. Mirrored from `v3k`. |
 | `design/BUILD_PLAN.md` §§1–5 | **CURRENT** | Architecture, tech stack, repo layout, the data model. Not restated in V3 — this is still the reference. |
 | `design/BUILD_PLAN.md` §6 onward | historical | v1's milestones and v2's five phases, complete through tag `v2e`. §7a's harness methodology still applies. |
 | `design/GDD.md` | historical | v2, shipped at `v2e`. **Do not build from it.** Kept because its measurements and its decision log (D1–D53) are the record of *why* the game works as it does, and GDD_V3 cites it throughout. |
@@ -49,7 +50,7 @@ them back to the Project. Update the `last synced` date in the status header whe
 
 ### What can actually drift
 
-Only the markdown documents in `design/` — this file, the four above it, and `PLAYTEST_CHECKLIST.md` since `v3j`. Everything in `claude/`
+Only the markdown documents in `design/` — this file, the four above it, `PLAYTEST_CHECKLIST.md` since `v3j` and `ONLINE_PLAN.md` since `v3k`. Everything in `claude/`
 is a write-once record of a session that has already happened; the spreadsheet has no Project copy
 at all; and `CLAUDE.md` is deliberately **not** mirrored, because it is read by a builder standing
 in the working tree and a Project copy would be drift surface for no benefit.
@@ -75,6 +76,6 @@ correction goes in the next phase's notes.
 |---|---|---|
 | v1 | `m4` | `design/GDD.md` 0.1, `design/BUILD_PLAN.md` §6 |
 | v2 | `v2a` … `v2e` | `design/GDD.md` 0.2–0.7, `design/BUILD_PLAN.md` §6b |
-| **v3** | `v3a`, `v3b`, `v3c`, `v3c2`, `v3d1`, `v3d2`, `v3e1`, `v3e2`, `v3f1`, `v3f2`, `v3g`, `v3h`, `v3i`, `v3j` | **`design/GDD_V3.md` 3.0, `design/BUILD_PLAN_V3.md`** |
+| **v3** | `v3a`, `v3b`, `v3c`, `v3c2`, `v3d1`, `v3d2`, `v3e1`, `v3e2`, `v3f1`, `v3f2`, `v3g`, `v3h`, `v3i`, `v3j`, `v3k` | **`design/GDD_V3.md` 3.0, `design/BUILD_PLAN_V3.md`**, and from `v3k` **`design/ONLINE_PLAN.md`** |
 
-Last reviewed and **synced to the claude.ai Project: 29 September 2026**, at `v3j` (Phase J: ready for the table. The pass screen shows the next human's face, a seed link carries the humans' faces, a renamed AI's face is keyed by its name, "Copy the report" on the game's end, and `PLAYTEST_CHECKLIST.md` rewritten as one evening that answers every open 🎲 row. No rule changed). The Project mirrors match this repo for `CANON.md`, `GDD_V3.md`, `BUILD_PLAN_V3.md`, `BUILD_PLAN.md`, `GDD.md` and, from `v3j`, `PLAYTEST_CHECKLIST.md`. `design/ASSET_LIST.md` is not mirrored: it is a working list for the art, read in the repo.
+Last reviewed and **synced to the claude.ai Project: 29 September 2026**, at `v3k` (Phase K: online multiplayer planned, not built. `design/ONLINE_PLAN.md` is new and CURRENT; GDD_V3 gained V24–V28 and a note in §3; BUILD_PLAN_V3 gained Phase K and the outline of L1–L4; BUILD_PLAN.md §6b.9 and Prompt M6 are marked superseded. Nothing under `packages/` changed). The Project mirrors match this repo for `CANON.md`, `GDD_V3.md`, `BUILD_PLAN_V3.md`, `BUILD_PLAN.md`, `GDD.md`, `PLAYTEST_CHECKLIST.md` and, from `v3k`, `ONLINE_PLAN.md`. `design/ASSET_LIST.md` is not mirrored: it is a working list for the art, read in the repo.
