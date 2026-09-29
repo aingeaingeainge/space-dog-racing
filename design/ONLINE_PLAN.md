@@ -3,7 +3,7 @@
 > **Status: CURRENT.** Build online multiplayer from this document.
 >
 > Canonical copy: `design/ONLINE_PLAN.md` in the `space-dog-racing` repo. A copy in a claude.ai
-> Project is a **mirror**, last synced 29 September 2026 (at `v3l1`) — edit the repo, never the mirror.
+> Project is a **mirror**, last synced 30 September 2026 (at `v3l2`) — edit the repo, never the mirror.
 > See `design/CANON.md`.
 >
 > Written in v3 Phase K (`v3k`). It replaces `design/BUILD_PLAN.md` §6b.9 and "Prompt M6", which were
@@ -79,6 +79,7 @@ moves on when it is done. Hotseat stays exactly as it is.
 | `seats` | per seat: name, face (colour), kind, AI difficulty, a random **seat token**, stand-in on/off | lobby, stand-in |
 | `setup` | the `SeasonSetup` it started with, names and all | at Start |
 | `log` | one SQLite row per applied action, in order | every action |
+| `queue` *(added at `v3l2`)* | a held door or "Fly on" per seat (§5.1), until applied or dropped; never the log | a held press |
 
 - **The state is never stored.** On wake the room replays `setup` + `log` (measured: 63 ms for a season,
   220 ms for five, in `workerd`). One source of truth, and nothing to migrate.
@@ -298,6 +299,10 @@ the clock, until its human reconnects, when it hands straight back — at the ne
 mid-sitting. The seat's name shows "(AI standing in)". **Nobody can be kicked.** Stand-in time is
 recorded in the room so the report can say "Aroha's seat was played by an AI for 3 weekends".
 
+*Built at `v3l2` (GDD_V3 L2b):* a stand-in weekend is one in which the stand-in pressed anything for the
+seat. At the Bookie and in the off-season a stood-in seat plays when the turn order reaches it, exactly as
+an AI seat does (`decide` plays only the active stable), so a human ahead of it can still bet first.
+
 ### 5.4 Race day (V27)
 
 Every browser gets the same `races` in its view and plays them with the existing race view. **Each moves
@@ -313,6 +318,10 @@ the lobby with a link (`…/?room=KFZQPX`) and the code, big, for reading aloud.
 picks a face (the Title's picker; faces already taken are shown taken, as in hotseat). The host sets the
 length (seasons or a target), adds AI seats, and presses **Start** when everybody is in. 3–8 stables, at
 least one human. Seats are in joining order; a human's face is their colour, as in hotseat.
+
+*Built at `v3l2` (GDD_V3 L2a):* the host is the first to sit down. A browser that closes in the lobby
+keeps its seat and can take it back with its token; nobody can free it, so the game starts with it and a
+stand-in can play it (§5.3). A name is 1–24 letters; a face is required.
 
 ---
 
@@ -465,6 +474,42 @@ through the web's selectors. No server, no web change beyond importing `rumoursF
 | Goldens, `SAVE_VERSION`/`STATE_VERSION` 13, tests, lint, `season-check`, harness | unmoved |
 
 ### Phase L2 — the room (1 session) → `v3l2` · **before the evening**
+
+> **Status: DONE at `v3l2` (30 September 2026).** `packages/server`, and `npm run online-walk` against
+> `wrangler dev` 4.143.0 in the container. No deploy, no account, no web change. Notes:
+> `claude/V3_PHASE_L2_NOTES.md`.
+>
+> | Measure | `v3l2` |
+> |---|---|
+> | 4 clients + 2 AIs finish a two-season game; 8 clients finish a season | ✅ 20 weekends, 1,431 log rows; 10 weekends, 902 rows |
+> | No client ever receives a secret | ✅ **0 leaks** in 4,719 views, each run through all 20 `SEAT_SECRETS` rows, **and** each byte-identical to Node's `viewFor` at its `rev` (3,927 compared) after replaying the room's `ended` log |
+> | A dropped client rejoins by token to the same view | ✅ byte-identical whole view, same `rev` |
+> | Evicted and woken | ✅ `wrangler dev` killed and restarted on the same state in season 2: state hash equal (855 rows replayed in 154 ms), every client's whole view equal, a held door kept |
+> | Stand-in plays a dropped seat and hands back at the next decision | ✅ 3 weekends played; off at the seat's `hello`; its human's next press is its own, and the count stays 3 |
+> | Queued door and queued "Fly on" apply in turn order | ✅ 64 doors and 64 "Fly on"s held and applied, 0 dropped, 0 out of turn |
+> | Spoofed `playerId`, client `AdvancePhase`, stale `v` | rejected, rejected, `reload` |
+> | Final state equals Node's replay of the room's log | ✅ SHA-256 equal, three games |
+> | Wake + replay time for a five-season room | **~400–510 ms** in `workerd` (3,604 rows, 204 KB; reading them 6–7 ms), ~475–590 ms `hello` to whole view after a restart. Node replays the same log in 220–315 ms on this container: the spike's 220 ms was on a faster one. Far inside a Durable Object's 30 s |
+> | Pages build on Node 20 from a clean install | ✅ unchanged: `packages/server` is not a root workspace, so `npm ci` installs exactly `v3l1`'s 144 MB (no `wrangler`, no `workerd`); 4.0–4.5 s against 3.4–4.2 s, noise |
+> | Nothing under `packages/engine` or `packages/web` changes | ✅ `git diff v3l1 --stat -- packages/engine packages/web` is empty |
+>
+> **Choices the plan left open** (the notes have the rest):
+> - **Raw Durable Objects, not `partyserver`.** Almost all of `Room` is the game — the queue, the
+>   stand-in, the views — and would be the same on either; `partyserver` would save the few lines of
+>   socket plumbing at the cost of a dependency and a second hibernation layer to understand.
+> - **`packages/server` is not a root workspace** (its own `package.json` and lock; the root's
+>   `workspaces` names `engine` and `web`). `wrangler` 4 needs Node ≥ 22 and brings `workerd`; Pages
+>   installs the root on Node 20. `npm run server:install` installs it; the root `npm test` never
+>   touches it (`npm run server:test` does).
+> - **The debug hook is a `debug` message** answered only under `wrangler dev --var DEV_DEBUG:1`
+>   (state hash, wake time), and refused anywhere else. The leak scan does not need it: it replays
+>   the `ended` log.
+> - **The queue is stored** (a `queue` table, never the log). The prompt said memory; a hibernated
+>   room would have dropped a held door.
+> - **On the wire:** ~2.8 MB a seat a season (5.6 MB a client over two seasons at four humans), against
+>   §2.4's estimate of ~6 MB: the room sends one view per change of the table, not per action.
+> - Every reply echoes `seq`, `lobby` and `reload` included. `welcome` carries `stale` for §7's
+>   room that cannot replay, with the last standings the room stored.
 
 **Goal:** a room that plays a game with headless clients, locally.
 

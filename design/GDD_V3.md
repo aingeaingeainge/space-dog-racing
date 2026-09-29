@@ -3,7 +3,7 @@
 > **Status: CURRENT.** Build from this document.
 >
 > Canonical copy: `design/GDD_V3.md` in the `space-dog-racing` repo. A copy in a claude.ai Project
-> is a **mirror**, last synced 29 September 2026 (at `v3l1`) — edit the repo, never the mirror. See `design/CANON.md`.
+> is a **mirror**, last synced 30 September 2026 (at `v3l2`) — edit the repo, never the mirror. See `design/CANON.md`.
 >
 > Supersedes `design/GDD.md` (v2, shipped at tag `v2e`), which is kept as historical reference and
 > is cited by name throughout this document.
@@ -1114,6 +1114,8 @@ All 18 planets survive as data. What changes is which fields do work:
 | 2026-09-29 | **V28 — online joining: a link that also shows a six-letter code; a name and a face at the door; one seat a browser** | Jesse's pick over link-only and hotseat inside an online room. No accounts. The host sets the length and the AI seats and presses Start. Two people on one laptop in an online room waits until asked for |
 | 2026-09-29 | **L1a — the off-season is answered in any order, and filed as if in turn order** | V25's "the off-season is answered at once", built at `v3l1`. §2.2 unchanged: every answer was rolled when the off-season opened and none draws. Two things did depend on order, both bookkeeping: a replacement dog takes the next id, and each answer appends to the log. They are re-filed as turn order would have them (the Bookie's `slipIndex` pattern, E8), so all 24 orders of four stables give one state, byte for byte. Hotseat still asks in turn order. Neither golden moved |
 | 2026-09-29 | **L1b — a seat's view hides two things Phase K's list did not: another stable's private counters and its lucky bone; cash stays public** | Found building `viewFor`. `betIncome`, offers, tips, nobbles, boxes and trainer offers are counted the moment they happen, so they would have said "Ruby just booked a nobble"; a lucky bone's `raceBonus` is a card's edge. Both are hidden from other seats until the season's archive. Cash, which a nobble, a box, a tip or a stake leaves at once, stays public: it is the scoreboard (pillar 4). A view says Ruby spent 300 Bones, never on what. `ONLINE_PLAN.md` §3.1 |
+| 2026-09-30 | **L2a — online, a seat taken in the lobby is kept if its browser closes; the host is the first to sit down** | The plan was silent. Built at `v3l2`: a closed browser takes its seat back with its token, before or after Start. Nobody can free it (V26: nobody is kicked), so the game starts with it and the host can let a stand-in play it. A name is 1–24 letters; a face is required, and a face another human holds is refused, as in hotseat. `ONLINE_PLAN.md` §5.5 |
+| 2026-09-30 | **L2b — online, a stand-in at the Bookie and in the off-season waits for its place in the turn order; a stand-in weekend is one it pressed in** | Built at `v3l2`. `decide` plays only the active stable, so a stood-in seat bets and answers when the turn order reaches it, exactly as an AI seat does; a human ahead of it is still free to go first. The report's "played by an AI for N weekends" counts the weekends in which the stand-in pressed anything for the seat. `ONLINE_PLAN.md` §5.3 |
 
 ---
 
