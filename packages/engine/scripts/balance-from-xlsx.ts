@@ -258,6 +258,13 @@ const LABELS: Record<string, string> = {
   'Off-season: every dog starts the new season on this fitness': 'seasonStartFitness',
   // Phase I, GDD_V3 §2.2 and V23: the draft (Jesse's call).
   "Off-season: the draft, last stable's offer level above the ordinary (points)": 'draftLevelShift',
+  // Phase N, GDD_V3 §2.2, §5.5 and V29–V33: the draft (Jesse's call).
+  'Draft: dogs on the opening board, per stable': 'draftDogsPerStable',
+  'Draft: trainers on the opening board, per stable': 'draftTrainersPerStable',
+  'Draft: the weakest dog on a board (rating)': 'draftRatingMin',
+  'Draft: the strongest dog on a board (rating)': 'draftRatingMax',
+  'Draft: dogs on the off-season board, per stable (rounded up)': 'offDraftDogsPerStable',
+  'Draft: AI takes an off-season pick when it beats what it lets go by (Bones)': 'aiDraftMargin',
 };
 
 const wb = XLSX.read(readFileSync(xlsxPath));
