@@ -21,7 +21,7 @@ import { spawn, type ChildProcess } from 'node:child_process';
 import { mkdirSync, rmSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { chromium, type Browser, type Page } from 'playwright';
+import { chromium, errors, type Browser, type Page } from 'playwright';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const SERVER = resolve(HERE, '..');
@@ -108,6 +108,20 @@ async function shoot(page: Page, name: string): Promise<void> {
     shots.push(file);
   }
   await page.setViewportSize(was);
+}
+
+/**
+ * A line's text, or '' if it went away between looking and reading: in a live room another
+ * browser's move can take a screen down at any moment, and waiting 30 s for it to come back is a
+ * stall, not a check.
+ */
+async function textOf(loc: ReturnType<Page['locator']>): Promise<string> {
+  return (
+    (await loc
+      .first()
+      .textContent({ timeout: 1000 })
+      .catch(() => null)) ?? ''
+  );
 }
 
 async function seen(page: Page, sel: ReturnType<Page['locator']>): Promise<boolean> {
@@ -381,13 +395,14 @@ async function walk(browser: Browser, base: string): Promise<void> {
   let waitingShot = false;
   let quietSince = Date.now();
   const deadline = Date.now() + 240_000;
+  for (const p of table) p.page.setDefaultTimeout(5000);
   while (Date.now() < deadline) {
     let any = false;
     for (const p of table) {
       const page = p.page;
       // The waiting line, the first time someone is waiting on a sitting.
       if (!waitingShot && (await seen(page, page.locator('.waiting-line')))) {
-        const text = (await page.locator('.waiting-line').textContent()) ?? '';
+        const text = await textOf(page.locator('.waiting-line'));
         if (/Market and Race Office/.test(text)) {
           waitingShot = true;
           await shoot(page, '07-waiting-line');
@@ -396,7 +411,7 @@ async function walk(browser: Browser, base: string): Promise<void> {
       }
       // A nudges B, once, while A waits on B.
       if (!nudged && p === A && (await seen(page, page.locator('.waiting-line')))) {
-        const text = (await page.locator('.waiting-line').textContent()) ?? '';
+        const text = await textOf(page.locator('.waiting-line'));
         if (/Waiting on Bex/.test(text) && (await btn(page, 'Nudge').isEnabled())) {
           await btn(page, 'Nudge').click();
           let title = '';
@@ -423,7 +438,13 @@ async function walk(browser: Browser, base: string): Promise<void> {
           `${refreshed}; ${page.url()}`,
         );
       }
-      const did = await act(p);
+      // A press can miss when the room moves this browser's screen between the look and the click
+      // (the button detaches, or the next screen's scrim takes the pointer). That is the room
+      // working, not a failure: look again next time round. A real hang is still "the table stalled".
+      const did = await act(p).catch((e: unknown) => {
+        if (e instanceof errors.TimeoutError) return null;
+        throw e;
+      });
       if (did) {
         any = true;
         p.log.push(did);
@@ -437,6 +458,7 @@ async function walk(browser: Browser, base: string): Promise<void> {
     if (Date.now() - quietSince > 20_000) throw new Error('the table stalled');
     await sleep(120);
   }
+  for (const p of table) p.page.setDefaultTimeout(30_000);
   for (const p of table) console.log(`  ${p.name}: ${p.log.join(' → ')}`);
   const all = table.flatMap((p) => p.log);
   // B and C both pick early when they can: whichever is not first in the turn order is held.
