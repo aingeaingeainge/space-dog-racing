@@ -1719,6 +1719,11 @@ ul.notes li::before {
   td {
     padding: 5px 7px;
   }
+  /* Phase M: the table is wider than a phone and scrolls, and the one wrapping cell, the trainers
+     line, was squeezed to its longest word: rows 180–240 px tall. Give it room for a few lines. */
+  table.final-standings td.wrap {
+    min-width: 260px;
+  }
   .hub-stage {
     aspect-ratio: 4 / 3;
     /* The desktop min-height fights the aspect ratio on a narrow screen: 300 px tall at 4:3 is

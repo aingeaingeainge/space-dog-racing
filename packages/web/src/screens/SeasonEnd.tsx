@@ -435,7 +435,7 @@ function FinalStandings({ s, rows }: { s: GameState; rows: GameRow[] }) {
   return (
     <Panel title="Final standings" tight>
       <div className="table-wrap">
-        <table>
+        <table className="final-standings">
           <thead>
             <tr>
               <th>#</th>
