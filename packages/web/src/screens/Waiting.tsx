@@ -117,12 +117,6 @@ function WhileWaiting({ s, me }: { s: GameState; me: Player }) {
         Your slips are in. The races run when every stable has finished at the Bookie.
       </div>
     );
-  if (s.phase === 'offSeason')
-    return (
-      <div className="notice held">
-        Your off-season is answered. The new season starts when every stable has answered.
-      </div>
-    );
   if (s.phase === 'explore')
     return (
       <div className="notice held">

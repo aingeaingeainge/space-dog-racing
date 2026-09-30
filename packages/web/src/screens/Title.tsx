@@ -309,10 +309,10 @@ export function Title() {
       <Panel title="What is in this build" sub={`build ${BUILD} — the game's shape`}>
         <p className="muted flush">
           One to five ten-week seasons, or a race to a target, against Easy, Normal and Hard
-          stables. Each stable is dealt three dogs. A weekend is one of Explore&apos;s three doors,
-          the six-food market that is also your dogs&apos; training, trainers on commission, three
-          purse tiers and the Bookie; an off-season sits between seasons. Every planet is painted
-          and tints its own chrome.
+          stables. A game opens on a draft of four dogs and two trainers. A weekend is one of
+          Explore&apos;s three doors, the six-food market that is also your dogs&apos; training,
+          trainers on commission, three purse tiers and the Bookie; an off-season draft sits between
+          seasons. Every planet is painted and tints its own chrome.
         </p>
       </Panel>
     </div>

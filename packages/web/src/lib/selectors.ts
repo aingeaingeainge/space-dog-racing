@@ -21,6 +21,7 @@ import {
 } from '@sdr/engine';
 
 export const PHASE_LABEL: Record<Phase, string> = {
+  draft: 'The draft',
   arrival: 'Arrival',
   explore: 'Explore',
   planetPre: 'Planet — before the races',
@@ -28,7 +29,7 @@ export const PHASE_LABEL: Record<Phase, string> = {
   race: 'Race day',
   planetPost: 'Planet — after the races',
   endTurn: 'Jumping to the next planet',
-  offSeason: 'The off-season',
+  offSeason: 'The off-season draft',
   newSeason: 'A new season',
   seasonEnd: 'Game over',
 };

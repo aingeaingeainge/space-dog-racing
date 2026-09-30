@@ -16,6 +16,8 @@ import {
   STAPLE_ID,
   bettingMargin,
   createSeason,
+  currentDraft,
+  decide,
   dogValue,
   planetOf,
   drive,
@@ -256,35 +258,52 @@ function bettingTurn(s: GameState, p: Player, tally: Tally): Action[] {
 }
 
 /**
- * Phase E1: what the human does at an off-season (GDD_V3 §2.2) — retire its lowest-valued dog, or
- * keep them all — and what the walk saw of every off-season it passed through.
+ * Phase N (V29, V32): the draft, walked. At the opening draft the human picks what Normal would; at an
+ * off-season it follows its plan — `retire` takes the board's best-rated dog and retires its own
+ * lowest-valued one, `trainer` takes a trainer (letting its worst go if it has two), `keep` passes.
+ * A pick is two presses on the screen (the item, then "Take" or "Retire … and take") and a pass one.
  */
-type OffPlan = 'retire' | 'keep';
-const offWalk = {
-  /** Off-season screens the human answered, and the most presses any one of them took. */
-  screens: 0,
-  maxPresses: 0,
+type OffPlan = 'retire' | 'trainer' | 'keep';
+const draftWalk = {
+  /** Opening picks the human made, and off-season picks by kind. */
+  opening: 0,
   retired: 0,
-  keptAll: 0,
-  /** Retirements on offer (one a stable an off-season) and staff candidates, table-wide. */
-  offers: 0,
-  candidates: 0,
-  hires: 0,
+  trainers: 0,
+  passed: 0,
+  /** The most presses any one pick took. */
+  maxPresses: 0,
+  /** Off-season boards seen, their dogs and trainers, and trainers who left at the notice. */
+  boards: 0,
+  boardDogs: 0,
+  boardStaff: 0,
+  leavers: 0,
   /** Target games walked to their end. */
   targets: 0,
 };
 
-/** The human's presses at one off-season screen: the retirement, the staff notice, "On to season N". */
-function offSeasonPress(s: GameState, me: Player, plan: OffPlan): Action {
-  const n = s.offSeason!.notices[me.id]!;
-  if (n.retired === undefined) {
-    if (plan === 'keep') return { t: 'Retire', playerId: me.id, dogId: null };
-    const cheapest = [...ownDogs(s, me)].sort((a, b) => dogValue(a) - dogValue(b))[0]!;
-    return { t: 'Retire', playerId: me.id, dogId: cheapest.id };
+function draftPick(s: GameState, me: Player, plan: OffPlan): { action: Action; presses: number } {
+  const d = currentDraft(s)!;
+  if (d.kind === 'opening') {
+    const action = decide(s, me.id, 'normal')[0]!;
+    return { action, presses: 2 };
   }
-  if (n.candidate && n.hired === undefined)
-    return { t: 'ResolveStaffNotice', playerId: me.id, hire: true };
-  return { t: 'EndPhase', playerId: me.id };
+  if (plan === 'retire' && d.dogs.length) {
+    const best = [...d.dogs].sort((a, b) => b.rating - a.rating)[0]!;
+    const cheapest = [...ownDogs(s, me)].sort((a, b) => dogValue(a) - dogValue(b))[0]!;
+    return {
+      action: { t: 'DraftPick', playerId: me.id, pick: { dog: best.id }, release: cheapest.id },
+      presses: 2,
+    };
+  }
+  if (plan === 'trainer' && d.staff.length) {
+    const pick = { staff: d.staff[0]! };
+    const action: Action =
+      me.staff.length >= balance.staffSlots
+        ? { t: 'DraftPick', playerId: me.id, pick, release: me.staff[0]! }
+        : { t: 'DraftPick', playerId: me.id, pick };
+    return { action, presses: 2 };
+  }
+  return { action: { t: 'DraftPick', playerId: me.id, pick: null }, presses: 1 };
 }
 
 function playSeason(
@@ -318,6 +337,7 @@ function playSeason(
     ResolveEvent: 0,
     ChooseDoor: 0,
     ChooseBox: 0,
+    DraftPick: 0,
   };
   const screens: Record<string, number> = {};
 
@@ -332,20 +352,18 @@ function playSeason(
     bustAck: [],
     seasonSeen: 0,
   };
-  let presses = 0;
-
   for (let step = 0; step < 100000; step++) {
     const screen = screenFor(state, ui);
     screens[screen.kind] = (screens[screen.kind] ?? 0) + 1;
     if (screen.kind === 'seasonEnd' && state.phase === 'offSeason') {
       // A season is over and the game goes on (GDD_V3 §2.2): the table reads it, then the
       // off-season. What every stable was rolled is counted here, once an off-season.
-      for (const n of Object.values(state.offSeason!.notices)) {
-        offWalk.offers++;
-        if (n.candidate) offWalk.candidates++;
-      }
+      const d = currentDraft(state)!;
+      draftWalk.boards++;
+      draftWalk.boardDogs += d.dogs.length;
+      draftWalk.boardStaff += d.staff.length;
+      for (const n of Object.values(state.offSeason!.notices)) draftWalk.leavers += n.left.length;
       ui.seasonSeen = state.season;
-      presses = 0;
       continue;
     }
     if (screen.kind === 'seasonEnd') {
@@ -381,22 +399,19 @@ function playSeason(
       continue;
     }
     let actions: Action[];
-    if (screen.kind === 'offSeason') {
-      // One press at a time, as the screen dispatches them, so the count is the presses.
-      const press = offSeasonPress(state, me, offPlan);
-      if (press.t === 'Retire') {
-        if (press.dogId) offWalk.retired++;
-        else offWalk.keptAll++;
+    if (screen.kind === 'draft') {
+      // Phase N: the draft is public and in turn order; the human picks when it is on the clock.
+      const { action, presses } = draftPick(state, me, offPlan);
+      if (action.t === 'DraftPick') {
+        if (currentDraft(state)!.kind === 'opening') draftWalk.opening++;
+        else if (action.pick === null) draftWalk.passed++;
+        else if ('dog' in action.pick) draftWalk.retired++;
+        else draftWalk.trainers++;
       }
-      if (press.t === 'ResolveStaffNotice' && press.hire) offWalk.hires++;
-      presses++;
-      if (press.t === 'EndPhase') {
-        offWalk.screens++;
-        offWalk.maxPresses = Math.max(offWalk.maxPresses, presses);
-        if (presses > 3) throw new Error(`the off-season took ${presses} presses (at most 3)`);
-        presses = 0;
-      }
-      const applied = applyActions(state, [press]);
+      draftWalk.maxPresses = Math.max(draftWalk.maxPresses, presses);
+      if (presses > 2) throw new Error(`a draft pick took ${presses} presses (at most 2)`);
+      bump(tally, 'DraftPick');
+      const applied = applyActions(state, [action]);
       state = applied.state;
       log.push(...applied.added);
       continue;
@@ -466,11 +481,17 @@ const walked = {
   /** Phase D2 (GDD_V3 §9.3): nobbles booked by anybody, and boxes named by the walk. */
   sabotages: 0,
   boxes: 0,
+  /**
+   * Phase N: race-day tips, run-wide like sabotage. A season is 3–8 tips, and after the draft moved
+   * every draw seed 7's first season drew none — an honest season, so the row is the run's.
+   */
+  tips: 0,
 };
 /**
  * Phase E1: whole games as well as seasons. The first two seeds are also walked as **two-season
- * games** — the human retires a dog at one off-season and keeps them all at the other — and the
- * third as a **race to the short target**, to its end.
+ * games** — at the off-season draft the human takes a dog (retiring one) at one and passes at the
+ * other (Phase N) — and the third as a **race to the short target**, to its end, and as a two-season
+ * game in which the human takes a trainer.
  */
 type Variant = [string, SeasonSetup['toggles'] | undefined, GameLength | undefined, OffPlan];
 for (const seed of toRun) {
@@ -487,24 +508,27 @@ for (const seed of toRun) {
     );
   if (seed === toRun[1])
     variants.push([
-      'two seasons, keeping them all',
+      'two seasons, passing at the off-season',
       undefined,
       { kind: 'seasons', seasons: 2 },
       'keep',
     ]);
   if (seed === toRun[2])
-    variants.push([
-      'race to the short target',
-      undefined,
-      { kind: 'target', worth: balance.targetShort },
-      'retire',
-    ]);
+    variants.push(
+      [
+        'race to the short target',
+        undefined,
+        { kind: 'target', worth: balance.targetShort },
+        'retire',
+      ],
+      ['two seasons, taking a trainer', undefined, { kind: 'seasons', seasons: 2 }, 'trainer'],
+    );
   for (const [label, toggles, length, offPlan] of variants) {
     try {
       const { state, log, tally, screens, human } = playSeason(seed, toggles, length, offPlan);
       if (length && state.gameOver?.reason !== (length.kind === 'target' ? 'target' : 'seasons'))
         throw new Error(`the game ended by ${state.gameOver?.reason}, not as its length says`);
-      if (length?.kind === 'target') offWalk.targets++;
+      if (length?.kind === 'target') draftWalk.targets++;
       // Per-season counts, summed over the game's archive: the live stats are the last season's.
       const games = state.seasons.map((r) => Object.values(r.stats));
       const total = (pick: (st: Player['stats']) => number) =>
@@ -571,7 +595,7 @@ for (const seed of toRun) {
           `${picks} doors opened in ${weeksPlayed} weeks of ${state.players.length} stables`,
         );
       if (offers === 0) throw new Error('the season produced no dog offers');
-      if (tips === 0) throw new Error('the season produced no tips');
+      walked.tips += tips;
       if (staffOffers === 0) throw new Error('the season produced no staff offers');
       // ⚠️ Sabotage is checked across the run, not per season (see the end of the file): at its own
       // target — 40–70% of seasons see one — a third of honest seasons have none.
@@ -612,22 +636,24 @@ if (!failures && Object.values(walked).some((n) => n === 0)) {
   console.error(`Never exercised: ${dead.join(', ')} — the check did not walk the week.`);
   failures++;
 }
-// ⚠️ Phase E1's rows: the off-season walked, both ways, in at most three presses; a staff candidate
-// offered somewhere at the table; and a Target game played to its end. Run-wide, like sabotage — a
-// candidate needs a trainer to have left (15% each), which one off-season can easily not produce.
+// ⚠️ Phase E1's rows, as Phase N rewrote them: the opening draft walked, and the off-season's pick
+// walked all three ways (a dog, a trainer, a pass) in at most two presses a pick; and a Target game
+// played to its end. Run-wide, like sabotage.
 console.log(
-  `The off-season walked: ${offWalk.screens} screens (at most ${offWalk.maxPresses} presses), ${offWalk.retired} retired, ${offWalk.keptAll} kept them all, ` +
-    `${offWalk.offers} retirements on offer, ${offWalk.candidates} staff candidates (${offWalk.hires} hired by the walk), ${offWalk.targets} Target game(s) to the end.`,
+  `The draft walked: ${draftWalk.opening} opening picks, off-season ${draftWalk.retired} dogs / ${draftWalk.trainers} trainers / ${draftWalk.passed} passes ` +
+    `(at most ${draftWalk.maxPresses} presses a pick); ${draftWalk.boards} off-season boards, ${draftWalk.boardDogs} dogs and ${draftWalk.boardStaff} trainers on them, ` +
+    `${draftWalk.leavers} trainers left at the notice; ${draftWalk.targets} Target game(s) to the end.`,
 );
 if (
   !failures &&
-  (!offWalk.offers ||
-    !offWalk.candidates ||
-    !offWalk.retired ||
-    !offWalk.keptAll ||
-    !offWalk.targets)
+  (!draftWalk.opening ||
+    !draftWalk.retired ||
+    !draftWalk.trainers ||
+    !draftWalk.passed ||
+    !draftWalk.boards ||
+    !draftWalk.targets)
 ) {
-  console.error('The off-season or the Target game was never walked both ways.');
+  console.error('The draft or the Target game was never walked every way.');
   failures++;
 }
 // ⚠️ Phase E2: **the table.** Four humans (and two Normal AIs) round one laptop, walked through
@@ -640,7 +666,7 @@ const tableRuns: [string, number, GameLength][] = [
   ['four humans, two seasons', 42, { kind: 'seasons', seasons: 2 }],
   ['four humans, race to the short target', 1234, { kind: 'target', worth: balance.targetShort }],
 ];
-const table = { skipped: 0, watched: 0, postTrades: 0, offSeasons: 0, passes: 0, weekends: 0 };
+const table = { skipped: 0, watched: 0, postTrades: 0, drafts: 0, passes: 0, weekends: 0 };
 for (const [label, seed, length] of tableRuns) {
   try {
     const w = walkTable(seed, 4, 2, {
@@ -665,7 +691,9 @@ for (const [label, seed, length] of tableRuns) {
     table.skipped += w.skippedRaceDays;
     table.watched += (w.screens.race ?? 0) - w.skippedRaceDays;
     table.postTrades += w.postTrades;
-    table.offSeasons += w.screens.offSeason ?? 0;
+    // Phase N: the draft screens the table read — the opening one and, in a two-season game, the
+    // off-season's. Public: no pass either side (a leak would have been counted above).
+    table.drafts += w.screens.draft ?? 0;
     table.passes += w.passes;
     table.weekends += w.weekends;
     console.log(
@@ -677,9 +705,9 @@ for (const [label, seed, length] of tableRuns) {
     console.error(`${label} FAILED: ${(e as Error).message}`);
   }
 }
-if (!failures && (!table.skipped || !table.watched || !table.postTrades || !table.offSeasons)) {
+if (!failures && (!table.skipped || !table.watched || !table.postTrades || !table.drafts)) {
   console.error(
-    'The table walk never skipped a race day, watched one, traded after the races or reached an off-season.',
+    'The table walk never skipped a race day, watched one, traded after the races or drafted.',
   );
   failures++;
 }

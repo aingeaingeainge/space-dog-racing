@@ -47,7 +47,7 @@ import { applyActions, screenFor, weekKey, type ScreenUi } from '../src/store/lo
 import { venues } from '../src/lib/venues';
 import { venueStatus } from '../src/lib/venueStatus';
 import { HOTSPOT_VENUES } from '../src/lib/hotspots';
-import { walkTable } from './table-walk';
+import { draftPress, walkTable } from './table-walk';
 
 /**
  * Declarations (3) + head to the track + run the races + back to the planet + end turn.
@@ -146,6 +146,9 @@ interface Tally {
   explore: number;
   /** Weekends the results screen's "Fly on" took "back to the planet" and "end turn" as one press. */
   flyOn: number;
+  /** Phase N: the draft's picks and presses (two a pick, one a pass), kept out of the weekend's. */
+  draftPicks: number;
+  draftPresses: number;
 }
 
 function playSeason(seed: number, tally: Tally): void {
@@ -195,6 +198,16 @@ function playSeason(seed: number, tally: Tally): void {
     }
     if (screen.kind === 'pass') {
       ui.passAck = me.id;
+      continue;
+    }
+    if (screen.kind === 'draft') {
+      // Phase N: a pick is the item and "Take"; counted apart, because it is not a weekend's.
+      const { action, presses } = draftPress(state, me);
+      tally.draftPicks++;
+      tally.draftPresses += presses;
+      const applied = applyActions(state, [action]);
+      state = applied.state;
+      log.push(...applied.added);
       continue;
     }
     if (state.phase === 'explore' && !state.pendingEvent && state.activePlayer === me.id) {
@@ -251,7 +264,16 @@ function playSeason(seed: number, tally: Tally): void {
 }
 
 const n = Number(process.argv[2]) || 20;
-const tally: Tally = { phases: 0, before: 0, after: 0, weekends: 0, explore: 0, flyOn: 0 };
+const tally: Tally = {
+  phases: 0,
+  before: 0,
+  after: 0,
+  weekends: 0,
+  explore: 0,
+  flyOn: 0,
+  draftPicks: 0,
+  draftPresses: 0,
+};
 for (let i = 0; i < n; i++) playSeason(1000 + i * 37, tally);
 
 const weekends = tally.weekends;
@@ -291,6 +313,9 @@ console.log(
   `  of which decisions : ${(after - FIXED_NAVIGATION + flyOnSaved).toFixed(1)}   ` +
     `(navigation : ${(FIXED_NAVIGATION - flyOnSaved).toFixed(1)} — track, races, back, end turn, less Fly on)`,
 );
+console.log(
+  `\nThe draft (Phase N): ${tally.draftPicks} picks, ${(tally.draftPresses / Math.max(1, tally.draftPicks)).toFixed(2)} presses a pick — budget ≤ 2: ${tally.draftPresses <= 2 * tally.draftPicks ? 'MET' : 'MISSED'} (not in the weekend's count)`,
+);
 console.log(`\nClicks a ${balance.weeks}-week season`);
 console.log(`  before : ${Math.round(seasonBefore)}`);
 console.log(
@@ -316,8 +341,12 @@ for (const [h, ai] of [
   let presses = 0;
   let table = 0;
   let leaks = 0;
+  let picks = 0;
+  let pickPresses = 0;
   for (const seed of TABLE_SEEDS) {
     const w = walkTable(seed, h, ai);
+    picks += w.draftPicks;
+    pickPresses += w.draftPresses;
     weekends += w.weekends;
     passes += w.passes;
     presses += Object.values(w.presses).reduce((a, b) => a + b, 0);
@@ -325,6 +354,7 @@ for (const [h, ai] of [
     leaks += w.leaks.length;
   }
   console.log(
-    `  ${String(h).padStart(6)}   ${(passes / weekends).toFixed(1).padStart(16)}   ${(presses / weekends / h).toFixed(1).padStart(25)}   ${(table / weekends).toFixed(1).padStart(23)}   ${leaks}`,
+    `  ${String(h).padStart(6)}   ${(passes / weekends).toFixed(1).padStart(16)}   ${(presses / weekends / h).toFixed(1).padStart(25)}   ${(table / weekends).toFixed(1).padStart(23)}   ${leaks}` +
+      `   · the draft: ${(pickPresses / Math.max(1, picks)).toFixed(2)} presses a pick, no passes`,
   );
 }

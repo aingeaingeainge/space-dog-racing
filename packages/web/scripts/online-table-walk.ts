@@ -36,7 +36,7 @@ import { memoryStore } from '../src/store/online';
 import { buildReport } from '../src/lib/report';
 import { EMPTY_PACE } from '../src/lib/pace';
 import { waitingLine } from '../src/lib/waiting';
-import { bettingTurn, offSeasonPress, planetTurn } from './table-walk';
+import { bettingTurn, draftPress, planetTurn } from './table-walk';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const SERVER = resolve(HERE, '../../server');
@@ -248,8 +248,11 @@ class Client {
       }
       case 'betting':
         return this.press('bets', ...bettingTurn(s, me!));
-      case 'offSeason':
-        return this.press('offSeason', offSeasonPress(s, me!));
+      case 'draft': {
+        // Phase N: public, in turn order — press only when this seat is the one picking.
+        if (s.activePlayer !== g.seat) return;
+        return this.press('draft', draftPress(s, me!).action);
+      }
       case 'planet': {
         if (s.pendingEvent && s.pendingEvent.playerId === g.seat) {
           let choice = 0;

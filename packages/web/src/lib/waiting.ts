@@ -7,7 +7,7 @@ import type { RoomMeta } from '../../../server/src/protocol';
  * screen uses; and how long, from `meta.clock.since`.
  *
  * Decided at `v3l2`'s checklist: **it names only the humans being waited on**, in turn order. At the
- * Bookie and in the off-season the clock also lists AI and stood-in seats waiting behind the turn
+ * Bookie (and in the off-season until Phase N made it a draft, in turn order) the clock also lists AI and stood-in seats waiting behind the turn
  * order (GDD_V3 L2b); they are left out, and when nobody else is left it says "Waiting on the AIs"
  * (they are about to play).
  */
@@ -26,7 +26,8 @@ export const PHASE_PLAIN: Partial<Record<GameState['phase'], string>> = {
   planetPre: 'Market and Race Office',
   betting: 'the Bookie',
   planetPost: 'after the races',
-  offSeason: 'the off-season',
+  draft: 'the draft',
+  offSeason: 'the off-season draft',
 };
 
 function andList(names: string[]): string {

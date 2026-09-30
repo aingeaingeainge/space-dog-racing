@@ -57,7 +57,8 @@ export function bucketOf(kind: ScreenKind): PaceBucket | 'between' | null {
     case 'afterRaces':
     case 'waiting':
       return 'table';
-    case 'offSeason':
+    // Phase N: the opening draft and the off-season's are between weekends, not in one.
+    case 'draft':
       return 'between';
     default:
       // The season's end is 'between' when a season ends into the next; the game's end, the title

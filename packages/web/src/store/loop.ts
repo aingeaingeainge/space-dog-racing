@@ -56,7 +56,11 @@ export type ScreenKind =
   | 'afterRaces'
   | 'pass'
   | 'explore'
-  | 'offSeason'
+  /**
+   * Phase N (GDD_V3 V29, V32): the opening draft and every off-season's one round. **Public**: the
+   * table reads the board together and the stable on the clock picks at it, with no pass (E8).
+   */
+  | 'draft'
   | 'betting'
   | 'planet'
   /** Online only (§5.1): this seat is not on the clock and has nothing it may do but read. Public. */
@@ -109,7 +113,8 @@ export interface OnlineSeat {
 
 /**
  * Screens that show one human's own business: their door and its card, their market, kennels and
- * Race Office, their bets, their off-season. Every other screen is **public** — the table watches it
+ * Race Office, their bets. (The off-season was one until Phase N; it is the draft now, and public.)
+ * Every other screen is **public** — the table watches it
  * together — and needs no pass (GDD_V3 §3). A private screen whose owner is not the human who last
  * held the laptop must come after a pass screen: `table-walk.ts` checks exactly that rule, and
  * `season-check` fails on a breach.
@@ -118,7 +123,6 @@ export const PRIVATE_SCREENS: ReadonlySet<ScreenKind> = new Set<ScreenKind>([
   'explore',
   'planet',
   'betting',
-  'offSeason',
 ]);
 
 /** Humans at the table, in seating order. */
@@ -152,8 +156,6 @@ export function passReason(s: GameState): string {
       return 'The Bookie — everybody bets privately, in any order.';
     case 'planetPost':
       return 'After the races — the market again, in turn order.';
-    case 'offSeason':
-      return 'The off-season — your retirement window and your staff notice.';
     default:
       return '';
   }
@@ -176,11 +178,18 @@ export function screenFor(s: GameState, ui: ScreenUi, online?: OnlineSeat): Scre
   // a store change rather than a rule change.
 
   if (isSeasonOver(s)) return { kind: 'seasonEnd', me: null };
-  // Between seasons (GDD_V3 §2.2): the table reads how the season ended, together, and then each
-  // human has the off-season screen in turn.
+  // Between seasons (GDD_V3 §2.2): the table reads how the season ended, together, and then the
+  // off-season's draft, together (Phase N).
   if (s.phase === 'offSeason' && (ui.seasonSeen ?? 0) < s.season)
     return { kind: 'seasonEnd', me: null };
   const waiting = waitingOn(s);
+  // Phase N (V29, V32): the draft is public. The screen belongs to whoever is on the clock if that is
+  // a human, and to the table's first human while the AIs pick; the laptop never moves for it.
+  if (s.phase === 'draft' || s.phase === 'offSeason') {
+    const on = s.players.find((p) => p.id === waiting && p.kind === 'human');
+    const me = on ?? table[0] ?? null;
+    return me ? { kind: 'draft', me } : { kind: 'noHuman', me: null };
+  }
   const me =
     (hotseat && s.phase === 'betting' && s.locked ? bookieSitter(s, ui.passAck) : null) ??
     s.players.find((p) => p.id === waiting) ??
@@ -209,20 +218,18 @@ export function screenFor(s: GameState, ui: ScreenUi, online?: OnlineSeat): Scre
   // GDD_V3 §9.1: a new planet opens on its three doors. A card with a choice waits in EventModal
   // over the hub, so the doors are only the screen while there is a door still to pick.
   if (s.phase === 'explore' && !s.pendingEvent) return { kind: 'explore', me };
-  if (s.phase === 'offSeason') return { kind: 'offSeason', me };
   if (s.phase === 'betting') return { kind: 'betting', me };
   return { kind: 'planet', me };
 }
 
 /**
  * Is this seat on the clock (§5.1)? The room's `meta.clock` when there is one; without it, what the
- * view itself says: every stable not finished at the Bookie and in the off-season, otherwise the
- * stable whose turn it is.
+ * view itself says: every stable not finished at the Bookie, otherwise the stable whose turn it is
+ * (the draft's pick included, Phase N).
  */
 export function onClock(s: GameState, online: OnlineSeat): boolean {
   if (online.meta) return online.meta.clock.seats.includes(online.seat);
-  if ((s.phase === 'betting' && s.locked) || s.phase === 'offSeason')
-    return !s.done.includes(online.seat);
+  if (s.phase === 'betting' && s.locked) return !s.done.includes(online.seat);
   return waitingOn(s) === online.seat;
 }
 
@@ -236,7 +243,8 @@ export function onClock(s: GameState, online: OnlineSeat): boolean {
  *
  * What a seat off the clock may still do (§5.1): pick its door early (the room holds it, so the door
  * screen stays up and says so), fly on early after the races (held the same way, from the waiting
- * screen), bet at the Bookie and answer the off-season at once.
+ * screen) and bet at the Bookie at once. The draft is in turn order (Phase N): a seat off the clock
+ * watches it.
  */
 function onlineScreenFor(s: GameState, ui: ScreenUi, online: OnlineSeat): Screen {
   if (isSeasonOver(s)) return { kind: 'seasonEnd', me: null };
@@ -244,6 +252,8 @@ function onlineScreenFor(s: GameState, ui: ScreenUi, online: OnlineSeat): Screen
     return { kind: 'seasonEnd', me: null };
   const me = s.players.find((p) => p.id === online.seat) ?? null;
   if (!me) return { kind: 'noHuman', me: null };
+  // Phase N: the draft, public, in turn order — every seat watches it, the one on the clock picks.
+  if (s.phase === 'draft' || s.phase === 'offSeason') return { kind: 'draft', me };
   const wk = weekKey(s);
   if (s.races && !bookieOpen(s) && ui.fieldsSeenWeek !== wk) return { kind: 'fields', me };
   if (s.races && ui.racesWatchedWeek !== wk) return { kind: 'race', me };
@@ -262,7 +272,6 @@ function onlineScreenFor(s: GameState, ui: ScreenUi, online: OnlineSeat): Screen
     if ((ui.boardSeenWeek ?? 0) !== wk) return { kind: 'board', me };
     return { kind: 'betting', me };
   }
-  if (s.phase === 'offSeason') return { kind: done ? 'waiting' : 'offSeason', me };
   if ((s.phase === 'planetPre' || s.phase === 'planetPost') && on && !done)
     return { kind: 'planet', me };
   return { kind: 'waiting', me };

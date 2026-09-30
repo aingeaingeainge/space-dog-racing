@@ -1,7 +1,10 @@
 import {
   AI_STABLE_NAMES,
   formatBones,
+  staffRow,
+  STYLE_BY_ID,
   type Action,
+  type DraftPickRecord,
   type GameState,
   type Id,
   type Player,
@@ -102,23 +105,16 @@ function whoText(p: Player, owner: number | null): string {
     : `AI, ${d}, renamed, wearing ${listed ?? `owner ${owner + 1}`}'s face`;
 }
 
-/**
- * What each stable answered at each off-season's retirement window, in order: the k-th `Retire` a
- * stable sent is its answer at the off-season after season k (one answer per stable per off-season).
- */
-function retirements(log: readonly Action[]): Map<Id, (Id | null)[]> {
-  const out = new Map<Id, (Id | null)[]>();
-  for (const a of log) {
-    if (a.t !== 'Retire') continue;
-    const list = out.get(a.playerId) ?? [];
-    list.push(a.dogId);
-    out.set(a.playerId, list);
-  }
-  return out;
+/** One pick, in the report's words: "Grumpy Backlash (58, closer)", "Vell (trainer)", "passed". */
+function pickText(x: DraftPickRecord): string {
+  if (x.dog)
+    return `${x.dog.name} (${x.dog.rating}, ${STYLE_BY_ID[x.dog.style].name.toLowerCase()})`;
+  if (x.staff) return `${staffRow(x.staff).name} (trainer)`;
+  return 'passed';
 }
 
 export function buildReport(r: ReportInput): string {
-  const { s, setup, log, pace } = r;
+  const { s, setup, pace } = r;
   const name = (id: Id | undefined) => s.players.find((p) => p.id === id)?.name ?? '—';
   const owners = aiOwnerIndices(s.players, AI_STABLE_NAMES);
   const rows = gameRows(s);
@@ -140,6 +136,22 @@ export function buildReport(r: ReportInput): string {
   s.players.forEach((p, i) => out.push(`${i + 1}. ${p.name} — ${whoText(p, owners[i] ?? null)}`));
   for (const x of r.standIns ?? []) if (x.weekends > 0) out.push(standInLine(x.name, x.weekends));
   out.push(hr);
+
+  // Phase N (V29): the opening draft — round 1's order, then each stable's picks in order.
+  const opening = s.drafts[0];
+  if (opening) {
+    out.push('THE DRAFT');
+    const round1 = opening.order.slice(0, s.players.length);
+    out.push(`Round 1's order (drawn): ${round1.map((id) => name(id)).join(', ')}`);
+    for (const id of round1)
+      out.push(
+        `${name(id)}: ${opening.picks
+          .filter((x) => x.playerId === id)
+          .map(pickText)
+          .join(' · ')}`,
+      );
+    out.push(hr);
+  }
 
   out.push('THE RESULT');
   const winner = rows[0];
@@ -190,26 +202,29 @@ export function buildReport(r: ReportInput): string {
   out.push(hr);
 
   out.push('SEASON BY SEASON');
-  const retired = retirements(log);
-  s.seasons.forEach((rec, k) => {
+  s.seasons.forEach((rec) => {
     const top = rec.standings[0];
-    const last = rec.standings[rec.standings.length - 1];
     const line = [
       `Season ${rec.season} (${rec.weeks} weekend${rec.weeks === 1 ? '' : 's'}): top ${name(top?.playerId)} ${top ? formatBones(top.netWorth) : ''}`.trim(),
     ];
-    // GDD_V3 §2.2, V23: the stable last on a season's standings is drafted at the off-season after it.
-    // The last season has no off-season, and a one-stable table has nobody to draft.
-    const hadOffSeason = k < s.seasons.length - 1;
-    if (hadOffSeason && s.players.length > 1 && last) {
-      const answer = retired.get(last.playerId)?.[k];
-      const took =
-        answer === undefined
-          ? ''
-          : answer === null
-            ? ', kept their dogs'
-            : ', retired a dog and took the pick';
-      line.push(`the draft: ${name(last.playerId)} (last, ${formatBones(last.netWorth)})${took}`);
-    } else line.push('no draft (no off-season after it)');
+    // Phase N (V32): the off-season after a season is one draft pick each, last on the standings
+    // first. The last season has no off-season after it.
+    const draft = s.drafts.find((d) => d.kind === 'offSeason' && d.season === rec.season + 1);
+    if (draft)
+      line.push(
+        'the off-season draft: ' +
+          draft.picks
+            .map((x) => {
+              const gone = x.released?.dog
+                ? `, retired ${x.released.dog.name}`
+                : x.released?.staff
+                  ? `, let ${staffRow(x.released.staff).name} go`
+                  : '';
+              return `${name(x.playerId)} ${pickText(x)}${gone}`;
+            })
+            .join('; '),
+      );
+    else line.push('no draft (no off-season after it)');
     out.push(line.join(' · '));
   });
   out.push(hr);

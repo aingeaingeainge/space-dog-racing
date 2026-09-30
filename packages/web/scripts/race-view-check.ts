@@ -16,6 +16,7 @@ import {
   aiChoiceFor,
   balance,
   createSeason,
+  decide,
   drive,
   isSeasonOver,
   planetOf,
@@ -171,6 +172,9 @@ function playSeason(seed: number): { races: number; lines: number; photos: numbe
       });
     else if (state.phase === 'explore')
       reduceMut(state, { t: 'ChooseDoor', playerId: who, door: 0 });
+    // Phase N: the game opens on the draft — the human picks as Normal would.
+    else if (state.phase === 'draft')
+      for (const a of decide(state, who, 'normal')) reduceMut(state, a);
     else reduceMut(state, { t: 'EndPhase', playerId: who });
     drive(state, log);
   }

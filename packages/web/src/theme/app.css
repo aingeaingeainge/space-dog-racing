@@ -1794,6 +1794,14 @@ ul.notes li::before {
     gap: 4px 10px;
   }
 }
+/* Phase N: a Grand Final week of a multi-season game ("Season 1/2 · Week 10/10 · Collar Prime
+   ★ Grand Final") is wider than a 390 phone, and the off-season draft shows it; let it wrap there. A
+   line that fits is laid out exactly as before. */
+@media (max-width: 480px) {
+  .topbar .stat {
+    white-space: normal;
+  }
+}
 
 @media (prefers-reduced-motion: reduce) {
   * {
@@ -2680,4 +2688,105 @@ table.market tr.held td:first-child {
   border-color: var(--ink);
   cursor: default;
   opacity: 0.55;
+}
+
+/* ---------------------------------------------------------------- the draft (Phase N, V29–V33) */
+/* The board and, beside it, the pick order and the stables. On a phone it stacks: the clock and the
+   Take button first, then the board as a list of cards, then the order. */
+.draft-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 340px);
+  gap: 14px;
+  align-items: start;
+}
+.draft-board,
+.draft-side {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+.draft-item {
+  display: block;
+  width: 100%;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  border-radius: var(--radius);
+}
+.draft-item:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+.draft-item:focus-visible {
+  outline: 3px dashed var(--hazard);
+  outline-offset: 2px;
+}
+.draft-item.picked .staffcard,
+.draft-item.picked .dogcard {
+  outline: 3px solid var(--accent-1);
+  outline-offset: -1px;
+}
+.draft-clock p {
+  margin: 4px 0;
+}
+.draft-clock .ownerface {
+  vertical-align: middle;
+}
+/* The pick's buttons stay in reach at the bottom of the screen while the board scrolls under them. */
+.draft-take {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin: 8px 0 12px;
+  padding: 8px 10px;
+  border: 2px solid var(--ink);
+  border-left: 6px solid var(--accent-1);
+  border-radius: var(--radius);
+  background: linear-gradient(180deg, #33303f, #232130);
+  box-shadow: var(--shadow-drop);
+}
+.draft-order,
+.draft-order ul,
+.draft-stables {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.draft-order > li + li {
+  margin-top: 6px;
+}
+.draft-order li li,
+.draft-stables li {
+  padding: 2px 0;
+  overflow-wrap: anywhere;
+}
+.draft-order li li.done {
+  opacity: 0.75;
+}
+.draft-order li li.now {
+  font-weight: bold;
+  color: var(--accent-1);
+}
+.draft-stables li {
+  display: flex;
+  flex-direction: column;
+}
+@media (max-width: 760px) {
+  .draft-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .draft-take .nb {
+    flex: 1 1 100%;
+    white-space: normal;
+  }
 }

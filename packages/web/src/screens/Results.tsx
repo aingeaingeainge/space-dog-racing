@@ -297,13 +297,15 @@ function Revealed({ s }: { s: GameState }) {
 
 /**
  * Phase E2: at a hotseat table the results are public, so a human reads their own settled slips on
- * their next private screen — the next weekend's door, or the off-season. The book keeps a whole
- * season's slips, so last weekend's are still there to read.
+ * their next private screen — the next weekend's door. The book keeps a whole season's slips, so last
+ * weekend's are still there to read. ⚠️ Since Phase N the off-season is public (a draft), so the
+ * Grand Final's slips have no private screen after them: a hotseat human reads the week-10 result as
+ * cash on the season's end, and the season's best slip is in its moments.
  */
 export function LastSlips({ s, me }: { s: GameState; me: Player }) {
   const online = useGame((g) => g.source === 'online');
   if (online || humans(s).length < 2) return null;
-  const week = s.phase === 'offSeason' ? s.week : s.week - 1;
+  const week = s.week - 1;
   if (week < 1) return null;
   return <BetsSettled s={s} me={me} week={week} title={`Your slips, week ${week}`} />;
 }

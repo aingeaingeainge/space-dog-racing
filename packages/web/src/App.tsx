@@ -10,7 +10,7 @@ import { Explore } from './screens/Explore';
 import { GalaxyMap } from './screens/GalaxyMap';
 import { LockedField } from './screens/LockedField';
 import { Market } from './screens/Market';
-import { OffSeason } from './screens/OffSeason';
+import { Draft } from './screens/Draft';
 import { PlanetHub } from './screens/PlanetHub';
 import { RaceView } from './screens/RaceView';
 import { RaceOffice } from './screens/RaceOffice';
@@ -242,8 +242,8 @@ export function App() {
           </div>
         ) : null}
 
-        {screen.kind === 'offSeason' ? (
-          <OffSeason s={s} me={me} />
+        {screen.kind === 'draft' ? (
+          <Draft s={s} me={me} />
         ) : screen.kind === 'explore' ? (
           <Explore s={s} me={me} />
         ) : screen.kind === 'betting' ? (

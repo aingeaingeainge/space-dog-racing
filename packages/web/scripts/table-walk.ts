@@ -18,6 +18,7 @@ import {
   aiChoiceFor,
   cargoTotal,
   createSeason,
+  decide,
   drive,
   HOLD_CAP,
   maxStakeFor,
@@ -57,6 +58,12 @@ export interface TableWalk {
   postTrades: number;
   /** Screens seen, by kind. */
   screens: Record<string, number>;
+  /**
+   * Phase N: the draft, counted apart from the weekend — picks the humans made, and the presses they
+   * took (two a pick, one a pass). Public, so no pass screen; nor is it in `presses`.
+   */
+  draftPicks: number;
+  draftPresses: number;
   state: GameState;
   log: Action[];
 }
@@ -116,13 +123,15 @@ export function bettingTurn(s: GameState, p: Player): Action[] {
   return out;
 }
 
-/** The off-season: keep them all, take a candidate, on to the next season. */
-export function offSeasonPress(s: GameState, me: Player): Action {
-  const n = s.offSeason!.notices[me.id]!;
-  if (n.retired === undefined) return { t: 'Retire', playerId: me.id, dogId: null };
-  if (n.candidate && n.hired === undefined)
-    return { t: 'ResolveStaffNotice', playerId: me.id, hire: true };
-  return { t: 'EndPhase', playerId: me.id };
+/**
+ * A human's draft pick (Phase N, V29, V32): what Normal would take. On the screen a pick is **two
+ * presses** — the item, then "Take" (or "Retire *dog* and take", which names the dog) — and a pass is
+ * one, so the walk counts `presses` as the screen would, not as the action.
+ */
+export function draftPress(s: GameState, me: Player): { action: Action; presses: number } {
+  const action = decide(s, me.id, 'normal')[0]!;
+  const presses = action.t === 'DraftPick' && action.pick === null ? 1 : 2;
+  return { action, presses };
 }
 
 export interface WalkOptions {
@@ -183,6 +192,8 @@ export function walkTable(
     skippedRaceDays: 0,
     postTrades: 0,
     screens: {},
+    draftPicks: 0,
+    draftPresses: 0,
     state,
     log,
   };
@@ -190,12 +201,12 @@ export function walkTable(
   let holder: Id | null = null;
   let passedSince = false;
 
-  const send = (who: Id, actions: Action[]) => {
+  const send = (who: Id, actions: Action[], count = true) => {
     const applied = applyActions(state, actions);
     if (applied.state.activePlayer !== state.activePlayer) ui.postTrade = null;
     state = applied.state;
     log.push(...applied.added);
-    walk.presses[who] = (walk.presses[who] ?? 0) + actions.length;
+    if (count) walk.presses[who] = (walk.presses[who] ?? 0) + actions.length;
   };
 
   for (let step = 0; step < 400000; step++) {
@@ -272,9 +283,14 @@ export function walkTable(
       case 'bust':
         ui.bustAck = [...ui.bustAck, me.id];
         continue;
-      case 'offSeason':
-        send(me.id, [offSeasonPress(state, me)]);
+      case 'draft': {
+        // Phase N: public — the human on the clock picks at the table, no pass either side.
+        const { action, presses } = draftPress(state, me);
+        walk.draftPicks++;
+        walk.draftPresses += presses;
+        send(me.id, [action], false);
         continue;
+      }
       case 'explore':
         send(me.id, [{ t: 'ChooseDoor', playerId: me.id, door: state.week % 3 }]);
         continue;

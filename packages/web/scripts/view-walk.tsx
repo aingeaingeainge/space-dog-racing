@@ -4,7 +4,7 @@
  * Online, a browser holds `viewFor(state, seat)` and never the state (GDD_V3 V24), and every screen
  * reads the view exactly as it reads a state. This walks a two-season table of four humans and two
  * AIs — the humans played by the stand-in, `decide(…, 'normal')`, so the game is full of the secrets a
- * view cuts (doors, cards, bets, nobbles, tips, off-season offers) — and at every moment the table
+ * view cuts (doors, cards, bets, nobbles, tips; the draft since Phase N, which is public) — and at every moment the table
  * could be looking at (each change of week, phase, seat on the clock or card) server-renders every
  * screen and component for every human seat from that seat's view.
  *
@@ -39,7 +39,7 @@ import { Explore } from '../src/screens/Explore';
 import { GalaxyMap } from '../src/screens/GalaxyMap';
 import { LockedField } from '../src/screens/LockedField';
 import { Market } from '../src/screens/Market';
-import { OffSeason } from '../src/screens/OffSeason';
+import { Draft } from '../src/screens/Draft';
 import { PlanetHub } from '../src/screens/PlanetHub';
 import { RaceOffice } from '../src/screens/RaceOffice';
 import { RaceView } from '../src/screens/RaceView';
@@ -70,7 +70,7 @@ const SCREENS: Record<string, (s: GameState, me: Player) => ReactElement> = {
   Arrival: (s, me) => <Arrival s={s} me={me} />,
   Board: (s, me) => <Board s={s} me={me} />,
   AfterRaces: (s, me) => <AfterRaces s={s} me={me} />,
-  OffSeason: (s, me) => <OffSeason s={s} me={me} />,
+  Draft: (s, me) => <Draft s={s} me={me} />,
   LeaderboardOverlay: (s, me) => <LeaderboardOverlay s={s} meId={me.id} />,
   SeasonEnd: (s) => <SeasonEnd s={s} />,
 };

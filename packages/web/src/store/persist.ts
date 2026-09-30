@@ -36,6 +36,11 @@ export interface SaveBlob {
 }
 
 /**
+ * 14 for v3 Phase N. The draft (GDD_V3 V29–V33): a game opens on a six-round draft of four dogs and
+ * two trainers, and the off-season is one draft pick (`DraftPick` replaced `Retire` and
+ * `ResolveStaffNotice`). A v3m log's first action is an AdvancePhase that a draft refuses, so every
+ * v3m save goes to the title screen with the old-save message.
+ *
  * 13 for v3 Phase I. The draft (GDD_V3 §2.2, V23): at the off-season, the stable last on the season's
  * standings is offered a replacement rolled above everybody else's. A v3h log that reached an
  * off-season took a different dog there, so it replays into a different game from season 2 on; this
@@ -95,7 +100,7 @@ export interface SaveBlob {
  * player on the title screen with a new season rather than half a season that no longer means
  * what it meant.
  */
-export const SAVE_VERSION = 13;
+export const SAVE_VERSION = 14;
 const KEY = 'sdr.save.v1';
 
 export function writeSave(blob: SaveBlob): void {
