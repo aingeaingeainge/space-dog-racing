@@ -12,6 +12,8 @@
  *                                        # the variance decomposition, the blind-lone-closer return
  *   npm run harness -- --styles --hotGrid   # Phase C2: the hot pace's lights / group / cost sweep (slow)
  *   npm run harness -- --game [--games 200]   # Phase E1: whole games at 1/3/5 seasons and both targets
+ *   npm run harness -- --draft [--games 1000]   # Phase N: win rate by draft position at 3/6/8 stables,
+ *                                        # start worth, each trainer bonus re-priced (D12's regression)
  *   npm run harness -- --explore --seasons 400   # Phase D1: doors, the deck's outcomes, dog offers,
  *                                        # lies, the race-day tip rows and the Bar's shelf
  *   … --set key=value [--set key=value …]   # Phase H: override a numeric balance key for this run
@@ -64,6 +66,7 @@ import { HARD_KNOBS } from '../src/ai/hard';
 import { hash01 } from '../src/ai/shared';
 import { isSeasonOver, needsAdvance, reduceMut } from '../src/reduce';
 import { runGames } from './harness-game';
+import { runDraft } from './harness-draft';
 import { simulateRace, type Runner } from '../src/race/simulateRace';
 import { winProbabilities } from '../src/race/odds';
 import { HEADLINE_TYPE_ID, raceType } from '../src/content/raceTypes';
@@ -108,8 +111,10 @@ interface Args {
   hardD2: boolean;
   /** Phase E1: whole games at 1, 3 and 5 seasons and both targets (`harness-game.ts`). */
   game: boolean;
-  /** With --game: games per mode (the 1-season mode plays twice as many). */
+  /** With --game: games per mode (the 1-season mode plays twice as many). With --draft: a table size. */
   games: number;
+  /** Phase N: the draft — fairness by draft position, start worth, trainer bonuses re-priced. */
+  draft: boolean;
   quiet: boolean;
 }
 
@@ -128,6 +133,7 @@ function parseArgs(argv: string[]): Args {
     explore: false,
     hardD2: false,
     game: false,
+    draft: false,
     games: 200,
     quiet: false,
   };
@@ -150,6 +156,7 @@ function parseArgs(argv: string[]): Args {
     else if (a === '--explore') args.explore = true;
     else if (a === '--hardD2') args.hardD2 = true;
     else if (a === '--game') args.game = true;
+    else if (a === '--draft') args.draft = true;
     else if (a === '--games') args.games = Number(next());
     else if (a === '--quiet') args.quiet = true;
     // Applied already, at import, by balance-set.ts; step over its value.
@@ -184,7 +191,7 @@ interface AgentStats {
   dogsOwned: number[];
   dogsAtEnd: number[];
   /** **Pace measure 2**: how many of the weekend's three races the stable filled, every
-   * stable-week. GDD_V3 Phase A wants the mean in 1.8–2.4 of 3. */
+   * stable-week. GDD_V3 Phase A wanted the mean in 1.8–2.4 of 3; Phase N's four dogs, 2.2–2.8. */
   filled: number[];
   /** **Pace measure 1**: decisions taken, per stable-weekend (see `SeasonSample.decisions`). */
   decisions: number[];
@@ -1183,7 +1190,7 @@ export function runHarness(args: Args): string {
   const allDecisions = mean([...byAgent.values()].flatMap((st) => st.decisions));
   lines.push(
     `  all stables: decisions ${allDecisions.toFixed(2)} a weekend · entered ` +
-      `${mean(allFilled).toFixed(2)} of 3 (band 1.8–2.4: ${paceBand(mean(allFilled), 1.8, 2.4)}) · ` +
+      `${mean(allFilled).toFixed(2)} of 3 (band 2.2–2.8 since Phase N's four dogs: ${paceBand(mean(allFilled), 2.2, 2.8)}) · ` +
       `races/dog ${(allEntries / Math.max(0.001, allDogs)).toFixed(2)} ` +
       `(band 5–7: ${paceBand(allEntries / Math.max(0.001, allDogs), 5, 7)})`,
   );
@@ -2702,9 +2709,18 @@ function main() {
   const args = parseArgs(process.argv.slice(2));
   // The plain run and --game print the overrides in their own headers; every other mode says so here.
   const plain = !(args.calibrate || args.stats || args.autoplan || args.styles || args.explore);
-  if (overridesLine() && !args.game && !(plain && !args.hardD2 && !args.hardAblation))
+  if (
+    overridesLine() &&
+    !args.game &&
+    !args.draft &&
+    !(plain && !args.hardD2 && !args.hardAblation)
+  )
     console.log(overridesLine());
   if (args.game) console.log(runGames(args.games, args.seed, args.ai));
+  else if (args.draft)
+    console.log(
+      runDraft(args.games === 200 ? 1000 : args.games, args.seed, args.ai[0] ?? 'normal'),
+    );
   else if (args.calibrate) console.log(runCalibration());
   else if (args.stats) console.log(runStatLeverage());
   else if (args.autoplan) console.log(runAutoplan(args.seasons));
