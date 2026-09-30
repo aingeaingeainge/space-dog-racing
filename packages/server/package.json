@@ -9,7 +9,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.tools.json --noEmit",
     "test": "npm run typecheck && tsx --test test/*.test.ts",
     "walk": "tsx scripts/online-walk.ts",
-    "browser-walk": "tsx scripts/browser-walk.ts"
+    "browser-walk": "tsx scripts/browser-walk.ts",
+    "hotseat-shots": "tsx scripts/hotseat-shots.ts"
   },
   "dependencies": {
     "@sdr/engine": "file:../engine"
