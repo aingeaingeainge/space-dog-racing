@@ -11,6 +11,8 @@
  *
  * - **A** makes a room from the Title's "Play online"; **B** joins by the link; **C** by the code;
  * - the host adds an AI, sets a race to 1 Bone (so the first weekend is the game), and starts;
+ * - the game opens on the draft (Phase N): each browser takes its six picks when its turn comes,
+ *   an item and then "Take", while the others watch;
  * - they play the weekend: a door each (B's early, so the room holds it), a declaration, a bet, the
  *   races, the results, "Fly on" (B's early again);
  * - B refreshes mid-sitting and comes back to the same screen; A nudges B and B's tab title flashes;
@@ -169,6 +171,16 @@ async function act(p: Seat): Promise<string | null> {
   if (await seen(page, page.locator('.scrim.event'))) {
     await page.locator('.scrim.event .row button').first().click();
     return 'answered a card';
+  }
+  // Phase N: the draft (public, in turn order). Two presses a pick: an item, then "Take …".
+  if (await seen(page, page.locator('.draft-take'))) {
+    await once('draft', () => shoot(page, '00-draft'));
+    if (await seen(page, btn(page, /^Take /))) {
+      await btn(page, /^Take /).click();
+      return 'drafted';
+    }
+    await page.locator('button.draft-item:not([disabled])').first().click();
+    return 'pressed a draft item';
   }
   if (await seen(page, btn(page, /: open a door$/))) {
     await btn(page, /: open a door$/).click();
@@ -464,6 +476,14 @@ async function walk(browser: Browser, base: string): Promise<void> {
   // B and C both pick early when they can: whichever is not first in the turn order is held.
   const heldDoor = [B, C].filter((p) => p.log.includes('picked a door early (held)'));
   const heldFly = [B, C].filter((p) => p.log.includes('pressed Fly on early (held)'));
+  // Phase N: the game opened on the draft, and each of the three picked its six in turn.
+  const drafted = table.map((p) => p.log.filter((x) => x === 'drafted').length);
+  row(
+    'the draft opens the game: each browser takes its six picks in turn, two presses a pick',
+    drafted.every((n) => n === 6) &&
+      table.every((p) => p.log.filter((x) => x === 'pressed a draft item').length === 6),
+    `picks ${table.map((p, i) => `${p.name} ${drafted[i]}`).join(', ')}`,
+  );
   row(
     'a weekend played in three browsers: doors, a declaration, a bet, the races, the results',
     all.filter((x) => x.startsWith('picked a door')).length === 3 &&
@@ -497,12 +517,12 @@ async function walk(browser: Browser, base: string): Promise<void> {
       .waitFor({ timeout: 20_000 });
     followed.push(new URL(p.page.url()).searchParams.get('room') ?? '');
   }
-  const week =
-    (await C.page.locator('.centre p.muted').first().textContent()) ?? (await topStat(C.page));
+  // Phase N: a new game opens on the draft, whose top bar says the week it leads into.
+  const week = await topStat(C.page);
   await shoot(C.page, '10-play-again-follows');
   row(
     'Play again: a new room, and every browser follows',
-    followed.every((c) => c === followed[0] && c !== code) && /Week 1 /.test(week),
+    followed.every((c) => c === followed[0] && c !== code) && /Week 1[ /]/.test(week),
     `${code} → ${followed.join(', ')}; C's first screen: "${week.trim()}"`,
   );
 }

@@ -15,9 +15,14 @@ import {
   type Id,
 } from '@sdr/engine';
 
-/** The phases taken in any order (E8, L1a): every stable not yet finished is on the clock at once. */
+/**
+ * The phase taken in any order (E8): every stable not yet finished at the Bookie is on the clock at
+ * once. ⚠️ The off-season was the other (L1a) until v3 Phase N made it one pick of a draft off a
+ * shared board (V32): it is in turn order now, like the Market, and so is the opening draft — the
+ * stable on the clock is the one picking, and a nudge reaches it.
+ */
 function anyOrder(s: GameState): boolean {
-  return (s.phase === 'betting' && s.locked) || s.phase === 'offSeason';
+  return s.phase === 'betting' && s.locked;
 }
 
 /** Who the table is waiting on (`meta.clock`): nobody while the system moves or once it is over. */
@@ -81,8 +86,8 @@ function appliedAll(s: GameState, actions: readonly Action[], log: Action[]): vo
  *   (the seat has since been handed a card, say) throws nothing away but the action itself;
  * - **a stand-in** plays its seat with `decide(state, seat, 'normal')` whenever the seat is on the
  *   clock. `decide` returns a whole sitting, so a sitting is never split, and a human who comes back
- *   takes over at their next decision. At the Bookie and in the off-season a stood-in seat plays
- *   when the engine's turn order reaches it, as an AI seat does: `decide` plays only the active
+ *   takes over at their next decision (in a draft a sitting is one pick). At the Bookie a stood-in
+ *   seat plays when the engine's turn order reaches it, as an AI seat does: `decide` plays only the active
  *   stable, and a human ahead of it in the order is still free to bet first.
  *
  * Every action applied is pushed to `log`, `AdvancePhase`s included, so `replay` is exact.

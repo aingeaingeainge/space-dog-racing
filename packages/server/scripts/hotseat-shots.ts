@@ -13,7 +13,10 @@
  * - `01-arrival`, `02-explore`, `03-hub-after-door` — a two-human weekend from a seed link (the
  *   hub reads the door back under "Behind the door", with its card up over it if the card asks);
  * - `04-explore-wrap` — the Explore of Hushmarket, whose door names wrap on a phone;
- * - `05-game-over` — a game's end: one human and one AI in a race to 1 Bone.
+ * - `05-game-over` — a game's end: one human and one AI in a race to 1 Bone;
+ * - `06-draft` — the opening draft at a table of six, a human's item pressed (Phase N; also at 360);
+ * - `07-off-season` — a two-season game at its off-season draft, resumed from a save the engine plays
+ *   to that moment (Phase N; also at 360).
  *
  * **Deterministic:** `Math.random` is a fixed generator (an init script, before the app loads) and
  * `Date.now` is pinned (`page.clock.setFixedTime`), so the Title's seed, the pace timer and anything
@@ -24,6 +27,16 @@ import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { extname, join, resolve, sep } from 'node:path';
 import { chromium, type Browser, type Page } from 'playwright';
+import {
+  createSeason,
+  decide,
+  needsAdvance,
+  reduceMut,
+  waitingOn,
+  type Action,
+  type SeasonSetup,
+} from '@sdr/engine';
+import { SAVE_VERSION } from '../../web/src/store/persist';
 
 const from = process.env.INIT_CWD ?? process.cwd();
 const [distArg, outArg] = process.argv.slice(2);
@@ -42,8 +55,26 @@ if (!existsSync(join(DIST, 'index.html'))) {
 const WEEKEND = '?seed=42&players=h,h';
 const WRAP = '?seed=4&players=h,h'; // Hushmarket in week 1: "The Fence's Parlour" wraps at 390
 const GAME_END = '?seed=7&players=h,normal&len=t1';
+/** Phase N: the opening draft at a table of six, and a two-season game to its off-season draft. */
+const DRAFT = '?seed=42&players=h,h,normal,normal,normal,normal';
+/**
+ * The off-season draft is reached from a **save**, not by clicking through ten weekends: the engine
+ * plays a two-season game (the human as Normal would) to the human's off-season pick, and the page
+ * resumes it. Deterministic, and seconds rather than minutes.
+ */
+const OFF_SEASON: SeasonSetup = {
+  seed: 7,
+  length: { kind: 'seasons', seasons: 2 },
+  players: [
+    { name: 'Stable 1', kind: 'human' },
+    { name: '', kind: 'ai', difficulty: 'normal' },
+    { name: '', kind: 'ai', difficulty: 'normal' },
+  ],
+};
 
-const WIDTHS = [1280, 390] as const;
+const WIDTHS: readonly number[] = [1280, 390];
+/** Phase N: the draft's board must read and pick at 360 too. */
+const DRAFT_WIDTHS: readonly number[] = [1280, 390, 360];
 /** Wall-clock time as the pages see it (Date.now only; timers still run). */
 const FIXED_TIME = new Date('2026-09-30T20:00:00Z');
 
@@ -99,8 +130,8 @@ function sleep(ms: number): Promise<void> {
 
 const taken: string[] = [];
 /** The same moment at 1280 and 390, full page. The page is left at 1280. */
-async function shoot(page: Page, name: string): Promise<void> {
-  for (const width of WIDTHS) {
+async function shoot(page: Page, name: string, widths = WIDTHS): Promise<void> {
+  for (const width of widths) {
     await page.setViewportSize({ width, height: 900 });
     await settle(page);
     const file = `${name}-${width}.png`;
@@ -113,6 +144,10 @@ async function shoot(page: Page, name: string): Promise<void> {
 /** Every image loaded and fonts ready, then a beat for layout. */
 async function settle(page: Page): Promise<void> {
   await page.evaluate(async () => {
+    // Phase N: the draft's board has a trainer portrait per card, most of them below the fold, and a
+    // lazy image off-screen never loads — so the wait below would never end. Load them all now.
+    for (const img of Array.from(document.images))
+      if (img.loading === 'lazy') img.loading = 'eager';
     await document.fonts.ready;
     await Promise.all(
       Array.from(document.images, (img) =>
@@ -123,9 +158,13 @@ async function settle(page: Page): Promise<void> {
   await sleep(300);
 }
 
-async function fresh(browser: Browser, url: string): Promise<Page> {
+async function fresh(browser: Browser, url: string, save?: string): Promise<Page> {
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   await ctx.addInitScript(FIXED_RANDOM);
+  if (save)
+    await ctx.addInitScript((blob: string) => {
+      if (!localStorage.getItem('sdr.save.v1')) localStorage.setItem('sdr.save.v1', blob);
+    }, save);
   const page = await ctx.newPage();
   await page.clock.setFixedTime(FIXED_TIME);
   page.on('pageerror', (e) => console.error(`  page error: ${e.message}`));
@@ -152,7 +191,11 @@ async function seen(loc: ReturnType<Page['locator']>): Promise<boolean> {
  */
 async function toExplore(page: Page, arrival?: string): Promise<void> {
   await btn(page, 'Start season').first().click();
-  await page.getByText('Turn order').first().waitFor();
+  // Phase N: the game opens on the draft; every human picks, an item and then "Take".
+  const turnOrder = page.getByText('Turn order').first();
+  for (let i = 0; i < 400 && !(await seen(turnOrder)); i++)
+    if (!(await draftStep(page))) await sleep(150);
+  await turnOrder.waitFor();
   if (arrival) await shoot(page, arrival);
   const doors = page.locator('.doors button.door');
   const onward = btn(page, /: open a door$/).or(btn(page, /^I am /));
@@ -163,8 +206,65 @@ async function toExplore(page: Page, arrival?: string): Promise<void> {
   await doors.first().waitFor();
 }
 
+/** Phase N: one press on a draft, if this human is picking: the item, then "Take" (or "Retire …"). */
+async function draftStep(page: Page): Promise<boolean> {
+  if (!(await seen(page.locator('.draft-take')))) return false;
+  const take = btn(page, /^Take /).or(btn(page, /^Retire /));
+  if (await seen(take)) {
+    await take.first().click();
+    return true;
+  }
+  const item = page.locator('button.draft-item:not([disabled])');
+  if (await seen(item)) {
+    await item.first().click();
+    return true;
+  }
+  return false;
+}
+
+/**
+ * The save the off-season shot resumes (`store/persist.ts`'s blob): OFF_SEASON played by the engine,
+ * every seat as Normal, to the moment the human is on the clock in the off-season draft, with the
+ * season's end and its last race day marked read.
+ */
+function offSeasonSave(): string {
+  const s = createSeason(OFF_SEASON);
+  const log: Action[] = [];
+  for (let i = 0; i < 100_000 && !(s.phase === 'offSeason' && waitingOn(s) === 'p1'); i++) {
+    const acts: Action[] = needsAdvance(s)
+      ? [{ t: 'AdvancePhase' }]
+      : decide(s, waitingOn(s)!, 'normal');
+    for (const a of acts) {
+      reduceMut(s, a);
+      log.push(a);
+    }
+  }
+  if (s.phase !== 'offSeason') throw new Error('the off-season never came');
+  const wk = s.week;
+  return JSON.stringify({
+    v: SAVE_VERSION,
+    setup: OFF_SEASON,
+    log,
+    ui: {
+      resultsSeenWeek: wk,
+      racesWatchedWeek: wk,
+      fieldsSeenWeek: wk,
+      bustAck: [],
+      raceSpeed: 2,
+      seasonSeen: s.season,
+      arrivalSeenWeek: wk,
+      boardSeenWeek: wk,
+    },
+  });
+}
+
 /** Look at the screen and press one thing, as a person playing a quick weekend would. */
 async function step(page: Page, declared: { done: boolean }): Promise<boolean> {
+  if (await draftStep(page)) return true;
+  if (await seen(btn(page, /^On to season /))) {
+    await btn(page, /^On to season /).click();
+    return true;
+  }
   if (await seen(page.locator('.scrim.event'))) {
     await page.locator('.scrim.event .row button').first().click();
     return true;
@@ -257,6 +357,26 @@ async function main(): Promise<void> {
     }
     await shoot(end, '05-game-over');
     await end.context().close();
+
+    // Phase N: the opening draft at a table of six — the AIs' picks shown, a human's item pressed.
+    const draft = await fresh(browser, base + DRAFT);
+    await btn(draft, 'Start season').first().click();
+    await draft.locator('.draft-take').first().waitFor({ timeout: 30_000 });
+    await draft.locator('button.draft-item:not([disabled])').first().click();
+    // Pressing a card scrolls it into view; the shot is of the page from its top.
+    await draft.evaluate(() => window.scrollTo(0, 0));
+    await shoot(draft, '06-draft', DRAFT_WIDTHS);
+    await draft.context().close();
+
+    // Phase N: a two-season game at its off-season draft, resumed from a save; the human's dog pressed.
+    const off = await fresh(browser, base, offSeasonSave());
+    await btn(off, 'Resume season').first().click();
+    await off.getByRole('heading', { name: 'The off-season draft' }).first().waitFor();
+    await off.locator('.draft-take').first().waitFor({ timeout: 30_000 });
+    await off.locator('button.draft-item:not([disabled])').first().click();
+    await off.evaluate(() => window.scrollTo(0, 0));
+    await shoot(off, '07-off-season', DRAFT_WIDTHS);
+    await off.context().close();
   } finally {
     await browser.close();
     server.close();

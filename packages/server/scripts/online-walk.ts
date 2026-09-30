@@ -5,8 +5,8 @@
  *   npm run walk            (in packages/server; it starts and stops `wrangler dev` itself)
  *
  * Each client presses **only what its own view offers**, with `table-walk.ts`'s plain line: a door a
- * week, a crate of staple when short, the best three dogs declared, 100 on each favourite, the
- * off-season answered. Some clients pick their door and press "Fly on" early, which the room holds
+ * week, a crate of staple when short, the best three dogs declared, 100 on each favourite, and a
+ * draft pick — the opening draft's and the off-season's — when its turn comes (Phase N). Some clients pick their door and press "Fly on" early, which the room holds
  * (§5.1).
  *
  * **Leaks are scanned two ways, on every view a client ends up holding (patches applied):**
@@ -27,6 +27,7 @@ import {
   aiChoiceFor,
   cargoTotal,
   createSeason,
+  decide,
   HOLD_CAP,
   maxStakeFor,
   PROTOCOL_VERSION,
@@ -230,12 +231,12 @@ function bettingTurn(s: GameState, p: Player): Action[] {
   return out;
 }
 
-function offSeasonPress(s: GameState, me: Player): Action {
-  const n = s.offSeason!.notices[me.id]!;
-  if (n.retired === undefined) return { t: 'Retire', playerId: me.id, dogId: null };
-  if (n.candidate && n.hired === undefined)
-    return { t: 'ResolveStaffNotice', playerId: me.id, hire: true };
-  return { t: 'EndPhase', playerId: me.id };
+/**
+ * Phase N (V29, V32): a draft pick, when this seat is the one picking — what Normal would take, read
+ * off the seat's own view (the draft is public, so the view has the whole board).
+ */
+function draftPress(s: GameState, me: Player): Action {
+  return decide(s, me.id, 'normal')[0]!;
 }
 
 // ── Hashing and the leak scan ────────────────────────────────────────────────────────────────────
@@ -454,8 +455,8 @@ class Client {
         actions = [{ t: 'EndPhase', playerId: this.seat }];
         early = 'flyOn';
       }
-    } else if (s.phase === 'offSeason' && !s.done.includes(this.seat)) {
-      actions = [offSeasonPress(s, me)];
+    } else if ((s.phase === 'draft' || s.phase === 'offSeason') && s.activePlayer === this.seat) {
+      actions = [draftPress(s, me)];
     }
     if (!actions) return;
     if (early) this.queuedSent.push({ kind: early, season: s.season, week: s.week });

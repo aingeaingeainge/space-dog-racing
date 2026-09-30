@@ -48,6 +48,14 @@ function started(
   const s = createSeason(su);
   const log: Action[] = [];
   driveRoom(s, log, { standIn: new Set(), queue: new Map() });
+  // Phase N: a game opens on the draft; the humans pick as Normal would, and the room drives on.
+  while (s.phase === 'draft') {
+    for (const a of decide(s, waitingOn(s)!, 'normal')) {
+      reduceMut(s, a);
+      log.push(a);
+    }
+    driveRoom(s, log, { standIn: new Set(), queue: new Map() });
+  }
   return { s, log, setup: su };
 }
 
@@ -74,6 +82,27 @@ test('a started room waits on a human at Explore, and the clock names them', () 
   const who = waitingOn(s)!;
   assert.deepEqual(clockOf(s), [who]);
   assert.equal(s.players.find((p) => p.id === who)!.kind, 'human');
+});
+
+test('the draft is in turn order: the clock names the one stable picking, and a pick out of turn is refused', () => {
+  const su = setup(3, 1);
+  const s = createSeason(su);
+  driveRoom(s, [], { standIn: new Set(), queue: new Map() });
+  assert.equal(s.phase, 'draft');
+  const on = waitingOn(s)!;
+  assert.deepEqual(clockOf(s), [on]);
+  assert.equal(s.players.find((p) => p.id === on)!.kind, 'human');
+  const other = s.players.find((p) => p.kind === 'human' && p.id !== on)!.id;
+  const dog = s.drafts[0]!.dogs[0]!.id;
+  const pick: Action = { t: 'DraftPick', playerId: other, pick: { dog } };
+  // Nothing is held for a draft: the engine refuses the pick out of turn, and nothing moves.
+  assert.equal(queueKind(s, other, pick), null);
+  const before = JSON.stringify(s);
+  assert.throws(() => reduceMut(s, pick), /pick/);
+  assert.equal(JSON.stringify(s), before);
+  // The stable on the clock may pick it.
+  reduceMut(s, { t: 'DraftPick', playerId: on, pick: { dog } });
+  assert.ok(s.players.find((p) => p.id === on)!.dogIds.includes(dog));
 });
 
 test('a door from a seat not on the clock is held, and applied when its turn comes', () => {
