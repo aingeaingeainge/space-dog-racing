@@ -74,7 +74,42 @@ const ROWS: NewRow[] = [
   },
 ];
 
-const REMOVE: { label: string; why: string }[] = [];
+// ---- Starting position (GDD_V3 §5.5, V33) — four dogs, and the food to feed them. ----
+const START_SECTION = 'Starting position';
+ROWS.push(
+  {
+    section: START_SECTION,
+    label: 'Starting dogs',
+    value: 4,
+    note: 'V33: four dogs, not three — drafted, not dealt (V29). The Pound swaps one for one, so the kennel stays at four',
+  },
+  {
+    section: START_SECTION,
+    label: 'Starting crates of the staple aboard',
+    value: 7,
+    note: 'V33: four dogs eat four crates a week, so a stable starts with the same weeks of food as three dogs had on five (was in balance.extras.json)',
+  },
+);
+
+const REMOVE: { label: string; why: string }[] = [
+  { label: 'Dogs dealt at the start', why: 'V29: nothing is dealt; the draft picks `startDogs`' },
+  {
+    label: "Off-season: the draft, last stable's offer level above the ordinary (points)",
+    why: "V32 replaced V23's breeder's pick with the off-season draft",
+  },
+  {
+    label: "Off-season: the replacement's seller lies, × the dog-offer rate",
+    why: 'V32: there is no retirement offer; the board shows every dog',
+  },
+  {
+    label: 'Off-season: AI retires when the offer beats its cheapest dog by (Bones)',
+    why: 'V32: replaced by the AI draft margin',
+  },
+  {
+    label: 'Off-season: AI retires a dog this old, whatever the offer',
+    why: 'V32: the AI draft scores every dog, age included',
+  },
+];
 
 // ---------------------------------------------------------------------------
 

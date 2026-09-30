@@ -52,6 +52,7 @@ interface GameObs {
   retirements: number;
   poundDogs: number;
   leavers: number;
+  /** Phase N: off-season draft picks of a trainer, and passes (the names are E1's). */
   hires: number;
   candidates: number;
   over: GameState['gameOver'];
@@ -200,7 +201,6 @@ export function playGame(seed: number, ai: AiAgent[], length: GameLength): GameO
       offSeasonSeen = s.season;
       for (const n of Object.values(s.offSeason.notices)) {
         obs.leavers += n.left.length;
-        if (n.candidate) obs.candidates++;
       }
     }
     if (needsAdvance(s)) {
@@ -211,8 +211,12 @@ export function playGame(seed: number, ai: AiAgent[], length: GameLength): GameO
     if (!who) throw new Error(`Engine stalled in phase ${s.phase}`);
     const p = player(s, who);
     for (const a of decide(s, who, p.difficulty)) {
-      if (a.t === 'Retire' && a.dogId) obs.retirements++;
-      if (a.t === 'ResolveStaffNotice' && a.hire) obs.hires++;
+      // Phase N (V32): the off-season is one draft pick — a dog (and a retirement), a trainer, or a pass.
+      if (a.t === 'DraftPick' && s.phase === 'offSeason') {
+        if (a.pick === null) obs.candidates++;
+        else if ('dog' in a.pick) obs.retirements++;
+        else obs.hires++;
+      }
       reduceMut(s, a);
     }
   }
@@ -400,14 +404,9 @@ export function runGames(games: number, seed: number, ai: AiAgent[]): string {
   out.push(
     'The kennel turns over (5-season games) — dogs replaced per stable per two seasons (target ≥ 1)',
     `  retired at the off-season ${perTwo(ret).toFixed(2)} + taken in the Pound ${perTwo(pound).toFixed(2)} = ${perTwo(ret + pound).toFixed(2)}: ${perTwo(ret + pound) >= 1 ? 'MET' : 'MISSED'}`,
-    `  off-seasons: ${pct(ret / Math.max(1, stableGames * 4))} of stables retire a dog; trainers leave ${(five.obs.reduce((a, o) => a + o.leavers, 0) / (stableGames * 4)).toFixed(2)} a stable; ` +
-      `${pct(five.obs.reduce((a, o) => a + o.candidates, 0) / (stableGames * 4))} are offered a candidate, ${pct(
-        five.obs.reduce((a, o) => a + o.hires, 0) /
-          Math.max(
-            1,
-            five.obs.reduce((a, o) => a + o.candidates, 0),
-          ),
-      )} of them hired`,
+    `  off-season picks: ${pct(ret / Math.max(1, stableGames * 4))} a dog, ${pct(
+      five.obs.reduce((a, o) => a + o.hires, 0) / Math.max(1, stableGames * 4),
+    )} a trainer, ${pct(five.obs.reduce((a, o) => a + o.candidates, 0) / Math.max(1, stableGames * 4))} a pass; trainers leave ${(five.obs.reduce((a, o) => a + o.leavers, 0) / (stableGames * 4)).toFixed(2)} a stable`,
     '',
   );
 

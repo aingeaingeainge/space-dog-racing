@@ -2,7 +2,7 @@ import type { Action, AiAgent, GameState, Id } from '../types';
 import { decideEasy } from './easy';
 import { decideHard } from './hard';
 import { decideNormal } from './normal';
-import { decideOffSeason } from './offSeason';
+import { decideDraft } from './draft';
 
 /**
  * Decide the active AI player's actions for the current phase (ending with EndPhase).
@@ -15,8 +15,8 @@ import { decideOffSeason } from './offSeason';
  * below is total and the harness can no longer ask for an agent that does not exist.
  */
 export function decide(s: GameState, playerId: Id, agent: AiAgent = 'normal'): Action[] {
-  // Between seasons (GDD_V3 §2.2): one screen, the same three answers at every difficulty.
-  if (s.phase === 'offSeason') return decideOffSeason(s, playerId, agent);
+  // The draft (GDD_V3 V29, V32): the opening one and the off-season's, one pick a turn.
+  if (s.phase === 'draft' || s.phase === 'offSeason') return decideDraft(s, playerId, agent);
   switch (agent) {
     case 'easy':
       return decideEasy(s, playerId);

@@ -184,7 +184,8 @@ describe("Explore never moves the game's stream (decision D1)", () => {
           continue;
         }
         const who = s.pendingEvent?.playerId ?? s.activePlayer!;
-        if (player(s, who).kind === 'human') {
+        // Phase N: the human seat drafts as Normal would; the doors are what this test varies.
+        if (player(s, who).kind === 'human' && s.phase !== 'draft') {
           if (s.pendingEvent)
             reduceMut(s, { t: 'ResolveEvent', playerId: who, choice: aiChoiceFor(s, who) });
           else reduceMut(s, { t: 'ChooseDoor', playerId: who, door });
@@ -237,12 +238,14 @@ describe("A Back Alley job never moves the game's stream (GDD_V3 §9.3, Phase D2
         if (s.phase === 'betting' && !s.locked && !booked) {
           booked = true;
           if (withJobs) {
+            // Phase N: a different opening (the draft) can leave an AI's own job booked already.
+            const before = s.jobs.length;
             const gold = s.declarations.goldCup;
             const victim = gold['p2'] ?? Object.values(gold)[0];
             const mine = Object.entries(s.declarations).find(([, d]) => d['p1'])?.[0];
             if (victim) s.jobs.push({ by: 'p1', kind: 'nobble', dogId: victim });
             if (mine) s.jobs.push({ by: 'p1', kind: 'box', race: mine as 'goldCup', box: 1 });
-            expect(s.jobs.length).toBe(2);
+            expect(s.jobs.length).toBe(before + 2);
           }
         }
         if (needsAdvance(s)) {
@@ -263,18 +266,17 @@ describe("A Back Alley job never moves the game's stream (GDD_V3 §9.3, Phase D2
 
 /*
  * v3 Phase E1 — additions only; nothing above this line was edited.
+ *
+ * ⚠️ Rewritten at Phase N (V32): the off-season is now one pick of a draft, taken in turn order off a
+ * shared board, so a rival's pick *can* depend on what a human took — that is the point of a board.
+ * What still holds, and is what this test guarded, is that **no answer draws anything**: the notices,
+ * the board and the order were all rolled when the off-season opened.
  */
-describe("No off-season answer moves the game's stream or another stable's draws (GDD_V3 §2.2)", () => {
-  /**
-   * Every stable's off-season — its offer, its trainers' notices, its candidate — is rolled on its
-   * own stream when the off-season opens, from one game-stream draw per stable in seating order. The
-   * answers draw nothing. So however two human stables answer, the next season's circuit, and every
-   * rival's off-season, come out the same.
-   */
-  it('gives the same next season whatever two humans answer', async () => {
-    const { createSeason, reduceMut, decide, needsAdvance, player, aiChoiceFor } =
+describe("No off-season pick moves the game's stream (GDD_V3 §2.2, V32)", () => {
+  it('gives the same next season whatever two humans pick', async () => {
+    const { createSeason, reduceMut, decide, needsAdvance, player, aiChoiceFor, currentDraft } =
       await import('../src/index');
-    type Answer = { retire: boolean; hire: boolean };
+    type Answer = 'pass' | 'dog' | 'staff';
     const run = (answers: Record<string, Answer>) => {
       const s = createSeason({
         seed: 31,
@@ -289,7 +291,7 @@ describe("No off-season answer moves the game's stream or another stable's draws
         ],
         length: { kind: 'seasons', seasons: 2 },
       });
-      let notices = '';
+      let board = '';
       let guard = 0;
       while (!(s.season === 2 && s.phase === 'explore') && guard++ < 100_000) {
         if (needsAdvance(s)) {
@@ -299,36 +301,38 @@ describe("No off-season answer moves the game's stream or another stable's draws
         const who = s.pendingEvent?.playerId ?? s.activePlayer!;
         const p = player(s, who);
         if (p.kind === 'human' && s.phase === 'offSeason') {
-          if (!notices) notices = JSON.stringify(s.offSeason!.notices);
-          const n = s.offSeason!.notices[who]!;
+          const d = currentDraft(s)!;
+          if (!board) board = JSON.stringify({ n: s.offSeason!.notices, d });
           const a = answers[who]!;
-          reduceMut(s, { t: 'Retire', playerId: who, dogId: a.retire ? p.dogIds[0]! : null });
-          if (n.candidate) reduceMut(s, { t: 'ResolveStaffNotice', playerId: who, hire: a.hire });
-          reduceMut(s, { t: 'EndPhase', playerId: who });
+          if (a === 'dog' && d.dogs.length)
+            reduceMut(s, {
+              t: 'DraftPick',
+              playerId: who,
+              pick: { dog: d.dogs[0]!.id },
+              release: p.dogIds[0]!,
+            });
+          else if (a === 'staff' && d.staff.length)
+            reduceMut(s, {
+              t: 'DraftPick',
+              playerId: who,
+              pick: { staff: d.staff[0]! },
+              ...(p.staff.length >= 2 ? { release: p.staff[0]! } : {}),
+            });
+          else reduceMut(s, { t: 'DraftPick', playerId: who, pick: null });
         } else if (p.kind === 'human') {
           if (s.pendingEvent)
             reduceMut(s, { t: 'ResolveEvent', playerId: who, choice: aiChoiceFor(s, who) });
           else for (const a of decide(s, who, 'normal')) reduceMut(s, a);
         } else for (const a of decide(s, who, 'normal')) reduceMut(s, a);
       }
-      return { s, notices };
+      return { s, board };
     };
-    const a = run({ p1: { retire: true, hire: true }, p2: { retire: false, hire: false } });
-    const b = run({ p1: { retire: false, hire: false }, p2: { retire: true, hire: true } });
-    // The same off-season was rolled for everybody, and the same season followed it.
-    expect(b.notices).toBe(a.notices);
+    const a = run({ p1: 'dog', p2: 'pass' });
+    const b = run({ p1: 'pass', p2: 'staff' });
+    // The same off-season was rolled for everybody, and the same season was drawn after it.
+    expect(b.board).toBe(a.board);
     expect(b.s.calendar).toEqual(a.s.calendar);
     expect(b.s.explore!.seeds).toEqual(a.s.explore!.seeds);
-    expect(b.s.turnOrder).toEqual(a.s.turnOrder);
-    // The rivals kept exactly the same kennels and trainers.
-    for (const id of ['p3', 'p4', 'p5', 'p6']) {
-      const pa = a.s.players.find((p) => p.id === id)!;
-      const pb = b.s.players.find((p) => p.id === id)!;
-      expect(pb.staff).toEqual(pa.staff);
-      expect(pb.dogIds.map((d) => b.s.dogs[d]!.name)).toEqual(
-        pa.dogIds.map((d) => a.s.dogs[d]!.name),
-      );
-    }
   }, 60_000);
 });
 

@@ -42,6 +42,5 @@
   "aiBetFraction": 0.03,
   "aiBetMinProb": 0.3,
   "aiMinExpectedPurse": 150,
-  "aiGoodsMarginMin": 0.1,
-  "startCargo": 5
+  "aiGoodsMarginMin": 0.1
 }

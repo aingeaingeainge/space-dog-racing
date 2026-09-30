@@ -130,6 +130,12 @@ export const DIFFICULTIES: readonly Difficulty[] = ['easy', 'normal', 'hard'] as
 export type AiAgent = Difficulty;
 
 export type Phase =
+  /**
+   * v3 Phase N, GDD_V3 V29: **the opening draft**, the first player phase of a game. Six rounds of a
+   * snake draft from a public board (`GameState.drafts`); each pick is one `DraftPick` by the stable
+   * on the clock, and the last pick opens week 1's arrival.
+   */
+  | 'draft'
   | 'arrival' // system: roll turn order, planet stock and food prices
   | 'explore' // in turn order, each stable picks one of the planet's three doors (GDD_V3 §9.1)
   | 'planetPre' // in turn order: market, kennels, race office (declarations)
@@ -138,8 +144,9 @@ export type Phase =
   | 'planetPost' // in turn order: buy food
   | 'endTurn' // system: weekly costs, training, recovery, jump to the next planet
   /**
-   * Between seasons (GDD_V3 §2.2): every dog has aged, and each stable answers its retirement window
-   * and its staff notice (`Retire`, `ResolveStaffNotice`) and sends EndPhase. A player phase.
+   * Between seasons (GDD_V3 §2.2, V32): every dog has aged and the staff notice has been read, and
+   * each stable makes **one pick of the off-season draft**, in reverse order of the season's
+   * standings — a dog, a trainer or a pass (`DraftPick`). A player phase, in that order.
    */
   | 'offSeason'
   | 'newSeason' // system: re-draw the circuit, reset prices and the season's stats (GDD_V3 §2.2 step 4)
@@ -320,6 +327,11 @@ export interface Dog {
    * One of the three this stable was dealt (GDD_V3 §5.5). The table knows a dealt three is one of each
    * style, so `revealStyles` can eliminate among them; a dog acquired by event (§9.2) is not part of
    * that deal and is never inferred — it shows itself by racing, or at a trial.
+   *
+   * ⚠️ **Always false from v3 Phase N (V29, V30).** Nothing is dealt any more: every dog a stable
+   * starts with is drafted from a board that shows its style, so there is nothing left to eliminate.
+   * The field and `dealtGone` are kept rather than cut because the elimination is harmless when no
+   * dog is dealt, and a later rule that deals again would want them back.
    */
   dealt: boolean;
   injuryWeeks: number; // 0 = fit to race
@@ -388,8 +400,9 @@ export interface Player {
    */
   intel: { week: number; goods: GoodId[] };
   /**
-   * Its trainers (GDD_V3 §8): at most `staffSlots` ids of `content/staff.ts` rows. Dealt at the start
-   * of a game; changed only by a Bar card in Phase D.
+   * Its trainers (GDD_V3 §8): at most `staffSlots` ids of `content/staff.ts` rows. Drafted at the start
+   * of a game (V29, Phase N; dealt until then); changed by a Bar card, the off-season notice and the
+   * off-season draft.
    */
   staff: Id[];
   fanClubDogId?: Id;
@@ -705,40 +718,57 @@ export interface SeasonMoments {
 }
 
 /**
- * One stable's off-season (GDD_V3 §2.2), rolled in full when the off-season opens, on the stable's
- * own stream (decision D1's pattern): the replacement it would be offered for a retirement, the
- * trainers who have handed in their notice, and the candidate it is offered if it is left short.
- * The stable's answers are filled in as it gives them; nothing it answers draws anything.
+ * One stable's off-season notice (GDD_V3 §2.2 step 3): the trainers who handed in their notice, rolled
+ * when the off-season opens on the stable's own stream. **Public** from v3 Phase N: the retirement
+ * offer and the staff candidate it used to carry are gone with V32 — the off-season's choice is the
+ * draft's one pick, off a board everybody sees.
  */
 export interface OffSeasonNotice {
-  /** The replacement on offer (§9.2's params: age, one true stat, patter that can lie). */
-  offer: Record<string, number | string>;
-  /** Unset until answered: the dog retired, or null for "keep them all". */
-  retired?: Id | null;
-  /** The book value it was paid for the dog it retired. */
-  paid?: number;
-  /** Trainers who left at the notice — gone already, shown so the stable knows why it is short. */
+  /** Trainers who left at the notice — gone already, shown so the table knows why a stable is short. */
   left: Id[];
-  /** One trainer offered to a stable left with fewer than two; null if it was not left short. */
-  candidate: Id | null;
-  /** Unset until answered, if there is a candidate. */
-  hired?: boolean;
-  /**
-   * Phase I, GDD_V3 V23: this stable finished the season last, so its offer is the draft's — rolled
-   * `draftLevelShift` above the ordinary. Absent for everybody else.
-   */
-  draft?: boolean;
-  /**
-   * v3 Phase L1: how many event-log lines this stable's answers have written, so an answer given out
-   * of turn can be filed where turn order would have put it (`fileInTurnOrder`). Absent until the
-   * stable's first answer writes a line; gone with the rest of the off-season when the season starts.
-   */
-  logLines?: number;
 }
 
 /** The off-season (GDD_V3 §2.2): each stable's notice, by id. Null outside the off-season. */
 export interface OffSeasonState {
   notices: Record<Id, OffSeasonNotice>;
+}
+
+/**
+ * One pick of a draft (GDD_V3 V29, V32), as the table saw it made. Names are copied in because a dog
+ * drafted in season 1 can be retired, and the report tells the whole game's drafts at its end.
+ */
+export interface DraftPickRecord {
+  playerId: Id;
+  /** 1-based. The opening draft has six; the off-season's one. */
+  round: number;
+  /** The dog taken, if it was a dog. */
+  dog?: { id: Id; name: string; rating: number; age: number; style: StyleId };
+  /** The trainer taken, if it was a trainer. */
+  staff?: Id;
+  /** Off-season only: the dog retired for it (paid its book value), or the trainer let go. */
+  released?: { dog?: { id: Id; name: string; paid: number }; staff?: Id };
+}
+
+/**
+ * A draft (GDD_V3 V29–V33): the opening one, six rounds of a snake from a board sized to the table,
+ * or an off-season's, one round in reverse order of the standings from a fresh board. **Everything
+ * here is public** (V30): the board, the order and every pick (`SEAT_SECRETS` has no row for it).
+ */
+export interface DraftState {
+  kind: 'opening' | 'offSeason';
+  /** Which season it opens (the opening draft is season 1's; an off-season's is the next one's). */
+  season: number;
+  rounds: number;
+  /** Every pick, in the order they are made: the snake laid out, or the one reversed round. */
+  order: Id[];
+  /** The index in `order` of the pick on the clock; `order.length` once the draft is over. */
+  at: number;
+  /** The board's dogs still on it, in board order. Emptied when the draft ends. */
+  dogs: Dog[];
+  /** The board's trainers still on it (ids of `content/staff.ts` rows). Emptied when it ends. */
+  staff: Id[];
+  /** Every pick made so far, in order. */
+  picks: DraftPickRecord[];
 }
 
 /** Why and when the game ended (GDD_V3 §2.1). */
@@ -817,6 +847,12 @@ export interface GameState {
   /** Between seasons, each stable's off-season (GDD_V3 §2.2); null the rest of the time. */
   offSeason: OffSeasonState | null;
   /**
+   * v3 Phase N (V29, V32): every draft of the game, oldest first — the opening one, then one for each
+   * off-season. The last is the one being made while the phase is `draft` or `offSeason`; a finished
+   * draft keeps its order and picks (the report's THE DRAFT) and drops its board.
+   */
+  drafts: DraftState[];
+  /**
    * v3 Phase L1: **only ever set on a seat's view** (`viewFor`), never in a game's state, so it is in
    * no save, log or golden. The Saloon's rumours, worked out by the room from the whole state because
    * they read the seed and the calendar two weeks out, which a view does not carry.
@@ -869,12 +905,12 @@ export type Action =
    */
   | { t: 'ChooseBox'; playerId: Id; race: RaceTypeId; box: number }
   /**
-   * The off-season's retirement window (GDD_V3 §2.2): retire this dog — paid its book value, and
-   * replaced by the dog on offer — or `null` to keep them all. Once, in the off-season.
+   * v3 Phase N (GDD_V3 V29, V32): **a pick of the draft**, by the stable on the clock — a dog or a
+   * trainer off the board, or `null` to pass (the off-season only). `release` names the dog retired
+   * (paid its book value) or the trainer let go when the kennel or the staff is full; the off-season
+   * only. It replaced `Retire` and `ResolveStaffNotice`.
    */
-  | { t: 'Retire'; playerId: Id; dogId: Id | null }
-  /** The off-season's staff notice: take the candidate on, or not. Only if one was offered. */
-  | { t: 'ResolveStaffNotice'; playerId: Id; hire: boolean }
+  | { t: 'DraftPick'; playerId: Id; pick: { dog: Id } | { staff: Id } | null; release?: Id }
   | { t: 'EndPhase'; playerId: Id }
   | { t: 'AdvancePhase' }; // system
 

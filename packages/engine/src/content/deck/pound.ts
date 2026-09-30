@@ -42,6 +42,9 @@ import type { StatKey } from '../../types';
  * kind on the planet-week** (`unique`): the first stable through the door in turn order gets the
  * offer, and anybody after draws something else (§2.3's contention).
  */
+/** One swap choice a kennel dog (GDD_V3 §9.2; four since V33). */
+const KENNEL_SLOTS: readonly number[] = Array.from({ length: balance.startDogs }, (_, i) => i);
+
 function offerCard(
   id: string,
   name: string,
@@ -86,7 +89,8 @@ function offerCard(
     // "Walk away" first, so the card's default (Enter, the highlighted button) never swaps a dog.
     labels: (ctx) => [
       'Walk away',
-      ...[0, 1, 2].map((i) => {
+      // V33 (Phase N): a slot a kennel dog — four of them now, where three were dealt.
+      ...KENNEL_SLOTS.map((i) => {
         const d = ctx.s.dogs[ctx.p.dogIds[i] ?? ''];
         return d ? `Take it — let ${d.name} go` : '—';
       }),
@@ -96,9 +100,7 @@ function offerCard(
         label: 'Walk away',
         apply: (ctx) => ctx.log(`You leave ${ctx.params.offerName} where it is.`),
       },
-      swap(0),
-      swap(1),
-      swap(2),
+      ...KENNEL_SLOTS.map(swap),
     ],
     // Normal: take the offer when what it can see — the shown stat as the dog's level, the patter at
     // this seller's honesty — is worth a clear margin more than its cheapest dog, and let that one go.

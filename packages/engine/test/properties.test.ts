@@ -211,13 +211,27 @@ function explorePast(s: GameState): void {
   }
 }
 
+/**
+ * v3 Phase N (GDD_V3 V29): a game opens on the draft, so a test that wants week 1 drafts first —
+ * every seat, a human's included, picking as Normal would.
+ */
+function drafted(setup: Parameters<typeof createSeason>[0]): GameState {
+  const s = createSeason(setup);
+  let guard = 0;
+  while (s.phase === 'draft' && guard++ < 200)
+    for (const a of decide(s, s.activePlayer!, 'normal')) reduceMut(s, a);
+  expect(s.phase).toBe('arrival');
+  return s;
+}
+
 describe('engine invariants', () => {
   it('hold after every action across 12 seasons of 3–8 stables', () => {
     for (let seed = 100; seed < 112; seed++) playChecked(seed, 3 + (seed % 6));
   }, 60_000);
 
   it('rejects actions out of turn and out of phase', () => {
-    const s = createSeason({
+    // Phase N: drafted first; the draft's own refusals are in draft.test.ts.
+    const s = drafted({
       seed: 1,
       players: [
         { name: 'A', kind: 'human' },
@@ -237,7 +251,7 @@ describe('engine invariants', () => {
   });
 
   it('never lets a purchase take cash below zero', () => {
-    const s = createSeason({ seed: 3, players: [{ name: 'A', kind: 'human' }] });
+    const s = drafted({ seed: 3, players: [{ name: 'A', kind: 'human' }] });
     reduceMut(s, { t: 'AdvancePhase' });
     explorePast(s);
     const p = player(s, 'p1');
@@ -290,7 +304,7 @@ describe('engine invariants', () => {
    */
   it('takes the empty-hold penalty in fitness, not in Bones', () => {
     const toJump = (sellTheHold: boolean) => {
-      const s = createSeason({ seed: 7, players: [{ name: 'A', kind: 'human' }] });
+      const s = drafted({ seed: 7, players: [{ name: 'A', kind: 'human' }] });
       reduceMut(s, { t: 'AdvancePhase' });
       explorePast(s);
       const p = player(s, 'p1');
@@ -328,19 +342,24 @@ describe('engine invariants', () => {
  * v3 Phase C — running styles. Additions only: nothing above this line was edited for Phase C.
  */
 describe('running styles (GDD_V3 §5.4, §5.5)', () => {
-  it('deals every stable one of each style, every dog at exactly the starting rating, all hidden', () => {
+  // ⚠️ Rewritten at Phase N (V29, V30): nothing is dealt. Every stable drafts four dogs from a board
+  // that shows their styles, so every drafted dog's style is public from the start.
+  it('drafts every stable four dogs, every style public from the start', () => {
     for (let seed = 1; seed <= 60; seed++) {
       const n = 3 + (seed % 6);
-      const s = createSeason({
+      const s = drafted({
         seed,
         players: Array.from({ length: n }, () => ({ name: '', kind: 'ai' as const })),
       });
       for (const p of s.players) {
         const dogs = p.dogIds.map((id) => s.dogs[id]!);
-        expect(dogs.map((d) => d.style).sort()).toEqual([...STYLE_IDS].sort());
+        expect(dogs).toHaveLength(balance.startDogs);
         for (const d of dogs) {
-          expect(d.rating).toBe(balance.startDogRating);
-          expect(d.styleKnown).toBe(false);
+          expect(STYLE_IDS).toContain(d.style);
+          expect(d.rating).toBeGreaterThanOrEqual(balance.draftRatingMin);
+          expect(d.rating).toBeLessThanOrEqual(balance.draftRatingMax);
+          expect(d.styleKnown).toBe(true);
+          expect(d.dealt).toBe(false);
         }
       }
     }
@@ -483,10 +502,12 @@ describe('Explore, the Pound, the tips and the local runner (GDD_V3 §4.4, §9; 
       // ⚠️ Edited in Phase E1 (item 1): the free local runner is deleted, so there is no loaner to
       // check — only that no stable carries one any more.
       assert(!('loanerId' in p), `${p.id} still carries a loaner`);
-      assert(p.dogIds.length === balance.startDogs, `${p.id} holds ${p.dogIds.length} dogs`);
+      // ⚠️ Edited in Phase N: a kennel fills during the opening draft (V29), and nothing is dealt.
+      if (s.phase !== 'draft')
+        assert(p.dogIds.length === balance.startDogs, `${p.id} holds ${p.dogIds.length} dogs`);
       assert(
-        p.dealtGone.length + p.dogIds.filter((id) => s.dogs[id]!.dealt).length === 3,
-        `${p.id}'s dealt three do not add up`,
+        p.dealtGone.length === 0 && p.dogIds.every((id) => !s.dogs[id]!.dealt),
+        `${p.id} holds a dealt dog`,
       );
       assert(p.stats.liesCaught <= p.stats.liesTold, 'more lies caught than told');
       assert(p.stats.dogsTaken <= p.stats.dogOffers, 'more dogs taken than offered');
@@ -534,7 +555,7 @@ describe('Explore, the Pound, the tips and the local runner (GDD_V3 §4.4, §9; 
 
   // ⚠️ Edited in Phase E1 (item 1): the loaner half of this test went with the free local runner.
   it('refuses a second door and a door out of turn', () => {
-    const s = createSeason({
+    const s = drafted({
       seed: 11,
       players: [
         { name: 'A', kind: 'human' },
@@ -698,7 +719,8 @@ describe('Phase E1: the game around the seasons (GDD_V3 §2.1, §2.2, §4.3)', (
     }
   }, 60_000);
 
-  it('pays a retirement exactly the dog’s book value, and swaps in the dog on offer', () => {
+  // ⚠️ Rewritten at Phase N (V32): the retirement window is the off-season draft's dog pick.
+  it('pays a retirement exactly the dog’s book value, and takes the dog drafted', () => {
     const s = createSeason({
       seed: 21,
       players: [{ name: 'Me', kind: 'human' }, ...six.slice(1)],
@@ -708,7 +730,7 @@ describe('Phase E1: the game around the seasons (GDD_V3 §2.1, §2.2, §4.3)', (
     while (!(s.phase === 'offSeason' && s.activePlayer === 'p1') && guard++ < 100_000) {
       const who = s.pendingEvent?.playerId ?? s.activePlayer;
       if (!needsAdvance(s) && who === 'p1') {
-        // The human seat plays the week as Normal would.
+        // The human seat plays the week (and the opening draft) as Normal would.
         if (s.pendingEvent)
           reduceMut(s, { t: 'ResolveEvent', playerId: who, choice: aiChoiceFor(s, who) });
         else for (const a of decide(s, who, 'normal')) reduceMut(s, a);
@@ -720,23 +742,18 @@ describe('Phase E1: the game around the seasons (GDD_V3 §2.1, §2.2, §4.3)', (
     const old = s.dogs[me.dogIds[1]!]!;
     const value = dogValue(old);
     const cash = me.cash;
-    const offered = String(s.offSeason!.notices['p1']!.offer.offerName);
-    reduceMut(s, { t: 'Retire', playerId: 'p1', dogId: old.id });
+    const board = s.drafts.at(-1)!.dogs;
+    const taken = board[0]!;
+    reduceMut(s, { t: 'DraftPick', playerId: 'p1', pick: { dog: taken.id }, release: old.id });
     expect(me.cash).toBe(cash + value);
     expect(s.dogs[old.id]).toBeUndefined();
     expect(me.dogIds).toHaveLength(balance.startDogs);
-    const joined = s.dogs[me.dogIds[1]!]!;
-    expect(joined.name).toBe(offered);
-    expect(joined.styleKnown).toBe(false);
+    const joined = s.dogs[taken.id]!;
+    expect(me.dogIds).toContain(joined.id);
+    expect(joined.styleKnown).toBe(true);
     expect(joined.dealt).toBe(false);
-    // Each answer once; EndPhase only once everything is answered.
-    expect(() => reduceMut(s, { t: 'Retire', playerId: 'p1', dogId: null })).toThrow();
-    const n = s.offSeason!.notices['p1']!;
-    if (n.candidate) {
-      expect(() => reduceMut(s, { t: 'EndPhase', playerId: 'p1' })).toThrow(/staff/);
-      reduceMut(s, { t: 'ResolveStaffNotice', playerId: 'p1', hire: false });
-    }
-    reduceMut(s, { t: 'EndPhase', playerId: 'p1' });
+    // One pick a stable: the next one is somebody else's, or the season.
+    expect(() => reduceMut(s, { t: 'DraftPick', playerId: 'p1', pick: null })).toThrow();
   }, 60_000);
 
   it('ends a Target game at the end of the first weekend anybody crosses, and the richest wins', async () => {
@@ -811,7 +828,9 @@ describe('Phase E2: the fresh season, the archive’s moments and the Bookie in 
     let tired = 0;
     let injured = 0;
     let seasonsChecked = 0;
-    for (const seed of [5, 6, 7]) {
+    // Phase N: seeds 8 and 9 added — the draft moved every draw, and 5–7 no longer end a season with
+    // a dog laid off, which would leave the layoff half of this check vacuous.
+    for (const seed of [5, 6, 7, 8, 9]) {
       const s = createSeason({ seed, players: six, length: { kind: 'seasons', seasons: 3 } });
       let guard = 0;
       while (!isSeasonOver(s) && guard++ < 200_000) {
@@ -842,7 +861,7 @@ describe('Phase E2: the fresh season, the archive’s moments and the Bookie in 
         }
       }
     }
-    expect(seasonsChecked).toBe(6);
+    expect(seasonsChecked).toBe(10);
     expect(tired).toBeGreaterThan(0);
     expect(injured).toBeGreaterThan(0);
   }, 90_000);

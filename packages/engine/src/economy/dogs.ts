@@ -118,38 +118,37 @@ export function fitRating(dog: Dog, lo: number, hi: number): Dog {
 }
 
 /**
- * A starting-stable dog: **an exact starting rating, a shape drawn at random, a dealt style, ages 2–4**
- * (GDD_V3 §5.5, V2).
+ * A dog for a draft's board (GDD_V3 V29–V31): **an exact rating, a shape drawn at random, a given
+ * style and an age in a range**, and its style public from the start (V30).
  *
- * ⚠️ **Dealt to an equal *rating*, not an equal stat total — and the difference is the whole of V2's
- * promise.** Phase A dealt every dog 150 stat points over three stats on the claim (decision A3) that
- * "with rating weights summing to 1, 150 points rates 50 whatever the split". That is only true if
- * the weights are equal, and they are 0.40 / 0.35 / 0.25 — so a dealt dog rated anywhere from 44 to
- * 55, and the best stable at a table of six started a median 16 rating points ahead of the worst
- * across its three dogs (Phase B's correction 3). §5.5: *"you got better dogs" is the complaint that
- * ends the evening.*
+ * ⚠️ **This was `createStartingDog`, which dealt every stable one of each style at exactly
+ * `startDogRating` (§5.5, C1).** Phase N drafts instead, and a board's dogs are rated evenly across
+ * `draftRatingMin`–`draftRatingMax` (V31), so the rating is the caller's. What was learnt at C1 still
+ * holds and is why the shape is drawn this way: an equal stat total is not an equal dog when the
+ * weights are 0.40 / 0.35 / 0.25, so the rating is the budget and the *shape* — a speed dog, an accel
+ * dog, a stamina dog — is drawn as two deviations from it on speed and accel (`startDogShapeSpread`),
+ * with stamina solving for the rating.
  *
- * So the rating is the budget now: every dealt dog rates exactly `startDogRating`. What varies is its
- * *shape* — a speed dog, an accel dog, a stamina dog, anything between — and that shape is drawn as
- * two deviations from the target on speed and accel, with stamina solving for the rating. The stat
- * *total* now varies instead (a speed-heavy dog carries fewer points than a stamina-heavy one of the
- * same rating), which is the honest consequence of weighted stats and the right thing to equalise.
- *
- * The style is dealt by the caller — one of each per stable, §5.5 — and is independent of the shape:
- * a front-runner with a big engine and no gas is a dog, not a bug.
+ * The style is independent of the shape: a front-runner with a big engine and no gas is a dog, not a
+ * bug. The dog belongs to nobody (`ownerId` is empty) until a stable drafts it.
  */
-export function createStartingDog(owner: Id, style: StyleId, rng: Rng, nextId: IdGen): Dog {
+export function createBoardDog(
+  style: StyleId,
+  target: number,
+  ages: { min: number; max: number },
+  rng: Rng,
+  nextId: IdGen,
+): Dog {
   const dog = createDog(
     {
       quality: 0,
-      age: rng.int(balance.startDogAgeMin, balance.startDogAgeMax),
-      owner,
+      age: rng.int(ages.min, ages.max),
+      owner: '',
       style,
     },
     rng,
     nextId,
   );
-  const target = balance.startDogRating;
   const spread = balance.startDogShapeSpread;
   // Two draws, always: the stream never depends on the shape it produced.
   const ds = rng.int(-spread, spread);
@@ -178,9 +177,38 @@ export function createStartingDog(owner: Id, style: StyleId, rng: Rng, nextId: I
   dog.accel = stats.accel;
   dog.stamina = stats.stamina;
   dog.rating = baseRating(dog);
-  dog.dealt = true;
-  if (dog.rating !== target) throw new Error(`Dealt a dog rated ${dog.rating}, not ${target}`);
+  // V30: the board shows every dog's running style, so a drafted dog's is public from the start.
+  dog.styleKnown = true;
+  if (dog.rating !== target) throw new Error(`Drew a board dog rated ${dog.rating}, not ${target}`);
   return dog;
+}
+
+/**
+ * A draft's dogs (GDD_V3 V31): `count` dogs **rated evenly from `draftRatingMin` to `draftRatingMax`**,
+ * the styles split as evenly as the count allows **and each style spanning the range** — the ratings
+ * are laid out in order and each run of three takes the three styles in a shuffled order, so no style
+ * is the strong one and a table can always build one of each. The board is then shuffled, so its order
+ * says nothing about the dogs.
+ *
+ * Every draw is from `rng`, in a fixed order, so the same seed gives the same board.
+ */
+export function buildBoardDogs(
+  count: number,
+  ages: { min: number; max: number },
+  rng: Rng,
+  nextId: IdGen,
+): Dog[] {
+  const lo = balance.draftRatingMin;
+  const hi = balance.draftRatingMax;
+  const ratings: number[] = [];
+  for (let i = 0; i < count; i++)
+    ratings.push(
+      count > 1 ? Math.round(lo + ((hi - lo) * i) / (count - 1)) : Math.round((lo + hi) / 2),
+    );
+  const styles: StyleId[] = [];
+  while (styles.length < count) styles.push(...rng.shuffle([...STYLE_IDS]));
+  const dogs = ratings.map((r, i) => createBoardDog(styles[i]!, r, ages, rng, nextId));
+  return rng.shuffle(dogs);
 }
 
 /**

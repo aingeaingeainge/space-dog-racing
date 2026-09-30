@@ -25,8 +25,8 @@ import {
  * v3 Phase L1 — the engine's half of online play (ONLINE_PLAN §4, §8 item 2).
  *
  * `viewFor`: every `SEAT_SECRETS` row is hidden from every seat not allowed it and shown to the one
- * that is, and a stable's secret changed leaves every other seat's view byte-identical. The off-season
- * in any order. `decide` playing a human seat (the stand-in, §5.3). `rumoursFor` unchanged.
+ * that is, and a stable's secret changed leaves every other seat's view byte-identical. The draft in
+ * turn order, and public (Phase N; it replaced the off-season in any order). `decide` playing a human seat (the stand-in, §5.3). `rumoursFor` unchanged.
  */
 
 const humans = (n: number) =>
@@ -78,76 +78,54 @@ describe('the stand-in: decide plays a human seat (ONLINE_PLAN §5.3)', () => {
   });
 });
 
-describe('the off-season in any order (ONLINE_PLAN §4 item 3)', () => {
+/*
+ * ⚠️ Phase N (V32): **the off-season is no longer answered in any order.** It is one pick of a draft
+ * off a shared board, so it is in turn order — last on the standings first — like the Market. L1's
+ * "every order gives the same state" test went with the any-order rule; what replaces it is that a
+ * pick out of turn is refused, in the opening draft and the off-season's, and that **nothing about
+ * the draft is secret** (V30): every seat sees the board, the order and every pick.
+ */
+describe('the draft is in turn order, and public (V29, V30, V32)', () => {
   const setup: SeasonSetup = {
     seed: 42,
     length: { kind: 'seasons', seasons: 2 },
-    players: humans(4),
+    players: [...humans(4), ...ais(2)],
   };
-  const open = play(setup, (s) => s.phase === 'offSeason').s;
-  expect(open.phase).toBe('offSeason');
-  const order = open.turnOrder;
+  const opening = createSeason(setup);
+  const off = play(setup, (s) => s.phase === 'offSeason').s;
 
-  /**
-   * Each stable's answers. Three retire their cheapest-looking dog (so three replacements take ids
-   * off the counter) and one keeps them all; every candidate is taken on.
-   */
-  const answers: Record<Id, Action[]> = {};
-  order.forEach((id, k) => {
-    const n = open.offSeason!.notices[id]!;
-    const p = player(open, id);
-    const out: Action[] = [{ t: 'Retire', playerId: id, dogId: k === 1 ? null : p.dogIds[k % 3]! }];
-    if (n.candidate) out.push({ t: 'ResolveStaffNotice', playerId: id, hire: true });
-    out.push({ t: 'EndPhase', playerId: id });
-    answers[id] = out;
-  });
+  for (const [label, s] of [
+    ['the opening draft', opening],
+    ['the off-season draft', off],
+  ] as const) {
+    it(`${label}: a pick out of turn is refused`, () => {
+      const x = structuredClone(s);
+      const d = x.drafts.at(-1)!;
+      const onClock = d.order[d.at]!;
+      const other = x.players.find((p) => p.id !== onClock)!.id;
+      const dog = d.dogs[0]!.id;
+      expect(() => reduceMut(x, { t: 'DraftPick', playerId: other, pick: { dog } })).toThrow(
+        /pick/,
+      );
+      expect(() => reduceMut(x, { t: 'EndPhase', playerId: onClock })).toThrow(/pick/);
+    });
 
-  const run = (sequence: Action[]) => {
-    const s = structuredClone(open);
-    for (const a of sequence) reduceMut(s, a);
-    return s;
-  };
-  const inTurnOrder = run(order.flatMap((id) => answers[id]!));
-
-  it('exercises what order could move: three replacements and their log lines', () => {
-    expect(inTurnOrder.phase).toBe('newSeason');
-    expect(
-      order.filter((id) => typeof inTurnOrder.offSeason!.notices[id]!.retired === 'string'),
-    ).toHaveLength(3);
-  });
-
-  it('every order of four stables gives the same state, byte for byte (24 orders)', () => {
-    const perms = (xs: Id[]): Id[][] =>
-      xs.length <= 1
-        ? [xs]
-        : xs.flatMap((x, i) => perms(xs.filter((_, j) => j !== i)).map((r) => [x, ...r]));
-    const all = perms([...order]);
-    expect(all).toHaveLength(24);
-    const want = json(inTurnOrder);
-    for (const o of all) expect(json(run(o.flatMap((id) => answers[id]!)))).toBe(want);
-  });
-
-  it('and so does any interleaving of their presses', () => {
-    let seed = 9;
-    const rand = () => (seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648;
-    const want = json(inTurnOrder);
-    for (let trial = 0; trial < 40; trial++) {
-      const queues = order.map((id) => [...answers[id]!]);
-      const seq: Action[] = [];
-      while (queues.some((q) => q.length)) {
-        const live = queues.filter((q) => q.length);
-        seq.push(live[Math.floor(rand() * live.length)]!.shift()!);
+    it(`${label}: every seat sees the whole board, the order and the picks`, () => {
+      const want = json({ drafts: s.drafts, offSeason: s.offSeason, turnOrder: s.turnOrder });
+      for (const p of s.players) {
+        const v = viewFor(s, p.id);
+        expect(json({ drafts: v.drafts, offSeason: v.offSeason, turnOrder: v.turnOrder })).toBe(
+          want,
+        );
+        // Every dog on the board shows its true style (V30).
+        for (const [i, d] of v.drafts.at(-1)!.dogs.entries())
+          expect(d.style).toBe(s.drafts.at(-1)!.dogs[i]!.style);
       }
-      expect(json(run(seq))).toBe(want);
-    }
-  });
+    });
+  }
 
-  it('a stable that has finished cannot answer again', () => {
-    const s = structuredClone(open);
-    const last = order[order.length - 1]!;
-    for (const a of answers[last]!) reduceMut(s, a);
-    expect(() => reduceMut(s, { t: 'Retire', playerId: last, dogId: null })).toThrow(/finished/);
-    expect(() => reduceMut(s, { t: 'EndPhase', playerId: last })).toThrow();
+  it('no SEAT_SECRETS row names the draft or the off-season', () => {
+    for (const r of SEAT_SECRETS) expect(r.field).not.toMatch(/draft|offSeason/);
   });
 });
 
@@ -279,7 +257,7 @@ const PLANTS: Plant[] = [
     // The offer is planted as the engine rolls it: liesTold counted the moment it is drawn.
     plant: (s, a) => plantOffer(s, a),
     twin: (s, a) => plantOffer(s, a, { lie: 0 }),
-    shows: (v, a) => player(v, a).stats.liesTold === BASE_LIES.get(v.week)! + 1,
+    shows: (v, a) => player(v, a).stats.liesTold === BASE_LIES.get(v.players.length)! + 1,
   },
   {
     row: 'players[].stats (the private counters)',
@@ -371,13 +349,6 @@ const PLANTS: Plant[] = [
     shows: (v, a) => player(v, a).paid.pulsarMarrow === 321,
   },
   {
-    row: 'offSeason.notices',
-    who: 'owner',
-    plant: (s, a) => plantNotice(s, a, 1),
-    twin: (s, a) => plantNotice(s, a, 0),
-    shows: (v, a) => v.offSeason?.notices[a]?.offer.offerName === 'Planted Pup',
-  },
-  {
     row: 'eventLog lines with a playerId',
     who: 'owner',
     plant: (s, a) => {
@@ -387,30 +358,11 @@ const PLANTS: Plant[] = [
   },
 ];
 
-/** `liesTold` before the planted offer, per base state (keyed by week, which differs between them). */
+/**
+ * `liesTold` before the planted offer, per base state — keyed by the table's size since Phase N (it was
+ * keyed by week, and after the draft both bases stop at week 4).
+ */
 const BASE_LIES = new Map<number, number>();
-
-function plantNotice(s: GameState, a: Id, lie: number): void {
-  s.offSeason = {
-    notices: {
-      [a]: {
-        offer: {
-          offerName: 'Planted Pup',
-          age: 2,
-          speed: 71,
-          accel: lie ? 44 : 63,
-          stamina: lie ? 58 : 40,
-          shown: 'speed',
-          claimed: 'accel',
-          lie,
-          style: lie ? 'closer' : 'stalker',
-        },
-        left: [],
-        candidate: lie ? 'vell' : null,
-      },
-    },
-  };
-}
 
 function plantOffer(
   s: GameState,
@@ -463,7 +415,7 @@ describe('viewFor (ONLINE_PLAN §3)', () => {
       const base = midSeason([...table]);
       const ids = base.players.map((p) => p.id);
       const [a, b] = [ids[0]!, ids[1]!];
-      BASE_LIES.set(base.week, player(base, a).stats.liesTold);
+      BASE_LIES.set(base.players.length, player(base, a).stats.liesTold);
 
       it('never touches the state it is given', () => {
         const before = json(base);

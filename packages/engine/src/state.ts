@@ -7,10 +7,10 @@ import {
 } from './content/planets';
 import { AI_PERSONALITIES, AI_STABLE_NAMES } from './content/names';
 import { CARD, raceType } from './content/raceTypes';
-import { createStartingDog, emptyPlanetState, type IdGen } from './economy/dogs';
+import { emptyPlanetState, type IdGen } from './economy/dogs';
+import { openOpeningDraft } from './phases/draft';
 import { emptyCargo } from './economy/goods';
 import { STAPLE_ID } from './content/goods';
-import { STAFF } from './content/staff';
 import { mulberry32, type Rng } from './rng';
 import type {
   CalendarEntry,
@@ -26,9 +26,16 @@ import type {
   SeasonSetup,
   WeekStatus,
 } from './types';
-import { ActionError, RACE_TYPE_IDS, STYLE_IDS } from './types';
+import { ActionError, RACE_TYPE_IDS } from './types';
 
 /**
+ * 14 for v3 Phase N: the draft (GDD_V3 V29–V33). A game opens in a `draft` phase — a six-round snake
+ * of four dogs and two trainers from a public board — and nothing is dealt; the off-season is one
+ * round of the same draft (`DraftPick` replaces `Retire` and `ResolveStaffNotice`). The state carries
+ * `drafts`, an off-season notice carries only who `left`, and every board is drawn at `createSeason`
+ * or when the off-season opens. A v3m log's first action is an AdvancePhase into arrival, which a
+ * draft refuses, so it cannot replay.
+ *
  * 13 for v3 Phase I: the draft (GDD_V3 §2.2, V23). An off-season notice can carry `draft`, and the
  * stable last on the season's standings is offered a replacement rolled `draftLevelShift` above the
  * ordinary. The offer makes the same draws, but a v3h log that took a dog at an off-season takes a
@@ -101,7 +108,7 @@ import { ActionError, RACE_TYPE_IDS, STYLE_IDS } from './types';
  * The web save is seed + log (store/persist.ts), which is why SAVE_VERSION moves with it and an
  * old save fails soft to the title screen rather than replaying into a different game.
  */
-export const STATE_VERSION = 13;
+export const STATE_VERSION = 14;
 /**
  * **The online protocol's version** (ONLINE_PLAN §7), v3 Phase L1. A browser says it in `hello`; a
  * room on another answers `reload`, and the browser offers to reload rather than play a subtly
@@ -408,7 +415,11 @@ export function gameLengthOf(setup: Pick<SeasonSetup, 'length'>): GameLength {
   return { kind: 'target', worth: len.worth };
 }
 
-/** Build week-1 state (phase 'arrival', waiting for the first AdvancePhase). */
+/**
+ * Build a game's first state: the stables seated, the circuit drawn, and **the opening draft open**
+ * (phase `draft`, GDD_V3 V29) with the first pick on the clock. Nothing is dealt: every stable starts
+ * with no dogs and no trainers and drafts four and two. The last pick opens week 1's arrival.
+ */
 export function createSeason(setup: SeasonSetup): GameState {
   if (setup.players.length < 1 || setup.players.length > 8) {
     throw new Error('A season needs 1–8 stables');
@@ -420,7 +431,7 @@ export function createSeason(setup: SeasonSetup): GameState {
     seed: setup.seed,
     rng: 0,
     week: 1,
-    phase: 'arrival',
+    phase: 'draft',
     calendar: buildCalendar(rng),
     planet: emptyPlanetState(''),
     players: [],
@@ -454,6 +465,7 @@ export function createSeason(setup: SeasonSetup): GameState {
     seasons: [],
     gameOver: null,
     offSeason: null,
+    drafts: [],
   };
   s.planet.planetId = s.calendar[0]!.planetId;
   const ctx: Ctx = { s, rng, nextId: (prefix) => `${prefix}_${(s.nextId++).toString(36)}` };
@@ -493,19 +505,11 @@ export function createSeason(setup: SeasonSetup): GameState {
       const known = AI_STABLE_NAMES.indexOf(p.name);
       p.personality = known >= 0 ? AI_PERSONALITIES[known]! : rng.pick(AI_PERSONALITIES);
     }
-    // GDD_V3 §5.5: one of each style, dealt in a shuffled order so the dog list does not give the
-    // styles away (the list order is public; which of the three is the closer is not).
-    const styles = rng.shuffle([...STYLE_IDS]);
-    for (let k = 0; k < balance.startDogs; k++) {
-      const d = createStartingDog(id, styles[k % styles.length]!, rng, ctx.nextId);
-      s.dogs[d.id] = d;
-      p.dogIds.push(d.id);
-    }
     s.players.push(p);
   });
-  // GDD_V3 §8.1: two trainers each, dealt from the shuffled rows in seating order. ⚠️ Added in Phase
-  // D2, after the dogs, so it moves every draw the game makes after the deal.
-  const pool = rng.shuffle(STAFF.map((r) => r.id));
-  for (const p of s.players) p.staff = pool.splice(0, balance.staffSlots);
+  // GDD_V3 V29 (Phase N): the opening draft — the board and round 1's order, from the game's stream,
+  // after the seats. ⚠️ This replaced §5.5's deal (one of each style at rating 50) and §8.1's two
+  // trainers dealt in seating order, so it moves every draw the game makes after the seats.
+  openOpeningDraft(ctx);
   return commitCtx(ctx);
 }

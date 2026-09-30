@@ -47,6 +47,8 @@ const LABELS: Record<string, string> = {
   'Hold capacity (units, everyone, forever)': 'holdCap',
   'Starting cash': 'startCash',
   'Starting dogs': 'startDogs',
+  // Phase N (V33): moved from balance.extras.json, so the sheet carries the food four dogs start on.
+  'Starting crates of the staple aboard': 'startCargo',
   'a (floor)': 'valueFloor',
   'b (curve)': 'valueCurve',
   // GDD_V3 §4.3's value column. Ages 1 and 2 are the growth years, 3–4 the peak, 5+ the decline.
@@ -108,7 +110,6 @@ const LABELS: Record<string, string> = {
   'Major weekend': 'majorWeek',
   'Grand Final weekend': 'grandFinalWeek',
   'Regular planets drawn from the pool of 14': 'regularPlanets',
-  'Dogs dealt at the start': 'startDogsDealt',
   // §5.5 / V2: every dealt dog rates exactly this, with its shape drawn (decision C1).
   'Starting dog rating (every dealt dog, exactly)': 'startDogRating',
   'Starting dog shape: widest deviation on speed or accel': 'startDogShapeSpread',
@@ -251,13 +252,8 @@ const LABELS: Record<string, string> = {
   'Target: the most seasons a Target game runs': 'targetSeasonCap',
   // Phase E1, GDD_V3 §2.2: the off-season.
   'Off-season: a trainer leaves, chance each': 'staffNoticeChance',
-  "Off-season: the replacement's seller lies, × the dog-offer rate": 'retireOfferLieMult',
-  'Off-season: AI retires when the offer beats its cheapest dog by (Bones)': 'aiRetireMargin',
-  'Off-season: AI retires a dog this old, whatever the offer': 'aiRetireAge',
   // Phase E2, GDD_V3 §2.2: the off-season is a long rest (Jesse's call).
   'Off-season: every dog starts the new season on this fitness': 'seasonStartFitness',
-  // Phase I, GDD_V3 §2.2 and V23: the draft (Jesse's call).
-  "Off-season: the draft, last stable's offer level above the ordinary (points)": 'draftLevelShift',
   // Phase N, GDD_V3 §2.2, §5.5 and V29–V33: the draft (Jesse's call).
   'Draft: dogs on the opening board, per stable': 'draftDogsPerStable',
   'Draft: trainers on the opening board, per stable': 'draftTrainersPerStable',

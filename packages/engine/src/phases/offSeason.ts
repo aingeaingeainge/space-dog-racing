@@ -1,44 +1,30 @@
 import { balance } from '../content/balance';
 import { staffRow } from '../content/staff';
-import { acceptOffer, describeOffer, rollOffer } from '../economy/acquire';
-import { dogValue } from '../economy/dogValue';
-import { unemployedStaff } from '../economy/staff';
 import { mulberry32 } from '../rng';
-import { dog, log, player, type Ctx } from '../state';
-import {
-  ActionError,
-  type Action,
-  type Dog,
-  type GameState,
-  type Id,
-  type OffSeasonNotice,
-} from '../types';
-import { revealStyles } from './raceDay';
-import { startPlayerPhase } from './turn';
+import { dog, log, type Ctx } from '../state';
+import type { Id, OffSeasonNotice } from '../types';
+import { openOffSeasonDraft } from './draft';
 
 /**
- * The off-season (GDD_V3 §2.2): **at most three clicks** between one season and the next.
+ * The off-season (GDD_V3 §2.2, as V32 rewrote it in v3 Phase N):
  *
- * 1. **Every dog ages a year** — shown, not asked. ⚠️ This is where the age tick lives now: §4.3 says
- *    age ticks once, in the off-season, and until Phase E1 it ticked at week 7 of every season. So a
+ * 1. **Every dog ages a year** — shown, not asked. This is where the age tick lives (§4.3), so a
  *    one-season game has no ageing at all.
- * 2. **The retirement window.** Each stable may retire one dog, paid its book value, and takes the
- *    replacement on offer in its place. The stable sees the offer first — §9.2's age, one true stat
- *    and patter that can lie — and then chooses "retire *name*" for one of its dogs or "keep them
- *    all": §2.2 says you see what you are being offered before you accept.
- * 3. **The staff notice.** Each trainer has a `staffNoticeChance` of leaving for a better stable. A
- *    stable left with fewer than two is offered one candidate from those nobody employs.
+ * 2. **The staff notice.** Each trainer has a `staffNoticeChance` of leaving for a better stable.
+ *    Public: the table reads it before the draft, so a stable left short is seen to be short.
+ * 3. **One round of the draft** (V32), in reverse order of the season's standings, from a fresh board
+ *    (`openOffSeasonDraft`): a dog (retiring one), a trainer (letting one go if the staff is full) or
+ *    a pass.
  *
- * **The streams (decision D1's pattern).** When the off-season opens, the game's stream draws one
- * seed per stable, in seating order, and nothing else. Everything a stable's off-season rolls — the
- * offer, the notices, the candidate — is rolled at once, on that stable's own stream, before anybody
- * answers anything; the answers themselves draw nothing. So no choice moves the game's stream or
- * another stable's draws. The one thing that crosses between stables is the candidate pool: a
- * trainer who left one stable can be offered to another, and no trainer is offered to two. That is a
- * fact about the draws, never about anybody's answer.
+ * ⚠️ **Replaced at Phase N:** the retirement window's offer (E4), the candidate offered to a stable
+ * left short (E5) and V23's breeder's pick for the last stable. The draft does all three jobs from one
+ * public board, and last place picks first rather than being offered a better dog.
+ *
+ * **The streams (decision D1's pattern), kept for the notice.** When the off-season opens, the game's
+ * stream draws one seed per stable, in seating order, and each stable's notices are rolled on its own
+ * stream — so a trainer's notice never depends on another stable's. The board and the order are then
+ * drawn from the game's stream, after the seeds.
  */
-
-/** Open the off-season: age every dog, roll every stable's notice, and hand the table the screen. */
 export function openOffSeason(ctx: Ctx): void {
   const { s, rng } = ctx;
   // 1. Every dog ages a year (§4.3). Locals were swept at the jump; every dog left is a stable's.
@@ -49,189 +35,22 @@ export function openOffSeason(ctx: Ctx): void {
     }
   log(s, `The off-season: every dog on the circuit is a year older.`);
 
-  // One seed per stable, seating order, from the game's stream — and nothing else from it.
+  // One seed per stable, seating order, from the game's stream.
   const streams = new Map(
     s.players.map((p) => [p.id, mulberry32(Math.floor(rng.next() * 4294967296))]),
   );
   const notices: Record<Id, OffSeasonNotice> = {};
-  // GDD_V3 §2.2 step 2 and V23 — **the draft** (Jesse's call, Phase I). The stable last on the
-  // season's standings is offered the breeder's pick: its replacement is rolled `draftLevelShift`
-  // points above everybody else's. Phase I measured why a long game's back of the table rarely came
-  // back: not cash, trading, betting or trainers, but dogs (the poorer half declared dogs rated 2.6
-  // lower and won 8.9k less in purses a season). So the rule goes at the dogs, as an offer the stable
-  // reads and can turn down (pillar 2). "Last" is §2.4's order, the one the season's end shows, so a
-  // tie goes the way the table reads it. It changes the level only: the offer makes the same draws.
-  const standings = s.seasons[s.seasons.length - 1]?.standings ?? [];
-  const drafted = s.players.length > 1 ? (standings[standings.length - 1]?.playerId ?? null) : null;
-  // 2 and 3, first pass: the replacement on offer, then a draw for each trainer's notice. Every
-  // stable makes the same number of draws whatever they land on.
+  const leavers: Id[] = [];
+  // 2. The staff notice: one draw for each trainer, on the stable's own stream.
   for (const p of s.players) {
     const r = streams.get(p.id)!;
-    const draft = p.id === drafted;
-    const offer = rollOffer(r, {
-      lieMult: balance.retireOfferLieMult,
-      levelShift: draft ? balance.draftLevelShift : 0,
-    });
     const left = p.staff.filter(() => r.chance(balance.staffNoticeChance));
     p.staff = p.staff.filter((id) => !left.includes(id));
-    for (const id of left)
-      log(s, `${staffRow(id).name} has left ${p.name} for a better stable.`, p.id);
-    notices[p.id] = { offer, left, candidate: null, ...(draft ? { draft: true } : {}) };
-  }
-  // Second pass, once everybody's notices are in: a stable left short is offered one candidate,
-  // never one of its own leavers, never one already offered to somebody else.
-  const offered = new Set<Id>();
-  for (const p of s.players) {
-    if (p.staff.length >= balance.staffSlots) continue;
-    const n = notices[p.id]!;
-    const pool = unemployedStaff(s).filter((r) => !n.left.includes(r.id) && !offered.has(r.id));
-    if (!pool.length) continue;
-    const pick = streams.get(p.id)!.pick(pool);
-    n.candidate = pick.id;
-    offered.add(pick.id);
+    for (const id of left) log(s, `${staffRow(id).name} has left ${p.name} for a better stable.`);
+    leavers.push(...left);
+    notices[p.id] = { left };
   }
   s.offSeason = { notices };
-  startPlayerPhase(s, 'offSeason');
-}
-
-/** The text a stable reads about the replacement it would be offered. */
-export function describeRetirementOffer(n: OffSeasonNotice): string {
-  if (n.draft)
-    return (
-      `Last at the table, so the breeder's agent brings you the pick of the litter — a better dog ` +
-      `than anybody else is offered, for whoever retires one: ${describeOffer(n.offer)}`
-    );
-  return `A breeder's agent has a dog for whoever retires one: ${describeOffer(n.offer)}`;
-}
-
-function noticeFor(s: GameState, playerId: Id, action: Action): OffSeasonNotice {
-  if (s.phase !== 'offSeason' || !s.offSeason)
-    throw new ActionError('It is not the off-season', action);
-  // v3 Phase L1: the off-season is answered in any order (ONLINE_PLAN §4 item 3), as the Bookie
-  // has been since E8. Every answer was rolled when the off-season opened and none of them draws, so
-  // the only thing order could move is bookkeeping, and `fileInTurnOrder` puts that back.
-  if (s.done.includes(playerId))
-    throw new ActionError(`${playerId} has finished the off-season`, action);
-  const n = s.offSeason.notices[playerId];
-  if (!n) throw new ActionError('No off-season for this stable', action);
-  return n;
-}
-
-/** GDD_V3 §2.2 step 2: retire a dog for its book value and take the replacement, or keep them all. */
-export function retire(ctx: Ctx, action: Extract<Action, { t: 'Retire' }>): void {
-  const { s } = ctx;
-  const n = noticeFor(s, action.playerId, action);
-  if (n.retired !== undefined) throw new ActionError('The retirement window is answered', action);
-  const p = player(s, action.playerId);
-  const before = s.eventLog.length;
-  if (action.dogId === null) {
-    n.retired = null;
-    log(s, `${p.name} keeps them all.`, p.id);
-    fileInTurnOrder(s, p.id, before);
-    return;
-  }
-  if (!p.dogIds.includes(action.dogId)) throw new ActionError('Not your dog', action);
-  const old = dog(s, action.dogId);
-  const paid = dogValue(old);
-  p.cash += paid;
-  const { joined, left } = acceptOffer(s, p, n.offer, action.dogId, ctx.nextId);
-  n.retired = action.dogId;
-  n.paid = paid;
-  log(
-    s,
-    `${p.name} retires ${left.name} (age ${left.age}) for its book value, ${paid} Bones, and takes on ${joined.name}, age ${joined.age}.`,
-  );
-  // A dealt dog leaving takes its style with it (dealtGone): the §5.5 elimination stays sound.
-  revealStyles(s, []);
-  fileInTurnOrder(s, p.id, before);
-}
-
-/** GDD_V3 §2.2 step 3: take the candidate on, or not. */
-export function resolveStaffNotice(
-  ctx: Ctx,
-  action: Extract<Action, { t: 'ResolveStaffNotice' }>,
-): void {
-  const { s } = ctx;
-  const n = noticeFor(s, action.playerId, action);
-  if (!n.candidate) throw new ActionError('Nobody is on offer', action);
-  if (n.hired !== undefined) throw new ActionError('The staff notice is answered', action);
-  const p = player(s, action.playerId);
-  const before = s.eventLog.length;
-  n.hired = action.hire;
-  if (action.hire) {
-    p.staff.push(n.candidate);
-    log(s, `${p.name} takes on ${staffRow(n.candidate).name}.`, p.id);
-  }
-  fileInTurnOrder(s, p.id, before);
-}
-
-/**
- * v3 Phase L1 (ONLINE_PLAN §4 item 3): **file an off-season answer as if it had been given in turn
- * order**, whatever order it was actually given in — the Bookie's `slipIndex` pattern (E8). An answer
- * touches only its own stable, with two exceptions, and both are bookkeeping:
- *
- * - **the event log.** Each stable's answer lines are kept together, stables in turn order, a
- *   stable's own lines in the order it gave them. `logLines` counts each stable's, so the tail of the
- *   log can be read without tagging a line (which would move the goldens).
- * - **the new dogs' ids.** A retirement's replacement takes the next id off the counter, so the id a
- *   dog gets would depend on who retired first. The replacements are re-numbered in turn order from
- *   where the counter stood when the off-season opened, and re-filed in `s.dogs` in that order.
- *
- * Answered in turn order — every AI table, every golden, every hotseat game — both are no-ops, so no
- * state moves. Answered in any other order, the state is the same to the byte (`test/view.test.ts`).
- */
-function fileInTurnOrder(s: GameState, playerId: Id, before: number): void {
-  const notices = s.offSeason!.notices;
-  const rank = (id: Id) => s.turnOrder.indexOf(id);
-  const n = notices[playerId]!;
-  const added = s.eventLog.length - before;
-  if (added > 0) {
-    n.logLines = (n.logLines ?? 0) + added;
-    let total = 0;
-    let ahead = 0;
-    for (const [id, x] of Object.entries(notices)) {
-      total += x.logLines ?? 0;
-      if (rank(id) < rank(playerId)) ahead += x.logLines ?? 0;
-    }
-    const at = s.eventLog.length - total + ahead + (n.logLines - added);
-    if (at < s.eventLog.length - added) {
-      const lines = s.eventLog.splice(s.eventLog.length - added, added);
-      s.eventLog.splice(at, 0, ...lines);
-    }
-  }
-  const retirers = s.players
-    .filter((p) => typeof notices[p.id]?.retired === 'string')
-    .sort((a, b) => rank(a.id) - rank(b.id));
-  if (!retirers.length) return;
-  const base = s.nextId - retirers.length;
-  const serial = (id: Id) => parseInt(id.slice(id.lastIndexOf('_') + 1), 36);
-  const fresh: Dog[] = [];
-  for (const p of retirers) {
-    const d = p.dogIds.map((id) => s.dogs[id]!).find((x) => serial(x.id) >= base);
-    if (!d) return; // not a replacement this off-season made: nothing to re-file
-    fresh.push(d);
-  }
-  const target = fresh.map((_, k) => `dog_${(base + k).toString(36)}`);
-  const keys = Object.keys(s.dogs);
-  const tail = keys.slice(keys.length - fresh.length);
-  if (fresh.every((d, k) => d.id === target[k] && tail[k] === target[k])) return;
-  const dogs: Record<Id, Dog> = {};
-  const moving = new Set(fresh.map((d) => d.id));
-  for (const k of keys) if (!moving.has(k)) dogs[k] = s.dogs[k]!;
-  fresh.forEach((d, k) => {
-    const p = player(s, d.ownerId as Id);
-    p.dogIds[p.dogIds.indexOf(d.id)] = target[k]!;
-    d.id = target[k]!;
-    dogs[d.id] = d;
-  });
-  s.dogs = dogs;
-}
-
-/** What a stable still has to answer before it may leave the off-season screen. */
-export function offSeasonOutstanding(s: GameState, playerId: Id): string | null {
-  const n = s.offSeason?.notices[playerId];
-  if (!n) return null;
-  if (n.retired === undefined) return 'Answer the retirement window first';
-  if (n.candidate && n.hired === undefined) return 'Answer the staff notice first';
-  return null;
+  // 3. The draft: one round, last on the standings first (V32).
+  openOffSeasonDraft(ctx, leavers);
 }

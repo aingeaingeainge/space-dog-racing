@@ -2,7 +2,7 @@ import { settleHold } from './economy/goods';
 import { runArrival } from './phases/arrival';
 import { runEndTurn } from './phases/endTurn';
 import { startNextSeason } from './phases/game';
-import { offSeasonOutstanding, resolveStaffNotice, retire } from './phases/offSeason';
+import { draftPick } from './phases/draft';
 import { chooseDoor, resolveEvent } from './phases/explore';
 import { chooseBox, declare, placeBet, setDogState, tradeFood } from './phases/planet';
 import { lockDeclarations, runRaces } from './phases/raceDay';
@@ -53,15 +53,13 @@ export function reduceMut(s: GameState, action: Action): GameState {
     case 'EndPhase': {
       if (s.pendingEvent) throw new ActionError('Resolve your event first', action);
       if (s.phase === 'explore') throw new ActionError('Pick a door first', action);
-      if (s.phase === 'offSeason') {
-        const why = offSeasonOutstanding(s, action.playerId);
-        if (why) throw new ActionError(why, action);
-      }
+      // Phase N: a draft's pick is its turn, so there is nothing to end (GDD_V3 V29, V32).
+      if (s.phase === 'draft' || s.phase === 'offSeason')
+        throw new ActionError('Make your pick', action);
       // Phase E2: the Bookie is taken in any order (GDD_V3 §2.3 step 6), so a stable still betting
-      // may leave it whenever it likes. Phase L1 does the same for the off-season (ONLINE_PLAN §4
-      // item 3): every answer was rolled when it opened. Every other player phase is in turn order.
-      const anyOrder =
-        (s.phase === 'betting' || s.phase === 'offSeason') && !s.done.includes(action.playerId);
+      // may leave it whenever it likes. (Phase L1 did the same for the off-season; Phase N's
+      // off-season is a draft, taken in turn order.) Every other player phase is in turn order.
+      const anyOrder = s.phase === 'betting' && !s.done.includes(action.playerId);
       if (s.activePlayer !== action.playerId && !anyOrder)
         throw new ActionError(`It is not ${action.playerId}'s turn`, action);
       player(s, action.playerId);
@@ -89,11 +87,8 @@ export function reduceMut(s: GameState, action: Action): GameState {
     case 'ChooseBox':
       chooseBox(ctx, action);
       break;
-    case 'Retire':
-      retire(ctx, action);
-      break;
-    case 'ResolveStaffNotice':
-      resolveStaffNotice(ctx, action);
+    case 'DraftPick':
+      draftPick(ctx, action);
       break;
     default:
       // An action this engine does not know. The switch is exhaustive over the union, so the only

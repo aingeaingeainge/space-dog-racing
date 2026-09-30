@@ -241,24 +241,6 @@ export const SEAT_SECRETS: readonly SeatSecret[] = [
     },
   },
   {
-    field: 'offSeason.notices',
-    secret: 'a retirement offer (true stats, the lie), the draft, a candidate',
-    who: 'that stable, as §9.2 shows it',
-    redact: (v, seat) => {
-      if (!v.offSeason) return;
-      const n = v.offSeason.notices[seat];
-      v.offSeason.notices = {};
-      if (!n) return;
-      const shown = String(n.offer.shown);
-      const offer: Record<string, number | string> = {};
-      for (const k of ['offerName', 'age', 'shown', 'claimed', shown])
-        if (n.offer[k] !== undefined) offer[k] = n.offer[k]!;
-      n.offer = offer;
-      delete n.logLines;
-      v.offSeason.notices[seat] = n;
-    },
-  },
-  {
     field: 'eventLog lines with a playerId',
     secret: 'private card text, tips, “your man got to…”',
     who: 'that stable (the hub already filters so)',

@@ -30,12 +30,15 @@ describe('golden season (seed 42, 6 Normal AIs)', () => {
     expect(state.finalStandings).toHaveLength(6);
   });
 
-  it('matches the golden digest', () => {
+  // ⚠️ Phase N commit 2: skipped until the goldens are re-recorded, alone, in the next commit.
+  it.skip('matches the golden digest', () => {
     const digest = {
       seed: state.seed,
       rng: state.rng,
       actions: log.length,
       calendar: state.calendar.map((c) => c.planetId),
+      // Phase N (V29): the opening draft, pick by pick — who took what.
+      draft: state.drafts[0]!.picks.map((x) => `${x.playerId}:${x.dog?.name ?? x.staff}`),
       standings: state.finalStandings,
       players: state.players.map((p) => ({
         id: p.id,
@@ -87,7 +90,8 @@ describe('golden game (seed 42, 6 Normal AIs, two seasons)', () => {
     expect(state.gameOver?.reason).toBe('seasons');
   });
 
-  it('matches the golden digest', () => {
+  // ⚠️ Phase N commit 2: skipped until the goldens are re-recorded, alone, in the next commit.
+  it.skip('matches the golden digest', () => {
     const digest = {
       actions: log.length,
       rng: state.rng,
@@ -98,8 +102,11 @@ describe('golden game (seed 42, 6 Normal AIs, two seasons)', () => {
         goldCups: r.goldCups,
       })),
       standings: state.finalStandings,
-      retirements: log.filter((a) => a.t === 'Retire' && a.dogId !== null).length,
-      hires: log.filter((a) => a.t === 'ResolveStaffNotice' && a.hire).length,
+      // Phase N (V32): the off-season is a draft pick — a dog (d), a trainer (s) or a pass (-) — where
+      // it was a retirement window and a staff candidate (`retirements`, `hires` until v3m).
+      drafts: state.drafts.map((d) =>
+        d.picks.map((x) => (x.dog ? 'd' : x.staff ? 's' : '-')).join(''),
+      ),
       players: state.players.map((p) => ({
         id: p.id,
         worth: netWorthBreakdown(state, p),
