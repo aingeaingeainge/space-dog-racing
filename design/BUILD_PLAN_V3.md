@@ -3,7 +3,7 @@
 > **Status: CURRENT.** Build from this document.
 >
 > Canonical copy: `design/BUILD_PLAN_V3.md` in the `space-dog-racing` repo. A copy in a claude.ai
-> Project is a **mirror**, last synced 30 September 2026 (at `v3l3`) — edit the repo, never the mirror. See
+> Project is a **mirror**, last synced 30 September 2026 (at `v3m`) — edit the repo, never the mirror. See
 > `design/CANON.md`.
 >
 > Supersedes `design/BUILD_PLAN.md` from §6 onward. **That document's §§1–5 — architecture, tech
@@ -611,6 +611,11 @@ screen text and `SAVE_VERSION` 13; GDD_V3 §2.2, §10, §11 and V23.
 > | **L2** `v3l2` ✅ | the room: `packages/server`, a Worker and a Durable Object, the protocol, headless clients against `wrangler dev`. No deploy | before the evening — **done** |
 > | **L3** `v3l3` ✅ | the web online: lobby, the store on a socket, `screenFor` without pass screens, two browsers. Hotseat untouched | built before the evening, at Jesse's call — **done** |
 > | **L4** `v3l4` | live on Jesse's Cloudflare account, and the first online evening | after the evening |
+>
+> **Phase M** `v3m` ✅ (30 September 2026, not an L phase): four small hotseat fixes before the evening — the
+> Title's build panel names the build, a seed link carries AI names (GDD_V3 M1), a door's art stays in its
+> column on a phone, the final standings read at 390 — and `npm run hotseat-shots`. No engine or room change.
+> Notes: `claude/V3_PHASE_M_NOTES.md`.
 
 ---
 

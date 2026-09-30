@@ -3,7 +3,7 @@
 > **Status: CURRENT.** Build from this document.
 >
 > Canonical copy: `design/GDD_V3.md` in the `space-dog-racing` repo. A copy in a claude.ai Project
-> is a **mirror**, last synced 30 September 2026 (at `v3l3`) — edit the repo, never the mirror. See `design/CANON.md`.
+> is a **mirror**, last synced 30 September 2026 (at `v3m`) — edit the repo, never the mirror. See `design/CANON.md`.
 >
 > Supersedes `design/GDD.md` (v2, shipped at tag `v2e`), which is kept as historical reference and
 > is cited by name throughout this document.
@@ -1119,6 +1119,7 @@ All 18 planets survive as data. What changes is which fields do work:
 | 2026-09-30 | **L3a — online, the waiting line names only the humans being waited on** | Jesse's pick from the `v3l2` checklist, built at `v3l3`: "Waiting on Ruby — Market and Race Office · 1:20 · Nudge", in turn order. AI and stood-in seats waiting behind the turn order at the Bookie and in the off-season (L2b) are left out, and when only they are left it says "Waiting on the AIs". Nudge nudges each human named, at most once a minute. A display choice; the room is unchanged. `ONLINE_PLAN.md` §5.1 |
 | 2026-09-30 | **L3b — online, a stable waiting its turn cannot change a diet; it sets it in its own sitting, as in hotseat** | §5.1 had said a waiting stable could "pick next week's diet". The engine takes `SetDogState` only from the stable on the clock, in `planetPre`/`planetPost`, and the engine does not change for online play, so the Kennels are read-only while waiting. Everything else §5.1 lists is as planned: the kennel, the leaderboard and the map to read, the board filling live, a door and "Fly on" chosen early (held), the Bookie and the off-season at once. `ONLINE_PLAN.md` §5.1 |
 | 2026-09-30 | **L3c — online, Play again is the host's, and everybody follows into a new room** | Built at `v3l3`, §2.6: the host's Play again on the game's end has the old room make a successor with the same seats (names, faces, tokens), AI rows, length and seed, and every browser follows it; a browser opening the old link later is sent on too. The others see "if the host presses Play again, this browser follows", and a Leave button. `ONLINE_PLAN.md` §2.6 |
+| 2026-09-30 | **M1 — a seed link carries the names the table gave its AIs** | Built at `v3m`: an AI the table named draws its personality from the game's stream (`createSeason`), so a link without its name opened a different game. `seasonLinkFor` adds `names=` when an AI row has a typed name (one encoded entry a stable, in seat order, empty where none is needed: `&names=,Gravy%20Train,,`); a table that named no AI keeps exactly its old link, and a link without `names=`, or with one that will not decode, parses as before. Human names touch no draw and stay out of the link. The engine keeps its draw, so no golden, save or old link moves. `claude/V3_PHASE_M_NOTES.md` |
 
 ---
 
