@@ -2344,6 +2344,10 @@ table.market tr.held td:first-child {
     grid-column: 1;
     grid-row: 1 / span 5;
     align-self: stretch;
+    /* Phase M: the column sets the width and the row the height. Held at 3:4, a two-line name
+       made the art taller and so wider than its 112 px, over the words; the picture crops
+       (object-fit: cover) instead. */
+    aspect-ratio: auto;
     max-height: none;
     min-height: 149px;
     margin: 0;
