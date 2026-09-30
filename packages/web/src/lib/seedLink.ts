@@ -16,6 +16,10 @@ import { resolveColours } from './faces';
  * Toggles ride along because the game already tells the player they must: "a shared seed only
  * replays the same way with the same toggles". A link that dropped them would be a link that
  * quietly does not reproduce the season it claims to.
+ *
+ * Phase M: so do the names the table gave its AIs (`names=`). An AI the table named draws its
+ * personality from the game's stream where a listed AI does not (`createSeason`), so a link without
+ * them opened a different game. Human names touch no draw and stay out of the link.
  */
 
 export interface SharedSeason {
@@ -53,6 +57,41 @@ const TOGGLE_TOKENS: Record<string, keyof Toggles> = {
 const MAX_STABLES = 8;
 
 const HUMAN_PICK = /^h(.)$/;
+
+/** Past these, a `names=` is not something this file wrote, and it is ignored whole. */
+const MAX_NAME = 100;
+
+/**
+ * Phase M: the names the table typed for its AIs, one entry a stable in seat order, empty for every
+ * row that needs none (a human, or an AI left blank), each `encodeURIComponent`-ed, so a comma in a
+ * name cannot split it: `,,Gravy%20Train,`. Empty when no AI was named, so such a table keeps
+ * exactly the link it had before. A played setup holds an AI's name only if the table typed one
+ * (the Title passes `''` for a blank row), and that includes a listed name typed in: it takes that
+ * name's personality instead of the one the seat would have been dealt, so it rides along too.
+ */
+export function namesParam(players: readonly PlayerSetup[]): string {
+  if (!players.some((p) => p.kind === 'ai' && p.name)) return '';
+  return players.map((p) => (p.kind === 'ai' ? encodeURIComponent(p.name) : '')).join(',');
+}
+
+/**
+ * `names=` read back, raw, one entry per seat the link wrote: `null` for no names, or for one this
+ * file did not write (it will not decode, has more entries than a table has stables, or a name
+ * longer than any table types). Read from the raw query rather than through `URLSearchParams`,
+ * which would decode a `%2C` inside a name into the comma that separates them.
+ */
+function parseNames(search: string): string[] | null {
+  const m = /(?:^|[?&])names=([^&#]*)/.exec(search);
+  if (!m) return null;
+  const parts = m[1]!.split(',');
+  if (parts.length > MAX_STABLES) return null;
+  try {
+    const names = parts.map((part) => decodeURIComponent(part));
+    return names.every((n) => n.length <= MAX_NAME) ? names : null;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * The roster as a link would spell it, e.g. `h,normal,normal,hard,hard,normal`, or with faces
@@ -116,7 +155,9 @@ export function seasonLinkFor(setup: SeasonSetup, base: string): string {
   const len = lengthParam(setup.length);
   if (len) params.set('len', len);
   const clean = base.split('?')[0]!.split('#')[0]!;
-  return `${clean}?${params.toString()}`;
+  // Written by hand, after the rest: its entries are already encoded one by one (namesParam).
+  const names = namesParam(setup.players);
+  return `${clean}?${params.toString()}${names ? `&names=${names}` : ''}`;
 }
 
 /**
@@ -140,12 +181,16 @@ export function parseSeasonLink(search: string): SharedSeason | null {
   const players: PlayerSetup[] = [];
   const picked = new Set<number>();
   const raw = params.get('players');
+  // Phase M: a name belongs to the seat the link wrote it for, so it is matched by its place in
+  // `players=`, not by the place of the stable it lands on (a dropped token must not shift them).
+  const names = parseNames(search);
   if (raw) {
-    for (const part of raw.split(',')) {
+    for (const [at, part] of raw.split(',').entries()) {
       const token = part.trim().toLowerCase();
       if (!token) continue;
       const pick = HUMAN_PICK.exec(token);
-      if (AI_TOKENS[token]) players.push({ name: '', kind: 'ai', difficulty: AI_TOKENS[token] });
+      if (AI_TOKENS[token])
+        players.push({ name: names?.[at] ?? '', kind: 'ai', difficulty: AI_TOKENS[token] });
       else if (HUMAN_TOKENS.includes(token)) players.push({ name: '', kind: 'human' });
       else if (pick) {
         // Phase J: a face the link names is filled in as a pick, as if the human had pressed it. A

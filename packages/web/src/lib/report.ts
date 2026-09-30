@@ -128,14 +128,8 @@ export function buildReport(r: ReportInput): string {
   out.push('SPACE DOG RACING — GAME REPORT');
   out.push(`Build: ${r.build}`);
   out.push(`Link: ${seasonLinkFor(setup, r.base)}`);
-  // A link carries no names, and an AI the table named draws its personality from the game's stream
-  // where a listed AI does not (createSeason), so the link opens a different game. Say so.
-  const renamed = s.players.filter((p) => p.kind === 'ai' && !AI_STABLE_NAMES.includes(p.name));
-  if (renamed.length)
-    out.push(
-      `Note: ${renamed.map((p) => p.name).join(' and ')} ${renamed.length === 1 ? 'was an AI' : 'were AIs'} ` +
-        'the table named. A link carries no names, so it opens a different game from this one.',
-    );
+  // Phase M: the link carries the names the table gave its AIs (`names=`), so it replays this
+  // game and the note that said it would not is gone.
   out.push(
     `Seed ${s.seed} · ${lengthChosen(s)} · ${s.players.length} stables, ` +
       `${s.players.filter((p) => p.kind === 'human').length} human · toggles: ${togglesText(s)}`,
