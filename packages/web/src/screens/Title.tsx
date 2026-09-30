@@ -27,6 +27,9 @@ function randomSeed(): number {
   return Math.floor(Math.random() * 1_000_000);
 }
 
+/** The build's own name (`__SDR_BUILD__`, a Vite define from `git describe`), for the panel below. */
+const BUILD = typeof __SDR_BUILD__ === 'string' ? __SDR_BUILD__ : 'unknown';
+
 const DEFAULT_TOGGLES: Toggles = {
   betting: true,
   trading: true,
@@ -302,15 +305,14 @@ export function Title() {
         />
       </Panel>
 
-      <Panel title="What is in this build" sub="v3 Phase E1 — the game's shape">
+      {/* Phase M: says what is true of every build, and names this one, so it never goes stale. */}
+      <Panel title="What is in this build" sub={`build ${BUILD} — the game's shape`}>
         <p className="muted flush">
           One to five ten-week seasons, or a race to a target, against Easy, Normal and Hard
-          stables: three dealt dogs, Explore&apos;s three doors, trainers on commission, the
-          six-food market that is also your dogs&apos; training, three purse tiers, the bookie, and
-          an off-season between seasons. Every screen is painted to the art bible and every planet
-          tints its own chrome. Most of the pictures are still stand-ins — hatched slots labelled
-          &ldquo;placeholder&rdquo; — because 11 of the 149 files in the art library are real so
-          far.
+          stables. Each stable is dealt three dogs. A weekend is one of Explore&apos;s three doors,
+          the six-food market that is also your dogs&apos; training, trainers on commission, three
+          purse tiers and the Bookie; an off-season sits between seasons. Every planet is painted
+          and tints its own chrome.
         </p>
       </Panel>
     </div>
