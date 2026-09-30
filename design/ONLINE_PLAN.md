@@ -3,7 +3,7 @@
 > **Status: CURRENT.** Build online multiplayer from this document.
 >
 > Canonical copy: `design/ONLINE_PLAN.md` in the `space-dog-racing` repo. A copy in a claude.ai
-> Project is a **mirror**, last synced 30 September 2026 (at `v3l3`) — edit the repo, never the mirror.
+> Project is a **mirror**, last synced 30 September 2026 (at `v3n`) — edit the repo, never the mirror.
 > See `design/CANON.md`.
 >
 > Written in v3 Phase K (`v3k`). It replaces `design/BUILD_PLAN.md` §6b.9 and "Prompt M6", which were
@@ -254,6 +254,13 @@ driven in turn order, which nothing below changes. `STATE_VERSION` and `SAVE_VER
    lines kept together, stables in turn order (the notice counts its own lines in an optional
    `logLines`, gone with the off-season at the new season). Answered in turn order both are no-ops, so no
    AI table, golden or hotseat game moves.
+   > ⚠️ **Superseded at `v3n` (GDD_V3 V32).** The off-season is now one pick of a draft off a shared
+   > board, last on the standings first, so it is **in turn order**, like the Market: a pick takes
+   > something another stable could have taken. `DraftPick` replaced `Retire` and `ResolveStaffNotice`,
+   > `fileInTurnOrder` and `logLines` went with them, and the opening draft that now starts every game is
+   > in turn order too. The room's clock names the one stable picking and a nudge reaches it; nothing
+   > is held for a pick. The whole draft is public, so it has no `SEAT_SECRETS` row. This item is kept
+   > as the record of what `v3l1` built.
 4. **`PROTOCOL_VERSION`** exported (§7).
 
 **Not needed:**
@@ -288,7 +295,8 @@ are in turn order because the shelf is shared and the declarations are public as
 | Bookie | everybody at once (E8, already built) |
 | Race day | §5.4 |
 | After the races | "Fly on" is queued (§2.4); a stable that wants the market again takes its turn in order |
-| Off-season | everybody at once (§4 item 3) |
+| The draft (`v3n`) | **in turn order**, the opening one and each off-season's one round: the stable picking is on the clock, everybody else watches the board and the picks land live, and the waiting line says "Waiting on Ruby — the draft" |
+| Off-season | ~~everybody at once (§4 item 3)~~ — since `v3n` it is the draft's one round, in turn order (row above) |
 
 ⚠️ *Corrected at `v3l3` (GDD_V3 L3b):* this table said a waiting stable could also "pick next week's
 diet". The engine takes a diet (`SetDogState`) only from the stable on the clock, in `planetPre` or
@@ -378,6 +386,9 @@ picker. They read a `GameState`; online it is a view.
   `main`, that means Jesse pushes when nobody is playing.
 - The Pages site and the Worker deploy separately, so for a few minutes after a push an old web build
   can meet a new room: that is exactly the `reload` case.
+- *`v3n`:* the draft changed a rule and the view's shape (`drafts`, `DraftPick`, a public off-season) and
+  `PROTOCOL_VERSION` **stayed 1**, on purpose: nothing has been deployed, so no browser holds an older 1.
+  L4's first deploy freezes whatever 1 is then, and it has the draft.
 
 ---
 
@@ -610,6 +621,10 @@ the table's watching.
 | 🎲 Did anybody need the host's "Let an AI play for them"? | 🎲 |
 | 🎲 Did moving on alone after the races spoil anything? | 🎲 |
 | 🎲 Forty minutes for four players online? | 🎲 (pillar 6, measured by the pace timer per browser) |
+
+*`v3n`: this row still stands as written. The draft was built before L4, so L4's first deploy is the one
+that freezes `PROTOCOL_VERSION` 1 with the draft in it; the evening online will be the first to play
+the draft in turn order across houses.*
 
 ---
 

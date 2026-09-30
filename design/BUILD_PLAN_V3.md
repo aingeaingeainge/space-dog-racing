@@ -3,7 +3,7 @@
 > **Status: CURRENT.** Build from this document.
 >
 > Canonical copy: `design/BUILD_PLAN_V3.md` in the `space-dog-racing` repo. A copy in a claude.ai
-> Project is a **mirror**, last synced 30 September 2026 (at `v3m`) — edit the repo, never the mirror. See
+> Project is a **mirror**, last synced 30 September 2026 (at `v3n`) — edit the repo, never the mirror. See
 > `design/CANON.md`.
 >
 > Supersedes `design/BUILD_PLAN.md` from §6 onward. **That document's §§1–5 — architecture, tech
@@ -616,6 +616,18 @@ screen text and `SAVE_VERSION` 13; GDD_V3 §2.2, §10, §11 and V23.
 > Title's build panel names the build, a seed link carries AI names (GDD_V3 M1), a door's art stays in its
 > column on a phone, the final standings read at 390 — and `npm run hotseat-shots`. No engine or room change.
 > Notes: `claude/V3_PHASE_M_NOTES.md`.
+>
+> **Phase N** `v3n` ✅ (30 September 2026, not an L phase, built before the evening and before L4): **the
+> draft** (GDD_V3 V29–V33). A game opens on a six-round snake draft of four dogs and two trainers from a
+> public board rated 45–55; the off-season is one round of it, last on the standings first, from a board
+> of one dog a stable rated 40–60 plus the unemployed trainers — a dog (retiring one of yours), a
+> trainer, or a pass. `DraftPick` replaced `Retire` and `ResolveStaffNotice`; `screens/Draft.tsx` is a
+> public screen for both drafts; online the draft is in turn order. `STATE_VERSION` / `SAVE_VERSION` 14,
+> `PROTOCOL_VERSION` still 1 (nothing deployed). Both goldens moved once. Jesse made three calls from
+> measurements: one dog a stable at the off-season, the opening board at 45–55, and the off-season
+> board's own 40–60. Two §11 rows stay out of band, knowingly: draft position (the first pick's edge,
+> 4–5 points in all-AI tables) and V23's long-game rows. `npm run harness -- --draft` measures them.
+> Notes: `claude/V3_PHASE_N_NOTES.md`.
 
 ---
 

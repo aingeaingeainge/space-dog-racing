@@ -3,7 +3,7 @@
 > **Status: CURRENT.** Build from this document.
 >
 > Canonical copy: `design/GDD_V3.md` in the `space-dog-racing` repo. A copy in a claude.ai Project
-> is a **mirror**, last synced 30 September 2026 (at `v3m`) — edit the repo, never the mirror. See `design/CANON.md`.
+> is a **mirror**, last synced 30 September 2026 (at `v3n`) — edit the repo, never the mirror. See `design/CANON.md`.
 >
 > Supersedes `design/GDD.md` (v2, shipped at tag `v2e`), which is kept as historical reference and
 > is cited by name throughout this document.
@@ -124,19 +124,25 @@ into season 2, which is §14 Q6's worry.*
 
 ### 2.2 Between seasons — the off-season
 
-Multi-season play needs dogs to turn over, or a 5-season game ends with everyone shepherding three
-seven-year-olds. Between seasons, in one short screen:
+Multi-season play needs dogs to turn over, or a 5-season game ends with everyone shepherding four
+seven-year-olds. Between seasons, on one public screen (**rewritten at `v3n` for V32**):
 
 1. **Every dog ages one year.** Growth and decline apply per §4.3.
-2. **The retirement window.** Each stable *may* retire exactly one dog. If it does, a replacement
-   is offered under §5.2's partial-information rules — you see what you are being offered before
-   you accept, but not everything. Retiring pays out the dog's book value.
-3. **Staff notice.** Each member of staff has a small chance ⚖️ of leaving for a better stable. A
-   stable below two staff is offered one candidate.
+2. **Staff notice.** Each member of staff has a small chance ⚖️ of leaving for a better stable. The
+   table reads who left.
+3. **One round of the draft** (V32), **in reverse order of the season's standings** — last place picks
+   first — from a fresh public board: one dog a stable ⚖️, rated evenly across 40–60 ⚖️ with the styles
+   spread as in §5.5, ages 1–4, plus every trainer nobody employs (bar this off-season's leavers), up
+   to one a stable. On its pick a stable **takes a dog** and retires one of its own, paid its book
+   value; **takes a trainer**, letting one go if it has two (a stable the notice left short simply
+   takes one); or **passes**. One press to pass, two to pick.
 4. **Cash, cargo and net worth carry over untouched.** The circuit reshuffles and prices reset.
 
-That is the whole off-season: at most three clicks, and it exists so a long game has an arc rather
-than a slow decay.
+That is the whole off-season, and it exists so a long game has an arc rather than a slow decay.
+
+*⚠️ The three notes below are the record of the off-season before V32: the retirement offer (E4, E5),
+the long rest (E9, still true) and V23's breeder's pick. **The retirement window, the staff candidate
+and the breeder's pick are superseded by V32's draft**; the ageing and the long rest are not.*
 
 *Built at `v3e1` (E4, E5): the order is age, then retirement, then the staff notice. The stable sees
 the replacement first (§9.2's age, one true stat and patter that lies at 0.35) and then chooses
@@ -161,6 +167,17 @@ the stable sees the age, one true stat and the patter, and can keep them all. Th
 who gets it ("Last at the table: … gets the breeder's pick"), and their retirement window says why.
 Why dogs: in a long game the back of the table stayed at the back because its dogs were worse, not
 because it had less cash (§11, `v3i`).*
+
+*`v3n` (V32, N1, Jesse's calls): **the off-season draft**, as step 3 now reads. `DraftPick` replaced
+`Retire` and `ResolveStaffNotice`. It is in turn order — a pick takes something off a shared board — so
+L1a's "any order" is gone, and it is public, so nobody passes the laptop. Built first at 1.5 dogs a
+stable on the opening board's range, it helped the back of the table less than V23 had (600 five-season
+games: the poorest at season 3 finishing top 3, 30.7% → 26.5%; the poorest at the last season's start
+having its biggest gain, 12.0% → 7.2%). Jesse picked one dog a stable, and — when he also narrowed the
+opening board to 45–55 (§5.5) — a range of the off-season board's own, 40–60 (N1): **27.0% / 9.3%**, still
+under V23's, knowingly (§11). Normal takes the best item on the board if it beats what it would let go
+by `aiDraftMargin` (500 Bones), and otherwise passes: in 5-season games 62% of its picks are a dog, 15% a
+trainer and 23% a pass. Kennels age more than they did: at season 5's start 14% of dogs are seven (`v3m` 2%).*
 
 ### 2.3 The weekend
 
@@ -229,7 +246,9 @@ arrival, the locked board, race day, the results (every stable's purses, nobody'
 reads their own settled slips on their next private screen), the roll-call after the races, and the
 season's and game's end. The pass screen says who is next and why, and never shows to the human already
 holding the laptop. `hub-clicks`: 14.5 → 10.7 passes a weekend at four humans (with two AIs), 30.4 →
-22.4 at eight; presses a human 13.8 → 12.9 and 14.1 → 13.1. Explore and the Market/Race Office sitting
+22.4 at eight; presses a human 13.8 → 12.9 and 14.1 → 13.1. *(`v3n`: the off-season is public now — it
+is the draft, V32 — and so is the opening draft; the Grand Final's slips no longer have a private screen
+after them.)* Explore and the Market/Race Office sitting
 are still one pass each a human, because both are in turn order and one must finish before the other
 opens.*
 
@@ -287,6 +306,12 @@ races two weeks in three starts a season near 90 and finishes near 60 — fresh 
 with the exotic foods' fitness bonuses (§6.3) mattering more as the season goes on. Across ten
 weekends a stable should fill roughly **two of the three races** most weeks, which is the number the
 card is built around **[estimate — the first thing Phase A must measure]**.
+
+*`v3n` (V33): **four dogs.** With four dogs and three races a stable can race three and rest one every
+week, so the card fills more often: races entered went 2.12 → 2.67 a weekend (the band moved to 2.2–2.8,
+§11), races a dog a season 6.6 → 6.3, fitness at declaration 69.7 → 74.7 and the share under 60 22.8% →
+13.3%, all in band, with Race −20 and Rest +30 untouched. A stable starts with 7 crates, not 5: four dogs
+eat four a week, so it has the same weeks of food.*
 
 A dog that is **injured or banned** is in a fourth state, **Layoff**, which is imposed rather than
 chosen and recovers like Rest. It is derived, never stored.
@@ -477,6 +502,17 @@ other, "you got better dogs" is the complaint that ends the evening.
 
 *Amended at `v3c` (C1, Jesse's call): an equal stat total is not an equal dog when the rating weights
 are 0.40 / 0.35 / 0.25 — it dealt 44–55. Every dealt dog now rates exactly 50, with its shape drawn.*
+
+*⚠️ **Superseded at `v3n` by the draft (V29–V31, V33): nothing is dealt.** Every stable drafts **four dogs
+and two trainers** in a six-round snake (round 1 drawn, each round reversed) from a public board of five
+dogs and three trainers a stable (at most the 24). The board shows every dog's age, stats, rating, book
+value **and running style**, so a drafted dog's style is public from the start and there is nothing left
+to eliminate (the Pound's dogs still arrive unknown, §5.4). The board's dogs are **not** equal: rated
+evenly across a range ⚖️ — each run of three ratings carries all three styles, so no style is the strong
+one and a table can always build one of each — so a pick matters, and the snake is what keeps it fair.
+C1's lesson still shapes each dog: its rating is its budget and its shape is drawn. Built at 40–60;
+**45–55 at Jesse's call** (§11's draft-position row). Normal ends the draft with all three styles 77–90%
+of the time; a human can do as they like.*
 
 ### 5.6 What the bookie knows
 
@@ -715,7 +751,8 @@ says whether split view is worth building.*
 
 - **Two slots. Everyone is a trainer.** No roles, no ladder, no market.
 - **Dealt at the start of a game.** The only way to change staff is a random event or the
-  off-season notice.
+  off-season notice. *(`v3n`, V29: **drafted**, not dealt — two each from the opening board — and the
+  off-season draft can take one on, letting one go if the staff is full.)*
 - **Paid a percentage of race prize money, 1–10%** ⚖️, roughly proportional to how good their
   bonuses are. **Not** a wage.
 - **The cut is on race prize money only** — not betting returns, not trading profit, not the sale
@@ -869,7 +906,9 @@ appetite or buzz on a stable dog, which the book never prices: a tipped buzzing 
 
 Down from eleven to seven. The Docks and the Saloon are gone entirely.
 
-1. **Title / New game** — players, seasons or target, toggles, seed.
+1. **Title / New game** — players, seasons or target, toggles, seed. *(`v3n`: then **the draft**, a public
+   screen: the board, the pick order round by round, every stable's picks. The off-season is the same
+   screen in its one-round form.)*
 2. **Galaxy map** — this planet in full, next week's name, the rest hatched.
 3. **Planet hub** — backdrop with four hotspots: Explore, Market, Kennel, Race Office. Plus the
    Bookie, which opens after declarations lock.
@@ -932,7 +971,7 @@ v2's harness survives and most of its measures still mean something. New and cha
 |---|---|---|
 | Season length, 4 players, no race animation | ≤ 25 min | §1's forty minutes with watching included |
 | Decisions per weekend per player | ≤ 10 | §10.1 |
-| Races entered per weekend, per stable | 1.8–2.4 of 3 | §4.2's fitness arithmetic; the card is built for it |
+| Races entered per weekend, per stable | 1.8–2.4 of 3 · **2.2–2.8 since `v3n`** (four dogs, V33) | §4.2's fitness arithmetic; the card is built for it · *`v3n`: 2.67* |
 | Races per dog per season | 5–7 | §4.2, 10 weeks |
 | A closer's win rate, 1 front-runner in the field vs 3 | ≥ 4 points better · **≥ 2 since `v3c2` (C13)** | §5.3 — **if this misses, cut the contest rule** · *`v3c`: +0.7, cut (C3)* · *`v3c2`: the hot pace, +2.3 against the +2 floor Jesse set* |
 | Winning margin, median / photo finishes | 4–7 m / ≥ 3% | §14 Q11 · *`v3c2`: 6.3 m / 3.5% (v3c 10.6 m / 1.8%)* |
@@ -946,6 +985,8 @@ v2's harness survives and most of its measures still mean something. New and cha
 | Out at the start of a long game's last season (E7's test with the whole season's purses left) | reported · *`v3i`: 0.1%* | pillar 5: nobody is out before the end *(V23)* |
 | The poorest stable at the start of season 3 finishes a 5-season game in the top 3 | reported · *`v3i`: 31% (chance 50%)* | pillar 5: the back of the table can come back *(V23)* |
 | The poorest stable at the last season's start has that season's biggest gain | reported · *`v3i`: 14% (chance 17%)* | pillar 5: "something interesting on week 9" *(V23)* |
+| **Win rate by opening draft position** (all Normal, 1,000 one-season games at 3, 6 and 8 stables) | every position within ±3 points of fair | V29: the snake is what keeps a draft of unequal dogs fair · *`v3n`: missed, knowingly (see below)* |
+| Start worth spread, first pick to last, before week 1 | reported | V31 · *`v3n`: 520–800 Bones (about 2% of it)* |
 | Seed + action log reproduces a game | exactly, on any JS engine | unchanged and non-negotiable |
 
 *Measured at `v3e1` (`--game`, six Normal):*
@@ -991,6 +1032,27 @@ V22):*
   **41.3%**; at its start 0.1%; last → top 3 from seasons 3 / 4 / 5: 31% / 18.5% / 6%; the last season's
   leader overtaken 29% (22%); last wins the last season 14%; 1st-to-last gap 60,868 (67,668). One-season
   games are untouched (42,334, 0.8% poorer, gap 26,510). Hard vs Normal 62.1% → 61.6%.*
+
+*Measured at `v3n` (the draft, V29–V33; `npm run harness -- --draft`, and `--game` at 600 games a mode):*
+- *Races entered 2.12 → **2.67** a weekend (band 2.2–2.8 ✅); races a dog a season 6.6 → 6.3 ✅; fitness at
+  declaration 69.7 → 74.7 and under 60 22.8% → 13.3% ✅. Nothing tuned.*
+- *Draft position, the widest gap from a fair win rate at 3 / 6 / 8 stables: **4.4 / 5.2 / 4.7 points** ❌
+  (one standard error is 1.5 / 1.2 / 1.0). The first pick's edge is the board's one best dog and the
+  trainers: five of the 24 give +10% prize money, all-Normal tables take their dogs first, so the last
+  seat of six never gets one. Swept: the rating range (40–60 4.0 / 3.4 / 7.1; 42–58 3.1 / 3.9 / 5.5;
+  45–55 as above; 47–53 3.7 / 3.4 / 5.4), a bigger board (seven dogs a stable 1.9 / 5.4 / 5.7), the
+  trainers re-priced by D12's regression (2.4 / 4.4 / 5.3). **Jesse's call: 45–55, and watch it at the
+  evening** — people will not draft like six identical AIs.*
+- *V23's long-game rows (600 five-season games): the poorest at season 3 finishing top 3 **27.0%**, the
+  poorest at the last season's start having its biggest gain **9.3%** ❌ against `v3i`'s 31% / 14%
+  (`v3m`, re-measured at 600: 30.7% / 12.0%). Kept, knowingly, at Jesse's calls (V32, N1): four dogs
+  dilute one new dog, and everybody drafts at the off-season where V23 gave only the last stable a
+  better dog.*
+- *Mean end worth, one season: 42,495 → 55,249 (reported, V22): a stable starts on four dogs and two
+  drafted trainers (start worth about 30,500, was 23,600). Poorer than they started 0.4–0.6% (reported).
+  Commission is 11.7% of purses. D12's regression on drafted trainers: +10% prize money +1,201 (± 282)
+  and +5 recovery +792 (± 316) Bones of end worth a bonus, injuries halved −1,795 (± 326), the style read
+  −1,125 (± 439) (§14 Q13); reported, nothing re-priced.*
 
 ⚠️ **Two v2 measures are retired.** `bankruptRate` has nothing to measure. The three-road printout
 (`trainer` / `trader` / `crook` agents) goes with the three roads — v3 has one road with a trading
@@ -1106,13 +1168,13 @@ All 18 planets survive as data. What changes is which fields do work:
 | 2026-09-25 | **E11 — the pace timer is UI-only** | Wall-clock seconds a weekend, arrival to "Fly on", split into private screens, race day, pass screens and the table's own screens, plus the time between seasons. Kept in the save's `ui` block, never in state or the log. A stretch counts ten minutes at most; a hidden window stops it. Read back on the game-end screen. It exists for the four 🎲 rows |
 | 2026-09-28 | **V21 — a flat stake ceiling is back: a stable's stake on one race is the lesser of 50% of cash and 1,000 Bones; Neon Snout doubles it** | Jesse's two-season game at `v3f2` (one human against five AIs): Sly Pete Manx, Hard, won on 285,151 with +197,908 from betting against 55,875 in purses; the best racing stable (13 wins, 5 Gold Cups, the most prize money) finished on 94,054; the other Hard stable lost 19,721 betting. Hard stakes a share of its cash, so its bets compound, and §7.4's 50% could not bind it. BUILD_PLAN_V3 §2.1 cut v2's flat ceiling as a guard against borrowed bankrolls; this one guards against compounding. Jesse's picks: only the cap changes (no odds cap, no change to Hard), one flat number from the sheet, 1,000 from a sweep of none / 1,000 / 1,500 / 2,000 / 3,000 / 5,000 (2 Hard + 4 Normal, two-season games): won by a stable whose betting beat its purses 32.5% → 5.3%, the most-prize stable wins 55.9% → 63.5%, Hard's betting p10/p90 −27,704 / +107,037 → −15,198 / +33,302. Neither golden moved (both are six Normal stables, whose stakes are under 500). `SAVE_VERSION` 12 |
 | 2026-09-28 | **V22 — food stays the only running cost, at one crate a dog a week; §11's end-worth and poorer-than-they-started rows stay out of band, knowingly** | Phase H measured the two rows that had been ❌ since `v3e1`, then swept four levers with the harness's new `--set` (six Normal stables, one season): the dog value curve (2.2 → 1.8 / 1.4 / 1.0), trainers' cuts (×1.5 / ×2 / ×3), crates a dog eats a week (1 → 2 / 3 / 4), and a new kennel rent a dog a week (150 / 250 / 300 / 350). Only the rent (300: 33.7k end worth, 15.2% poorer) and 3–4 crates (3: 34.9k, 11.6%) reached both bands. Jesse turned down both. The rent is "kind of pointless, if anything it punishes the poorer players the most". The extra crates: "leave it at 1 crate a week, it doesn't matter if people get a bit richer, as it is the same for everyone". Nothing changed in the engine or the sheet. The goldens did not move, and `SAVE_VERSION` stays 12. The rows are now reported, not tuned. |
-| 2026-09-29 | **V23 — the draft: at the off-season, the stable last on the season's standings is offered a replacement 15 points above the ordinary** | Phase I measured the long game. E7's 48.8% (week 8, last season, 5-season games) is mostly the window: at the last season's start only 0.8% are out. But the back of the table did not come back (the poorest at season 3's start finished top 3 in 12% of games, against 50% by chance), and the reason was dogs: the richer half declared dogs rated 2.6 higher and won 8.9k more in purses a season, with trading, betting, cash and trainers level. Swept with `--set` and two scratch rules: trainers' cuts ×1.5 / ×2 / ×3; the last stable arriving first (+3 / +6 / always); the draft (+8 / +15 / +25 / +15 for the bottom three). Jesse's pick: **the draft at +15**, a sheet row (`draftLevelShift`). It goes at the cause, it is an offer the stable reads and can decline (pillar 2), and it only touches games with an off-season. Last → top 3 from season 3: 12% → 31%; last wins the last season 6% → 14%; out at week 8 of the last season 48.8% → 41.3%. E7 is kept as defined, alongside three new reported rows in §11. Both goldens moved (the one-season golden only by `STATE_VERSION` 13 in its hash); `SAVE_VERSION` 13 |
+| 2026-09-29 | **V23 — the draft: at the off-season, the stable last on the season's standings is offered a replacement 15 points above the ordinary** | Phase I measured the long game. E7's 48.8% (week 8, last season, 5-season games) is mostly the window: at the last season's start only 0.8% are out. But the back of the table did not come back (the poorest at season 3's start finished top 3 in 12% of games, against 50% by chance), and the reason was dogs: the richer half declared dogs rated 2.6 higher and won 8.9k more in purses a season, with trading, betting, cash and trainers level. Swept with `--set` and two scratch rules: trainers' cuts ×1.5 / ×2 / ×3; the last stable arriving first (+3 / +6 / always); the draft (+8 / +15 / +25 / +15 for the bottom three). Jesse's pick: **the draft at +15**, a sheet row (`draftLevelShift`). It goes at the cause, it is an offer the stable reads and can decline (pillar 2), and it only touches games with an off-season. Last → top 3 from season 3: 12% → 31%; last wins the last season 6% → 14%; out at week 8 of the last season 48.8% → 41.3%. E7 is kept as defined, alongside three new reported rows in §11. Both goldens moved (the one-season golden only by `STATE_VERSION` 13 in its hash); `SAVE_VERSION` 13. ⚠️ *Superseded at `v3n` by V32: every stable drafts at the off-season, last on the standings first* |
 | 2026-09-29 | **V24 — online, the room holds the game and each browser gets only its own seat's view** | Phase K walked `GameState` field by field: the seed and `rng`, the dark calendar, next week's market, every stable's Explore stream, doors and cards, a pending offer's true stats and lie, hidden styles, race-day conditions, jobs, bets, intel, You Paid, off-season offers and private log lines are all secret (`ONLINE_PLAN.md` §3.1). The old M6 spec broadcast actions for every browser to replay, which puts all of it in devtools and shows every door and bet as it is made. Jesse's pick over "everyone gets everything" and "server holds it, sends it all": pillar 4 by construction, and no UI slip can spoil anything. Cost: an engine `viewFor` and its tests; a press is a round trip; ~6 MB a seat a season on the wire. No rule changes |
 | 2026-09-29 | **V25 — online, no turn timer: the waiting line names who and how long, and anybody can nudge** | Jesse's pick over an optional or fixed 90 s timer. The Market/Race Office sitting stays in turn order (the shelf, the public board); Explore's door can be chosen early and is applied in turn order, and the off-season is answered at once. Never takes a decision away from a friend; the cost is that one dawdler can stall the table, which the evening online will show |
 | 2026-09-29 | **V26 — online, a dropped seat waits; the host can let a Normal AI play it until its human is back; no kicking** | Jesse's pick over an automatic takeover after two minutes and plain waiting. The stand-in is the room calling `decide` for the seat, so the log is ordinary actions and the engine does not change. If the host is the one away, the next connected human in seat order has the button |
 | 2026-09-29 | **V27 — online race day: every browser plays the same tick logs, and each moves on alone** | Jesse's pick over waiting for the table and a host-driven shared replay. The engine is past race day before anybody watches, so no watcher holds anybody up; the cost is spoilers across a voice call, which are the table's business |
 | 2026-09-29 | **V28 — online joining: a link that also shows a six-letter code; a name and a face at the door; one seat a browser** | Jesse's pick over link-only and hotseat inside an online room. No accounts. The host sets the length and the AI seats and presses Start. Two people on one laptop in an online room waits until asked for |
-| 2026-09-29 | **L1a — the off-season is answered in any order, and filed as if in turn order** | V25's "the off-season is answered at once", built at `v3l1`. §2.2 unchanged: every answer was rolled when the off-season opened and none draws. Two things did depend on order, both bookkeeping: a replacement dog takes the next id, and each answer appends to the log. They are re-filed as turn order would have them (the Bookie's `slipIndex` pattern, E8), so all 24 orders of four stables give one state, byte for byte. Hotseat still asks in turn order. Neither golden moved |
+| 2026-09-29 | **L1a — the off-season is answered in any order, and filed as if in turn order** | V25's "the off-season is answered at once", built at `v3l1`. §2.2 unchanged: every answer was rolled when the off-season opened and none draws. Two things did depend on order, both bookkeeping: a replacement dog takes the next id, and each answer appends to the log. They are re-filed as turn order would have them (the Bookie's `slipIndex` pattern, E8), so all 24 orders of four stables give one state, byte for byte. Hotseat still asks in turn order. Neither golden moved. ⚠️ *Superseded at `v3n` by V32: the off-season is one draft pick, in turn order* |
 | 2026-09-29 | **L1b — a seat's view hides two things Phase K's list did not: another stable's private counters and its lucky bone; cash stays public** | Found building `viewFor`. `betIncome`, offers, tips, nobbles, boxes and trainer offers are counted the moment they happen, so they would have said "Ruby just booked a nobble"; a lucky bone's `raceBonus` is a card's edge. Both are hidden from other seats until the season's archive. Cash, which a nobble, a box, a tip or a stake leaves at once, stays public: it is the scoreboard (pillar 4). A view says Ruby spent 300 Bones, never on what. `ONLINE_PLAN.md` §3.1 |
 | 2026-09-30 | **L2a — online, a seat taken in the lobby is kept if its browser closes; the host is the first to sit down** | The plan was silent. Built at `v3l2`: a closed browser takes its seat back with its token, before or after Start. Nobody can free it (V26: nobody is kicked), so the game starts with it and the host can let a stand-in play it. A name is 1–24 letters; a face is required, and a face another human holds is refused, as in hotseat. `ONLINE_PLAN.md` §5.5 |
 | 2026-09-30 | **L2b — online, a stand-in at the Bookie and in the off-season waits for its place in the turn order; a stand-in weekend is one it pressed in** | Built at `v3l2`. `decide` plays only the active stable, so a stood-in seat bets and answers when the turn order reaches it, exactly as an AI seat does; a human ahead of it is still free to go first. The report's "played by an AI for N weekends" counts the weekends in which the stand-in pressed anything for the seat. `ONLINE_PLAN.md` §5.3 |
@@ -1120,6 +1182,12 @@ All 18 planets survive as data. What changes is which fields do work:
 | 2026-09-30 | **L3b — online, a stable waiting its turn cannot change a diet; it sets it in its own sitting, as in hotseat** | §5.1 had said a waiting stable could "pick next week's diet". The engine takes `SetDogState` only from the stable on the clock, in `planetPre`/`planetPost`, and the engine does not change for online play, so the Kennels are read-only while waiting. Everything else §5.1 lists is as planned: the kennel, the leaderboard and the map to read, the board filling live, a door and "Fly on" chosen early (held), the Bookie and the off-season at once. `ONLINE_PLAN.md` §5.1 |
 | 2026-09-30 | **L3c — online, Play again is the host's, and everybody follows into a new room** | Built at `v3l3`, §2.6: the host's Play again on the game's end has the old room make a successor with the same seats (names, faces, tokens), AI rows, length and seed, and every browser follows it; a browser opening the old link later is sent on too. The others see "if the host presses Play again, this browser follows", and a Leave button. `ONLINE_PLAN.md` §2.6 |
 | 2026-09-30 | **M1 — a seed link carries the names the table gave its AIs** | Built at `v3m`: an AI the table named draws its personality from the game's stream (`createSeason`), so a link without its name opened a different game. `seasonLinkFor` adds `names=` when an AI row has a typed name (one encoded entry a stable, in seat order, empty where none is needed: `&names=,Gravy%20Train,,`); a table that named no AI keeps exactly its old link, and a link without `names=`, or with one that will not decode, parses as before. Human names touch no draw and stay out of the link. The engine keeps its draw, so no golden, save or old link moves. `claude/V3_PHASE_M_NOTES.md` |
+| 2026-09-30 | **V29 — the opening draft: every stable holds four dogs and two trainers, picked in a six-round snake from a public board; nothing is dealt** | Jesse's call before Phase N: "change the start of the game so players select their dogs and trainers in a draft style". Round 1's order is a shuffle of the stables, round 2 reverses it, and so on. On its pick a stable takes one dog or one trainer; a full kennel takes trainers and full staff takes dogs. The board is five dogs and three trainers a stable (at most the 24) and drawn from the game's stream, so the seed gives the board and the order. It replaced §5.5's deal and §8.1's two dealt trainers. `DraftPick`, a `draft` phase before week 1's arrival; `STATE_VERSION` / `SAVE_VERSION` 14 |
+| 2026-09-30 | **V30 — the board shows everything, the running style included; every drafted dog's style is public from the start** | A pick is a judgement only if the table can see what it is choosing between. A dog from the Pound still arrives style-unknown (§5.4, §9.2). Nothing about a draft is secret online: `SEAT_SECRETS` has no row for it |
+| 2026-09-30 | **V31 — the board's dogs are not equal: rated evenly across a range, each style spanning it** | So a pick matters and the snake order is what keeps it fair. Replaces §5.5's "every dealt dog rates 50, one of each style". Each run of three ratings carries the three styles in a shuffled order, so no style is the strong one and a table can always build one of each. Built at 40–60; 45–55 at Jesse's call (§11) |
+| 2026-09-30 | **V32 — the off-season is one round of the same draft, last on the standings first, from a fresh board** | A dog (retiring one of your own at book value), a trainer (letting one go if you have two), or a pass. Replaces the retirement offer, the staff candidate and V23's breeder's pick; the ageing and the staff notice still come first. In turn order, so L1a's any-order is gone. One dog a stable at Jesse's call, after the build at 1.5 helped the back of the table less than V23 (§2.2, §11) |
+| 2026-09-30 | **V33 — four dogs, not three** | The kennel is four, and the Pound's "discard one to take one" keeps it four (its card offers four slots). Measured, not retuned: races entered 2.67 a weekend against a new band of 2.2–2.8, races a dog 6.3, fitness in band. The starting crates went 5 → 7 so a stable starts with the same weeks of food |
+| 2026-09-30 | **N1 — the off-season board has a rating range of its own, 40–60, while the opening board is 45–55** | Jesse's two calls pulled against each other: with one range, narrowing the opening board for fairness also took the good dog away from the last stable at the off-season (the long-game rows read 20.5% / 7.7%). Two sheet cells, `offDraftRatingMin` / `Max`: 27.0% / 9.3%, against 26.2% / 9.3% at one dog a stable on 40–60. Jesse's pick of the two |
 
 ---
 
@@ -1179,6 +1247,12 @@ All 18 planets survive as data. What changes is which fields do work:
    finishes. Whether the last metres look like braking is the question to watch. Jesse's `v3c2` playtest:
    finishes feel "a little" closer, and he did not notice the run-in at all — so it does not read as
    braking. Nothing felt worse than `v3c`.*
+
+13. **Is the trainer who reads a rival's style worth having now?** *`v3n`:* D11's style read makes the
+   best unread rival dog public, once a week. Since the draft, every dog a stable starts with is public
+   (V30), so the read only ever finds a dog that came from the Pound — and D12's regression, run on
+   drafted trainers, prices the bonus below zero (−1,125 ± 439 Bones of end worth; a fair cut of −1.7% against its 2%). Not
+   redesigned: it is Jesse's to say whether the bonus becomes something else.
 
 ---
 

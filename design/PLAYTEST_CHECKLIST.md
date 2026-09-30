@@ -2,11 +2,13 @@
 
 > **Status: CURRENT (the top section).** Canonical copy: `design/PLAYTEST_CHECKLIST.md` in the
 > `space-dog-racing` repo. A copy in a claude.ai Project is a **mirror**, last synced 30 September
-> 2026 (at `v3m`), for reading on a phone at the table — edit the repo, never the mirror. See
+> 2026 (at `v3n`), for reading on a phone at the table — edit the repo, never the mirror. See
 > `design/CANON.md`.
 
 > **Current section: "v3 Phase J — the evening", directly below.** It is one plan for one evening with
-> friends, written at tag `v3j`, and it carries every 🎲 row still open. Below it, kept as the record:
+> friends, written at tag `v3j`, and it carries every 🎲 row still open. **At `v3n` it gained the draft**
+> (rows 28–32 and questions 1.9–1.12; rows 16–17 and questions 2.5–2.6 rewritten for the off-season
+> draft): every game now opens on one. Below it, kept as the record:
 > **"v3 Phase E2 — the table"** (the `v3e2` checklist, superseded by this one; nothing in it was
 > answered) and **v1's checklist (milestone M1)**, whose venues no longer exist.
 
@@ -40,8 +42,8 @@ remember anything: the report carries it.
 | 13 | Did an event make a story? | `v3d1` Q2 | Game 1, question 1.7 |
 | 14 | Does the week have too many clicks? Is Explore worth its press? | `v3d1` Q5, `v3d2` Q5, §14 Q12 | Game 1, question 1.8 |
 | 15 | A big bet still feels worth making; Neon Snout is still the place for one; is 1,000 right | `v3g` Q1, Q4, `v3h` Q4 | Game 2, question 2.4 |
-| 16 | Was the retirement a real decision (and the draft's offer)? | `v3e1` Q2, `v3e2` Q5 | Game 2, question 2.5 |
-| 17 | Did the back of the table still have something to play for? (the draft, V23) | `v3i` Q2 | Game 2, question 2.6 |
+| 16 | Was the off-season pick a real decision — a dog (retiring one), a trainer, or a pass? (V32; it replaced the retirement window) | `v3e1` Q2, `v3e2` Q5, `v3n` | Game 2, question 2.5 |
+| 17 | Did the back of the table still have something to play for? (last picks first, V32; it replaced V23) | `v3i` Q2, `v3n` | Game 2, question 2.6 |
 | 18 | The Hard AI is too strong / about right / too soft | `v3d2` Q4, `v3h` Q3, `v3i` Q3 | Game 2, question 2.7 |
 | 19 | Does the best racing stable win; does the table feel right growing richer together? | `v3g` Q2, `v3h` Q1–2 | Game 2, question 2.8 |
 | 20 | Did a second season feel different from the first? | `v3e1` Q1, E2's carry-over | After, question A.1 |
@@ -52,6 +54,11 @@ remember anything: the report carries it.
 | 25 | Did the game-end screen tell the story of the game? | `v3e2` Q4 | After, question A.5 |
 | 26 | Did starting a new season fresh feel right? | E2's carry-over | After, question A.1 |
 | 27 | What next? | every checklist's last row | After, question A.6 |
+| 28 | **How long did the opening draft take at the table?** | `v3n` | **Game 1**, the clock (the report's time "between seasons" is the opening draft in a one-season game) and question 1.9 |
+| 29 | **Did picking feel fair?** (the first pick wins 4–5 points more than fair in all-AI tables) | `v3n` | Game 1, question 1.10 |
+| 30 | **Did anybody end the draft with a lopsided kennel?** | `v3n` | Game 1, question 1.11 |
+| 31 | **Are four dogs too many to manage?** | `v3n`, V33 | Game 1, question 1.12 |
+| 32 | **The off-season pick in game 2** | `v3n`, V32 | Game 2, questions 2.5–2.6 |
 
 **Closed before the evening, not asked again:** `v3f2`'s cards (Jesse, at `v3g`: "great", nothing
 unfinished); `v3f1` Q5 (the cards were drawn at `v3f2`); `v3d2` Q5's plan-the-week press (folded into
@@ -59,7 +66,7 @@ row 14); `v3e2` Q1 and Q3 (the clock and the report now carry them).
 
 ### Before anyone arrives
 
-- **Push `v3j`** and open the game from the live site, so the report's first line says `v3j`.
+- **Push `v3n`** and open the game from the live site, so the report's first line says `v3n`.
 - One laptop, charged, on the table. A phone with this sheet on it (it is mirrored to the Project).
 - Nothing to start or stop: the game times itself. **The clock stops while the window is hidden** and
   counts at most ten minutes on one screen, so dinner in the middle is fine.
@@ -97,13 +104,17 @@ game answers 1.2 before anybody explains the market.
 | 1.6 | **Did the passing feel right?** | Yes, it only moved when it had to · Too many passes · Someone saw something they shouldn't · Unclear whose turn it was |
 | 1.7 | **Did an event make a story?** | Yes, someone told it later · One or two did · They felt like bookkeeping |
 | 1.8 | **Does a weekend have too many clicks?** | No · A little, it's Explore · A little, it's the market · Yes, noticeably slow |
+| 1.9 | **The opening draft: how long did it feel?** (the clock has the minutes) | Quick, and fun · About right · Dragged |
+| 1.10 | **Did picking feel fair?** (who was drawn first, and did it matter?) | Yes, the snake evened it out · The first pick got the best of it · The last pick got the worst of it |
+| 1.11 | **Did anybody end the draft with a lopsided kennel?** (all one style, or four weak dogs) | No · One stable, by choice · One stable, and it hurt them |
+| 1.12 | **Four dogs** | Right: three race, one rests · Too many to keep track of · Would rather have three |
 
 ### Game 2 — the long one (about 80 minutes)
 
 **4 humans + 2 AIs, one Normal and one Hard · 2 seasons (3 if the table is keen) · races watched.**
 Watch every race; skip only a race nobody has a runner or a bet in. **Somebody bet big at Neon Snout.**
-Retire a dog at the off-season at least once, and whoever is last after season 1 reads their draft
-offer aloud.
+At the off-season draft, whoever was last after season 1 picks first and says why they took what
+they took; somebody takes a dog (retiring one of theirs) at least once.
 
 Why second: the table now knows the rules, so the clock measures play, not teaching; the long game is
 the only way to reach an off-season, the draft and a Hard AI's whole game.
@@ -114,8 +125,8 @@ the only way to reach an off-season, the draft and a Hard AI's whole game.
 | 2.2 | **The finishes** (§14 Q11) | Close enough to shout at · Too strung out · The last metres look like braking |
 | 2.3 | **Sabotage** (§14 Q1) | Better — the story of the night · Better, but it should cost more · Worse — it felt spiteful · Nobody nobbled anyone |
 | 2.4 | **Betting under the 1,000 cap** | A big bet was worth making, and Neon Snout felt different · Only at Neon Snout · Not worth it, 1,000 is too small · Nobody bet big |
-| 2.5 | **The off-season: was the retirement a real decision?** | Yes, weighed the offer against my dog · Easy, an old dog had to go · Kept them all · The offer was never worth it |
-| 2.6 | **Did the stable at the back still have something to play for in season 2?** (the draft) | Yes, the draft helped · Yes, but not because of the draft · No |
+| 2.5 | **The off-season pick: a real decision?** (a dog and retire one, a trainer, or pass) | Yes, weighed the board against my kennel · Easy, an old dog had to go · Passed · The board was never worth it |
+| 2.6 | **Did the stable at the back still have something to play for in season 2?** (last picks first) | Yes, the first pick helped · Yes, but not because of the pick · No |
 | 2.7 | **The Hard AI is** | Too strong · About right · Too soft |
 | 2.8 | **Did the best racing stable win, and was it fine that everyone got richer?** | Yes and yes · The best racer lost to something else (what?) · Too comfortable: nobody went backwards |
 
