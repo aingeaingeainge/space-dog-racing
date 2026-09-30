@@ -184,7 +184,8 @@ export function createBoardDog(
 }
 
 /**
- * A draft's dogs (GDD_V3 V31): `count` dogs **rated evenly from `draftRatingMin` to `draftRatingMax`**,
+ * A draft's dogs (GDD_V3 V31): `count` dogs **rated evenly across `range`** (the opening board's
+ * `draftRatingMin`–`draftRatingMax`, or the off-season's `offDraftRatingMin`–`offDraftRatingMax`),
  * the styles split as evenly as the count allows **and each style spanning the range** — the ratings
  * are laid out in order and each run of three takes the three styles in a shuffled order, so no style
  * is the strong one and a table can always build one of each. The board is then shuffled, so its order
@@ -197,9 +198,13 @@ export function buildBoardDogs(
   ages: { min: number; max: number },
   rng: Rng,
   nextId: IdGen,
+  range: { min: number; max: number } = {
+    min: balance.draftRatingMin,
+    max: balance.draftRatingMax,
+  },
 ): Dog[] {
-  const lo = balance.draftRatingMin;
-  const hi = balance.draftRatingMax;
+  const lo = range.min;
+  const hi = range.max;
   const ratings: number[] = [];
   for (let i = 0; i < count; i++)
     ratings.push(

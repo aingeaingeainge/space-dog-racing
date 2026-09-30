@@ -100,7 +100,8 @@ export function openOpeningDraft(ctx: Ctx): void {
 
 /**
  * Open the off-season's draft (V32), once the dogs have aged and the notices are read: a fresh board
- * of `offDraftDogsPerStable` dogs a stable (rounded up), ages `dogOfferAgeMin`–`startDogAgeMax`, and
+ * of `offDraftDogsPerStable` dogs a stable (rounded up), rated `offDraftRatingMin`–`offDraftRatingMax`
+ * (its own range since Phase N's balance commit, Jesse's call), ages `dogOfferAgeMin`–`startDogAgeMax`, and
  * every unemployed trainer bar this off-season's leavers, shuffled, up to one a stable. The order is
  * the reverse of the season's standings — §2.4's order, the one the season's end shows.
  */
@@ -112,6 +113,7 @@ export function openOffSeasonDraft(ctx: Ctx, leavers: readonly Id[]): void {
     { min: balance.dogOfferAgeMin, max: balance.startDogAgeMax },
     rng,
     ctx.nextId,
+    { min: balance.offDraftRatingMin, max: balance.offDraftRatingMax },
   );
   const staff = boardTrainers(
     rng,

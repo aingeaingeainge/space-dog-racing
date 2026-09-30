@@ -52,19 +52,30 @@ const ROWS: NewRow[] = [
   {
     section: DRAFT_SECTION,
     label: 'Draft: the weakest dog on a board (rating)',
-    value: 40,
-    note: 'V31: a board is rated evenly from this to the strongest, each style spanning the range, so a pick matters and the snake order keeps it fair',
+    value: 45,
+    note: "V31: the opening board is rated evenly from this to the strongest, each style spanning the range, so a pick matters and the snake order keeps it fair. 40–60 until Jesse's call at Phase N (45–55), which narrowed the first pick's edge at eight stables",
   },
   {
     section: DRAFT_SECTION,
     label: 'Draft: the strongest dog on a board (rating)',
+    value: 55,
+  },
+  {
+    section: DRAFT_SECTION,
+    label: 'Draft: the weakest dog on the off-season board (rating)',
+    value: 40,
+    note: "V32: the off-season board's own range, so the opening board can be narrowed without taking the back of the table's catch-up with it",
+  },
+  {
+    section: DRAFT_SECTION,
+    label: 'Draft: the strongest dog on the off-season board (rating)',
     value: 60,
   },
   {
     section: DRAFT_SECTION,
     label: 'Draft: dogs on the off-season board, per stable (rounded up)',
-    value: 1.5,
-    note: 'V32: one round, last on the standings picks first, from a fresh board of this many dogs a stable plus every unemployed trainer, up to one a stable',
+    value: 1,
+    note: "V32: one round, last on the standings picks first, from a fresh board of this many dogs a stable plus every unemployed trainer, up to one a stable. 1.5 as first built; Jesse's call at Phase N was one, so the leader's pick is the board's worst dog",
   },
   {
     section: DRAFT_SECTION,
