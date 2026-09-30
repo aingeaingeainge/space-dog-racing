@@ -30,8 +30,7 @@ describe('golden season (seed 42, 6 Normal AIs)', () => {
     expect(state.finalStandings).toHaveLength(6);
   });
 
-  // ⚠️ Phase N commit 2: skipped until the goldens are re-recorded, alone, in the next commit.
-  it.skip('matches the golden digest', () => {
+  it('matches the golden digest', () => {
     const digest = {
       seed: state.seed,
       rng: state.rng,
@@ -90,8 +89,7 @@ describe('golden game (seed 42, 6 Normal AIs, two seasons)', () => {
     expect(state.gameOver?.reason).toBe('seasons');
   });
 
-  // ⚠️ Phase N commit 2: skipped until the goldens are re-recorded, alone, in the next commit.
-  it.skip('matches the golden digest', () => {
+  it('matches the golden digest', () => {
     const digest = {
       actions: log.length,
       rng: state.rng,
