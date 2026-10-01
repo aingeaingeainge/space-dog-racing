@@ -622,6 +622,30 @@ the table's watching.
 | 🎲 Did moving on alone after the races spoil anything? | 🎲 |
 | 🎲 Forty minutes for four players online? | 🎲 (pillar 6, measured by the pace timer per browser) |
 
+**How it deploys** (*written at `v3l4`, before the deploy; `packages/server/README.md` has the same*).
+**Workers Builds**, connected to the repo, so a push to `main` is the one deploy for the site and the
+room, and nobody runs `wrangler` on a laptop. Workers & Pages → Create → **Import a repository**:
+
+| Setting | Value |
+|---|---|
+| Repository | `aingeaingeainge/space-dog-racing` |
+| Project (Worker) name | **`sdr-rooms`** (`wrangler.jsonc`'s `name`) |
+| Production branch | `main` |
+| Root directory | **`packages/server`** (not a root workspace; its own lock; `@sdr/engine` is `file:../engine`) |
+| Build command | none: Workers Builds installs from the lock itself |
+| Deploy command | `npx wrangler deploy` (the default) |
+| Build variable | **`NODE_VERSION` = `22`** (the build image's default is 24; every walk ran on 22) |
+
+- **`ALLOWED_ORIGINS` is a runtime variable, so it is in `wrangler.jsonc`'s `vars`**, not the
+  dashboard: Workers Builds' build variables "will not be accessible at runtime", and a deploy
+  replaces dashboard variables with the config's anyway. It names the live site and its preview
+  deployments; `wrangler dev` lets in any `localhost` page by the request's own host.
+- **No `account_id` in the repo**: Workers Builds supplies the account. The first deploy runs the
+  Durable Object migration `v1` (`new_sqlite_classes: ["Room"]`), unedited.
+- The Worker's URL, `https://sdr-rooms.<subdomain>.workers.dev`, is the rooms URL. **Pages**: project
+  `space-dog-racing` → Settings → Variables and Secrets → **`VITE_ROOMS_URL`** = that URL, then retry
+  the latest deployment so the build reads it.
+
 *`v3n`: this row still stands as written. The draft was built before L4, so L4's first deploy is the one
 that freezes `PROTOCOL_VERSION` 1 with the draft in it; the evening online will be the first to play
 the draft in turn order across houses.*

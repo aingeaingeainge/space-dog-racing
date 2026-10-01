@@ -10,7 +10,8 @@
     "test": "npm run typecheck && tsx --test test/*.test.ts",
     "walk": "tsx scripts/online-walk.ts",
     "browser-walk": "tsx scripts/browser-walk.ts",
-    "hotseat-shots": "tsx scripts/hotseat-shots.ts"
+    "hotseat-shots": "tsx scripts/hotseat-shots.ts",
+    "live-smoke": "tsx scripts/live-smoke.ts"
   },
   "dependencies": {
     "@sdr/engine": "file:../engine"
