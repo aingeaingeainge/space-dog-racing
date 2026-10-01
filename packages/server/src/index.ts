@@ -6,29 +6,42 @@
  * ⚠️ A Durable Object class is exported by the Worker script that hosts it, so `Room` (and through it
  * the engine) is in this bundle. The routing below never calls into it: it never replays, reduces or
  * builds a view.
+ *
+ * *`v3l4`, live:* only the pages in `ALLOWED_ORIGINS` (`wrangler.jsonc`'s `vars`) may make a room or
+ * open a socket (`guard.ts`), and CORS names the page that asked, never `*`.
  */
 import { CODE_RE, codeFrom } from './code';
+import { originAllowed, parseOrigins } from './guard';
 import type { Env } from './room';
 
 export { Room } from './room';
 
-const CORS: Record<string, string> = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
-  'Access-Control-Max-Age': '86400',
-};
+/** CORS for an allowed page: its own origin, echoed. */
+function corsFor(origin: string | null): Record<string, string> {
+  if (!origin) return {};
+  return {
+    'Access-Control-Allow-Origin': origin,
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Max-Age': '86400',
+    Vary: 'Origin',
+  };
+}
 
-function json(body: unknown, status = 200): Response {
+function json(body: unknown, status: number, cors: Record<string, string>): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { 'Content-Type': 'application/json', ...CORS },
+    headers: { 'Content-Type': 'application/json', ...cors },
   });
 }
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
+    const origin = request.headers.get('Origin');
+    if (!originAllowed(origin, request.url, parseOrigins(env.ALLOWED_ORIGINS)))
+      return json({ error: 'This page may not open a room' }, 403, { Vary: 'Origin' });
+    const CORS = corsFor(origin);
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
 
     if (request.method === 'POST' && url.pathname === '/room') {
@@ -42,20 +55,20 @@ export default {
           method: 'POST',
           headers: { 'x-room-code': code },
         });
-        if (r.status === 201) return json({ code }, 201);
+        if (r.status === 201) return json({ code }, 201, CORS);
       }
-      return json({ error: 'No free room code: try again' }, 503);
+      return json({ error: 'No free room code: try again' }, 503, CORS);
     }
 
     const m = /^\/room\/([A-Za-z]{6})$/.exec(url.pathname);
     if (request.method === 'GET' && m) {
       const code = m[1]!.toUpperCase();
-      if (!CODE_RE.test(code)) return json({ error: 'No such room' }, 404);
+      if (!CODE_RE.test(code)) return json({ error: 'No such room' }, 404, CORS);
       if (request.headers.get('Upgrade')?.toLowerCase() !== 'websocket')
-        return json({ error: 'Expected a WebSocket' }, 426);
+        return json({ error: 'Expected a WebSocket' }, 426, CORS);
       return env.ROOM.get(env.ROOM.idFromName(code)).fetch(request);
     }
 
-    return json({ error: 'Not found' }, 404);
+    return json({ error: 'Not found' }, 404, CORS);
   },
 } satisfies ExportedHandler<Env>;

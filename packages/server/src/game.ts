@@ -14,6 +14,7 @@ import {
   type GameState,
   type Id,
 } from '@sdr/engine';
+import { MAX_ACTIONS } from './guard';
 
 /**
  * The phase taken in any order (E8): every stable not yet finished at the Bookie is on the clock at
@@ -146,7 +147,7 @@ export function message(e: unknown): string {
  */
 export function refuseAct(seat: Id, actions: unknown): string | null {
   if (!Array.isArray(actions) || actions.length === 0) return 'Nothing to do';
-  if (actions.length > 64) return 'Too many actions at once';
+  if (actions.length > MAX_ACTIONS) return 'Too many actions at once';
   for (const a of actions as Action[]) {
     if (!a || typeof a !== 'object' || typeof a.t !== 'string') return 'Not an action';
     if (a.t === 'AdvancePhase') return 'Only the room moves the game on';

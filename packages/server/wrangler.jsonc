@@ -1,4 +1,6 @@
-// The rooms Worker (ONLINE_PLAN §2). Local only at v3l2: no account_id, and nothing deploys it.
+// The rooms Worker (ONLINE_PLAN §2). Live from `v3l4`: Workers Builds deploys it from `main`
+// (ONLINE_PLAN §10, L4). There is no `account_id` here, on purpose: Workers Builds supplies the
+// account, and nothing that names Jesse's account belongs in the repo.
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "sdr-rooms",
@@ -7,7 +9,15 @@
   "durable_objects": {
     "bindings": [{ "name": "ROOM", "class_name": "Room" }]
   },
-  // The free plan's Durable Objects are SQLite-backed only.
+  // The free plan's Durable Objects are SQLite-backed only. `v1` is what the first deploy runs:
+  // never edit a migration that has been deployed; add the next one below it.
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Room"] }],
-  "observability": { "enabled": false }
+  // The pages that may make a room or open a socket (`src/guard.ts`): the live site and its
+  // preview deployments. `wrangler dev` also lets in any localhost page, by the request's host.
+  "vars": {
+    "ALLOWED_ORIGINS": "https://space-dog-racing.pages.dev,https://*.space-dog-racing.pages.dev"
+  },
+  // Workers Logs (free plan: 200,000 lines a day): the room writes one short line per room event,
+  // with its code and never a player's name.
+  "observability": { "enabled": true }
 }

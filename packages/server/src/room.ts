@@ -27,6 +27,7 @@ import {
   type SeasonSetup,
 } from '@sdr/engine';
 import { codeFrom } from './code';
+import { frameTooBig, seqOf } from './guard';
 import {
   clockOf,
   driveRoom,
@@ -54,6 +55,8 @@ export interface Env {
   ROOM: DurableObjectNamespace<Room>;
   /** Set only by `wrangler dev --var DEV_DEBUG:1`: answers the dev-only `debug` message. */
   DEV_DEBUG?: string;
+  /** `v3l4`: the pages that may make a room or open a socket, comma-separated (`guard.ts`). */
+  ALLOWED_ORIGINS?: string;
 }
 
 /** §2.2: a room is deleted 30 days after its last action. */
@@ -140,6 +143,14 @@ export class Room extends DurableObject<Env> {
       CREATE TABLE IF NOT EXISTS queue (seat TEXT PRIMARY KEY, json TEXT NOT NULL);`);
   }
 
+  /**
+   * *`v3l4`:* one line to Workers Logs, so a stalled room can be read afterwards. The room's code and
+   * what happened, never a name or anything else a player typed.
+   */
+  private note(event: string, extra: Record<string, string | number | boolean> = {}): void {
+    console.log(JSON.stringify({ room: this.room?.code ?? '?', event, ...extra }));
+  }
+
   // ── Storage ────────────────────────────────────────────────────────────────────────────────────
 
   /** Read the room back and, if it has started, rebuild the state: `replay(createSeason(setup), log)`. */
@@ -175,6 +186,12 @@ export class Room extends DurableObject<Env> {
     this.readMs = t1 - t0;
     this.wakeMs = Date.now() - t0;
     this.loaded = true;
+    if (this.room)
+      this.note('wake', {
+        rows: this.log.length,
+        ms: this.wakeMs,
+        ...(this.stale ? { stale: this.room.stateVersion } : {}),
+      });
   }
 
   private saveRoom(): void {
@@ -208,6 +225,8 @@ export class Room extends DurableObject<Env> {
   }
 
   override async alarm(): Promise<void> {
+    this.load();
+    this.note('expired');
     for (const ws of this.ctx.getWebSockets()) ws.close(1000, 'This room has closed');
     await this.ctx.storage.deleteAll();
     this.loaded = false;
@@ -235,6 +254,7 @@ export class Room extends DurableObject<Env> {
       };
       this.saveRoom();
       await this.ctx.storage.setAlarm(Date.now() + LIFETIME_MS);
+      this.note('created');
       return new Response(code, { status: 201 });
     }
     if (request.method === 'POST' && url.pathname === '/successor') {
@@ -258,6 +278,7 @@ export class Room extends DurableObject<Env> {
       this.seats = from.seats.map((x) => ({ ...x, standIn: false, standInWeekends: [] }));
       this.seats.forEach((_, ord) => this.saveSeat(ord));
       await this.ctx.storage.setAlarm(Date.now() + LIFETIME_MS);
+      this.note('created', { playAgain: true });
       this.begin(from.setup);
       return new Response(code, { status: 201 });
     }
@@ -309,6 +330,12 @@ export class Room extends DurableObject<Env> {
 
   override async webSocketMessage(ws: Socket, data: string | ArrayBuffer): Promise<void> {
     this.load();
+    // `v3l4`: a frame over 16 KB is refused unread; the room and the socket carry on.
+    if (frameTooBig(data)) {
+      const seq = seqOf(data);
+      this.note('refused', { why: 'frame too big' });
+      return this.reject(ws, 'That message is too big', seq);
+    }
     let msg: ClientMsg | DebugMsg;
     try {
       msg = JSON.parse(typeof data === 'string' ? data : new TextDecoder().decode(data)) as
@@ -342,6 +369,7 @@ export class Room extends DurableObject<Env> {
           return this.reject(ws, `No such message: ${String((msg as { t: unknown }).t)}`, seq);
       }
     } catch (e) {
+      this.note('error', { message: message(e).slice(0, 200) });
       this.reject(ws, `The room could not do that: ${message(e)}`, seq);
     }
   }
@@ -571,6 +599,11 @@ export class Room extends DurableObject<Env> {
     this.state = state;
     this.log = log;
     this.appendLog(0);
+    this.note('started', {
+      stables: setup.players.length,
+      humans: this.seats.length,
+      length: JSON.stringify(setup.length ?? null),
+    });
     this.broadcastLobby();
     this.afterChange(ws, seq);
   }
@@ -661,6 +694,7 @@ export class Room extends DurableObject<Env> {
         queue,
       });
     } catch (e) {
+      this.note('error', { drive: message(e).slice(0, 200) });
       if (ws) this.reject(ws, `The room could not drive the game on: ${message(e)}`, seq);
       return;
     }
@@ -707,6 +741,7 @@ export class Room extends DurableObject<Env> {
     this.saveRoom();
     this.broadcast(undefined, ws, seq);
     if (s.phase === 'seasonEnd') {
+      this.note('ended', { rows: this.log.length });
       const text = JSON.stringify(this.ended());
       for (const sock of this.open()) if (this.seatOf(sock)) this.sendRaw(sock, text);
     }
