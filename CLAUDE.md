@@ -22,6 +22,7 @@ they disagree, the repo is right.
 - Races return a tick log; the renderer replays it and never re-simulates.
 - Keep TypeScript strict; no `any` in engine.
 - Run `npm test` and `npm run harness -- --seasons 50` before declaring a milestone done; paste the harness summary into the PR description.
+- **The room is live** (`v3l4`): bump `PROTOCOL_VERSION` with any change to a message, the view or a rule, and never push `main` while friends are playing (a push deploys the room, and a `STATE_VERSION` change ends live rooms).
 
 ## Conventions
 - Currency is "Bones"; format with formatBones().

@@ -3,7 +3,7 @@
 > **Status: CURRENT.** Build from this document.
 >
 > Canonical copy: `design/GDD_V3.md` in the `space-dog-racing` repo. A copy in a claude.ai Project
-> is a **mirror**, last synced 30 September 2026 (at `v3n`) — edit the repo, never the mirror. See `design/CANON.md`.
+> is a **mirror**, last synced 2 October 2026 (at `v3l4`) — edit the repo, never the mirror. See `design/CANON.md`.
 >
 > Supersedes `design/GDD.md` (v2, shipped at tag `v2e`), which is kept as historical reference and
 > is cited by name throughout this document.
@@ -1189,6 +1189,9 @@ All 18 planets survive as data. What changes is which fields do work:
 | 2026-09-30 | **V33 — four dogs, not three** | The kennel is four, and the Pound's "discard one to take one" keeps it four (its card offers four slots). Measured, not retuned: races entered 2.67 a weekend against a new band of 2.2–2.8, races a dog 6.3, fitness in band. The starting crates went 5 → 7 so a stable starts with the same weeks of food |
 | 2026-09-30 | **N1 — the off-season board has a rating range of its own, 40–60, while the opening board is 45–55** | Jesse's two calls pulled against each other: with one range, narrowing the opening board for fairness also took the good dog away from the last stable at the off-season (the long-game rows read 20.5% / 7.7%). Two sheet cells, `offDraftRatingMin` / `Max`: 27.0% / 9.3%, against 26.2% / 9.3% at one dog a stable on 40–60. Jesse's pick of the two |
 
+| 2026-10-02 | **L4a — online goes live before the playtest evening** | Jesse's call at `v3n`'s checklist (ONLINE_PLAN §10 had L4 after the evening). Built at `v3l4` with nobody to play it, so the live smoke test was Claude's (two browser tabs and the headless checks by hand); the evening's 🎲 rows, hotseat and online, all stay open. The first deploy froze `PROTOCOL_VERSION` 1 with the draft in it |
+| 2026-10-02 | **L4b — making a room stays unlimited** | Jesse's pick over a per-visitor rate limit (20 new rooms a minute), whose availability on the free plan Cloudflare's docs do not state. On the free plan an abuser can cost nothing but the day's allowance; only the live site's pages may make a room at all (ONLINE_PLAN §2.1). Revisit only if a day's allowance is ever lost |
+| 2026-10-02 | **L4c — the room deploys by Workers Builds, with a build token Cloudflare keeps** | The plan's deploy (a push to `main` deploys the site and the room; nobody runs `wrangler` on a laptop). The dashboard creates a user API token for the builds ("sdr-rooms build token") and keeps it; nobody sees its value. Jesse's OK, asked before Deploy was pressed. Preview builds are off: `main` is the only branch |
 ---
 
 ## 14. Open questions ❓

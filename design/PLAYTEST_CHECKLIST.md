@@ -1,14 +1,16 @@
 # Space Dog Racing — playtest checklist
 
 > **Status: CURRENT (the top section).** Canonical copy: `design/PLAYTEST_CHECKLIST.md` in the
-> `space-dog-racing` repo. A copy in a claude.ai Project is a **mirror**, last synced 30 September
-> 2026 (at `v3n`), for reading on a phone at the table — edit the repo, never the mirror. See
+> `space-dog-racing` repo. A copy in a claude.ai Project is a **mirror**, last synced 2 October
+> 2026 (at `v3l4`), for reading on a phone at the table — edit the repo, never the mirror. See
 > `design/CANON.md`.
 
 > **Current section: "v3 Phase J — the evening", directly below.** It is one plan for one evening with
 > friends, written at tag `v3j`, and it carries every 🎲 row still open. **At `v3n` it gained the draft**
 > (rows 28–32 and questions 1.9–1.12; rows 16–17 and questions 2.5–2.6 rewritten for the off-season
-> draft): every game now opens on one. Below it, kept as the record:
+> draft): every game now opens on one. **At `v3l4` an online section follows it** ("v3 Phase L4 — an
+> online evening"): how to start a room and the four 🎲 rows of ONLINE_PLAN §10's L4. Below both, kept as
+> the record:
 > **"v3 Phase E2 — the table"** (the `v3e2` checklist, superseded by this one; nothing in it was
 > answered) and **v1's checklist (milestone M1)**, whose venues no longer exist.
 
@@ -155,6 +157,40 @@ Pick one:
 | A.5 | **Did the game-end screen tell the story of each game?** | Yes · Mostly, something was missing (what?) · Too much to read |
 | A.6 | **What next?** | Fix what the evening found · Online multiplayer · Another balance pass (on what?) · Something else |
 
+---
+
+## v3 Phase L4 — an online evening (live from `v3l4`)
+
+Friends in different houses, a browser each, on a voice call. The room is live on Jesse's Cloudflare
+account since `v3l4` (2 October 2026); nobody has played it but Claude's smoke test. **This is its own
+evening, or the hotseat evening's game 3 moved online**: the hotseat sheet above is unchanged.
+
+### ⚠️ Deploy between evenings — never push during one
+
+A push to `main` deploys the room as well as the site. A push that changes `STATE_VERSION` **ends
+every live room** (it shows its last standings and plays no more), and any push restarts them. Push
+the day before, or after everyone has gone.
+
+### How to start a room
+
+1. Open **space-dog-racing.pages.dev** → **Play online** → type your name → **Create a room**.
+2. Read the six letters out, or press **Copy the link** and paste it into the call's chat.
+3. Each friend opens the link (or Play online → the code → **Join**), types a name, picks a face, **Sit down**.
+4. The host adds AI stables if wanted (3–8 stables, at least one human), sets the length, presses **Start**.
+5. If somebody drops: the link brings them straight back to their seat. If they cannot come back, the
+   host presses **Let an AI play for them**.
+6. At the end, **Copy the report** before anybody presses Play again (every browser can copy it).
+
+### What to tick (ONLINE_PLAN §10, Phase L4's 🎲 rows)
+
+| | Question | Tick one |
+|---|---|---|
+| O.1 | **Was the wait for somebody's sitting bearable without a timer?** (V25) | Fine · Long, but the Nudge helped · Too long: we want a timer |
+| O.2 | **Did anybody need "Let an AI play for them"?** (V26) | No · Yes, and it worked · Yes, and it went wrong (how?) |
+| O.3 | **Did moving on alone after the races spoil anything?** (V27) | No · Someone shouted a result on the call · Yes, we'd rather wait for each other |
+| O.4 | **Forty minutes for four players online?** (pillar 6; the report's clock, per browser) | Under 40 · 40–60 · Over an hour |
+| O.5 | Did the lobby make sense to someone who had never seen it? (L3's 🎲) | Yes · After a word on the call · No (where did they stick?) |
+| O.6 | Did anything not reach somebody's browser — a stuck screen, a reload, a "reconnecting" that stayed? | No · Once, and a refresh fixed it · Yes (what, and whose browser?) |
 
 ---
 

@@ -3,7 +3,7 @@
 > **Status: CURRENT.** Build from this document.
 >
 > Canonical copy: `design/BUILD_PLAN_V3.md` in the `space-dog-racing` repo. A copy in a claude.ai
-> Project is a **mirror**, last synced 30 September 2026 (at `v3n`) — edit the repo, never the mirror. See
+> Project is a **mirror**, last synced 2 October 2026 (at `v3l4`) — edit the repo, never the mirror. See
 > `design/CANON.md`.
 >
 > Supersedes `design/BUILD_PLAN.md` from §6 onward. **That document's §§1–5 — architecture, tech
@@ -590,7 +590,7 @@ screen text and `SAVE_VERSION` 13; GDD_V3 §2.2, §10, §11 and V23.
 ### Phases L1–L4 — online multiplayer (4 sessions) → `v3l1` … `v3l4`
 
 > **Status: L1 DONE at `v3l1` (29 September 2026); L2 DONE at `v3l2` (30 September 2026); L3 DONE at
-> `v3l3` (30 September 2026); L4 PLANNED.** The spec, acceptance tables and order are in **`design/ONLINE_PLAN.md` §10**, with L1's and
+> `v3l3` (30 September 2026); L4 LIVE at `v3l4` (2 October 2026), ahead of the evening.** The spec, acceptance tables and order are in **`design/ONLINE_PLAN.md` §10**, with L1's and
 > L2's results there; this is only the outline. L1: `viewFor` and twenty secret rows, `rumoursFor`, the
 > off-season in any order (GDD_V3 L1a, L1b), `PROTOCOL_VERSION`, `test/view.test.ts` (133 tests) and
 > `npm run view-walk` (0 throws). No rule, golden or save version moved; the hotseat checks read byte for
@@ -604,13 +604,17 @@ screen text and `SAVE_VERSION` 13; GDD_V3 §2.2, §10, §11 and V23.
 > rooms (GDD_V3 L3a–L3c). `npm run online-table-walk` (headless stores) and `npm run browser-walk`
 > (three Chromium contexts, screenshots at 1280 and 390), both against `wrangler dev`. Nothing under
 > `packages/engine` changed; hotseat reads byte for byte as at `v3l2`. Notes: `claude/V3_PHASE_L3_NOTES.md`.
+> L4: the room readied for the public internet (only the live site's pages, 16 KB frames, 64-action
+> acts, Workers Logs) and deployed by Workers Builds from `main` as `sdr-rooms`; Pages' `VITE_ROOMS_URL`
+> set, so the live site shows Play online. `PROTOCOL_VERSION` 1 is frozen. `npm run live-smoke`. The
+> online evening's 🎲 rows are still open (GDD_V3 L4a–L4c). Notes: `claude/V3_PHASE_L4_NOTES.md`.
 >
 > | Phase | Goal | When |
 > |---|---|---|
 > | **L1** `v3l1` ✅ | the engine's half: `viewFor` and its secret table, `rumoursFor`, the off-season in any order, `PROTOCOL_VERSION`. No golden moves | before the evening — **done** |
 > | **L2** `v3l2` ✅ | the room: `packages/server`, a Worker and a Durable Object, the protocol, headless clients against `wrangler dev`. No deploy | before the evening — **done** |
 > | **L3** `v3l3` ✅ | the web online: lobby, the store on a socket, `screenFor` without pass screens, two browsers. Hotseat untouched | built before the evening, at Jesse's call — **done** |
-> | **L4** `v3l4` | live on Jesse's Cloudflare account, and the first online evening | after the evening |
+> | **L4** `v3l4` ✅ | live on Jesse's Cloudflare account, and the first online evening | live ahead of the evening, at Jesse's call — **done**; the online evening's 🎲 rows still open |
 >
 > **Phase M** `v3m` ✅ (30 September 2026, not an L phase): four small hotseat fixes before the evening — the
 > Title's build panel names the build, a seed link carries AI names (GDD_V3 M1), a door's art stays in its

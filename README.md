@@ -2,6 +2,8 @@
 
 **[Play it → space-dog-racing.pages.dev](https://space-dog-racing.pages.dev)**
 
+Play online with friends: press **Play online**.
+
 Thirteen weekends on the grimy underground greyhound circuit of a cartoon future. You run a
 stable of space dogs — three that race, two in reserve — and every week the whole circuit jumps
 to a new planet for three races: Bronze, Silver and Gold. Prize money is the main way to get

@@ -3,7 +3,7 @@
 > **Status: CURRENT.** Build online multiplayer from this document.
 >
 > Canonical copy: `design/ONLINE_PLAN.md` in the `space-dog-racing` repo. A copy in a claude.ai
-> Project is a **mirror**, last synced 30 September 2026 (at `v3n`) — edit the repo, never the mirror.
+> Project is a **mirror**, last synced 2 October 2026 (at `v3l4`) — edit the repo, never the mirror.
 > See `design/CANON.md`.
 >
 > Written in v3 Phase K (`v3k`). It replaces `design/BUILD_PLAN.md` §6b.9 and "Prompt M6", which were
@@ -68,6 +68,10 @@ moves on when it is done. Hotseat stays exactly as it is.
   has 10 ms of CPU; a Durable Object request has 30 s (§9.1).
 - **Codes:** six letters from an alphabet with no look-alikes (`ABCDEFGHJKMNPQRSTUVWXYZ`), drawn in the
   Worker; `POST /room` retries if a room already has state.
+- *`v3l4`, live:* **only the live site and its preview deployments may make a room or open a socket**
+  (`ALLOWED_ORIGINS` in `wrangler.jsonc`'s `vars`, checked by `src/guard.ts`; anything else is 403, and
+  CORS names the page that asked, never `*`). A frame over 16 KB, or an `act` of more than 64 actions,
+  is answered `rejected` and the socket carries on. Room creation is not limited (L4b).
 - **Seeds are drawn by the room** (`crypto.getRandomValues`) at Start. The room is not the engine, so
   CLAUDE.md's `Math.random` rule is untouched: the engine still receives a seed and nothing else random.
 
@@ -389,6 +393,9 @@ picker. They read a `GameState`; online it is a view.
 - *`v3n`:* the draft changed a rule and the view's shape (`drafts`, `DraftPick`, a public off-season) and
   `PROTOCOL_VERSION` **stayed 1**, on purpose: nothing has been deployed, so no browser holds an older 1.
   L4's first deploy freezes whatever 1 is then, and it has the draft.
+- *`v3l4`, 2 October 2026:* **`PROTOCOL_VERSION` 1 is frozen: the room is live, so from now on any change
+  to a message, the view's shape or a rule bumps it — and `main` is never pushed while friends are
+  playing.** L4 went live ahead of the playtest evening, at Jesse's call (GDD_V3 L4a).
 
 ---
 
@@ -603,6 +610,33 @@ fog readers, reconnect and `reload` UI, "Play online" behind `VITE_ROOMS_URL`, t
 | 🎲 Does the lobby make sense to someone who has never seen it? | 🎲 |
 
 ### Phase L4 — live, and the first online evening (1 session) → `v3l4` · **after the evening**
+
+> **Status: LIVE at `v3l4` (2 October 2026). The 🎲 rows below are still open: no online evening yet.**
+> Built and deployed **ahead of the playtest evening, at Jesse's call** (GDD_V3 L4a); this session's live
+> smoke test was played by Claude, not by friends. Notes: `claude/V3_PHASE_L4_NOTES.md`.
+>
+> - **The rooms URL: `https://sdr-rooms.aingeaingeainge.workers.dev`.** Pages' `VITE_ROOMS_URL` (Production)
+>   is set to it, and the live site shows **Play online**.
+> - **Deployed by Workers Builds** from `main`, exactly as "How it deploys" below, plus: **preview builds
+>   off** (only `main` exists), and a **build token Cloudflare created and keeps** ("sdr-rooms build
+>   token": Workers Builds cannot run without one; Jesse's OK, L4c). Build ~50 s; upload 309 KiB, 83 KiB
+>   gzipped; startup 4 ms. The first deploy ran migration `v1`.
+> - Nothing else on the account was touched: no `account_id`, token value or credential is in git, the
+>   notes or the Project.
+>
+> | Measure | `v3l4` |
+> |---|---|
+> | Origins allowlisted; oversized frames and acts refused; observability on | ✅ `server:test` 11 → 15 (four `guard` rows); `online-walk` **27 rows** (two new: another page refused, the caps); live: a page on `dash.cloudflare.com` could neither `POST /room` nor open a socket, a 17 KB frame got `rejected` and the socket stayed open |
+> | `sdr-rooms` deployed from `main` by Workers Builds | ✅ |
+> | `VITE_ROOMS_URL` set; the live site shows "Play online" | ✅ |
+> | `live-smoke` against the live room | ⚠️ **the browser half only**: the container's proxy refuses `*.workers.dev` and `*.pages.dev` (CONNECT 403), so the headless half could not reach the room. `npm run live-smoke` is in the repo and passes all 10 rows against `wrangler dev`; the same checks it makes (create, origins, stale `v` → `reload`, the 16 KB cap, the dev-only `debug` refused) were run by hand from the live site's own page in the browser pane, and passed |
+> | Two browser tabs on the live site: a room, a draft, a weekend, the results | ✅ the host on `space-dog-racing.pages.dev`, the guest by the link on a **preview deployment's origin** (`*.space-dog-racing.pages.dev`: a second origin, so a second seat; it also proves the wildcard), one Normal AI; a race to 1 Bone: the draft's 18 picks, a door each, declarations landing live on the guest's board ("Waiting on Aroha — Market and Race Office"), the Bookie, race day, the results, the game's end; the host's refresh at 375 px came back to the game's end with no horizontal scroll |
+> | An evening's cost from the dashboard | the whole smoke session: **55 Durable Object requests, 0.22 GB-s, 74 kB stored, 635 rows read, 100 written** — 0.06% and 0.002% of a day's free 100,000 requests and 13,000 GB-s. Scaled to §9.2's evening (~2,000 human actions, ~45 here): ~2,500 requests counted one a message (2.5% of a day) or ~150 billed at the 20 : 1 WebSocket rate (0.15%), and ~10 GB-s (0.08%). Workers Logs: 200,000 events a day free, this session used under 100 |
+> | `PROTOCOL_VERSION` 1 frozen, in §7 and CLAUDE.md | ✅ |
+> | Hotseat unchanged; every local check green; Pages on Node 20 | ✅ (the notes have every figure) |
+>
+> *Who may open a room* is §2.1's `v3l4` line; the four 🎲 rows are mapped in PLAYTEST_CHECKLIST's
+> online section (O.1–O.4).
 
 **Goal:** a room on Jesse's Cloudflare account that friends in different houses can use.
 

@@ -6,6 +6,10 @@
   "name": "sdr-rooms",
   "main": "src/index.ts",
   "compatibility_date": "2026-09-20",
+  // The rooms URL is https://sdr-rooms.<subdomain>.workers.dev. Said outright, so a deploy does not
+  // warn; version preview URLs are off (nothing uses them, and a Durable Object cannot be previewed).
+  "workers_dev": true,
+  "preview_urls": false,
   "durable_objects": {
     "bindings": [{ "name": "ROOM", "class_name": "Room" }]
   },
