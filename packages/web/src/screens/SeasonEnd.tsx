@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { formatBones, planetOf, type GameState, type Player, type RoadSplit } from '@sdr/engine';
 import { Panel } from '../components/Panel';
+import { More } from '../components/More';
 import { Notes, StableName } from '../components/ui';
 import { OwnerBlurb, OwnerFace } from '../components/Owner';
 import { staffLine } from '../components/StaffCard';
@@ -21,7 +22,6 @@ import {
 import { seasonLinkFor } from '../lib/seedLink';
 import { playerById, standings } from '../lib/selectors';
 import { useGame } from '../store/gameStore';
-import { clock, summarisePace } from '../lib/pace';
 import { buildReport, gameEndLine, gameLengthText } from '../lib/report';
 
 /**
@@ -200,12 +200,14 @@ export function IncomeSplit({
           </tbody>
         </table>
       </div>
-      <p className="muted">
-        Prize money is what the purses paid, before the trainers took their cut. Trading is goods
-        sold less goods bought; betting is returns less stakes. Food and bills are what went out
-        whatever you were doing. The ledger is those columns — what is left over is in the dogs and
-        the hold, which is why it does not match net worth.
-      </p>
+      <More label="What the columns mean">
+        <p className="flush">
+          Prize money is what the purses paid, before the trainers took their cut. Trading is goods
+          sold less goods bought; betting is returns less stakes. Food and bills are what went out
+          whatever you were doing. The ledger is those columns — what is left over is in the dogs
+          and the hold, which is why it does not match net worth.
+        </p>
+      </More>
     </Panel>
   );
 }
@@ -247,8 +249,6 @@ function GameOver({ s }: { s: GameState }) {
         {s.gameOver ? <p className="game-end">{gameEndLine(s)}</p> : null}
         <p className="muted">{gameLengthText(s)}</p>
       </div>
-
-      <PaceLine />
 
       {finish ? <TargetPanel s={s} finish={finish} /> : null}
 
@@ -299,43 +299,16 @@ function GameOver({ s }: { s: GameState }) {
               : `If ${hostName} presses Play again, this browser follows into the new room: the same seats, the same seed and the same length.`}
           </p>
         ) : null}
-        <p className="muted">
-          Play again is the same table, the same seed and the same length, from the first weekend:
-          the same dogs on offer, the same events, the same trap draws. What you do with them is up
-          to you. <b>Copy the report</b> for the playtest: the link, the table, the result, the
-          clock and each season&apos;s draft, as plain text to paste into the next Cowork session.
-        </p>
+        <More label="Play again and the report">
+          <p className="flush">
+            Play again is the same table, the same seed and the same length, from the first weekend:
+            the same dogs on offer, the same events, the same trap draws. What you do with them is
+            up to you. <b>Copy the report</b> for the playtest: the link, the table, the result, the
+            clock and each season&apos;s draft, as plain text to paste into the next Cowork session.
+          </p>
+        </More>
       </Panel>
     </div>
-  );
-}
-
-/**
- * Phase E2's pace timer, read back (the playtest's 🎲 rows): how long the game took at the table, a
- * weekend's share, and how much of that was race day. Nothing is shown for a game with no clock.
- */
-function PaceLine() {
-  const pace = useGame((g) => g.pace);
-  const p = summarisePace(pace);
-  if (!p.weekends) return null;
-  const minutes = Math.round(p.total / 60);
-  return (
-    <Panel title="The clock" sub="wall-clock time at the table, from the pace timer">
-      <p className="flush">
-        This game took{' '}
-        <b>
-          {minutes} minute{minutes === 1 ? '' : 's'}
-        </b>
-        , <b>{clock(p.perWeekend)}</b> a weekend, of which race day <b>{clock(p.raceDay)}</b>.
-      </p>
-      <p className="muted">
-        A weekend: {clock(p.private)} on private screens · {clock(p.raceDay)} on race day ·{' '}
-        {clock(p.pass)} passing the laptop · {clock(p.table)} on the table's own screens (arrival,
-        board, after the races), over {p.weekends} weekend{p.weekends === 1 ? '' : 's'}
-        {p.between ? `; ${clock(p.between)} between seasons` : ''}. A stretch on one screen counts
-        for ten minutes at most, and the clock stops while the window is hidden.
-      </p>
-    </Panel>
   );
 }
 
