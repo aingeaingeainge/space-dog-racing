@@ -1,5 +1,6 @@
 import { formatBones, planetOf, type GameState, type Player } from '@sdr/engine';
 import { Panel } from '../components/Panel';
+import { More } from '../components/More';
 import { NeonButton } from '../components/NeonButton';
 import { Notes, StableName } from '../components/ui';
 import { useKeys } from '../lib/keys';
@@ -58,7 +59,8 @@ export function Arrival({ s, me }: { s: GameState; me: Player }) {
           Week {s.week} of {s.calendar.length}
         </p>
       </div>
-      <Panel title="Turn order" sub="highest score goes first — empty hold space and a d10">
+      {/* Phase P: the order, and the arithmetic behind it one press away. */}
+      <Panel title="Turn order">
         <div className="table-wrap">
           <table>
             <tbody>
@@ -71,7 +73,6 @@ export function Arrival({ s, me }: { s: GameState; me: Player }) {
                     <td>
                       <StableName player={p} />
                     </td>
-                    <td className="muted">{s.turnOrderReason[id]}</td>
                   </tr>
                 );
               })}
@@ -79,6 +80,12 @@ export function Arrival({ s, me }: { s: GameState; me: Player }) {
           </table>
         </div>
         {rules.length ? <Notes lines={rules} /> : null}
+        <More label="How the turn order is drawn">
+          <p className="flush">Highest score goes first: empty hold space and a d10.</p>
+          <Notes
+            lines={s.turnOrder.map((id) => `${playerById(s, id)?.name}: ${s.turnOrderReason[id]}`)}
+          />
+        </More>
       </Panel>
       <Notes lines={[passReason(s)]} />
       <HandOn next={me} holder={holder} onGo={ackArrival} stay={`${me.name}: open a door`} />
@@ -142,11 +149,12 @@ export function AfterRaces({ s, me }: { s: GameState; me: Player }) {
           </NeonButton>
           <NeonButton onClick={() => tradeAfterRaces(me.id)}>{me.name}: trade first</NeonButton>
         </div>
-        <Notes
-          lines={[
-            'Flying on is public and costs nothing. Trading first takes the laptop back to your own planet screen — the others look away — and you fly on from there.',
-          ]}
-        />
+        <More label="Fly on or trade">
+          <p className="flush">
+            Flying on is public and costs nothing. Trading first takes the laptop back to your own
+            planet screen — the others look away — and you fly on from there.
+          </p>
+        </More>
       </Panel>
     </div>
   );
