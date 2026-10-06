@@ -296,7 +296,10 @@ async function step(page: Page, declared: { done: boolean }): Promise<boolean> {
   if (await seen(btn(page, /^(Head to the track|Next: Race Office)$/))) {
     if (!declared.done) {
       declared.done = true;
-      await page.locator('nav.tabs').getByRole('button', { name: 'Race Office' }).click();
+      await page
+        .locator('nav.tabs')
+        .getByRole('button', { name: 'Race Office', exact: true })
+        .click();
       const select = page.locator('select.wide').first();
       await select.waitFor({ timeout: 5000 });
       const values = await select

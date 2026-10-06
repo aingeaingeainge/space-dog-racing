@@ -234,7 +234,10 @@ async function act(p: Seat): Promise<string | null> {
   }
   if (await seen(page, btn(page, /^(Head to the track|Next: Race Office)$/))) {
     if (!p.declared) {
-      await page.locator('nav.tabs').getByRole('button', { name: 'Race Office' }).click();
+      await page
+        .locator('nav.tabs')
+        .getByRole('button', { name: 'Race Office', exact: true })
+        .click();
       const select = page.locator('select.wide').first();
       await select.waitFor({ timeout: 5000 });
       const values = await select
