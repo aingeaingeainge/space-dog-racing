@@ -11,6 +11,8 @@ import {
   type Player,
 } from '@sdr/engine';
 import { Panel } from '../components/Panel';
+import { More } from '../components/More';
+import { Guide } from '../components/Guide';
 import { Gauge, Notes } from '../components/ui';
 import { NeonButton } from '../components/NeonButton';
 import { marketRows, nextStop, type MarketRow } from '../lib/market';
@@ -56,48 +58,57 @@ export function Market({ s, me }: { s: GameState; me: Player }) {
       : null;
 
   return (
-    <Panel
-      title={`Market — ${planet.name}`}
-      sub="six foods: your inventory and your dogs' training, both at once"
-    >
-      <div className="market-hold">
-        <b>Hold</b> <Gauge value={crates} max={HOLD_CAP} unit="crates" />
-        <span className="muted">
-          {' '}
-          · the same {HOLD_CAP} for every stable, forever · {formatBones(me.cash)} in hand
-        </span>
-      </div>
-      <div className="table-wrap">
-        <table className="market">
-          <thead>
-            <tr>
-              <th>Food</th>
-              <th className="num">Your Hold</th>
-              <th className="num">On Planet</th>
-              <th className="num">You Paid</th>
-              <th className="num">Market Price</th>
-              <th>Price Range</th>
-              <th>Trade</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => (
-              <Row key={r.good.id} r={r} me={me} room={HOLD_CAP - crates} shut={shut} />
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <Notes
-        lines={[
-          shut,
-          next
-            ? `Next stop: ${next.name} — ${describeTaste(next)}. That is what kind of place it is, not next week's prices; those are drawn when you land.`
-            : 'Nothing past this weekend: whatever is in the hold at the end of it is valued at these sell prices.',
-          `Your dogs eat ${bill.foodNeeded} crate${bill.foodNeeded === 1 ? '' : 's'} at the jump, each by the diet you set in the Kennel, falling back to the cheapest thing aboard. A dog the hold cannot feed loses ${balance.emptyHoldFitness} fitness.`,
-          `Every ${balance.arrivalCargoDiv} crates aboard when you leave costs a point in next week's turn order — first look at the next shelf, against a hold worth carrying.`,
-        ]}
-      />
-    </Panel>
+    <>
+      <Guide id="market">
+        Buy food where it is cheap, sell it where it is dear. Your dogs eat from the hold.
+      </Guide>
+      <Panel
+        title={`Market — ${planet.name}`}
+        sub="six foods: your inventory and your dogs' training, both at once"
+      >
+        <div className="market-hold">
+          <b>Hold</b> <Gauge value={crates} max={HOLD_CAP} unit="crates" />
+          <span className="muted"> · {formatBones(me.cash)} in hand</span>
+        </div>
+        <div className="table-wrap">
+          <table className="market">
+            <thead>
+              <tr>
+                <th>Food</th>
+                <th className="num">Your Hold</th>
+                <th className="num">On Planet</th>
+                <th className="num">You Paid</th>
+                <th className="num">Market Price</th>
+                <th>Price Range</th>
+                <th>Trade</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <Row key={r.good.id} r={r} me={me} room={HOLD_CAP - crates} shut={shut} />
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <Notes
+          lines={[
+            shut,
+            next
+              ? `Next stop: ${next.name} — ${describeTaste(next)}.`
+              : 'Last stop: whatever is in the hold at the end is valued at these sell prices.',
+          ]}
+        />
+        <More label="How the market works">
+          <Notes
+            lines={[
+              'Buy where a food is cheap in its range and sell where it is dear. The next stop line is what kind of place it is, not next week’s prices; those are drawn when you land.',
+              `Your dogs eat ${bill.foodNeeded} crate${bill.foodNeeded === 1 ? '' : 's'} at the jump, each by the diet you set in the Kennel, falling back to the cheapest thing aboard. A dog the hold cannot feed loses ${balance.emptyHoldFitness} fitness.`,
+              `Every ${balance.arrivalCargoDiv} crates aboard when you leave costs a point in next week's turn order — first look at the next shelf, against a hold worth carrying.`,
+            ]}
+          />
+        </More>
+      </Panel>
+    </>
   );
 }
 
