@@ -23,6 +23,7 @@ import { StaffCard, commissionLine } from '../components/StaffCard';
 import { DogCard } from '../components/DogCard';
 import { Panel } from '../components/Panel';
 import { Badge, KV, Notes } from '../components/ui';
+import { More } from '../components/More';
 import {
   cannotRunReason,
   declaredRace,
@@ -87,7 +88,7 @@ export function Stable({ s, me }: { s: GameState; me: Player }) {
 
   return (
     <>
-      <Panel title={me.name} sub="your stable">
+      <Panel title={me.name}>
         <div className="grid3">
           <KV
             items={[
@@ -121,30 +122,28 @@ export function Stable({ s, me }: { s: GameState; me: Player }) {
             the turn.
           </div>
         )}
-        <Notes
-          lines={[
-            `This week's dinner: ${bill.foodNeeded} crate${bill.foodNeeded === 1 ? '' : 's'}, ${bill.foodFromHold} of them in the hold. Food is the only running cost in the game — no upkeep, no wages, no fuel, no debt — and it is not charged in Bones: a dog the hold cannot feed loses ${balance.emptyHoldFitness} fitness and gains nothing.`,
-            `Every dog either races or rests. Race costs ${balance.fitnessPerRace} fitness, Rest returns ${balance.fitnessRest} — more for a young dog, less for an old one. Every dog eats one crate either way. Fitness multiplies every stat at every level: a dog at 60 is slower than a dog at 90, but it is still a runner.`,
-          ]}
-        />
+        <More label="Food and fitness">
+          <Notes
+            lines={[
+              `This week's dinner: ${bill.foodNeeded} crate${bill.foodNeeded === 1 ? '' : 's'}, ${bill.foodFromHold} of them in the hold. Food is the only running cost in the game — no upkeep, no wages, no fuel, no debt — and it is not charged in Bones: a dog the hold cannot feed loses ${balance.emptyHoldFitness} fitness and gains nothing.`,
+              `Every dog either races or rests. Race costs ${balance.fitnessPerRace} fitness, Rest returns ${balance.fitnessRest} — more for a young dog, less for an old one. Every dog eats one crate either way. Fitness multiplies every stat at every level: a dog at 60 is slower than a dog at 90, but it is still a runner.`,
+              'A dog you declare at the Race Office races; every other dog rests.',
+            ]}
+          />
+        </More>
       </Panel>
 
       {/* GDD_V3 §8: the two trainers, what they do and what they take. */}
-      <Panel title="Trainers" sub="two slots · paid a cut of race prize money, never anything else">
+      <Panel title="Trainers" sub="paid a cut of your purses, nothing else">
         <div className="staffcards">
           {me.staff.map((id) => (
             <StaffCard key={id} row={staffRow(id)} />
           ))}
         </div>
-        <Notes
-          lines={[
-            commissionLine(me),
-            'The only way to change a trainer is to meet one looking for work — in a Bar.',
-          ]}
-        />
+        <Notes lines={[commissionLine(me)]} />
       </Panel>
 
-      <Panel title="Dogs" sub="ratings and stats are public — everyone can see them">
+      <Panel title="Dogs">
         <div className="dogcards">
           {dogs.map((d) => {
             const st = status(d);
@@ -161,9 +160,6 @@ export function Stable({ s, me }: { s: GameState; me: Player }) {
                       <Badge tone="good" title="declared this weekend">
                         {raceLabel(race)}
                       </Badge>
-                    ) : null}
-                    {weekStatusOf(d) === 'rest' ? (
-                      <Badge title="resting this week">resting</Badge>
                     ) : null}
                     {st.tone ? <Badge tone={st.tone}>{st.text}</Badge> : null}
                   </>
