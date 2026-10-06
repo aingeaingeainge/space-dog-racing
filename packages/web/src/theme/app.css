@@ -2858,3 +2858,8 @@ button.more {
     display: none;
   }
 }
+/* Phase P: L4 saw the online board run past its panel at ~800 px; a column scrolls in itself. */
+.board-race {
+  min-width: 0;
+  overflow-x: auto;
+}
