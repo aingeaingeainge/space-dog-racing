@@ -441,10 +441,12 @@ async function walk(browser: Browser, base: string): Promise<void> {
         }
       }
       // B refreshes mid-sitting (its own Market and Race Office) and comes back to the same screen.
-      if (!refreshed && p === B && (await seen(page, btn(page, 'Head to the track')))) {
+      // (Phase P: the big button reads "Next: Race Office" until every race has a runner.)
+      const sitting = btn(page, /^(Head to the track|Next: Race Office)$/);
+      if (!refreshed && p === B && (await seen(page, sitting))) {
         const before = await topStat(page);
         await page.reload();
-        await btn(page, 'Head to the track').waitFor({ timeout: 20_000 });
+        await sitting.waitFor({ timeout: 20_000 });
         const after = await topStat(page);
         refreshed = `before "${before.trim()}", after "${after.trim()}"`;
         row(
