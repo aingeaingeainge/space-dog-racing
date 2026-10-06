@@ -86,7 +86,9 @@ export function Draft({ s, me }: { s: GameState; me: Player }) {
   const on = onId ? playerById(s, onId) : undefined;
   const mine = !!on && !catching && (online ? on.id === me.id : on.kind === 'human');
   const picker = mine ? on : undefined;
-  const room = picker ? draftRoom(s, picker.id) : { dog: false, staff: false };
+  // A human who handed their picks over has nothing to press until the draft is done.
+  const room =
+    picker && picker.id !== auto ? draftRoom(s, picker.id) : { dog: false, staff: false };
   const off = d?.kind === 'offSeason';
   const kennel = picker ? picker.dogIds.map((id) => s.dogs[id]!).filter(Boolean) : [];
   const kennelFull = kennel.length >= balance.startDogs;
@@ -196,7 +198,11 @@ export function Draft({ s, me }: { s: GameState; me: Player }) {
         ) : null}
       </div>
 
-      {picker ? (
+      {picker && picker.id === auto ? (
+        <div className="draft-take">
+          <span className="muted">Picking for you…</span>
+        </div>
+      ) : picker ? (
         <div className="draft-take">
           {choice && !needsRelease ? (
             <NeonButton variant="primary" onClick={() => take()} title="key: Enter">
