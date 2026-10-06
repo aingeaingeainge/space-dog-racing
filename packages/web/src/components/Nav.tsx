@@ -1,8 +1,10 @@
+import { useState } from 'react';
 import type { GameState, Player } from '@sdr/engine';
 import { NeonButton } from './NeonButton';
 import { useKeys } from '../lib/keys';
 import { venues, type VenueId } from '../lib/venues';
 import { venueStatus } from '../lib/venueStatus';
+import { cardFilled } from '../lib/selectors';
 import { useGame, type View } from '../store/gameStore';
 
 /**
@@ -14,7 +16,8 @@ import { useGame, type View } from '../store/gameStore';
  * It is also where the planet phase's keyboard shortcuts live, since the strip is mounted exactly
  * when they apply (PLAYTEST_NOTES finding 4). One letter per venue, Enter for the thing the
  * primary button does, Escape back to the hub. Nothing fires while an event card is open — that
- * modal has to be answered first, and it takes the number keys itself.
+ * modal has to be answered first, and it takes the number keys itself. The line listing them sits
+ * behind the strip's "?" since Phase P; the keys themselves are unchanged.
  */
 const KEY_FOR: Partial<Record<VenueId, string>> = {
   hub: 'h',
@@ -30,10 +33,21 @@ export function Nav({ s, me }: { s: GameState; me: Player }) {
   const dispatch = useGame((g) => g.dispatch);
   const leaderboard = useGame((g) => g.leaderboard);
   const setLeaderboard = useGame((g) => g.setLeaderboard);
+  const [keysOpen, setKeysOpen] = useState(false);
   const pre = s.phase === 'planetPre';
   const status = venueStatus(s, me);
-  const list = venues(s);
+  // Phase P: the Bookie's tab was always there and always shut until the card locked; it says
+  // nothing a hotspot does not (D34), so the strip leaves it out.
+  const list = venues(s).filter((v) => v.id !== 'bookie');
   const endPhase = () => dispatch({ t: 'EndPhase', playerId: me.id });
+  /**
+   * Phase P (Jesse's call, P2): the big button always names the next step. Before the races that is
+   * the Race Office until every race this stable can fill has a runner, then the track. The Market
+   * and the Kennels are optional, one tab away. It costs no press: "Next: Race Office" is the press
+   * the tab was, and "Head to the track" is unchanged.
+   */
+  const toOffice = pre && view !== 'office' && !cardFilled(s, me);
+  const next = toOffice ? () => setView('office') : endPhase;
 
   // An event card owns the keyboard until it is answered.
   const live = !s.pendingEvent;
@@ -43,7 +57,7 @@ export function Nav({ s, me }: { s: GameState; me: Player }) {
       const key = KEY_FOR[v.id];
       if (key && v.open) keys[key] = () => setView(v.id as View);
     }
-    keys.Enter = endPhase;
+    keys.Enter = next;
     keys.l = () => setLeaderboard(!leaderboard);
     // While the leaderboard is open Escape belongs to it (LeaderboardOverlay binds its own), so
     // one key closes whatever is on top instead of closing it *and* navigating underneath it.
@@ -64,7 +78,7 @@ export function Nav({ s, me }: { s: GameState; me: Player }) {
               small
               variant={view === v.id ? 'primary' : 'default'}
               className={v.open && st?.worth ? 'has-stock' : undefined}
-              disabled={!v.open || v.id === 'bookie'}
+              disabled={!v.open}
               title={key && v.open ? `${why ?? v.label} (key: ${key.toUpperCase()})` : why}
               onClick={() => setView(v.id as View)}
             >
@@ -72,24 +86,36 @@ export function Nav({ s, me }: { s: GameState; me: Player }) {
             </NeonButton>
           );
         })}
+        <NeonButton
+          small
+          variant={keysOpen ? 'primary' : 'link'}
+          aria-expanded={keysOpen}
+          title="Keyboard shortcuts"
+          onClick={() => setKeysOpen(!keysOpen)}
+        >
+          ?
+        </NeonButton>
         <span className="spacer" />
         <NeonButton
           small
           variant="primary"
-          title={`${pre ? 'Lock the card in and head to the track' : 'Jump to the next planet'} (key: Enter)`}
-          onClick={endPhase}
+          title={`${toOffice ? 'Put a dog in each race' : pre ? 'Lock the card in and head to the track' : 'Jump to the next planet'} (key: Enter)`}
+          onClick={next}
         >
-          {pre ? 'Head to the track' : 'End turn'}
+          {toOffice ? 'Next: Race Office' : pre ? 'Head to the track' : 'End turn'}
         </NeonButton>
       </nav>
-      <p className="keyhint muted">
-        Keys:{' '}
-        {list
-          .filter((v) => v.open && KEY_FOR[v.id])
-          .map((v) => `${KEY_FOR[v.id]!.toUpperCase()} ${v.label.toLowerCase()}`)
-          .join(' · ')}{' '}
-        · L leaderboard · Enter {pre ? 'to the track' : 'end turn'} · Esc hub
-      </p>
+      {keysOpen ? (
+        <p className="keyhint muted">
+          Keys:{' '}
+          {list
+            .filter((v) => v.open && KEY_FOR[v.id])
+            .map((v) => `${KEY_FOR[v.id]!.toUpperCase()} ${v.label.toLowerCase()}`)
+            .join(' · ')}{' '}
+          · L leaderboard · Enter {toOffice ? 'race office' : pre ? 'to the track' : 'end turn'} ·
+          Esc hub
+        </p>
+      ) : null}
     </>
   );
 }

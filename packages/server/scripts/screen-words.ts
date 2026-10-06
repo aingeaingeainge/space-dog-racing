@@ -280,7 +280,7 @@ async function weekend(page: Page): Promise<void> {
     await measure(page, 'event');
     await answerCard(page);
   }
-  const ahead = btn(page, /^(Head to the track|Race!?|To the races)$/);
+  const ahead = btn(page, /^(Head to the track|Next: Race Office)$/);
   await until(page, 'the hub', () => seen(ahead));
   await measure(page, 'hub');
   await goVenue(page, /^Market$/);
@@ -357,6 +357,7 @@ async function gameEnd(page: Page): Promise<void> {
       'Back to the planet',
       'Run the races',
       'Head to the track',
+      'Next: Race Office',
       'End turn',
     ]) {
       if (await seen(btn(page, name))) {

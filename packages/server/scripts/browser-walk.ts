@@ -232,7 +232,7 @@ async function act(p: Seat): Promise<string | null> {
     }
     return 'picked a door';
   }
-  if (await seen(page, btn(page, 'Head to the track'))) {
+  if (await seen(page, btn(page, /^(Head to the track|Next: Race Office)$/))) {
     if (!p.declared) {
       await page.locator('nav.tabs').getByRole('button', { name: 'Race Office' }).click();
       const select = page.locator('select.wide').first();
@@ -246,7 +246,7 @@ async function act(p: Seat): Promise<string | null> {
       p.declared = true;
       return 'declared a dog';
     }
-    await btn(page, 'Head to the track').click();
+    await btn(page, /^(Head to the track|Next: Race Office)$/).click();
     return 'headed to the track';
   }
   if (await seen(page, btn(page, 'End turn'))) {

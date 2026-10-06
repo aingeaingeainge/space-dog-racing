@@ -293,7 +293,7 @@ async function step(page: Page, declared: { done: boolean }): Promise<boolean> {
       return true;
     }
   }
-  if (await seen(btn(page, 'Head to the track'))) {
+  if (await seen(btn(page, /^(Head to the track|Next: Race Office)$/))) {
     if (!declared.done) {
       declared.done = true;
       await page.locator('nav.tabs').getByRole('button', { name: 'Race Office' }).click();
@@ -306,7 +306,7 @@ async function step(page: Page, declared: { done: boolean }): Promise<boolean> {
       if (dog) await select.selectOption(dog);
       return true;
     }
-    await btn(page, 'Head to the track').click();
+    await btn(page, /^(Head to the track|Next: Race Office)$/).click();
     return true;
   }
   if (await seen(btn(page, 'End turn'))) {

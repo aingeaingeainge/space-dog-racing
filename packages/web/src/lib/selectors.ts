@@ -137,6 +137,18 @@ export function declaredRace(s: GameState, playerId: Id, dogId: Id): RaceTypeId 
   return null;
 }
 
+/**
+ * Phase P: has this stable put a runner in every race it can fill? (At most one dog a race, so the
+ * most it can fill is the card or its fit dogs, whichever is fewer.) The planet's "next" button
+ * reads it: "Next: Race Office" until it is true, then "Head to the track".
+ */
+export function cardFilled(s: GameState, p: Player): boolean {
+  const card = thisWeeksCard();
+  const fit = ownedDogs(s, p).filter((d) => !cannotRunReason(s, d)).length;
+  const declared = card.filter((race) => s.declarations[race][p.id]).length;
+  return declared >= Math.min(card.length, fit);
+}
+
 /** What the race asks of a dog, in the words the card header prints (GDD §6.5). */
 export function criterionFor(race: RaceTypeId): string {
   return raceType(race).criterion;
