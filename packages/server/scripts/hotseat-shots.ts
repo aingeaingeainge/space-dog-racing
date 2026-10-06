@@ -169,7 +169,8 @@ async function fresh(browser: Browser, url: string, save?: string): Promise<Page
   await page.clock.setFixedTime(FIXED_TIME);
   page.on('pageerror', (e) => console.error(`  page error: ${e.message}`));
   await page.goto(url);
-  await page.getByRole('button', { name: 'Start season' }).first().waitFor();
+  // Phase P: every Title has Play; a seed link also opens the custom game's "Start season".
+  await page.getByRole('button', { name: 'Play', exact: true }).first().waitFor();
   return page;
 }
 

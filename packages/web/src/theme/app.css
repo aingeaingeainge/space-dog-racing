@@ -2790,3 +2790,65 @@ table.market tr.held td:first-child {
     white-space: normal;
   }
 }
+
+/* ---------------------------------------------------------------- Phase P: pick up and play */
+/* The Title's one press: Play, big, with everything else folded under "Custom game". */
+.title-start {
+  margin: 28px 0 22px;
+}
+.title-start .row {
+  justify-content: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+button.big {
+  font-size: 22px;
+  padding: 14px 40px;
+}
+@media (max-width: 480px) {
+  button.big {
+    font-size: 18px;
+    padding: 12px 26px;
+  }
+}
+/* The "?" that holds what a screen used to explain out loud (components/More.tsx). */
+button.more {
+  padding: 0 7px;
+  min-width: 22px;
+  line-height: 20px;
+  border-radius: 50%;
+  font-weight: 700;
+  font-size: 12px;
+  vertical-align: middle;
+}
+.more-body {
+  margin: 6px 0 10px;
+  padding: 8px 12px;
+  border-left: 3px solid var(--accent-2);
+  background: rgba(0, 0, 0, 0.18);
+}
+.more-body > :first-child {
+  margin-top: 0;
+}
+.more-body > :last-child {
+  margin-bottom: 0;
+}
+/* The first-game guide (components/Guide.tsx): one line, at the moment it matters. */
+.guide {
+  margin: 0 0 12px;
+  padding: 8px 12px;
+  border: 2px dashed var(--hazard);
+  border-radius: var(--radius);
+  color: var(--text);
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+.guide b {
+  color: var(--hazard);
+}
+.oneline {
+  margin: 0 0 10px;
+}

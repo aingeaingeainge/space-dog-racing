@@ -335,7 +335,7 @@ async function walk(browser: Browser, base: string): Promise<void> {
   // Without a rooms URL, the Title is today's: no "Play online" at all.
   const off = await browser.newPage();
   await off.goto(`http://127.0.0.1:${OFF_PORT}/`);
-  await off.getByRole('button', { name: 'Start season' }).first().waitFor();
+  await off.getByRole('button', { name: 'Play', exact: true }).first().waitFor();
   const offCount = await off.getByRole('button', { name: 'Play online' }).count();
   await off.close();
 

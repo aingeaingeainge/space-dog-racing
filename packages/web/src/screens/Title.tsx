@@ -2,7 +2,7 @@ import { Fragment, useEffect, useRef, useState } from 'react';
 import { balance, formatBones } from '@sdr/engine';
 import type { Difficulty, GameLength, PlayerSetup, Toggles } from '@sdr/engine';
 import { Panel } from '../components/Panel';
-import { Notes, Swatch } from '../components/ui';
+import { Swatch } from '../components/ui';
 import { NeonButton } from '../components/NeonButton';
 import { parseSeasonLink } from '../lib/seedLink';
 import { portraitArt } from '../lib/assets';
@@ -27,7 +27,7 @@ function randomSeed(): number {
   return Math.floor(Math.random() * 1_000_000);
 }
 
-/** The build's own name (`__SDR_BUILD__`, a Vite define from `git describe`), for the panel below. */
+/** The build's own name (`__SDR_BUILD__`, a Vite define from `git describe`), for the footer. */
 const BUILD = typeof __SDR_BUILD__ === 'string' ? __SDR_BUILD__ : 'unknown';
 
 const DEFAULT_TOGGLES: Toggles = {
@@ -86,19 +86,62 @@ export function Title() {
       })),
     });
 
+  /**
+   * Phase P (P1): the new player's path is one press. **Play** is the Title's own default table — you
+   * against five Normal AIs, one season, a fresh seed, the default toggles — whatever the custom form
+   * below says, so a returning player's edits there never surprise a quick game.
+   */
+  const quick = () => {
+    const table = defaultRoster();
+    const faces = resolveColours(table);
+    newSeason({
+      seed: randomSeed(),
+      toggles: DEFAULT_TOGGLES,
+      length: { kind: 'seasons', seasons: 1 },
+      players: table.map((p, i) => ({ ...p, colour: faces[i] })),
+    });
+  };
+  // A shared link fills the custom game in, so it opens with the form showing.
+  const [custom, setCustom] = useState(() => !!shared);
+
   return (
     <div className="app">
       <div className="centre">
         <h1>Space Dog Racing</h1>
         <p className="muted tagline">
-          Ten weekends a season on the grimy underground circuit — one season, five, or race to a
-          fortune. Richest stable at the end wins.
+          Race a kennel of space greyhounds round the grimy underground circuit. Richest stable
+          wins.
         </p>
       </div>
 
       {error ? <div className="notice error">{error}</div> : null}
 
-      {shared ? (
+      <div className="title-start centre">
+        <div className="row centre">
+          {hasSave ? (
+            <NeonButton variant="primary" className="big" onClick={resume}>
+              Resume season
+            </NeonButton>
+          ) : null}
+          <NeonButton variant={hasSave ? 'default' : 'primary'} className="big" onClick={quick}>
+            Play
+          </NeonButton>
+          {online ? (
+            <NeonButton className="big" onClick={() => openLobby(true)}>
+              Play online
+            </NeonButton>
+          ) : null}
+        </div>
+        <p className="muted">
+          You against five AI stables, one season.
+          {hasSave ? ' Play starts a new game in place of the saved one.' : ''}
+        </p>
+        <NeonButton variant="link" aria-expanded={custom} onClick={() => setCustom(!custom)}>
+          {custom ? 'Custom game ▾' : 'Custom game ▸'}
+        </NeonButton>
+      </div>
+
+      {custom && shared ? (
         <div className="notice">
           Somebody shared <b>seed {shared.seed}</b> with you
           {shared.players.length ? ` and a table of ${shared.players.length}` : ''}
@@ -108,213 +151,184 @@ export function Title() {
         </div>
       ) : null}
 
-      {hasSave ? (
-        <Panel title="Saved season" sub="the seed and the action log, replayed">
-          <div className="row">
-            <NeonButton variant="primary" onClick={resume}>
-              Resume season
-            </NeonButton>
-            <span className="muted">Picks up exactly where the last save left off.</span>
-          </div>
-        </Panel>
-      ) : null}
-
-      {online ? (
-        <Panel title="Play online" sub="one room, a link, a browser each — friends in other houses">
-          <div className="row">
-            <NeonButton variant="primary" onClick={() => openLobby(true)}>
-              Play online
-            </NeonButton>
-            <span className="muted">
-              Make a room and send the link, or join one with its six-letter code.
-            </span>
-          </div>
-        </Panel>
-      ) : null}
-
-      <Panel
-        title="New season"
-        sub="hotseat: any mix of human and AI stables"
-        actions={
-          <NeonButton variant="primary" disabled={!canStart} onClick={start}>
-            Start season
-          </NeonButton>
-        }
-      >
-        <div className="row gap-b">
-          <label>
-            Seed{' '}
-            <input
-              type="number"
-              value={seed}
-              className="seed"
-              onChange={(e) => setSeed(Number(e.target.value) || 0)}
-            />
-          </label>
-          <NeonButton onClick={() => setSeed(randomSeed())}>Roll a new seed</NeonButton>
-          <span className="muted">Same seed + same choices = the same season, on any machine.</span>
-        </div>
-
-        <GameLengthPicker length={length} setLength={setLength} />
-
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th />
-                <th>Stable</th>
-                <th>Played by</th>
-                <th>Difficulty</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {roster.map((p, i) => (
-                <Fragment key={i}>
-                  <tr>
-                    <td>
-                      {p.kind === 'human' ? (
-                        <FaceButton
-                          colour={colours[i]!}
-                          open={picking === i}
-                          onClick={() => setPicking(picking === i ? null : i)}
-                        />
-                      ) : (
-                        <Swatch colour={colours[i]!} />
-                      )}
-                    </td>
-                    <td>
-                      <input
-                        value={p.name}
-                        placeholder={p.kind === 'ai' ? '(random stable name)' : `Stable ${i + 1}`}
-                        onChange={(e) => update(i, { name: e.target.value })}
-                      />
-                    </td>
-                    <td>
-                      <select
-                        value={p.kind}
-                        onChange={(e) => {
-                          // A pick belongs to a human row; a row that changes hands starts unpicked.
-                          update(i, {
-                            kind: e.target.value as PlayerSetup['kind'],
-                            colour: undefined,
-                          });
-                          if (picking === i) setPicking(null);
-                        }}
-                      >
-                        <option value="human">Human</option>
-                        <option value="ai">AI</option>
-                      </select>
-                    </td>
-                    <td>
-                      {p.kind === 'ai' ? (
-                        <select
-                          value={p.difficulty ?? 'normal'}
-                          onChange={(e) => update(i, { difficulty: e.target.value as Difficulty })}
-                        >
-                          <option value="easy">Easy</option>
-                          <option value="normal">Normal</option>
-                          <option value="hard">Hard</option>
-                        </select>
-                      ) : (
-                        <span className="muted">—</span>
-                      )}
-                    </td>
-                    <td>
-                      <NeonButton
-                        variant="link"
-                        disabled={roster.length <= 1}
-                        onClick={() => {
-                          setRoster((r) => r.filter((_, j) => j !== i));
-                          setPicking(null);
-                        }}
-                      >
-                        remove
-                      </NeonButton>
-                    </td>
-                  </tr>
-                  {picking === i && p.kind === 'human' ? (
-                    <tr className="face-picker-row">
-                      <td colSpan={5}>
-                        <FacePicker
-                          who={rowName(p, i)}
-                          current={colours[i]!}
-                          takenBy={(c) => {
-                            const j = roster.findIndex(
-                              (q, k) => k !== i && q.kind === 'human' && colours[k] === c,
-                            );
-                            return j >= 0 ? rowName(roster[j]!, j) : null;
-                          }}
-                          onPick={(c) => update(i, { colour: c })}
-                          onClose={() => setPicking(null)}
-                        />
-                      </td>
-                    </tr>
-                  ) : null}
-                </Fragment>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        <div className="row gap-t">
-          <NeonButton
-            disabled={roster.length >= MAX_STABLES}
-            onClick={() =>
-              setRoster((r) => [...r, { name: '', kind: 'ai', difficulty: 'normal' as Difficulty }])
+      {custom ? (
+        <>
+          <Panel
+            title="Custom game"
+            sub="hotseat: any mix of human and AI stables"
+            actions={
+              <NeonButton variant="primary" disabled={!canStart} onClick={start}>
+                Start season
+              </NeonButton>
             }
           >
-            Add stable
-          </NeonButton>
-          <span className="muted">
-            {roster.length} stables, {humans} human. Easy leaves half the card to the locals; Hard
-            buys gear, prices its own runners and doses where it pays.
-          </span>
-        </div>
-        {!canStart ? <p className="muted">A season needs at least one human stable.</p> : null}
-      </Panel>
+            <div className="row gap-b">
+              <label>
+                Seed{' '}
+                <input
+                  type="number"
+                  value={seed}
+                  className="seed"
+                  onChange={(e) => setSeed(Number(e.target.value) || 0)}
+                />
+              </label>
+              <NeonButton onClick={() => setSeed(randomSeed())}>Roll a new seed</NeonButton>
+              <span className="muted">Same seed + same choices = the same game.</span>
+            </div>
 
-      <Panel
-        title="Complexity toggles"
-        sub="GDD §13 — Gazillionaire-style, set before the season starts"
-      >
-        <div className="grid2">
-          <Toggle
-            on={!toggles.betting}
-            set={(v) => setToggles((t) => ({ ...t, betting: !v }))}
-            label="No Betting"
-            blurb="The bookie never opens; prize money and trading only."
-          />
-          <Toggle
-            on={!toggles.trading}
-            set={(v) => setToggles((t) => ({ ...t, trading: !v }))}
-            label="No Trading"
-            blurb="The market is shut. Your dogs still eat: Grey Mash, at the local price, at the gate."
-          />
-          <Toggle
-            on={toggles.casualEvents}
-            set={(v) => setToggles((t) => ({ ...t, casualEvents: v }))}
-            label="Casual events"
-            blurb="Drops the big-swing event cards; the flavour and small choices stay."
-          />
-        </div>
-        <Notes
-          lines={[
-            'Toggles are part of the season, so a shared seed only replays the same way with the same toggles.',
-          ]}
-        />
-      </Panel>
+            <GameLengthPicker length={length} setLength={setLength} />
 
-      {/* Phase M: says what is true of every build, and names this one, so it never goes stale. */}
-      <Panel title="What is in this build" sub={`build ${BUILD} — the game's shape`}>
-        <p className="muted flush">
-          One to five ten-week seasons, or a race to a target, against Easy, Normal and Hard
-          stables. A game opens on a draft of four dogs and two trainers. A weekend is one of
-          Explore&apos;s three doors, the six-food market that is also your dogs&apos; training,
-          trainers on commission, three purse tiers and the Bookie; an off-season draft sits between
-          seasons. Every planet is painted and tints its own chrome.
-        </p>
-      </Panel>
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th />
+                    <th>Stable</th>
+                    <th>Played by</th>
+                    <th>Difficulty</th>
+                    <th />
+                  </tr>
+                </thead>
+                <tbody>
+                  {roster.map((p, i) => (
+                    <Fragment key={i}>
+                      <tr>
+                        <td>
+                          {p.kind === 'human' ? (
+                            <FaceButton
+                              colour={colours[i]!}
+                              open={picking === i}
+                              onClick={() => setPicking(picking === i ? null : i)}
+                            />
+                          ) : (
+                            <Swatch colour={colours[i]!} />
+                          )}
+                        </td>
+                        <td>
+                          <input
+                            value={p.name}
+                            placeholder={
+                              p.kind === 'ai' ? '(random stable name)' : `Stable ${i + 1}`
+                            }
+                            onChange={(e) => update(i, { name: e.target.value })}
+                          />
+                        </td>
+                        <td>
+                          <select
+                            value={p.kind}
+                            onChange={(e) => {
+                              // A pick belongs to a human row; a row that changes hands starts unpicked.
+                              update(i, {
+                                kind: e.target.value as PlayerSetup['kind'],
+                                colour: undefined,
+                              });
+                              if (picking === i) setPicking(null);
+                            }}
+                          >
+                            <option value="human">Human</option>
+                            <option value="ai">AI</option>
+                          </select>
+                        </td>
+                        <td>
+                          {p.kind === 'ai' ? (
+                            <select
+                              value={p.difficulty ?? 'normal'}
+                              onChange={(e) =>
+                                update(i, { difficulty: e.target.value as Difficulty })
+                              }
+                            >
+                              <option value="easy">Easy</option>
+                              <option value="normal">Normal</option>
+                              <option value="hard">Hard</option>
+                            </select>
+                          ) : (
+                            <span className="muted">—</span>
+                          )}
+                        </td>
+                        <td>
+                          <NeonButton
+                            variant="link"
+                            disabled={roster.length <= 1}
+                            onClick={() => {
+                              setRoster((r) => r.filter((_, j) => j !== i));
+                              setPicking(null);
+                            }}
+                          >
+                            remove
+                          </NeonButton>
+                        </td>
+                      </tr>
+                      {picking === i && p.kind === 'human' ? (
+                        <tr className="face-picker-row">
+                          <td colSpan={5}>
+                            <FacePicker
+                              who={rowName(p, i)}
+                              current={colours[i]!}
+                              takenBy={(c) => {
+                                const j = roster.findIndex(
+                                  (q, k) => k !== i && q.kind === 'human' && colours[k] === c,
+                                );
+                                return j >= 0 ? rowName(roster[j]!, j) : null;
+                              }}
+                              onPick={(c) => update(i, { colour: c })}
+                              onClose={() => setPicking(null)}
+                            />
+                          </td>
+                        </tr>
+                      ) : null}
+                    </Fragment>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="row gap-t">
+              <NeonButton
+                disabled={roster.length >= MAX_STABLES}
+                onClick={() =>
+                  setRoster((r) => [
+                    ...r,
+                    { name: '', kind: 'ai', difficulty: 'normal' as Difficulty },
+                  ])
+                }
+              >
+                Add stable
+              </NeonButton>
+              <span className="muted">
+                {roster.length} stables, {humans} human. Two or more humans share this screen,
+                hotseat.
+              </span>
+            </div>
+            {!canStart ? <p className="muted">A season needs at least one human stable.</p> : null}
+          </Panel>
+
+          <Panel title="Toggles" sub="part of the game: a shared seed needs the same ones">
+            <div className="grid2">
+              <Toggle
+                on={!toggles.betting}
+                set={(v) => setToggles((t) => ({ ...t, betting: !v }))}
+                label="No Betting"
+                blurb="The bookie never opens."
+              />
+              <Toggle
+                on={!toggles.trading}
+                set={(v) => setToggles((t) => ({ ...t, trading: !v }))}
+                label="No Trading"
+                blurb="The market is shut; your dogs eat Grey Mash at the gate."
+              />
+              <Toggle
+                on={toggles.casualEvents}
+                set={(v) => setToggles((t) => ({ ...t, casualEvents: v }))}
+                label="Casual events"
+                blurb="Drops the big-swing event cards."
+              />
+            </div>
+          </Panel>
+        </>
+      ) : null}
+
+      {/* Phase M named the build here, so a screenshot says which build it is. */}
+      <p className="muted small centre">build {BUILD}</p>
     </div>
   );
 }
@@ -387,8 +401,8 @@ export function GameLengthPicker({
         {length.kind === 'seasons'
           ? length.seasons === 1
             ? 'Ten weekends; the richest stable wins.'
-            : `Ten weekends a season, with an off-season between: a year older, one retirement, the staff notice.`
-          : `Net worth is checked at the end of every weekend. The first weekend anybody is past it is the last one, and the richest stable then wins — two can cross together, and a leader can be caught on the last weekend. At most ${balance.targetSeasonCap} seasons.`}
+            : 'Ten weekends a season, with an off-season draft between.'
+          : `The weekend anybody's net worth passes it is the last; the richest stable then wins. At most ${balance.targetSeasonCap} seasons.`}
       </span>
     </div>
   );
