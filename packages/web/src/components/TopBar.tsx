@@ -1,6 +1,5 @@
 import { formatBones, planetOf, type GameState, type Player } from '@sdr/engine';
 import { NeonButton } from './NeonButton';
-import { PHASE_LABEL } from '../lib/selectors';
 import { useGame } from '../store/gameStore';
 
 /** Always on screen: where we are, whose turn it is, and the way into the leaderboard. */
@@ -34,7 +33,6 @@ export function TopBar({ s, me }: { s: GameState; me: Player | null }) {
           </>
         ) : null}
       </span>
-      <span className="stat">{PHASE_LABEL[s.phase]}</span>
       {me ? (
         <span className="stat">
           <b>{me.name}</b> · {formatBones(me.cash)}

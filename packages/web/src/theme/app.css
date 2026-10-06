@@ -2852,3 +2852,9 @@ button.more {
 .oneline {
   margin: 0 0 10px;
 }
+/* Phase P: on a phone the top bar is where you are and what you have; the name is on the Title. */
+@media (max-width: 480px) {
+  .topbar .brand {
+    display: none;
+  }
+}

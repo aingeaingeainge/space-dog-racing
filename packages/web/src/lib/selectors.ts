@@ -151,7 +151,10 @@ export function cardFilled(s: GameState, p: Player): boolean {
 
 /** What the race asks of a dog, in the words the card header prints (GDD §6.5). */
 export function criterionFor(race: RaceTypeId): string {
-  return raceType(race).criterion;
+  // Phase P (D34): since v3 every race is open to every dog, so the stub's small print said the
+  // same thing on all three tickets every week. A race with a real criterion still prints it.
+  const c = raceType(race).criterion;
+  return c === 'any dog may enter' ? '' : c;
 }
 
 /** Why a dog cannot run in one race — null when it can. */
