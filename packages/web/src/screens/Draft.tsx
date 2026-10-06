@@ -404,7 +404,7 @@ function Stables({ s, d, upTo }: { s: GameState; d: DraftState; upTo: number }) 
 function OffSeasonNews({ s }: { s: GameState }) {
   const left = Object.entries(s.offSeason?.notices ?? {}).filter(([, x]) => x.left.length);
   return (
-    <Panel title="A year older" sub="every dog on the circuit ages once, now (GDD §4.3)">
+    <Panel title="A year older" sub="every dog on the circuit ages once, now">
       <ul className="draft-stables">
         {s.players.map((p) => (
           <li key={p.id}>

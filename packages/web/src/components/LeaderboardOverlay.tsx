@@ -56,7 +56,7 @@ export function LeaderboardOverlay({ s, meId }: { s: GameState; meId: Id | null 
         </table>
       </div>
       <p className="muted flush-b">
-        Net worth = cash + dogs + cargo (GDD_V3 §4.3). Tie-break: most Gold Cup wins.
+        Net worth = cash + dogs + cargo. Tie-break: most Gold Cup wins.
       </p>
     </Modal>
   );
