@@ -12,6 +12,24 @@ export function trackText(t: Track): string {
   return `${t.distance} m ${t.length}, ${bends}${extra ? `, ${extra}` : ''}`;
 }
 
+/**
+ * Phase P: the track in one short sentence, for the Race Office's only line — what about it should
+ * change a declaration, and nothing when it is a plain one.
+ */
+export function trackLine(t: Track): string {
+  const bits: string[] = [];
+  if (t.length === 'sprint') bits.push('a sprint: front-runners love it');
+  else if (t.length === 'staying') bits.push('a long trip: closers love it');
+  if (t.bends === 'tight') bits.push('tight bends: the draw matters');
+  else if (t.bends === 'none') bits.push('dead straight');
+  if (t.mud) bits.push('mud: Mudlarks love it');
+  if (t.slippery) bits.push('slippery');
+  if (t.hazard !== 1) bits.push('a dangerous surface');
+  if (!bits.length) return `${t.distance} m, nothing unusual.`;
+  const line = `${t.distance} m, ${bits.join('; ')}.`;
+  return line;
+}
+
 const pct = (n: number) => `${Math.round(n * 100)}%`;
 
 /**

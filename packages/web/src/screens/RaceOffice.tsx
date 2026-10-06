@@ -20,7 +20,9 @@ import { Whispers } from '../components/Whispers';
 import { Panel } from '../components/Panel';
 import { TicketCard } from '../components/TicketCard';
 import { Badge, Notes, StableName, StyleTag, Traits } from '../components/ui';
-import { trackText } from '../lib/planetText';
+import { More } from '../components/More';
+import { Guide } from '../components/Guide';
+import { trackLine, trackText } from '../lib/planetText';
 import {
   cannotRunReason,
   criterionFor,
@@ -119,47 +121,49 @@ function BoxChooser({ s, me }: { s: GameState; me: Player }) {
 function WeekLedger({ s, me, dogs }: { s: GameState; me: Player; dogs: Dog[] }) {
   if (!dogs.length) return null;
   return (
-    <table className="ledger">
-      <thead>
-        <tr>
-          <th>Dog</th>
-          <th>Style</th>
-          <th>Rating</th>
-          <th>Fitness</th>
-          <th>If it runs</th>
-          <th>If it rests</th>
-          <th>This week</th>
-        </tr>
-      </thead>
-      <tbody>
-        {dogs.map((d) => {
-          const f = fitnessOutlook(d, restBonus(me));
-          const barred = cannotRunReason(s, d);
-          const race = declaredRace(s, me.id, d.id);
-          return (
-            <tr key={d.id} className={barred ? 'muted' : undefined}>
-              <td>{d.name}</td>
-              <td>
-                <StyleTag style={publicStyle(d)} />
-              </td>
-              <td>{d.rating}</td>
-              <td>{f.now}</td>
-              <td>{barred ? '—' : `${f.racing}`}</td>
-              <td>{f.resting}</td>
-              <td>
-                {barred ? (
-                  <span className="muted">{barred}</span>
-                ) : race ? (
-                  <Badge tone="good">declared in the {raceLabel(race)}</Badge>
-                ) : (
-                  <span className="muted">not entered</span>
-                )}
-              </td>
-            </tr>
-          );
-        })}
-      </tbody>
-    </table>
+    <div className="table-wrap">
+      <table className="ledger">
+        <thead>
+          <tr>
+            <th>Dog</th>
+            <th>Style</th>
+            <th>Rating</th>
+            <th>Fitness</th>
+            <th>If it runs</th>
+          </tr>
+        </thead>
+        <tbody>
+          {dogs.map((d) => {
+            const f = fitnessOutlook(d, restBonus(me));
+            const barred = cannotRunReason(s, d);
+            // Phase P: "if it rests" and "this week" folded into one cell — the run's cost, and the
+            // race it is in once declared. A dog not declared rests (D16).
+            const race = declaredRace(s, me.id, d.id);
+            return (
+              <tr key={d.id} className={barred ? 'muted' : undefined}>
+                <td>{d.name}</td>
+                <td>
+                  <StyleTag style={publicStyle(d)} />
+                </td>
+                <td>{d.rating}</td>
+                <td>{f.now}</td>
+                <td>
+                  {barred ? (
+                    <span className="muted">{barred}</span>
+                  ) : race ? (
+                    <Badge tone="good">
+                      {f.racing} · {raceLabel(race)}
+                    </Badge>
+                  ) : (
+                    `${f.racing}`
+                  )}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
@@ -212,53 +216,61 @@ export function RaceOffice({ s, me }: { s: GameState; me: Player }) {
 
   return (
     <>
+      <Guide id="office">
+        Pick a dog for each race. The bigger the purse, the tougher the field.
+      </Guide>
       <Panel
         title="Race Office"
-        sub="one runner per race, any dog in any race; declared in turn order, public as they are made"
         actions={
           <span className="muted">
             {dogs.filter((d) => d.injuryWeeks === 0).length} of {dogs.length} dogs fit to run
           </span>
         }
       >
-        <p className="muted first">
-          Stables declare in turn order and every declaration is public the moment it is made — so
-          the later you go, the more of each field you can see before you commit. Empty traps are
-          filled by local dogs, whose styles are on the form guide at the lock.
-        </p>
-        <Notes
-          lines={[
-            `${planet.name}: ${trackText(planet.track)}.`,
-            planet.track.hazard !== 1
-              ? `A hazardous surface — injury risk ×${planet.track.hazard} on top of the base ${pct(balance.injuryBase)} a race.`
-              : null,
-            planet.track.mud ? 'Mudlarks love it here.' : null,
-            planet.track.slippery ? 'Slippery: acceleration counts for more than usual.' : null,
-            planet.track.length === 'sprint'
-              ? 'A sprint: a dog barely gets to tire over 350 m, so front-runners come into their own and closers run out of track.'
-              : planet.track.length === 'staying'
-                ? 'A staying trip: 600 m finds out every dog’s stamina, and a closer has time to come back at the front-runners.'
-                : null,
-            planet.track.bends === 'none'
-              ? 'No bends at all: the draw is a starting position and nothing more.'
-              : planet.track.bends === 'tight'
-                ? 'Tight bends: the rail is the short way round and where the traffic is, so the draw matters most here — and a dog needs the trap craft to hold the inside line.'
-                : 'The draw counts for something on these bends: inside is shorter, outside is cleaner.',
-            entry?.grandFinal
-              ? `The Grand Final — purses ×${balance.finalMult}.`
-              : major
-                ? `A Major — purses ×${balance.majorMult}, Showboats lift, and the locals are ${balance.localRatingMajorBonus} points better.`
-                : null,
-            sp.purseMult ? `${planet.name} adds ×${sp.purseMult} to every purse.` : null,
-            sp.winningsTax ? `${pct(sp.winningsTax)} of any prize money is taxed here.` : null,
-            `A run costs ${balance.fitnessPerRace} fitness and a rest returns ${balance.fitnessRest}; below ${balance.fitnessScaleBelow} every stat is scaled down. What you enter this weekend is what you cannot enter next.`,
-          ]}
-        />
+        {/* Phase P: one line on the screen — the track, and the weekend if it is a big one — and the
+            rest of what the Race Office used to say out loud behind the "?". */}
+        <div className="oneline">
+          {trackLine(planet.track)}
+          {entry?.grandFinal
+            ? ` The Grand Final: purses ×${balance.finalMult}.`
+            : major
+              ? ` A Major: purses ×${balance.majorMult}, and the locals are better.`
+              : ''}{' '}
+          <More label="How declaring works">
+            <Notes
+              lines={[
+                'Stables declare in turn order, and every declaration is public the moment it is made — so the later you go, the more of each field you can see before you commit. Empty traps are filled by local dogs.',
+                `${planet.name}: ${trackText(planet.track)}.`,
+                planet.track.hazard !== 1
+                  ? `A hazardous surface — injury risk ×${planet.track.hazard} on top of the base ${pct(balance.injuryBase)} a race.`
+                  : null,
+                planet.track.mud ? 'Mudlarks love it here.' : null,
+                planet.track.slippery ? 'Slippery: acceleration counts for more than usual.' : null,
+                planet.track.length === 'sprint'
+                  ? 'A sprint: a dog barely gets to tire over 350 m, so front-runners come into their own and closers run out of track.'
+                  : planet.track.length === 'staying'
+                    ? 'A staying trip: 600 m finds out every dog’s stamina, and a closer has time to come back at the front-runners.'
+                    : null,
+                planet.track.bends === 'none'
+                  ? 'No bends at all: the draw is a starting position and nothing more.'
+                  : planet.track.bends === 'tight'
+                    ? 'Tight bends: the rail is the short way round and where the traffic is, so the draw matters most here — and a dog needs the trap craft to hold the inside line.'
+                    : 'The draw counts for something on these bends: inside is shorter, outside is cleaner.',
+                major && !entry?.grandFinal
+                  ? `A Major: Showboats lift, and the locals are ${balance.localRatingMajorBonus} points better.`
+                  : null,
+                sp.purseMult ? `${planet.name} adds ×${sp.purseMult} to every purse.` : null,
+                sp.winningsTax ? `${pct(sp.winningsTax)} of any prize money is taxed here.` : null,
+                `A run costs ${balance.fitnessPerRace} fitness and a rest returns ${balance.fitnessRest}; below ${balance.fitnessScaleBelow} every stat is scaled down. A dog you do not declare rests.`,
+              ]}
+            />
+          </More>
+        </div>
         <WeekLedger s={s} me={me} dogs={dogs} />
         {dogs.some((d) => d.injuryWeeks > 0) ? (
           <p className="event-detail">
-            A dog on layoff cannot be declared, and nobody lends you a runner. A vet behind the
-            Pound — or a riskier one in the Back Alley — can shorten a layoff.
+            A dog on layoff cannot be declared. A vet behind the Pound — or a riskier one in the
+            Back Alley — can shorten a layoff.
           </p>
         ) : null}
       </Panel>
@@ -327,9 +339,7 @@ export function RaceOffice({ s, me }: { s: GameState; me: Player }) {
                   <DogThumb dog={s.dogs[mine]!} big />
                   <StyleTag style={publicStyle(s.dogs[mine]!)} />
                   <Traits ids={s.dogs[mine]!.traits} />
-                  <span className="muted">
-                    fitness {s.dogs[mine]!.fitness} · form {s.dogs[mine]!.form}
-                  </span>
+                  <span className="muted">fitness {s.dogs[mine]!.fitness}</span>
                 </p>
               ) : null}
 
@@ -347,8 +357,8 @@ export function RaceOffice({ s, me }: { s: GameState; me: Player }) {
                 })()}
               </p>
               <p className="muted tight-p">
-                {declaredHere} declared · {Math.max(0, TRAPS - declaredHere)} local dogs will fill
-                the rest, rating about {localRatingFor(race, major)}
+                + {Math.max(0, TRAPS - declaredHere)} locals, rated about{' '}
+                {localRatingFor(race, major)}
               </p>
 
               <table className="rivals">
