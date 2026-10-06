@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import {
   formatBones,
   planetOf,
@@ -15,7 +16,23 @@ import { useKeys } from '../lib/keys';
 import { humans, playerById, raceLabel } from '../lib/selectors';
 import { useGame } from '../store/gameStore';
 
-function RaceTable({ s, r, meId }: { s: GameState; r: RaceResult; meId: string }) {
+/**
+ * One race's result. Phase P: by default the short form — the first three and every human stable's
+ * dogs, and the four columns that say what happened — with the full table (traps, ratings, the Δ,
+ * traits, the odds) behind the Results' "Full results" press.
+ */
+function RaceTable({
+  s,
+  r,
+  meId,
+  full,
+}: {
+  s: GameState;
+  r: RaceResult;
+  meId: string;
+  full: boolean;
+}) {
+  if (!full) return <ShortTable s={s} r={r} meId={meId} />;
   return (
     <div className="table-wrap">
       <table>
@@ -90,9 +107,56 @@ function RaceTable({ s, r, meId }: { s: GameState; r: RaceResult; meId: string }
   );
 }
 
+function ShortTable({ s, r, meId }: { s: GameState; r: RaceResult; meId: string }) {
+  return (
+    <div className="table-wrap">
+      <table>
+        <tbody>
+          {r.order.map((dogId, i) => {
+            const e = r.entries.find((x) => x.dogId === dogId);
+            if (!e) return null;
+            const owner = playerById(s, e.local ? null : e.ownerId);
+            if (i > 2 && owner?.kind !== 'human') return null;
+            const pay = r.payouts.find((p) => p.dogId === dogId);
+            const injury = r.injuries[dogId];
+            const run = r.runs?.[r.entries.indexOf(e)];
+            return (
+              <tr key={dogId} className={e.ownerId === meId ? 'me' : i > 2 ? 'dim' : ''}>
+                <td>{i + 1}</td>
+                <td>
+                  {e.name}
+                  {injury ? (
+                    <>
+                      {' '}
+                      <Badge tone="bad">injured {injury}w</Badge>
+                    </>
+                  ) : null}
+                </td>
+                <td>
+                  {owner ? (
+                    <span className="owner-cell">
+                      <OwnerFace player={owner} />
+                      <StableName player={owner} me={owner.id === meId} />
+                    </span>
+                  ) : (
+                    <Badge>local</Badge>
+                  )}
+                </td>
+                <td>{run ? <StyleTag style={run.style} /> : null}</td>
+                <td className="num">{pay ? formatBones(pay.amount) : '—'}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 /** GDD §15.9 without the canvas: who won, what it paid, what it did to the ratings. */
 export function Results({ s, me }: { s: GameState; me: Player }) {
   const ackResults = useGame((g) => g.ackResults);
+  const [full, setFull] = useState(false);
   const dispatch = useGame((g) => g.dispatch);
   // Phase D1 (§10.1's click budget): "Back to the planet" then "End turn" is two presses for a
   // player with nothing left to do here — and after the races, most weeks, there is nothing. One
@@ -127,7 +191,6 @@ export function Results({ s, me }: { s: GameState; me: Player }) {
     <div className="app">
       <Panel
         title={`Week ${s.week} results — ${planet.name}`}
-        sub="prize money paid, ratings updated"
         actions={
           <>
             <NeonButton variant="primary" onClick={ackResults} title="key: Enter">
@@ -154,15 +217,15 @@ export function Results({ s, me }: { s: GameState; me: Player }) {
               .join(', ')}
             .
             {taken ? (
-              <span className="muted">
-                {' '}
-                Your trainers took {formatBones(taken)} of it — their cut of the purses.
-              </span>
+              <span className="muted"> (your trainers took {formatBones(taken)})</span>
             ) : null}
           </p>
         ) : (
           <p className="muted flush">Nothing in the money this weekend.</p>
         )}
+        <NeonButton variant="link" aria-expanded={full} onClick={() => setFull(!full)}>
+          {full ? 'Short results ▾' : 'Full results ▸'}
+        </NeonButton>
       </Panel>
 
       <Stewards s={s} />
@@ -179,10 +242,10 @@ export function Results({ s, me }: { s: GameState; me: Player }) {
           <Panel
             key={r.race}
             title={`${raceLabel(r.race)} — ${winner?.name ?? '?'}`}
-            sub={`won by ${r.margin} m${r.photoFinish ? ' — photo finish!' : ''} · purse ${formatBones(r.purse[0])}`}
+            sub={`won by ${r.margin} m${r.photoFinish ? ' — photo finish!' : ''}`}
             tight
           >
-            <RaceTable s={s} r={r} meId={table ? '' : me.id} />
+            <RaceTable s={s} r={r} meId={table ? '' : me.id} full={full} />
           </Panel>
         );
       })}
@@ -286,10 +349,7 @@ function Revealed({ s }: { s: GameState }) {
     return `${d.name} is a ${STYLE_BY_ID[d.style].name.toLowerCase()}`;
   });
   return (
-    <Panel
-      title="New on the card"
-      sub="styles the table has now seen — on every dog card from here on"
-    >
+    <Panel title="New on the card" sub="styles now public">
       <p className="flush">{lines.join(' · ')}.</p>
     </Panel>
   );
@@ -348,8 +408,7 @@ function BetsSettled({
         net={`${net >= 0 ? '+' : ''}${formatBones(net)} on the day`}
       />
       <p className="muted small-print">
-        Staked {formatBones(staked)}, returned {formatBones(returned)}. Nobody else at the table
-        sees these.
+        Staked {formatBones(staked)}, returned {formatBones(returned)}.
       </p>
     </div>
   );
