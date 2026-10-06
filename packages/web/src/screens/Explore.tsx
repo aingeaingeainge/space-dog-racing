@@ -1,6 +1,7 @@
 import { planetOf, type DoorCategory, type GameState, type Player } from '@sdr/engine';
 import { Panel } from '../components/Panel';
-import { NeonButton } from '../components/NeonButton';
+import { More } from '../components/More';
+import { Guide } from '../components/Guide';
 import { Notes } from '../components/ui';
 import { doorArt } from '../lib/assets';
 import { useKeys } from '../lib/keys';
@@ -51,10 +52,10 @@ export function Explore({ s, me }: { s: GameState; me: Player }) {
           stables want the same one-of-a-kind card, the first in the turn order still gets it.
         </div>
       ) : null}
-      <Panel
-        title={`Explore ${planet.name}`}
-        sub="pick one door — what is behind it is a card, and it is yours alone"
-      >
+      {!held && !early ? (
+        <Guide id="explore">Pick a door. Whatever is behind it is yours alone.</Guide>
+      ) : null}
+      <Panel title={`Explore ${planet.name}`} sub="pick one door">
         <div className="doors">
           {planet.exploreDoors.map((d, i) => {
             const art = doorArt(planet.id, d.category);
@@ -79,24 +80,15 @@ export function Explore({ s, me }: { s: GameState; me: Player }) {
             );
           })}
         </div>
-        <Notes
-          lines={[
-            'Everything unpredictable in the game comes through a door: dogs, tips, money, trouble. Every stable picks one, privately; where two want the same one-of-a-kind thing, the first in the turn order gets it.',
-          ]}
-        />
-        <div className="row">
-          {planet.exploreDoors.map((d, i) => (
-            <NeonButton
-              key={d.category}
-              variant="default"
-              disabled={held}
-              onClick={() => go(i)}
-              title={`key: ${i + 1}`}
-            >
-              {d.name}
-            </NeonButton>
-          ))}
-        </div>
+        {/* Phase P: the row of door-name buttons under the doors went — each door is its own
+            button, and the keys 1–3 still work — and the note is behind the "?". */}
+        <More label="What the doors are">
+          <Notes
+            lines={[
+              'Everything unpredictable in the game comes through a door: dogs, tips, money, trouble. Every stable picks one, privately; where two want the same one-of-a-kind thing, the first in the turn order gets it.',
+            ]}
+          />
+        </More>
       </Panel>
     </>
   );
