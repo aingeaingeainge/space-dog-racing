@@ -3,7 +3,7 @@
 > **Status: CURRENT.** Build from this document.
 >
 > Canonical copy: `design/GDD_V3.md` in the `space-dog-racing` repo. A copy in a claude.ai Project
-> is a **mirror**, last synced 2 October 2026 (at `v3l4`) — edit the repo, never the mirror. See `design/CANON.md`.
+> is a **mirror**, last synced 7 October 2026 (at `v3p`) — edit the repo, never the mirror. See `design/CANON.md`.
 >
 > Supersedes `design/GDD.md` (v2, shipped at tag `v2e`), which is kept as historical reference and
 > is cited by name throughout this document.
@@ -940,6 +940,20 @@ colour, and walks to the next of the twelve painted owners nobody at the table w
 never changes an AI's face and no two stables share one. AIs on the list keep their own owners. UI only;
 no decision was needed, so there is no §13 entry.)*
 
+*(`v3p`, Phase P: **pick up and play** — pillar 1 applied to the screens. A new player's first weekend
+was **4,392 visible words** (`npm run screen-words`, 1280) and is now **1,692** (−61%); every explanation that
+went is one press away behind a **"?"**, and the jokes stayed. As the screens now are: the **Title** is one
+**Play** button (you against five Normal AIs, one season) with **Resume** and **Play online** beside it and
+everything else under **Custom game**, which a seed link opens; the **draft** has **Pick for me** (P1); a
+weekend opens on the **doors**, then the **hub** — the painted planet, what was behind your door, the
+signpost only when the rock has a rule or it is a Major, the card, and one line, "You go 5th of 6", with
+the turn order's arithmetic behind its "?". The tab strip's big button names the next step (P2); the
+Bookie tab, which was always shut until the card locked, left the strip. The **Race Office** is one line on
+the track and the ledger; the **Bookie** leads each race with your own runner's two prices and keeps the
+field of eight behind "Full book"; the **Results** show the first three and the humans' dogs, with "Full
+results" one press away. A first game shows one line of guidance a screen (the first-game guide), which a
+browser shows once. No rule moved (P3).)*
+
 ### 10.1 The click budget
 
 v2 measured 13.3–14.3 decisions a weekend for one player and treated 14.5 as a ceiling. **v3's
@@ -960,6 +974,11 @@ reads 9.4 a weekend.*
 well as presses × players: 10.7 passes a weekend at four humans and 22.4 at eight (E8), and 12.9 and
 13.1 presses a human, pass acknowledgements included. The public moments cost the table about one
 press a weekend between them, because each one's button is the pass when the laptop moves.*
+
+*`v3p`: `hub-clicks` reads exactly as at `v3n` (9.5), because nothing it counts moved: "Next: Race Office"
+is the press the Race Office tab was, and "Head to the track" is unchanged. **Pick for me** is not in its
+count, which assumes a human who picks: a human who uses it spends **one press on the whole opening draft**
+instead of two a pick (twelve at four dogs and two trainers).*
 
 ---
 
@@ -1192,6 +1211,9 @@ All 18 planets survive as data. What changes is which fields do work:
 | 2026-10-02 | **L4a — online goes live before the playtest evening** | Jesse's call at `v3n`'s checklist (ONLINE_PLAN §10 had L4 after the evening). Built at `v3l4` with nobody to play it, so the live smoke test was Claude's (two browser tabs and the headless checks by hand); the evening's 🎲 rows, hotseat and online, all stay open. The first deploy froze `PROTOCOL_VERSION` 1 with the draft in it |
 | 2026-10-02 | **L4b — making a room stays unlimited** | Jesse's pick over a per-visitor rate limit (20 new rooms a minute), whose availability on the free plan Cloudflare's docs do not state. On the free plan an abuser can cost nothing but the day's allowance; only the live site's pages may make a room at all (ONLINE_PLAN §2.1). Revisit only if a day's allowance is ever lost |
 | 2026-10-02 | **L4c — the room deploys by Workers Builds, with a build token Cloudflare keeps** | The plan's deploy (a push to `main` deploys the site and the room; nobody runs `wrangler` on a laptop). The dashboard creates a user API token for the builds ("sdr-rooms build token") and keeps it; nobody sees its value. Jesse's OK, asked before Deploy was pressed. Preview builds are off: `main` is the only branch |
+| 2026-10-07 | **P1 — the draft has "Pick for me"; Play still opens on the draft** | Jesse's pick at `v3p` over auto-drafting on Play (a new player would never meet the draft) and leaving it as it was. One press makes the rest of that human's picks as a Normal AI would (`decideDraft`), through the same `DraftPick` a press makes, so a log, a save and a room read it as picks; it is held per human, so at a hotseat table one human's hand-over is not the next human's. UI only |
+| 2026-10-07 | **P2 — the planet's big button names the next step** | Jesse's pick at `v3p` over a fixed sequence (door → Market → Race Office → Bookie, a press more for anyone who skips the market) and leaving navigation as it was. Before the races it reads "Next: Race Office" until every race the stable can fill has a runner, then "Head to the track"; the Market and the Kennels are optional tabs. The same in hotseat and online; `hub-clicks` unchanged (§10.1) |
+| 2026-10-07 | **P3 — Phase P moves no rule** | Jesse's pick at `v3p`: P is presentation only — text, layout, the first-game path and the next button — so no golden, `STATE_VERSION`, `SAVE_VERSION` or `PROTOCOL_VERSION` moved and `main` can be pushed on any evening. A rule cut, if a playtest asks for one, is its own phase |
 ---
 
 ## 14. Open questions ❓

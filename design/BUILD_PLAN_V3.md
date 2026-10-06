@@ -632,6 +632,15 @@ screen text and `SAVE_VERSION` 13; GDD_V3 §2.2, §10, §11 and V23.
 > board's own 40–60. Two §11 rows stay out of band, knowingly: draft position (the first pick's edge,
 > 4–5 points in all-AI tables) and V23's long-game rows. `npm run harness -- --draft` measures them.
 > Notes: `claude/V3_PHASE_N_NOTES.md`.
+>
+> **Phase P** `v3p` ✅ (7 October 2026, not an L phase): **pick up and play** — the single-player screens
+> cleaned up against pillar 1. The Title is one **Play** button with the rest under Custom game; the
+> draft has **Pick for me** (GDD_V3 P1); the planet's big button names the next step (P2); the hub, the
+> Race Office, the Bookie, the Results, the Kennels, the Market and the game end keep what a player
+> chooses with and put every explanation behind a "?"; a first game gets one line of guidance a screen.
+> `npm run screen-words` is the ruler: a first weekend's visible words **4,392 → 1,692** (−61%) at 1280. **No
+> rule moved** (P3): no golden, `STATE_VERSION`, `SAVE_VERSION` or `PROTOCOL_VERSION`; `season-check`,
+> `hub-clicks`, `race-view-check` and the harness read as at `v3l4`. Notes: `claude/V3_PHASE_P_NOTES.md`.
 
 ---
 

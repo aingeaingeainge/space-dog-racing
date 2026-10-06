@@ -1,16 +1,18 @@
 # Space Dog Racing — playtest checklist
 
 > **Status: CURRENT (the top section).** Canonical copy: `design/PLAYTEST_CHECKLIST.md` in the
-> `space-dog-racing` repo. A copy in a claude.ai Project is a **mirror**, last synced 2 October
-> 2026 (at `v3l4`), for reading on a phone at the table — edit the repo, never the mirror. See
+> `space-dog-racing` repo. A copy in a claude.ai Project is a **mirror**, last synced 7 October
+> 2026 (at `v3p`), for reading on a phone at the table — edit the repo, never the mirror. See
 > `design/CANON.md`.
 
 > **Current section: "v3 Phase J — the evening", directly below.** It is one plan for one evening with
 > friends, written at tag `v3j`, and it carries every 🎲 row still open. **At `v3n` it gained the draft**
 > (rows 28–32 and questions 1.9–1.12; rows 16–17 and questions 2.5–2.6 rewritten for the off-season
 > draft): every game now opens on one. **At `v3l4` an online section follows it** ("v3 Phase L4 — an
-> online evening"): how to start a room and the four 🎲 rows of ONLINE_PLAN §10's L4. Below both, kept as
-> the record:
+> online evening"): how to start a room and the four 🎲 rows of ONLINE_PLAN §10's L4. **At `v3p` the
+> screens were cleaned up** (row 33 and question 1.13 are new; row 14 and "Before anyone arrives"
+> changed): the Title is one Play button, a hotseat table is set up under **Custom game**, and the clock
+> is in **Copy the report**, no longer on the game-end screen. Below both, kept as the record:
 > **"v3 Phase E2 — the table"** (the `v3e2` checklist, superseded by this one; nothing in it was
 > answered) and **v1's checklist (milestone M1)**, whose venues no longer exist.
 
@@ -42,7 +44,7 @@ remember anything: the report carries it.
 | 11 | The human faces feel like yours; picking your face | `v3f1` Q4, `v3i` Q1 | Game 1, question 1.5 |
 | 12 | The passing feels right (now with the next human's face) | `v3e2` Q2, `v3j` | Game 1, question 1.6 |
 | 13 | Did an event make a story? | `v3d1` Q2 | Game 1, question 1.7 |
-| 14 | Does the week have too many clicks? Is Explore worth its press? | `v3d1` Q5, `v3d2` Q5, §14 Q12 | Game 1, question 1.8 |
+| 14 | Does the week have too many clicks? Is Explore worth its press? (`v3p`: the presses did not move, but each screen has a half to a third of the words, and the big button names the next step) | `v3d1` Q5, `v3d2` Q5, §14 Q12, `v3p` | Game 1, question 1.8 |
 | 15 | A big bet still feels worth making; Neon Snout is still the place for one; is 1,000 right | `v3g` Q1, Q4, `v3h` Q4 | Game 2, question 2.4 |
 | 16 | Was the off-season pick a real decision — a dog (retiring one), a trainer, or a pass? (V32; it replaced the retirement window) | `v3e1` Q2, `v3e2` Q5, `v3n` | Game 2, question 2.5 |
 | 17 | Did the back of the table still have something to play for? (last picks first, V32; it replaced V23) | `v3i` Q2, `v3n` | Game 2, question 2.6 |
@@ -61,6 +63,7 @@ remember anything: the report carries it.
 | 30 | **Did anybody end the draft with a lopsided kennel?** | `v3n` | Game 1, question 1.11 |
 | 31 | **Are four dogs too many to manage?** | `v3n`, V33 | Game 1, question 1.12 |
 | 32 | **The off-season pick in game 2** | `v3n`, V32 | Game 2, questions 2.5–2.6 |
+| 33 | **Can a newcomer play without being told how?** (the "?"s, the next button, the first-game tips) | `v3p` | Game 1, question 1.13 |
 
 **Closed before the evening, not asked again:** `v3f2`'s cards (Jesse, at `v3g`: "great", nothing
 unfinished); `v3f1` Q5 (the cards were drawn at `v3f2`); `v3d2` Q5's plan-the-week press (folded into
@@ -68,7 +71,11 @@ row 14); `v3e2` Q1 and Q3 (the clock and the report now carry them).
 
 ### Before anyone arrives
 
-- **Push `v3n`** and open the game from the live site, so the report's first line says `v3n`.
+- **Push `v3p`** and open the game from the live site, so the report's first line says `v3p`.
+- **Setting up the table (from `v3p`):** the Title opens on one **Play** button, which is a solo game. For
+  the evening press **Custom game** under it: the roster, faces, length and toggles are all there, and
+  **Start season** starts it. The first human to play on the laptop sees one line of tips a screen;
+  "No more tips" turns them off.
 - One laptop, charged, on the table. A phone with this sheet on it (it is mirrored to the Project).
 - Nothing to start or stop: the game times itself. **The clock stops while the window is hidden** and
   counts at most ten minutes on one screen, so dinner in the middle is fine.
@@ -110,6 +117,7 @@ game answers 1.2 before anybody explains the market.
 | 1.10 | **Did picking feel fair?** (who was drawn first, and did it matter?) | Yes, the snake evened it out · The first pick got the best of it · The last pick got the worst of it |
 | 1.11 | **Did anybody end the draft with a lopsided kennel?** (all one style, or four weak dogs) | No · One stable, by choice · One stable, and it hurt them |
 | 1.12 | **Four dogs** | Right: three race, one rests · Too many to keep track of · Would rather have three |
+| 1.13 | **A newcomer, without help:** did they find the next thing to press? (`v3p`) | Yes, the big button and the tips did it · Mostly, they asked once · No, they needed it explained |
 
 ### Game 2 — the long one (about 80 minutes)
 

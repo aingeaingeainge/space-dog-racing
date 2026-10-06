@@ -4,37 +4,32 @@
 
 Play online with friends: press **Play online**.
 
-Thirteen weekends on the grimy underground greyhound circuit of a cartoon future. You run a
-stable of space dogs — three that race, two in reserve — and every week the whole circuit jumps
-to a new planet for three races: Bronze, Silver and Gold. Prize money is the main way to get
-rich, but it is not the only one. There is a market for dogs on every rock, kibble to buy cheap
-and sell dear, a ship whose hold and engine you can upgrade, staff to hire, a bookie who will
-take a bet on your own dog or against a rival's, and a supplement the stewards would rather you
-did not feed anybody. Thirteen weeks later, the richest stable at the Galactic Collar wins.
-It owes an obvious debt to Gazillionaire, and it would like to smell like Death Rally.
+Ten weekends a season on the grimy underground greyhound circuit of a cartoon future. You run a
+kennel of four space dogs and two trainers, and every week the circuit jumps to a new planet for
+three races: Bronze, Silver and Gold. Prize money is the main way to get rich, but not the only
+one: there is a door to open on every rock (dogs, tips, money, trouble), six foods to buy cheap and
+sell dear that are also your dogs' training, and a bookie who will take a bet on your own dog or a
+rival's. Richest stable at the end wins. It owes an obvious debt to Gazillionaire, and it would like
+to smell like Death Rally.
 
 ![The planet hub on Rustgut — a mining colony with cheap old dogs](docs/screenshot-hub.png)
 
-Browser game, single player against Easy, Normal and Hard AI stables, or hotseat for up to eight
-around one laptop. No install, no account, no server: a season is a seed plus your action log,
-kept in your own browser. Online multiplayer is M5.
+Browser game: solo against Easy, Normal and Hard AI stables, hotseat for up to eight around one
+laptop, or online with a browser each. No install, no account: a game is a seed plus the action log.
 
 ## What is in this build
 
-Milestone M4 — the whole game. Every venue works, the races are watchable, the AI plays three
-distinguishable levels of well, and the season ends on a podium, a net-worth chart and the story
-of how it was won.
+v3, the party game (`design/GDD_V3.md`). Press **Play** on the Title for a solo season against five
+AI stables; **Custom game** under it sets up a hotseat table of up to eight (any mix of humans and
+Easy, Normal and Hard AIs), one to five seasons or a race to a target, and the toggles; **Play
+online** (on the live site) makes a room for friends in other houses. A game opens on a draft of four
+dogs and two trainers. A weekend is a door to open, the six-food market that is also your dogs'
+training, a dog in each of three races, a bet, and the races. Every planet is painted.
 
-**The art is mostly not real yet.** 11 of the 149 files in the library are finished; the other
-138 are generated stand-ins — hatched slots labelled "placeholder", or an emoji where an icon
-will go. `npm run asset-check` will tell you exactly which is which at any moment. The kit, the
-layout and the colour are real; the pictures are coming.
-
-Share a season with `?seed=12345&players=h,normal,normal,hard` — that link fills the New Season
-screen in with the same seed and the same table, so two people can play the same thirteen weeks
-and compare. `h` is a human, the AI difficulties are spelled out, and `&toggles=nobet` and
-friends carry the complexity switches, because a seed only replays the same way with the same
-toggles.
+Share a game with `?seed=12345&players=h,normal,normal,hard` — the link opens the Custom game with
+the same seed and the same table, so two people can play the same season and compare. `h` is a
+human, the AI difficulties are spelled out, and `&toggles=nobet` and friends carry the switches,
+because a seed only replays the same way with the same toggles.
 
 ## The design
 
