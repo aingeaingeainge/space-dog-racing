@@ -224,11 +224,16 @@ async function fresh(browser: Browser, url: string): Promise<Page> {
   return page;
 }
 
-/** The Title's start: "Quick start" if the build has one, else "Start season". */
+/**
+ * The Title's start: "Start season" when it is showing (a seed link opens the custom game; a build
+ * before Phase P has no other start), else "Play".
+ */
 async function startGame(page: Page): Promise<void> {
-  const start = btn(page, /^(Quick start|Start season|Play)$/);
-  await start.first().waitFor();
-  await start.first().click();
+  await btn(page, /^(Play|Start season)$/)
+    .first()
+    .waitFor();
+  const custom = btn(page, 'Start season');
+  await ((await seen(custom)) ? custom : btn(page, 'Play')).first().click();
 }
 
 /** One press on the draft if this human is picking: the item, then "Take". */

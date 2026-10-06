@@ -1,7 +1,5 @@
 import {
   balance,
-  cargoTotal,
-  HOLD_CAP,
   formatBones,
   describeTaste,
   planetOf,
@@ -14,10 +12,11 @@ import {
 import { Panel } from '../components/Panel';
 import { HubStage } from '../components/HubStage';
 import { Hotspot } from '../components/Hotspot';
-import { NeonButton } from '../components/NeonButton';
 import { Signpost } from '../components/Signpost';
 import { TicketCard } from '../components/TicketCard';
-import { KV, Notes, StableName } from '../components/ui';
+import { Notes, StableName } from '../components/ui';
+import { More } from '../components/More';
+import { Guide } from '../components/Guide';
 import { staffLine } from '../components/StaffCard';
 import { eventArt, uiArt } from '../lib/assets';
 import { Whispers } from '../components/Whispers';
@@ -29,8 +28,6 @@ import {
   criterionFor,
   raceLabel,
   raceTone,
-  PHASE_LABEL,
-  PHASE_ORDER,
   declaredCount,
   localRatingFor,
   playerById,
@@ -39,7 +36,12 @@ import {
 } from '../lib/selectors';
 import { useGame, type View } from '../store/gameStore';
 
-const pct = (n: number) => `${Math.round(n * 100)}%`;
+/** 1st, 2nd, 3rd, 4th … for the turn-order line. */
+function ordinal(n: number): string {
+  const t = n % 100;
+  if (t >= 11 && t <= 13) return `${n}th`;
+  return `${n}${['th', 'st', 'nd', 'rd'][n % 10] ?? 'th'}`;
+}
 
 /** The painted hotspot icon for a venue, or nothing — in which case the emoji stands. */
 function finishedIcon(id: string) {
@@ -119,78 +121,39 @@ export function PlanetHub({
         })}
       </HubStage>
 
+      {s.phase === 'planetPre' && !waiting ? (
+        <Guide id="hub-pre">
+          Next, the <b>Race Office</b>: put a dog in each race. The Market and the Kennels can wait.
+        </Guide>
+      ) : s.phase === 'planetPost' && !waiting ? (
+        <Guide id="hub-post">
+          Spend your winnings at the <b>Market</b>, or <b>End turn</b> to fly on.
+        </Guide>
+      ) : null}
       <BehindTheDoor s={s} me={me} />
       <Whispers s={s} me={me} where="use them at the Race Office and the bookie" />
 
-      <Signpost rules={rules}>
-        <Notes
-          lines={[
-            `${trackText(planet.track)} · food here is ${describeTaste(planet)}`,
-            purseMult !== 1 ? `Purses are ×${purseMult} this weekend.` : null,
-            sp.winningsTax
-              ? `${pct(sp.winningsTax)} of every purse goes to the port authority.`
-              : null,
-            sp.fitnessOnArrival
-              ? `Your dogs arrived ${sp.fitnessOnArrival > 0 ? 'refreshed' : 'flat'}: fitness ${sp.fitnessOnArrival > 0 ? '+' : ''}${sp.fitnessOnArrival}.`
-              : null,
-          ]}
-        />
-      </Signpost>
+      {/* Phase P (D34): the signpost is up only when the rock has a rule, or it is a Major. */}
+      {rules.length || entry.major || entry.grandFinal ? (
+        <Signpost rules={rules}>
+          <Notes
+            lines={[
+              entry.grandFinal || entry.major
+                ? `${entry.grandFinal ? 'The Grand Final' : 'A Major'}: purses ×${purseMult}.`
+                : null,
+            ]}
+          />
+        </Signpost>
+      ) : null}
 
-      <Panel
-        title="Where to?"
-        sub="GDD §4.2 phase 3 — what is actually in each one this week"
-        actions={
-          <span className="phases">
-            {PHASE_ORDER.map((p) => (
-              <span
-                key={p}
-                className={
-                  p === s.phase
-                    ? 'now'
-                    : PHASE_ORDER.indexOf(p) < PHASE_ORDER.indexOf(s.phase)
-                      ? 'done'
-                      : ''
-                }
-              >
-                {PHASE_LABEL[p]}
-              </span>
-            ))}
-          </span>
-        }
-      >
-        <div className="venue-list">
-          {HOTSPOT_VENUES.map((id) => {
-            const v = byId.get(id);
-            if (!v) return null;
-            const st = status[id];
-            return (
-              <div className={st.worth ? 'venue-line worth' : 'venue-line'} key={id}>
-                <NeonButton
-                  variant={st.worth ? 'primary' : 'default'}
-                  disabled={!v.open}
-                  title={v.reason}
-                  onClick={() => setView(id as View)}
-                >
-                  {v.label}
-                </NeonButton>
-                <span className={v.open ? 'muted' : 'shut'}>{v.open ? st.line : v.reason}</span>
-              </div>
-            );
-          })}
+      {/* ⚠️ Food is the only running cost (GDD_V3 V10, §6.3), charged to the dog, not the purse.
+          Said only when it will bite: a hold that feeds everybody is not news (D34). */}
+      {bill.hungry ? (
+        <div className="notice">
+          {bill.hungryNames.join(' and ')} will go hungry at the jump: −{balance.emptyHoldFitness}{' '}
+          fitness {bill.hungry === 1 ? '' : 'each '}and no gain. Buy food at the Market.
         </div>
-        <Notes
-          lines={[
-            // ⚠️ Food is the only running cost left (GDD_V3 V10, §6.3), and it is charged to the
-            // dog rather than to the purse: a stable that sails without food pays in condition.
-            bill.hungry
-              ? `${bill.hungryNames.join(' and ')} will go hungry at the jump — −${balance.emptyHoldFitness} fitness ${bill.hungry === 1 ? '' : 'each '}and no gain. The hold has ${bill.foodFromHold} of the ${bill.foodNeeded} crates the yard eats.`
-              : `The hold feeds every dog this week: ${bill.foodNeeded} crate${bill.foodNeeded === 1 ? '' : 's'} at the jump. Food is the only running cost there is.`,
-            // GDD_V3 §8: the two trainers, and their cut — a share of purses, never a wage.
-            `Trainers: ${staffLine(me)}.`,
-          ]}
-        />
-      </Panel>
+      ) : null}
 
       <h3 className="section">This weekend&apos;s card</h3>
       <div className="grid3">
@@ -226,18 +189,19 @@ export function PlanetHub({
         })}
       </div>
 
-      <div className="grid2">
-        {/*
-          GDD_V3 §2.3: turn order is bought with an empty hold and nothing else, and it cuts both
-          ways — first look at a shelf that runs out, against a heavy hold that goes last all season.
-          The engine writes the arithmetic into each stable's reason, so the table shows the whole
-          sum rather than a verdict. (The subtitle said "ship speed × 10" until v3 Phase B; there
-          has been no ship since Phase A.)
-        */}
-        <Panel
-          title="Turn order"
-          sub={`${balance.arrivalBase} − crates aboard ÷ ${balance.arrivalCargoDiv} + d${balance.arrivalDie}, highest first · ties to the lighter hold`}
-        >
+      {/*
+        GDD_V3 §2.3: turn order is bought with an empty hold and nothing else. Phase P: one line —
+        where you are in it — and the whole table, with the engine's arithmetic, behind the "?".
+      */}
+      <div className="oneline muted">
+        You go <b>{ordinal(s.turnOrder.indexOf(me.id) + 1)}</b> of {s.turnOrder.length} this
+        weekend.{' '}
+        <More label="Turn order and this week">
+          <p className="flush">
+            Highest score goes first: {balance.arrivalBase} − crates aboard ÷{' '}
+            {balance.arrivalCargoDiv} + a d{balance.arrivalDie}. A heavy hold goes last to the shelf
+            and last to declare — the later you declare, the more of each field you see.
+          </p>
           <div className="table-wrap">
             <table>
               <tbody>
@@ -258,33 +222,20 @@ export function PlanetHub({
               </tbody>
             </table>
           </div>
-          <Notes
-            lines={[
-              `Every ${balance.arrivalCargoDiv} crates you carry off this planet costs a point next week. A full hold of ${HOLD_CAP} is ${HOLD_CAP / balance.arrivalCargoDiv} points — more than the die can make up — so a stable that trades heavy goes last to the shelf, week after week, and everybody can see why.`,
-            ]}
-          />
-        </Panel>
-
-        <Panel title="This week" sub="what has happened so far">
-          <div className="log">
-            {weekLog.length ? (
-              weekLog.map((l, i) => (
+          <p className="muted">
+            {trackText(planet.track)} · food here is {describeTaste(planet)} · trainers:{' '}
+            {staffLine(me)}.
+          </p>
+          {weekLog.length ? (
+            <div className="log">
+              {weekLog.map((l, i) => (
                 <p key={i} className={l.playerId === me.id ? 'mine' : 'muted'}>
                   {l.text}
                 </p>
-              ))
-            ) : (
-              <p className="muted">Quiet so far.</p>
-            )}
-          </div>
-          <KV
-            items={[
-              ['Phase', PHASE_LABEL[s.phase]],
-              ['Cash', formatBones(me.cash)],
-              ['Hold', `${cargoTotal(me.cargo)} / ${HOLD_CAP} crates`],
-            ]}
-          />
-        </Panel>
+              ))}
+            </div>
+          ) : null}
+        </More>
       </div>
     </>
   );

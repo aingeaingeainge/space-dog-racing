@@ -88,14 +88,16 @@ export function Title() {
 
   /**
    * Phase P (P1): the new player's path is one press. **Play** is the Title's own default table — you
-   * against five Normal AIs, one season, a fresh seed, the default toggles — whatever the custom form
-   * below says, so a returning player's edits there never surprise a quick game.
+   * against five Normal AIs, one season, the seed rolled when the Title opened, the default toggles —
+   * whatever else the custom form below says, so a returning player's edits there never surprise a
+   * quick game.
    */
   const quick = () => {
     const table = defaultRoster();
     const faces = resolveColours(table);
     newSeason({
-      seed: randomSeed(),
+      // The seed the Title rolled when it opened, unless a shared link filled it in.
+      seed: shared ? randomSeed() : seed,
       toggles: DEFAULT_TOGGLES,
       length: { kind: 'seasons', seasons: 1 },
       players: table.map((p, i) => ({ ...p, colour: faces[i] })),
