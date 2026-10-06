@@ -30,7 +30,8 @@
     "online-table-walk": "vite-node --root packages/web packages/web/scripts/online-table-walk.ts",
     "browser-walk": "npm run browser-walk --prefix packages/server",
     "live-smoke": "npm run live-smoke --prefix packages/server --",
-    "hotseat-shots": "npm run hotseat-shots --prefix packages/server --"
+    "hotseat-shots": "npm run hotseat-shots --prefix packages/server --",
+    "screen-words": "npm run screen-words --prefix packages/server --"
   },
   "devDependencies": {
     "@eslint/js": "^9.30.0",

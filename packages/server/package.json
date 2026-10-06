@@ -11,6 +11,7 @@
     "walk": "tsx scripts/online-walk.ts",
     "browser-walk": "tsx scripts/browser-walk.ts",
     "hotseat-shots": "tsx scripts/hotseat-shots.ts",
+    "screen-words": "tsx scripts/screen-words.ts",
     "live-smoke": "tsx scripts/live-smoke.ts"
   },
   "dependencies": {
