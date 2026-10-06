@@ -3,6 +3,7 @@ import {
   ageFactor,
   balance,
   currentDraft,
+  decideDraft,
   dogValue,
   draftRoom,
   formatBones,
@@ -23,6 +24,8 @@ import { DogCard } from '../components/DogCard';
 import { StaffCard } from '../components/StaffCard';
 import { OwnerFace } from '../components/Owner';
 import { Notes, StableName } from '../components/ui';
+import { More } from '../components/More';
+import { Guide } from '../components/Guide';
 import { useKeys } from '../lib/keys';
 import { playerById } from '../lib/selectors';
 import { useGame } from '../store/gameStore';
@@ -48,6 +51,12 @@ export function Draft({ s, me }: { s: GameState; me: Player }) {
   const picks = d?.picks.length ?? 0;
   const [shown, setShown] = useState(0);
   const [sel, setSel] = useState<{ dog: Id } | { staff: Id } | null>(null);
+  /**
+   * Phase P (Jesse's call, P1): "Pick for me" — the rest of this human's picks, made as a Normal AI
+   * would, through the same `DraftPick` a press makes. Held per human, so at a hotseat table one
+   * human handing over does not hand over the next.
+   */
+  const [auto, setAuto] = useState<Id | null>(null);
 
   // The beat: one AI pick every 700 ms. A human's own pick needs no beat — they just made it.
   useEffect(() => {
@@ -58,9 +67,14 @@ export function Draft({ s, me }: { s: GameState; me: Player }) {
       setShown(shown + 1);
       return;
     }
+    // Picking for me: no beat — the table is not watching a draft its human handed over.
+    if (auto !== null) {
+      setShown(picks);
+      return;
+    }
     const t = setTimeout(() => setShown(shown + 1), 700);
     return () => clearTimeout(t);
-  }, [d, shown, picks, s]);
+  }, [d, shown, picks, s, auto]);
   // A new draft (the next off-season) starts the count again.
   useEffect(() => {
     if (shown > picks) setShown(0);
@@ -115,6 +129,15 @@ export function Draft({ s, me }: { s: GameState; me: Player }) {
     if (!items.length) return;
     setSel(items[(at + k + items.length) % items.length]!);
   };
+  useEffect(() => {
+    if (!picker || picker.id !== auto) return;
+    const a = decideDraft(s, picker.id, 'normal')[0];
+    if (a) {
+      setSel(null);
+      dispatch(a);
+    }
+    // The pick count is in the deps because the state may be the same object between picks.
+  }, [auto, picker, s, dispatch, d?.at, catching]);
   useKeys({
     ArrowDown: () => move(1),
     ArrowUp: () => move(-1),
@@ -127,6 +150,9 @@ export function Draft({ s, me }: { s: GameState; me: Player }) {
 
   if (!d) return null;
   const n = s.players.length;
+  const pickForMe = () => {
+    if (picker) setAuto(picker.id);
+  };
   const title = off ? 'The off-season draft' : 'The draft';
 
   return (
@@ -136,11 +162,16 @@ export function Draft({ s, me }: { s: GameState; me: Player }) {
         <p className="muted">
           {off
             ? `Between season ${d.season - 1} and season ${d.season} · one pick each · last at the table picks first`
-            : `${d.rounds} rounds · four dogs and two trainers each · round 1 drawn, then the order turns round`}
+            : 'Four dogs and two trainers each, one at a time, in turns.'}
         </p>
       </div>
 
       {off ? <OffSeasonNews s={s} /> : null}
+      {picker && !off ? (
+        <Guide id="draft">
+          Press a dog or a trainer, then <b>Take</b> — or <b>Pick for me</b> and get racing.
+        </Guide>
+      ) : null}
 
       <div className="draft-clock">
         {catching ? (
@@ -187,6 +218,9 @@ export function Draft({ s, me }: { s: GameState; me: Player }) {
               ))
             : null}
           {!choice ? <span className="muted">Press a dog or a trainer below.</span> : null}
+          <NeonButton onClick={pickForMe} title="The rest of your picks, made as a Normal AI would">
+            Pick for me
+          </NeonButton>
           {off ? (
             <NeonButton onClick={pass} title="key: P">
               Pass
@@ -197,10 +231,7 @@ export function Draft({ s, me }: { s: GameState; me: Player }) {
 
       <div className="draft-grid">
         <div className="draft-board">
-          <Panel
-            title={`Dogs on the board (${board.dogs.length})`}
-            sub="every dog's age, stats, rating, book value and running style — strongest first"
-          >
+          <Panel title={`Dogs (${board.dogs.length})`} sub="strongest first">
             <div className="dogcards">
               {board.dogs.map((x) => {
                 const picked = !!selDog && selDog.id === x.id;
@@ -216,17 +247,15 @@ export function Draft({ s, me }: { s: GameState; me: Player }) {
                     <DogCard
                       dog={x}
                       declared={picked}
-                      sub={`age ${x.age} · ${STYLE_BY_ID[x.style].name.toLowerCase()} · ${formatBones(dogValue(x))}`}
+                      unraced
+                      sub={off ? `age ${x.age} · ${formatBones(dogValue(x))}` : `age ${x.age}`}
                     />
                   </button>
                 );
               })}
             </div>
           </Panel>
-          <Panel
-            title={`Trainers on the board (${board.staff.length})`}
-            sub="each one's bonuses and cut of your purses"
-          >
+          <Panel title={`Trainers (${board.staff.length})`} sub="each takes a cut of your purses">
             {board.staff.length ? (
               <div className="staffcards">
                 {board.staff.map((id) => {
@@ -257,13 +286,15 @@ export function Draft({ s, me }: { s: GameState; me: Player }) {
         </div>
       </div>
 
-      <Notes
-        lines={[
-          off
-            ? 'Take a dog and one of yours retires, paid its book value. Take a trainer with two already and one goes. Or pass. Everything carries over; the new season starts every dog on full fitness.'
-            : 'A pick is one dog or one trainer. Four dogs and two trainers each: a full kennel takes trainers, full staff takes dogs. Every style on the board is public, and stays public.',
-        ]}
-      />
+      <More label="How the draft works">
+        <Notes
+          lines={[
+            off
+              ? 'Take a dog and one of yours retires, paid its book value. Take a trainer with two already and one goes. Or pass. Everything carries over; the new season starts every dog on full fitness.'
+              : 'A pick is one dog or one trainer. Four dogs and two trainers each: a full kennel takes trainers, full staff takes dogs. Round 1’s order is drawn, and each round turns it round. Every style on the board is public, and stays public.',
+          ]}
+        />
+      </More>
     </>
   );
 }
@@ -291,23 +322,25 @@ function pickText(x: DraftPickRecord): string {
 /** The snake, round by round: faces, whose turn it is, and what each pick took. */
 function PickOrder({ s, d, upTo }: { s: GameState; d: DraftState; upTo: number }) {
   const n = s.players.length;
-  const rounds = Array.from({ length: d.rounds }, (_, r) => d.order.slice(r * n, (r + 1) * n));
+  // Phase P: the round being picked, not all six — the snake is in the "?" under the board.
+  const current = Math.min(Math.floor(upTo / n), d.rounds - 1);
+  const rounds = [d.order.slice(current * n, (current + 1) * n)];
   return (
     <Panel
       title="Pick order"
-      sub={
-        d.kind === 'offSeason'
-          ? 'last at the table picks first'
-          : 'round 1 drawn; each round turns the order round'
-      }
+      sub={d.kind === 'offSeason' ? 'last at the table picks first' : undefined}
     >
       <ol className="draft-order">
         {rounds.map((round, r) => (
           <li key={r}>
-            {d.rounds > 1 ? <span className="muted small">Round {r + 1}</span> : null}
+            {d.rounds > 1 ? (
+              <span className="muted small">
+                Round {current + r + 1} of {d.rounds}
+              </span>
+            ) : null}
             <ul>
               {round.map((id, k) => {
-                const i = r * n + k;
+                const i = (current + r) * n + k;
                 const p = playerById(s, id)!;
                 const done = i < upTo;
                 const now = i === upTo;

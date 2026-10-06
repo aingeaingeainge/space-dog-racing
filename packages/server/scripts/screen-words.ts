@@ -236,8 +236,14 @@ async function startGame(page: Page): Promise<void> {
   await ((await seen(custom)) ? custom : btn(page, 'Play')).first().click();
 }
 
-/** One press on the draft if this human is picking: the item, then "Take". */
+/** One press on the draft if this human is picking: "Pick for me", or the item and then "Take". */
 async function draftStep(page: Page): Promise<boolean> {
+  // Phase P: a new player's one press for the whole draft, where the build has it.
+  const forMe = btn(page, 'Pick for me');
+  if (await seen(forMe)) {
+    await forMe.click();
+    return true;
+  }
   const take = btn(page, /^Take /).or(btn(page, /^Retire /));
   if (await seen(take)) {
     await take.first().click();

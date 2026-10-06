@@ -119,6 +119,11 @@ export interface DogCardProps {
   children?: ReactNode;
   /** Lights the card's edge in the planet accent — used for this weekend's runners. */
   declared?: boolean;
+  /**
+   * Phase P: a dog that has never raced for anybody here (the draft's board) — every one is fit and
+   * on form 0, so the fitness bar and the form line say nothing and are left off.
+   */
+  unraced?: boolean;
 }
 
 /**
@@ -126,7 +131,7 @@ export interface DogCardProps {
  * traits, value, training focus". One card, used wherever a dog is the subject rather than a
  * row in a comparison.
  */
-export function DogCard({ dog, badges, sub, actions, children, declared }: DogCardProps) {
+export function DogCard({ dog, badges, sub, actions, children, declared, unraced }: DogCardProps) {
   return (
     <article className={declared ? 'dogcard declared' : 'dogcard'}>
       <div className="head">
@@ -146,10 +151,14 @@ export function DogCard({ dog, badges, sub, actions, children, declared }: DogCa
           <StatBar label="Spd" value={dog.speed} />
           <StatBar label="Acc" value={dog.accel} />
           <StatBar label="Sta" value={dog.stamina} />
-          <StatBar label="Fit" value={dog.fitness} tone="auto" />
-          <span className="form">
-            form <Delta n={dog.form} />
-          </span>
+          {unraced ? null : (
+            <>
+              <StatBar label="Fit" value={dog.fitness} tone="auto" />
+              <span className="form">
+                form <Delta n={dog.form} />
+              </span>
+            </>
+          )}
         </div>
       </div>
       <div className="tags">
