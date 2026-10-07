@@ -36,6 +36,11 @@ export interface SaveBlob {
 }
 
 /**
+ * 15 for v3 Phase Q. Three rules moved (GDD_V3 Q1–Q3): the book prices fitness, the opening draft's
+ * round 3 runs the way round 2 did, and the gossip trainer gives a tip. A v3p log's draft picks from
+ * round 3 on were made by other stables, so it would stop at replay on a refused pick; this check sends
+ * every v3p save to the title screen with the old-save message instead.
+ *
  * 14 for v3 Phase N. The draft (GDD_V3 V29–V33): a game opens on a six-round draft of four dogs and
  * two trainers, and the off-season is one draft pick (`DraftPick` replaced `Retire` and
  * `ResolveStaffNotice`). A v3m log's first action is an AdvancePhase that a draft refuses, so every
@@ -100,7 +105,7 @@ export interface SaveBlob {
  * player on the title screen with a new season rather than half a season that no longer means
  * what it meant.
  */
-export const SAVE_VERSION = 14;
+export const SAVE_VERSION = 15;
 const KEY = 'sdr.save.v1';
 
 export function writeSave(blob: SaveBlob): void {

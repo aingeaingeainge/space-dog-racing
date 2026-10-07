@@ -65,7 +65,8 @@ function play(setup: SeasonSetup, stop: (s: GameState) => boolean = () => false)
 const json = (x: unknown) => JSON.stringify(x);
 
 describe('PROTOCOL_VERSION', () => {
-  it('starts at 1', () => expect(PROTOCOL_VERSION).toBe(1));
+  // 1 from L1 to the first deploy's freeze (v3l4) and v3p; 2 at v3q, where three rules moved.
+  it('is 2 since v3q', () => expect(PROTOCOL_VERSION).toBe(2));
 });
 
 describe('the stand-in: decide plays a human seat (ONLINE_PLAN §5.3)', () => {

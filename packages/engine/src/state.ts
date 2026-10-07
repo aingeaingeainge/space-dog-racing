@@ -29,6 +29,12 @@ import type {
 import { ActionError, RACE_TYPE_IDS } from './types';
 
 /**
+ * 15 for v3 Phase Q: three rules moved (GDD_V3 Q1–Q3), and no shape. The book prices a stable runner's
+ * fitness, so every posted price and every bet's return moves; the opening draft's round 3 runs the way
+ * round 2 did, so every pick from round 3 on is a different stable's; and the gossip trainer tells a
+ * race-day tip where it made a style public. A v3p log's declarations and bets were made against other
+ * prices and other kennels, so it would replay into a different game, or stop on a refused pick.
+ *
  * 14 for v3 Phase N: the draft (GDD_V3 V29–V33). A game opens in a `draft` phase — a six-round snake
  * of four dogs and two trainers from a public board — and nothing is dealt; the off-season is one
  * round of the same draft (`DraftPick` replaces `Retire` and `ResolveStaffNotice`). The state carries
@@ -108,15 +114,19 @@ import { ActionError, RACE_TYPE_IDS } from './types';
  * The web save is seed + log (store/persist.ts), which is why SAVE_VERSION moves with it and an
  * old save fails soft to the title screen rather than replaying into a different game.
  */
-export const STATE_VERSION = 14;
+export const STATE_VERSION = 15;
 /**
  * **The online protocol's version** (ONLINE_PLAN §7), v3 Phase L1. A browser says it in `hello`; a
  * room on another answers `reload`, and the browser offers to reload rather than play a subtly
  * different game — `SAVE_VERSION`'s promise, for a socket. It moves when a message's shape, the view's
  * shape (`viewFor`, `SEAT_SECRETS`) or a rule moves: anything that would make an old browser misread a
  * new room. Hotseat never reads it.
+ *
+ * 2 for v3 Phase Q: no message moved and neither did the view's shape, but three rules did (GDD_V3
+ * Q1–Q3), and a browser on 1 would draw the old draft order and misread the posted prices. Frozen at 1
+ * from the first deploy (`v3l4`) until here.
  */
-export const PROTOCOL_VERSION = 1;
+export const PROTOCOL_VERSION = 2;
 /**
  * The Major weekends. **One, at week 5 (GDD_V3 §2.1)**, where v2 had three.
  *
