@@ -297,7 +297,7 @@ export function Draft({ s, me }: { s: GameState; me: Player }) {
           lines={[
             off
               ? 'Take a dog and one of yours retires, paid its book value. Take a trainer with two already and one goes. Or pass. Everything carries over; the new season starts every dog on full fitness.'
-              : 'A pick is one dog or one trainer. Four dogs and two trainers each: a full kennel takes trainers, full staff takes dogs. Round 1’s order is drawn and each round turns it round — except round 3, which goes the same way as round 2, so the first pick is not also first in the trainers’ rounds. Every style on the board is public, and stays public.',
+              : `A pick is one dog or one trainer. Four dogs and two trainers each: a full kennel takes trainers, full staff takes dogs. ${balance.draftThirdRoundReverses === 1 ? 'Round 1’s order is drawn and each round turns it round — except round 3, which goes the same way as round 2, so the first pick is not also first in the trainers’ rounds.' : 'Round 1’s order is drawn, and each round turns it round.'} Every style on the board is public, and stays public.`,
           ]}
         />
       </More>
