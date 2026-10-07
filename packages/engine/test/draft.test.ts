@@ -75,9 +75,13 @@ describe('the opening draft (V29)', () => {
       expect(d.rounds).toBe(6);
       const round1 = d.order.slice(0, n);
       expect([...round1].sort()).toEqual(s.players.map((p) => p.id).sort());
-      // Q2: round 3 runs the way round 2 did, and the snake carries on from there.
-      expect(d.order).toEqual(snakeOrder(round1, 6, true));
-      const backwards = [false, true, true, false, true, false];
+      // Q2: round 3 runs the way round 2 did, and the snake carries on from there — while its sheet
+      // cell is 1. The cell is Q2's switch; at 0 the draft is v3p's plain snake.
+      const reversal = balance.draftThirdRoundReverses === 1;
+      expect(d.order).toEqual(snakeOrder(round1, 6, reversal));
+      const backwards = reversal
+        ? [false, true, true, false, true, false]
+        : [false, true, false, true, false, true];
       for (let r = 0; r < 6; r++) {
         const round = d.order.slice(r * n, (r + 1) * n);
         expect(round).toEqual(backwards[r] ? [...round1].reverse() : round1);

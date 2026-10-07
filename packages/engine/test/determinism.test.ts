@@ -454,8 +454,11 @@ describe('Q1: the book prices fitness, in whole rating points (GDD_V3 §5.6)', (
       expect(e).toBeGreaterThanOrEqual(last);
       last = e;
     }
-    expect(fitnessEdge(100)).toBeGreaterThan(0);
-    expect(fitnessEdge(40)).toBeLessThan(0);
+    // The sheet cell is Q1's switch: at 0 the book is v3p's and every edge is 0.
+    if (balance.bookFitnessPerPoint > 0) {
+      expect(fitnessEdge(100)).toBeGreaterThan(0);
+      expect(fitnessEdge(40)).toBeLessThan(0);
+    } else expect(fitnessEdge(100)).toBe(0);
   });
 
   it('every rating 5–99, every style edge and every fitness edge clears thousands of ULPs', async () => {
@@ -501,7 +504,7 @@ describe('Q1: the book prices fitness, in whole rating points (GDD_V3 §5.6)', (
         // Week 1: every drafted dog is at 90, so the book has every one of them shorter than a local.
         if (!e.local && fitnessEdge(d.fitness) > 0) fresh++;
       }
-    expect(fresh).toBeGreaterThan(0);
-    expect(fitnessEdge(100)).toBeGreaterThan(0);
+    if (balance.bookFitnessPerPoint > 0) expect(fresh).toBeGreaterThan(0);
+    else expect(fresh).toBe(0);
   });
 });
