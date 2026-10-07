@@ -3,7 +3,7 @@
 > **Status: CURRENT.** Build from this document.
 >
 > Canonical copy: `design/GDD_V3.md` in the `space-dog-racing` repo. A copy in a claude.ai Project
-> is a **mirror**, last synced 7 October 2026 (at `v3p`) — edit the repo, never the mirror. See `design/CANON.md`.
+> is a **mirror**, last synced 8 October 2026 (at `v3q`) — edit the repo, never the mirror. See `design/CANON.md`.
 >
 > Supersedes `design/GDD.md` (v2, shipped at tag `v2e`), which is kept as historical reference and
 > is cited by name throughout this document.
@@ -514,6 +514,13 @@ C1's lesson still shapes each dog: its rating is its budget and its shape is dra
 **45–55 at Jesse's call** (§11's draft-position row). Normal ends the draft with all three styles 77–90%
 of the time; a human can do as they like.*
 
+*`v3q` (Q2, Claude's call, unattended): **round 3 runs the way round 2 did**, and the snake carries on
+from there — the "third-round reversal" — so the first pick picks last twice running and the last pick
+of round 1 opens round 3. An all-Normal table drafts four dogs and then two trainers, and the plain snake
+ran round 5 in round 1's order, so the first pick also had first go at the scarce +10% prize-money
+trainers. The draft-position row went from 4.4 / 5.2 / 4.7 points to **2.3 / 1.1 / 2.7** (2,000 games a
+size, ±3: MET). The 45–55 board is untouched.*
+
 ### 5.6 What the bookie knows
 
 The book prices **rating, fitness, form and style**. It does **not** price the interaction between
@@ -538,6 +545,16 @@ closer wins 13.1% against one front-runner and 12.8% against three.*
 more front-runners returns +2.2% a Bone at the posted price, against −12.9% for the average runner.
 Backed blind, every lone closer returns −2.7%. So the overlay pays a player who reads the board, and
 it is not free money. `oddsScale` is 19 (C15).*
+
+*`v3q` (Q1, Claude's call, unattended; §14 Q9): **the book prices fitness.** A stable runner's book rating
+moves one rating point for every five points of fitness above or below a local's 75 (`bookFitnessPerPoint`
+0.2, rounded to whole points, so every rating the book prices is still an integer); a local is always
+priced at 75, so the tip-off's lazy local stays the tipster's. Until here the book never read fitness,
+which is public and moves the race, and a 1-Bone win bet on a stable runner returned **+92% at fitness
+100, +18–22% at 80–99 and −33% under 60** — "back the fresh dog" was always right, and it was free money
+rather than a read. At 0.2 the six bands read −5.0 / +1.6 / −0.6 / +4.2 / −4.7 / +10.2%. What a reader has
+over the book now is what the book cannot see: stats that have outgrown the rating (D1; every stable dog
+backed blind +6.5% → +1.0%), the field's shape, and the tips.*
 
 ---
 
@@ -777,7 +794,7 @@ Each trainer carries one bonus (or two, at the top of the range). Drawn from ⚖
 | +5 fitness recovery per week | 3% |
 | Injury chance halved | 4% |
 | Injury duration −1 week | 2% |
-| Reveals one rival dog's running style without it racing, once a week | 2% |
+| ~~Reveals one rival dog's running style without it racing, once a week~~ → **a race-day tip, once a week** (Q3, `v3q`) | 2% |
 | Shows next planet's price band position for all six goods | 3% |
 | +10% prize money | 5% |
 | Explore events are less likely to go badly | 3% |
@@ -797,6 +814,16 @@ lowest-rated (D10). The cuts were re-priced by regressing end worth on the dealt
 prize money 6%, safer Explore 3%. Commission is 13.2% of a stable's purses. A stable that opens the
 Bar whenever there is one meets 2.2 trainers a season; four Bar cards carry them. The style read is
 public (D11).*
+
+*`v3q` (Q3, Claude's call, unattended; §14 Q13): **the style read is now a tip.** "Hears the kennel
+gossip: once a week, a race-day tip nobody else has been told." After Explore, the best-rated dog on the
+planet carrying a knock, loss of appetite or a buzz that this stable has not been told about is told to
+this stable alone, through D3's tips. Since the draft (V30) every drafted dog's style is public, so the
+read could only ever find a Pound dog, and D12's regression priced it at −1,125 (± 439) Bones of end worth
+(a fair cut of −1.7%). The tip reads +278 (± 376), a fair cut of 2.9%; its 2% stands. Whisper Jhett, Zeb
+Fontaine and Hex carry it. Not changed, and measured: the two injury bonuses and "keeps you out of
+trouble" still price below zero (§14 Q4); priced at 1% the AI drafted them in place of better trainers
+and they still read −958 / −520 / −957, so their price is not the problem.*
 
 ---
 
@@ -898,7 +925,8 @@ project.
 cards sell the band position of two, three or all six goods, rolled a week early and read by nobody
 else. **Race-day tips** — five Bar and Back Alley cards tell one stable about a hidden knock, loss of
 appetite or buzz on a stable dog, which the book never prices: a tipped buzzing dog returns about
-+20% a Bone, and this is the insider knowledge betting was missing.*
++20% a Bone, and this is the insider knowledge betting was missing.* *(`v3q`, Q3: and one trainer bonus,
+a tip a week.)*
 
 ---
 
@@ -1004,8 +1032,10 @@ v2's harness survives and most of its measures still mean something. New and cha
 | Out at the start of a long game's last season (E7's test with the whole season's purses left) | reported · *`v3i`: 0.1%* | pillar 5: nobody is out before the end *(V23)* |
 | The poorest stable at the start of season 3 finishes a 5-season game in the top 3 | reported · *`v3i`: 31% (chance 50%)* | pillar 5: the back of the table can come back *(V23)* |
 | The poorest stable at the last season's start has that season's biggest gain | reported · *`v3i`: 14% (chance 17%)* | pillar 5: "something interesting on week 9" *(V23)* |
-| **Win rate by opening draft position** (all Normal, 1,000 one-season games at 3, 6 and 8 stables) | every position within ±3 points of fair | V29: the snake is what keeps a draft of unequal dogs fair · *`v3n`: missed, knowingly (see below)* |
+| **Win rate by opening draft position** (all Normal, 1,000 one-season games at 3, 6 and 8 stables) | every position within ±3 points of fair | V29: the snake is what keeps a draft of unequal dogs fair · *`v3n`: missed, knowingly (see below)* · *`v3q`: **1.0 / 1.4 / 2.7, MET** (Q2)* |
 | Start worth spread, first pick to last, before week 1 | reported | V31 · *`v3n`: 520–800 Bones (about 2% of it)* |
+| **The book's return on a stable runner, by its fitness when the field is posted** (`--decisions`) | no band beyond ±15%, the margin | §5.6, §1.1 decision 5: a public number the book ignores is free money, not a read · *`v3p`: −32.5…+92.2% ❌; `v3q`: −7.0…+11.7% ✅ (Q1)* |
+| **Each of §1.1's decisions against a naive rule** (`--decisions`: one naive seat, five Normal) | the naive rule loses | §0.1: a shallow decision is a problem no content papers over · *`v3q`: doors and the Race Office are shallow for the AI (§14 Q14–Q15); trading, the diet and Race/Rest are real; the bookie was shallow until Q1* |
 | Seed + action log reproduces a game | exactly, on any JS engine | unchanged and non-negotiable |
 
 *Measured at `v3e1` (`--game`, six Normal):*
@@ -1072,6 +1102,21 @@ V22):*
   Commission is 11.7% of purses. D12's regression on drafted trainers: +10% prize money +1,201 (± 282)
   and +5 recovery +792 (± 316) Bones of end worth a bonus, injuries halved −1,795 (± 326), the style read
   −1,125 (± 439) (§14 Q13); reported, nothing re-priced.*
+
+*Measured at `v3q` (Q1–Q3, Claude's calls, unattended; `npm run harness -- --decisions` new; `--game` at 600 games a mode):*
+- *Draft position, widest gap from fair at 3 / 6 / 8 stables: 4.4 / 5.2 / 4.7 → **1.0 / 1.4 / 2.7** ✅ (Q2). Start
+  worth, first pick to last, 728 / 742 / 782.*
+- *The book's return on a stable runner by fitness (<60 / 60s / 70s / 80s / 90s / 100): −32.5 / −14.3 / −2.2 /
+  +21.5 / +18.3 / +92.2% → **−7.0 / 0.0 / −2.5 / +3.0 / −2.5 / +11.7%** ✅ (Q1). Every stable dog backed blind
+  +6.5% → 0.0%; the lone closer −3.4% → −3.3% (below the margin ✅).*
+- *Unmoved, in band: races entered 2.67, races a dog 6.31, fitness at declaration 74.5 / 13.9% under 60, food
+  sold 25.1%, median margin 6.3 m / photo finishes 3.2%, the closer's gap +2.3, no door below 17.4%,
+  `hub-clicks` 9.5. Reported: mean end worth, one season, 55,459 → 55,992; poorer than they started 0.4–0.5%;
+  V23's long-game rows 27.0% / 9.3% → 31.0% / 9.5% (not aimed at; about two standard errors); out at week 8
+  of the last season 39.8% → 40.6%. AI (800 seasons, E N N H H N): Normal beats Easy 98.1% → 98.0%, Hard beats
+  Normal 57.9% → 57.8%.*
+- *The trainer bonuses by D12's regression: the tip a week (Q3) +278 (± 376); injuries halved −1,061 (± 309),
+  layoffs −1w −474 (± 274), keeps you out of trouble −442 (± 363) — still below their cuts (§14 Q4).*
 
 ⚠️ **Two v2 measures are retired.** `bankruptRate` has nothing to measure. The three-road printout
 (`trainer` / `trader` / `crook` agents) goes with the three roads — v3 has one road with a trading
@@ -1214,6 +1259,9 @@ All 18 planets survive as data. What changes is which fields do work:
 | 2026-10-07 | **P1 — the draft has "Pick for me"; Play still opens on the draft** | Jesse's pick at `v3p` over auto-drafting on Play (a new player would never meet the draft) and leaving it as it was. One press makes the rest of that human's picks as a Normal AI would (`decideDraft`), through the same `DraftPick` a press makes, so a log, a save and a room read it as picks; it is held per human, so at a hotseat table one human's hand-over is not the next human's. UI only |
 | 2026-10-07 | **P2 — the planet's big button names the next step** | Jesse's pick at `v3p` over a fixed sequence (door → Market → Race Office → Bookie, a press more for anyone who skips the market) and leaving navigation as it was. Before the races it reads "Next: Race Office" until every race the stable can fill has a runner, then "Head to the track"; the Market and the Kennels are optional tabs. The same in hotseat and online; `hub-clicks` unchanged (§10.1) |
 | 2026-10-07 | **P3 — Phase P moves no rule** | Jesse's pick at `v3p`: P is presentation only — text, layout, the first-game path and the next button — so no golden, `STATE_VERSION`, `SAVE_VERSION` or `PROTOCOL_VERSION` moved and `main` can be pushed on any evening. A rule cut, if a playtest asks for one, is its own phase |
+| 2026-10-08 | **Q1 — the book prices fitness: a rating point for every five points of fitness above or below a local's 75** | **Claude's call at `v3q`, unattended; Jesse to keep or revert.** §5.6, §14 Q9. A 1-Bone win bet on a stable runner returned +92.2% at fitness 100, +21.5% at 80–89 and −32.5% under 60 (180,842 runners, `--decisions`): "back the fresh dog" was always right and was free money, not decision 5's read. Swept 0.1 (+34.8% at 100), **0.2** (−5.0…+10.2% across the six bands), 0.3 (−14.8% at 100, +16.3% under 60). Every stable dog backed blind +6.5% → +1.0%; the lone closer −3.4% → −4.4%; AI rows unmoved (Normal beats Easy 98%, Hard beats Normal 57.9% → 57.2%). Locals stay at 75, so a tip-off is still a secret. No press. **Switch:** the sheet cell at 0 is `v3p`'s book, words included; re-record the goldens |
+| 2026-10-08 | **Q2 — the opening draft's round 3 runs the way round 2 did (the third-round reversal)** | **Claude's call at `v3q`, unattended; Jesse to keep or revert.** §5.5, §11's draft-position row, the one row out of band that was not Jesse's own call. Widest gap from a fair win rate at 3 / 6 / 8 stables: plain snake 4.4 / 5.2 / 4.7 points; reversed 1.0 / 2.0 / 3.1 (1,000 games), 2.3 / 1.1 / 2.7 (2,000 games, MET). The 45–55 board (Jesse's call, N) is untouched; a sheet cell (`draftThirdRoundReverses`) is the switch. No press. **Switch:** the cell at 0 is `v3p`'s plain snake; re-record the goldens |
+| 2026-10-08 | **Q3 — the trainer bonus that read a rival's style gives a race-day tip a week** | **Claude's call at `v3q`, unattended; Jesse to keep or revert.** §8.2, §14 Q13. Since V30 every drafted dog's style is public, so the read could only find a Pound dog: D12's regression −1,125 (± 439), a fair cut of −1.7% against its 2%. The tip (D3's machinery; the best-rated dog carrying a condition this stable has not been told about; told to it alone) reads +278 (± 376), a fair cut of 2.9%; the 2% stands. No press. Revert: `git revert 4470b9f` (clean), then re-record the goldens |
 ---
 
 ## 14. Open questions ❓
@@ -1237,6 +1285,11 @@ All 18 planets survive as data. What changes is which fields do work:
    2.11 and the halving trainer still reads about −1,160. An injury costs little because three dogs
    and a fitness budget already keep one dog resting most weeks. If it should hurt, the base rate is
    the dial. The `v3e1` checklist asks whether injuries felt worse.*
+   *`v3q`: **injuries cost nothing measurable.** Six Normal, 200 seasons: an injury rate of 0%, 4%, 8%
+   and 12% gives a mean end worth of 55,483 / 55,459 / 55,565 / 55,657; layoffs of 2–4 weeks cost 0.5k,
+   and 3–6 weeks at 6% only 3.0k (5%). Four dogs for three races keep one resting most weeks, so a layoff
+   is a rest. So the two injury bonuses are dead (Q3's note). Making injuries bite would add luck nobody
+   can price to a very random game, so nothing was changed: it is Jesse's whether an injury should hurt.*
 5. **Should the three races run in split view?** §7.5. Cuts watching time by two thirds at a cost
    in drama.
 6. **Does the Target mode produce a good ending or an anticlimax?** Somebody crossing the line on
@@ -1258,6 +1311,10 @@ All 18 planets survive as data. What changes is which fields do work:
 9. **Should the book price fitness and form?** §5.6 says yes, §1.1 says ratings and styles, and the
    code has only ever priced the rating (C6). Pricing fitness would close the edge a player who reads
    the card has over the book — the only one left since the Fixer went.
+   *`v3q` (Q1): **fitness, yes; form, no.** The edge was not a read but free money — +92% a Bone on a
+   stable runner at 100 — so the book prices fitness at a rating point for five, and what is left to read
+   is what the book cannot see (the stat bars, the field's shape, the tips). Form is −10…+10 and decays;
+   it was not measured and is not priced. Jesse keeps or reverts Q1.*
 10. **Is there a field-shape rule worth having?** The contest rule was cut (C3), so the shape of a field
    barely matters and §7.3's board is read for the *trip*, not the field. A rule that paid closers
    against a crowded front would have to be about closers — or the kill switch's floor is wrong for
@@ -1278,6 +1335,21 @@ All 18 planets survive as data. What changes is which fields do work:
    (V30), so the read only ever finds a dog that came from the Pound — and D12's regression, run on
    drafted trainers, prices the bonus below zero (−1,125 ± 439 Bones of end worth; a fair cut of −1.7% against its 2%). Not
    redesigned: it is Jesse's to say whether the bonus becomes something else.
+   *`v3q` (Q3): it became a race-day tip a week, +278 (± 376), a fair cut of 2.9%. Jesse keeps or reverts.*
+
+14. **Is the door a decision?** *`v3q`, `--decisions`:* a door at random does as well as Normal's
+   reading of its stable (+114 ± 279), and always opening one category pays −1,251 (the Alley) to +321 (the
+   Track) on a 55k stable. So the five categories pay alike, and the pick is about what you want to happen
+   — a dog, a trainer, a tip, trouble — rather than about Bones. That may be right for a story generator
+   (pillar 3); the evening is the test.
+15. **Is the Race Office a decision for the AI?** *`v3q`, `--decisions`:* Normal's priced assignment does
+   no better than "best-rated in the Gold" (+860 ± 495 for the ladder at `v3p`; +1,556 ± 483 at `v3q`, three
+   standard errors). The board's read (styles, the hot
+   pace) is a human's; an AI phase could teach Normal to read it.
+16. **The long game's comeback** (§11's V23 rows: 27.0% / 9.3% at `v3p`, 31.0% / 9.5% at `v3q`, which aimed at
+   neither) — the second is still well under V23's 14%. Every lever
+   found is a number inside Jesse's calls (V32's one dog a stable, N1's 40–60) or the last stable arriving
+   first, which V23 chose against at `v3i`. Not touched at `v3q`; Jesse's to reopen.
 
 ---
 

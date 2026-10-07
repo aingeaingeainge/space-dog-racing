@@ -3,7 +3,7 @@
 > **Status: CURRENT.** Build from this document.
 >
 > Canonical copy: `design/BUILD_PLAN_V3.md` in the `space-dog-racing` repo. A copy in a claude.ai
-> Project is a **mirror**, last synced 7 October 2026 (at `v3p`) — edit the repo, never the mirror. See
+> Project is a **mirror**, last synced 8 October 2026 (at `v3q`) — edit the repo, never the mirror. See
 > `design/CANON.md`.
 >
 > Supersedes `design/BUILD_PLAN.md` from §6 onward. **That document's §§1–5 — architecture, tech
@@ -641,6 +641,15 @@ screen text and `SAVE_VERSION` 13; GDD_V3 §2.2, §10, §11 and V23.
 > `npm run screen-words` is the ruler: a first weekend's visible words **4,392 → 1,692** (−61%) at 1280. **No
 > rule moved** (P3): no golden, `STATE_VERSION`, `SAVE_VERSION` or `PROTOCOL_VERSION`; `season-check`,
 > `hub-clicks`, `race-view-check` and the harness read as at `v3l4`. Notes: `claude/V3_PHASE_P_NOTES.md`.
+>
+> **Phase Q** `v3q` ✅ (8 October 2026, not an L phase, **built unattended**): **the rules, on Claude's
+> judgement** — an audit of every system against §0's test and §11 (`npm run harness -- --decisions`, new:
+> one naive seat a decision against five Normal), then three changes, each its own commit and a GDD_V3 §13
+> row for Jesse to keep or revert: **Q1** the book prices fitness (a fresh dog paid +92% a Bone); **Q2** the
+> opening draft's round 3 runs the way round 2 did (draft position 4.4 / 5.2 / 4.7 → inside ±3); **Q3** the
+> style-read trainer gives a race-day tip a week. Dropped with their numbers: dead trainer bonuses at 1%,
+> longer injuries. `STATE_VERSION` / `SAVE_VERSION` 15, **`PROTOCOL_VERSION` 2**; both goldens moved once.
+> **Pushing ends live rooms.** Notes: `claude/V3_PHASE_Q_NOTES.md`.
 
 ---
 

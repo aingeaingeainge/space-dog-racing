@@ -1,8 +1,8 @@
 # Space Dog Racing — playtest checklist
 
 > **Status: CURRENT (the top section).** Canonical copy: `design/PLAYTEST_CHECKLIST.md` in the
-> `space-dog-racing` repo. A copy in a claude.ai Project is a **mirror**, last synced 7 October
-> 2026 (at `v3p`), for reading on a phone at the table — edit the repo, never the mirror. See
+> `space-dog-racing` repo. A copy in a claude.ai Project is a **mirror**, last synced 8 October
+> 2026 (at `v3q`), for reading on a phone at the table — edit the repo, never the mirror. See
 > `design/CANON.md`.
 
 > **Current section: "v3 Phase J — the evening", directly below.** It is one plan for one evening with
@@ -12,7 +12,9 @@
 > online evening"): how to start a room and the four 🎲 rows of ONLINE_PLAN §10's L4. **At `v3p` the
 > screens were cleaned up** (row 33 and question 1.13 are new; row 14 and "Before anyone arrives"
 > changed): the Title is one Play button, a hotseat table is set up under **Custom game**, and the clock
-> is in **Copy the report**, no longer on the game-end screen. Below both, kept as the record:
+> is in **Copy the report**, no longer on the game-end screen. **At `v3q` three rules moved, unattended,
+> for Jesse to keep or revert** (GDD_V3 Q1–Q3): rows 34–36 and questions 1.14, 2.9 and A.7 ask whether
+> anybody noticed each one, and whether it was better. Below both, kept as the record:
 > **"v3 Phase E2 — the table"** (the `v3e2` checklist, superseded by this one; nothing in it was
 > answered) and **v1's checklist (milestone M1)**, whose venues no longer exist.
 
@@ -64,6 +66,9 @@ remember anything: the report carries it.
 | 31 | **Are four dogs too many to manage?** | `v3n`, V33 | Game 1, question 1.12 |
 | 32 | **The off-season pick in game 2** | `v3n`, V32 | Game 2, questions 2.5–2.6 |
 | 33 | **Can a newcomer play without being told how?** (the "?"s, the next button, the first-game tips) | `v3p` | Game 1, question 1.13 |
+| 34 | 🎲 **Q1: the book prices fitness.** Did anyone notice that a fresh dog is shorter odds, and was the Bookie better for it? | `v3q`, GDD_V3 Q1 | Game 2, question 2.9 |
+| 35 | 🎲 **Q2: round 3 of the opening draft runs the way round 2 did.** Did anyone notice, and did picking feel fairer? (row 29 is the same question from the other side) | `v3q`, GDD_V3 Q2 | Game 1, question 1.14 |
+| 36 | 🎲 **Q3: the gossip trainer gives a race-day tip a week.** Did whoever had one notice the tip, and was it worth having? | `v3q`, GDD_V3 Q3 | After, question A.7 |
 
 **Closed before the evening, not asked again:** `v3f2`'s cards (Jesse, at `v3g`: "great", nothing
 unfinished); `v3f1` Q5 (the cards were drawn at `v3f2`); `v3d2` Q5's plan-the-week press (folded into
@@ -71,7 +76,8 @@ row 14); `v3e2` Q1 and Q3 (the clock and the report now carry them).
 
 ### Before anyone arrives
 
-- **Push `v3p`** and open the game from the live site, so the report's first line says `v3p`.
+- **Push `v3q`** (or `v3p`, if Q1–Q3 were all reverted) **when nobody is playing online — it ends every
+  live room** — and open the game from the live site, so the report's first line names the build.
 - **Setting up the table (from `v3p`):** the Title opens on one **Play** button, which is a solo game. For
   the evening press **Custom game** under it: the roster, faces, length and toggles are all there, and
   **Start season** starts it. The first human to play on the laptop sees one line of tips a screen;
@@ -118,6 +124,7 @@ game answers 1.2 before anybody explains the market.
 | 1.11 | **Did anybody end the draft with a lopsided kennel?** (all one style, or four weak dogs) | No · One stable, by choice · One stable, and it hurt them |
 | 1.12 | **Four dogs** | Right: three race, one rests · Too many to keep track of · Would rather have three |
 | 1.13 | **A newcomer, without help:** did they find the next thing to press? (`v3p`) | Yes, the big button and the tips did it · Mostly, they asked once · No, they needed it explained |
+| 1.14 | **Q2: the draft order.** Round 3 runs the way round 2 did. Did anyone notice, and did it feel fairer? | Noticed, and fairer · Noticed, no different · Nobody noticed · It confused someone |
 
 ### Game 2 — the long one (about 80 minutes)
 
@@ -139,6 +146,7 @@ the only way to reach an off-season, the draft and a Hard AI's whole game.
 | 2.6 | **Did the stable at the back still have something to play for in season 2?** (last picks first) | Yes, the first pick helped · Yes, but not because of the pick · No |
 | 2.7 | **The Hard AI is** | Too strong · About right · Too soft |
 | 2.8 | **Did the best racing stable win, and was it fine that everyone got richer?** | Yes and yes · The best racer lost to something else (what?) · Too comfortable: nobody went backwards |
+| 2.9 | **Q1: the book prices fitness.** A fresh dog is shorter odds, a tired one longer. Did anyone notice, and was the Bookie better for it? | Noticed, and better · Noticed, no different · Nobody noticed · Worse: betting felt pointless |
 
 ### Game 3 — if there is time (about 30 minutes)
 
@@ -164,6 +172,7 @@ Pick one:
 | A.4 | **The small offers** (trainers' cut, tips, a dog on the seller's word, the box): which earned its place? | All of them · Some (which not?) · None stood out |
 | A.5 | **Did the game-end screen tell the story of each game?** | Yes · Mostly, something was missing (what?) · Too much to read |
 | A.6 | **What next?** | Fix what the evening found · Online multiplayer · Another balance pass (on what?) · Something else |
+| A.7 | **Q3: the gossip trainer's tip a week.** Did whoever drafted one notice the tips, and were they worth having? | Yes, I bet or rested on one · Noticed, never used it · Nobody drafted one · Didn't notice |
 
 ---
 

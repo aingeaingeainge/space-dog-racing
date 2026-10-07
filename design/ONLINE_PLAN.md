@@ -3,7 +3,7 @@
 > **Status: CURRENT.** Build online multiplayer from this document.
 >
 > Canonical copy: `design/ONLINE_PLAN.md` in the `space-dog-racing` repo. A copy in a claude.ai
-> Project is a **mirror**, last synced 2 October 2026 (at `v3l4`) — edit the repo, never the mirror.
+> Project is a **mirror**, last synced 8 October 2026 (at `v3q`) — edit the repo, never the mirror.
 > See `design/CANON.md`.
 >
 > Written in v3 Phase K (`v3k`). It replaces `design/BUILD_PLAN.md` §6b.9 and "Prompt M6", which were
@@ -396,6 +396,11 @@ picker. They read a `GameState`; online it is a view.
 - *`v3l4`, 2 October 2026:* **`PROTOCOL_VERSION` 1 is frozen: the room is live, so from now on any change
   to a message, the view's shape or a rule bumps it — and `main` is never pushed while friends are
   playing.** L4 went live ahead of the playtest evening, at Jesse's call (GDD_V3 L4a).
+- *`v3q`, 8 October 2026:* **`PROTOCOL_VERSION` 2.** Three rules moved (GDD_V3 Q1–Q3: the book prices
+  fitness, the opening draft's round 3 runs the way round 2 did, the gossip trainer gives a tip) and no
+  message or view shape did. `STATE_VERSION` 15, so **a push of `v3q` ends every live room**: each one
+  shows its standings and "started on an older version of the game (14, now 15)". Push when nobody is
+  playing.
 
 ---
 
