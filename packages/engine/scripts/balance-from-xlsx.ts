@@ -225,7 +225,7 @@ const LABELS: Record<string, string> = {
   'Staff cut: +5 fitness recovery a week': 'staffCutFitnessWeek',
   'Staff cut: injury chance halved': 'staffCutInjuryHalf',
   'Staff cut: injury duration −1 week': 'staffCutInjuryShort',
-  "Staff cut: reveals a rival dog's style a week": 'staffCutStyleReveal',
+  'Staff cut: a race-day tip a week': 'staffCutWhisper',
   "Staff cut: next planet's band position for all six goods": 'staffCutShelfIntel',
   'Staff cut: +10% prize money': 'staffCutPrizeUp',
   'Staff cut: Explore less likely to go badly': 'staffCutSaferExplore',

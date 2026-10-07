@@ -53,14 +53,14 @@ export function restBonus(p: Pick<Player, 'staff'>): number {
  * prize money for the bonuses that win races, a flat figure in Bones for the ones that do not. The
  * AI's price list — a rule a player works out, not a measurement — and deliberately rough.
  *
- * ⚠️ `styleReveal` is worth nothing to Normal, because Normal never reads the field.
+ * `whisper` (Q3) is a tip a week, which Normal acts on as it acts on a Bar card's (D1 item 6).
  */
 export const STAFF_WORTH: Record<StaffBonusId, { prize: number; flat: number }> = {
   statWeek: { prize: 0.04, flat: 0 },
   fitnessWeek: { prize: 0.03, flat: 0 },
   injuryHalf: { prize: 0.03, flat: 0 },
   injuryShort: { prize: 0.015, flat: 0 },
-  styleReveal: { prize: 0, flat: 0 },
+  whisper: { prize: 0.01, flat: 0 },
   shelfIntel: { prize: 0, flat: 80 },
   prizeUp: { prize: 0.1, flat: 0 },
   saferExplore: { prize: 0, flat: 40 },
@@ -111,14 +111,13 @@ export const HIRE_MARGIN = 0.02;
 
 /**
  * Hard's price list (Phase D2 item 4, GDD §14's "better decisions, same rules"): Normal's, plus what
- * Hard actually does with the two bonuses Normal cannot use — it reads the field, so a style revealed
- * is worth a little; and it trades on a tip, so next week's shelf is priced off its own trading.
+ * Hard actually does with a bonus Normal uses less: it trades on a tip, so next week's shelf is priced
+ * off its own trading.
  */
 export function hardWorth(p: Player): Record<StaffBonusId, { prize: number; flat: number }> {
   const trade = Math.max(0, p.stats.tradeIncome);
   return {
     ...STAFF_WORTH,
-    styleReveal: { prize: 0.005, flat: 0 },
     shelfIntel: { prize: 0, flat: Math.max(STAFF_WORTH.shelfIntel.flat, trade * 0.01) },
   };
 }

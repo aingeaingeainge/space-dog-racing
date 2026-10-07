@@ -49,6 +49,16 @@ const ROWS: NewRow[] = [
 
 const REMOVE: { label: string; why: string }[] = [];
 
+/** A row renamed where it stands, so its section and its neighbours stay put. */
+const RENAME: { from: string; to: string; value: number; note: string }[] = [
+  {
+    from: "Staff cut: reveals a rival dog's style a week",
+    to: 'Staff cut: a race-day tip a week',
+    value: 0.02,
+    note: "Q3 (GDD_V3 §8.2, §14 Q13): the bonus that made a rival's style public became a race-day tip a week, since the draft (V30) made every drafted dog's style public; its 2% is unchanged. D12's regression on drafted trainers (17,000 stables, harness --draft): the style read at v3p −1,125 (± 439) Bones of end worth, a fair cut of −1.7%; the tip with Q1 and Q2 +278 (± 376), a fair cut of 2.9% (at 1%: +464 ± 325)",
+  },
+];
+
 // ---------------------------------------------------------------------------
 
 const wb = XLSX.read(readFileSync(xlsxPath), { cellStyles: false });
@@ -65,6 +75,18 @@ for (const { label } of REMOVE) {
   if (at >= 0) {
     rows.splice(at, 1);
     removed++;
+  }
+}
+
+let renamed = 0;
+for (const r of RENAME) {
+  const at = indexOfLabel(r.from);
+  if (at >= 0) {
+    rows[at] = [r.to, r.value, r.note];
+    renamed++;
+  } else {
+    const now = indexOfLabel(r.to);
+    if (now >= 0) rows[now] = [r.to, r.value, r.note];
   }
 }
 
@@ -96,5 +118,5 @@ const out = XLSX.utils.aoa_to_sheet(rows);
 wb.Sheets['Assumptions'] = out;
 writeFileSync(xlsxPath, XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' }) as Buffer);
 console.log(
-  `Assumptions: ${added} rows added, ${updated} updated, ${removed} removed → ${rows.length} rows`,
+  `Assumptions: ${added} rows added, ${updated} updated, ${renamed} renamed, ${removed} removed → ${rows.length} rows`,
 );

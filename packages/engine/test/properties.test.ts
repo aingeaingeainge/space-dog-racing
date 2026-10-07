@@ -936,3 +936,57 @@ describe('Phase E2: the fresh season, the archive’s moments and the Bookie in 
 function bettingOpenNow(s: GameState): boolean {
   return s.toggles.betting && s.fields !== null;
 }
+
+/*
+ * v3 Phase Q — additions only; nothing above this line was edited.
+ */
+describe('Q3: the gossip trainer tells its stable one race-day tip a week, and only its stable', () => {
+  it('tips the best-rated dog carrying a condition, privately, every weekend there is one', async () => {
+    const { STAFF } = await import('../src/content/staff');
+    const gossip = STAFF.filter((r) => r.bonuses.includes('whisper')).map((r) => r.id);
+    expect(gossip.length).toBeGreaterThan(0);
+    let told = 0;
+    for (let seed = 700; seed < 706; seed++) {
+      const s = createSeason({
+        seed,
+        players: Array.from({ length: 6 }, () => ({
+          name: '',
+          kind: 'ai' as const,
+          difficulty: 'normal' as const,
+        })),
+      });
+      let guard = 0;
+      let given = false;
+      while (!isSeasonOver(s) && guard++ < 50_000) {
+        // Once the draft is done, hand the first stable a gossip nobody else employs.
+        if (!given && s.phase === 'arrival') {
+          given = true;
+          const free = gossip.find((id) => !s.players.some((p) => p.staff.includes(id)));
+          if (!free) break;
+          s.players[0]!.staff = [free];
+        }
+        const before = s.phase;
+        const who = s.pendingEvent?.playerId ?? s.activePlayer!;
+        const actions: Action[] = needsAdvance(s)
+          ? [{ t: 'AdvancePhase' }]
+          : decide(s, who, player(s, who).difficulty);
+        for (const a of actions) reduceMut(s, a);
+        // The moment Explore ends and the market opens, the trainer has spoken.
+        if (given && before === 'explore' && s.phase === 'planetPre') {
+          const me = s.players[0]!.id;
+          const sound = s.conditions.filter((c) => s.dogs[c.dogId]);
+          if (!sound.length) continue;
+          const best = [...sound].sort(
+            (a, b) =>
+              s.dogs[b.dogId]!.rating - s.dogs[a.dogId]!.rating || (a.dogId < b.dogId ? -1 : 1),
+          );
+          // Told about one at least — the best one it had not heard of from a card already.
+          expect(sound.some((c) => c.tipped.includes(me))).toBe(true);
+          expect(best.find((c) => !c.tipped.includes(me))?.dogId ?? null).not.toBe(best[0]!.dogId);
+          told++;
+        }
+      }
+    }
+    expect(told).toBeGreaterThan(10);
+  }, 60_000);
+});

@@ -2,7 +2,7 @@ import { EVENTS, EVENT_BY_ID, type EventCard, type EventCtx } from '../content/e
 import { currentPlanet, log, player, type Ctx } from '../state';
 import { mulberry32, type Rng } from '../rng';
 import { giveIntel } from '../content/eventKit';
-import { STYLE_BY_ID } from '../content/styles';
+import { CONDITION_BY_ID } from '../content/conditions';
 import { staffOf } from '../economy/staff';
 import { ActionError, GOOD_IDS, type Action, type GameState, type Id } from '../types';
 import { revealStyles } from './raceDay';
@@ -202,26 +202,37 @@ function passOn(ctx: Ctx, playerId: Id): void {
  * The two trainer bonuses that tell a stable something (GDD_V3 §8.2), once Explore is over and before
  * the Market opens, in turn order. Neither draws: which dog, and which goods, are rules.
  *
- * - **Has a word around the kennels:** the best-rated rival dog whose style nobody knows yet is made
- *   public — ⚠️ **to the whole table**, by decision C4: a style is known or it is not, and nobody knows
- *   one privately, so the trainer's gossip reaches everybody. What the stable buys is *which* dog.
+ * - **Hears the kennel gossip (Q3):** a race-day tip a week — the best-rated dog on the planet that is
+ *   carrying a knock, is off its feed or is buzzing, and that this stable has not been told about. It
+ *   is told to this stable alone, exactly as a Bar card's tip is (D3), and it may be about its own dog.
+ *   Until `v3q` this bonus made one rival dog's style public; since the draft (V30) every drafted dog's
+ *   style is public from the start, and it priced below zero (§14 Q13).
  * - **Reads the manifests:** where all six goods will sit next week, as the freight clerk's card does.
  */
 export function staffWeek(s: GameState): void {
   for (const id of s.turnOrder) {
     const p = player(s, id);
     for (const row of staffOf(p)) {
-      if (row.bonuses.includes('styleReveal')) {
-        const target = s.players
-          .filter((x) => x.id !== p.id)
-          .flatMap((x) => x.dogIds.map((d) => s.dogs[d]!))
-          .filter((d) => d && !d.styleKnown)
-          .sort((a, b) => b.rating - a.rating || (a.id < b.id ? -1 : 1))[0];
-        if (target) {
-          target.styleKnown = true;
+      if (row.bonuses.includes('whisper')) {
+        // The best-rated dog carrying a race-day condition this stable has not been told about —
+        // a rival's or its own — told to this stable alone, as a Bar card's tip is (D3, Q3).
+        const told = s.conditions
+          .filter((c) => !c.tipped.includes(p.id) && s.dogs[c.dogId])
+          .sort((a, b) => {
+            const da = s.dogs[a.dogId]!;
+            const db = s.dogs[b.dogId]!;
+            return db.rating - da.rating || (da.id < db.id ? -1 : 1);
+          })[0];
+        if (told) {
+          const d = s.dogs[told.dogId]!;
+          told.tipped.push(p.id);
+          p.stats.tips++;
+          const owner = s.players.find((x) => x.id === d.ownerId);
+          const whose = owner?.id === p.id ? 'your own' : `${owner?.name ?? 'somebody'}’s`;
           log(
             s,
-            `${row.name} (${p.name}) has had a word around the kennels: ${target.name} is a ${STYLE_BY_ID[target.style].name.toLowerCase()}. It is on the card now.`,
+            `${row.name} has heard something: ${d.name} — ${whose} dog — ${CONDITION_BY_ID[told.condition].tip}.`,
+            p.id,
           );
         }
       }

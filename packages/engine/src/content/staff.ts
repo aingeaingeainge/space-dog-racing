@@ -26,7 +26,7 @@ export type StaffBonusId =
   | 'fitnessWeek'
   | 'injuryHalf'
   | 'injuryShort'
-  | 'styleReveal'
+  | 'whisper'
   | 'shelfIntel'
   | 'prizeUp'
   | 'saferExplore';
@@ -73,10 +73,10 @@ export const STAFF_BONUSES: readonly StaffBonus[] = [
     size: balance.staffInjuryShorter,
   },
   {
-    id: 'styleReveal',
-    short: 'reads a rival',
-    text: "Has a word around the kennels: once a week, one rival dog's style is made public",
-    cut: balance.staffCutStyleReveal,
+    id: 'whisper',
+    short: 'a tip a week',
+    text: 'Hears the kennel gossip: once a week, a race-day tip nobody else has been told',
+    cut: balance.staffCutWhisper,
     size: 1,
   },
   {
@@ -173,7 +173,7 @@ export const STAFF: readonly StaffRow[] = [
     id: 'jhett',
     name: 'Whisper Jhett',
     blurb: 'Drinks with the kennel-boys of every yard on the circuit.',
-    bonuses: ['styleReveal'],
+    bonuses: ['whisper'],
     portrait: 'staff-jhett',
     looks: 'a thin, grinning alien gossip with oversized ears and a cocktail',
   },
@@ -254,7 +254,7 @@ export const STAFF: readonly StaffRow[] = [
     id: 'fontaine',
     name: 'Zeb Fontaine',
     blurb: 'Knows everybody’s business, and sells none of it but to you.',
-    bonuses: ['styleReveal', 'shelfIntel'],
+    bonuses: ['whisper', 'shelfIntel'],
     portrait: 'staff-fontaine',
     looks: 'a slick informant in a trench coat with a notebook full of secrets',
   },
@@ -270,7 +270,7 @@ export const STAFF: readonly StaffRow[] = [
     id: 'hex',
     name: 'Hex',
     blurb: 'Nobody knows her real name. She knows yours.',
-    bonuses: ['saferExplore', 'styleReveal'],
+    bonuses: ['saferExplore', 'whisper'],
     portrait: 'staff-hex',
     looks: 'a mysterious hooded fortune-teller alien with glowing eyes and tarot cards',
   },
