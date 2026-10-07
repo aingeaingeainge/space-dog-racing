@@ -217,32 +217,21 @@ export function impliedProbability(odds: number, margin: number): number {
  * So the gap gets printed. Three things move a dog and leave its rating alone, and each one is a
  * clause here only when it is actually true of this dog:
  *
- * - **Fitness.** `RaceEntry` carries a rating and the field table prints the fitness beside it;
- *   what was missing was that the *price* only knows the first of the two.
+ * - ~~**Fitness.**~~ The book prices a stable runner's fitness from `v3q` (GDD_V3 Q1), so it is no
+ *   longer a blind spot and the clause went with it.
  * - **Stats that have outgrown the rating** (§5.3's `effectiveRating`) — a month with a trainer,
  *   a track-day pass. Exactly what the Hard AI acts on, said out loud so a player can too.
  * - **A supplement**, and from Phase D a nobbling, neither of which the book has seen.
  *
  * Returns null when there is nothing to say, so a dog the bookie has right adds no noise.
  */
-export function bookieBlindSpot(
-  s: GameState,
-  entry: RaceEntry,
-  fieldMeanFitness: number,
-): string | null {
+export function bookieBlindSpot(s: GameState, entry: RaceEntry): string | null {
   const d = s.dogs[entry.dogId];
   if (!d) return null;
   const clauses: string[] = [];
   const stats = baseRating(d);
   if (stats > d.rating) {
     clauses.push(`stats worth ${stats} against the ${d.rating} it is priced on`);
-  }
-  const fitGap = Math.round(d.fitness - fieldMeanFitness);
-  if (Math.abs(fitGap) >= 6) {
-    clauses.push(
-      `${d.fitness} fitness against a field averaging ${Math.round(fieldMeanFitness)}` +
-        (fitGap > 0 ? '' : ' — it is the tired one here'),
-    );
   }
   // ⚠️ The supplement and the nobbling are both deleted (BUILD_PLAN_V3 §2.1), so the blind spot is
   // now only what a fed dog's stats have outgrown its rating by. GDD_V3 §5.6 replaces them with a
@@ -251,17 +240,4 @@ export function bookieBlindSpot(
   // here in Phase C, and §11 measures its size.
   if (!clauses.length) return null;
   return `${d.name} is priced at rating ${entry.rating}. The book does not see ${clauses.join(', nor ')}.`;
-}
-
-/** The mean fitness of the runners in a field — what one dog's condition is read against. */
-export function fieldMeanFitness(s: GameState, field: readonly RaceEntry[]): number {
-  let total = 0;
-  let n = 0;
-  for (const e of field) {
-    const d = s.dogs[e.dogId];
-    if (!d) continue;
-    total += d.fitness;
-    n++;
-  }
-  return n ? total / n : 0;
 }

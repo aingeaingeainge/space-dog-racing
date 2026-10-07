@@ -17,6 +17,18 @@ export function styleEdge(style: StyleId | null, track: Pick<Track, 'length'>): 
 }
 
 /**
+ * What the book adds to a rating for a runner's fitness when the field is posted (GDD_V3 §5.6, Q1), in
+ * whole rating points: `bookFitnessPerPoint` a point above or below a local's 75, rounded. Whole points
+ * keep every rating the book prices an integer, which is what `strength` below is proved safe for.
+ *
+ * It reads the fitness the table can see. A nobble lands after the prices are struck (§9.3), so the
+ * book never sees one, and a race-day condition is the tipster's, not the book's (D3).
+ */
+export function fitnessEdge(fitness: number): number {
+  return Math.round((fitness - balance.localFitness) * balance.bookFitnessPerPoint);
+}
+
+/**
  * strength_i = 10^(rating_i / oddsScale), via the quantized pow10 so the model is bit-identical
  * on every JS engine (see determinism.ts). Ratings are integers 5–99, so this has only ~95
  * possible results; test/determinism.test.ts proves every one sits far from a rounding boundary.

@@ -263,6 +263,8 @@ const LABELS: Record<string, string> = {
   'Draft: the strongest dog on the off-season board (rating)': 'offDraftRatingMax',
   'Draft: dogs on the off-season board, per stable (rounded up)': 'offDraftDogsPerStable',
   'Draft: AI takes an off-season pick when it beats what it lets go by (Bones)': 'aiDraftMargin',
+  // Phase Q: Claude's unattended changes (GDD_V3 Q1…), each revertible on its own.
+  'Book: rating points a fitness point is worth, against a local at 75': 'bookFitnessPerPoint',
 };
 
 const wb = XLSX.read(readFileSync(xlsxPath));

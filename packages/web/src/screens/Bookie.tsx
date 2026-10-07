@@ -25,7 +25,7 @@ import { TicketCard } from '../components/TicketCard';
 import { BettingSlip, type SlipRow } from '../components/BettingSlip';
 import { useKeys } from '../lib/keys';
 import { raceLabel, raceTone } from '../lib/selectors';
-import { bookieBlindSpot, fieldMeanFitness, stakeLine, stakeValue } from '../lib/priceTag';
+import { bookieBlindSpot, stakeLine, stakeValue } from '../lib/priceTag';
 import { useGame } from '../store/gameStore';
 
 /**
@@ -51,7 +51,11 @@ export function Bookie({ s, me }: { s: GameState; me: Player }) {
 
   return (
     <>
-      <Whispers s={s} me={me} where="the book prices the rating and the style, never this" />
+      <Whispers
+        s={s}
+        me={me}
+        where="the book prices the rating, the style and the fitness, never this"
+      />
       <Guide id="bookie">
         Back one of your dogs if you fancy it — or just press{' '}
         <b>{online ? 'Done betting' : 'Run the races'}</b>.
@@ -80,7 +84,7 @@ export function Bookie({ s, me }: { s: GameState; me: Player }) {
           <More label="How the bookie works">
             <Notes
               lines={[
-                `The book takes ${Math.round(margin * 100)}%, so betting is a losing game unless you know something it does not — it prices the rating and the style, never the fitness or the shape of the field.`,
+                `The book takes ${Math.round(margin * 100)}%, so betting is a losing game unless you know something it does not — it prices the rating, the style and the fitness, never the shape of the field or stats that have outgrown the rating.`,
                 `You may have up to ${formatBones(cap)} on one race: ${Math.round(frac * 100)}% of your cash or ${formatBones(ceiling)}, whichever is less${ceiling > balance.maxStake ? ` — the ceiling is doubled here` : ''}.`,
                 'Win pays if the dog wins; place pays on a top-three finish. You can back your own dogs, or a rival. Nobody else sees your slips.',
                 `${formatBones(me.cash)} in hand.`,
@@ -133,12 +137,11 @@ function RaceBetting({
    * been looking at all week, and §5.3's informational edge is worth nothing unless somebody says
    * out loud that the book cannot see it.
    */
-  const meanFit = fieldMeanFitness(s, field);
   const mine = field.filter((e) => e.ownerId === me.id);
   const priced = mine[0] ?? [...field].sort((a, b) => b.winProb - a.winProb)[0];
   const value = priced && wanted >= 10 ? stakeValue(wanted, priced.odds) : null;
   const blind = [...mine, ...field.filter((e) => e.ownerId !== me.id)]
-    .map((e) => bookieBlindSpot(s, e, meanFit))
+    .map((e) => bookieBlindSpot(s, e))
     .filter((x): x is string => !!x)
     .slice(0, 3);
 

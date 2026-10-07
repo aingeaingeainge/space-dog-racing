@@ -7,7 +7,13 @@ import { HEADLINE_TYPE_ID, raceType } from '../content/raceTypes';
 import { pow10 } from '../determinism';
 import { createLocalDog } from '../economy/dogs';
 import { dogValue } from '../economy/dogValue';
-import { decimalOdds, placeProbabilities, styleEdge, winProbabilities } from '../race/odds';
+import {
+  decimalOdds,
+  fitnessEdge,
+  placeProbabilities,
+  styleEdge,
+  winProbabilities,
+} from '../race/odds';
 import { simulateRace, type Runner } from '../race/simulateRace';
 import {
   bettingMargin,
@@ -80,8 +86,15 @@ export function lockDeclarations(ctx: Ctx): void {
     const rest = draw.filter((d) => !d.traits.includes('wideRunner'));
     const ordered = [...rest, ...wide];
     honourBoxes(s, race, ordered);
-    // The book prices the rating and, once it is public, the style on this trip (GDD_V3 §5.6).
-    const ratings = ordered.map((d) => d.rating + styleEdge(publicStyle(d), track));
+    // The book prices the rating, the style on this trip once it is public, and the fitness a stable's
+    // runner shows (GDD_V3 §5.6, Q1). A local is priced at the locals' fitness, always: the one "not
+    // trying" is the tipster's secret, not the book's.
+    const ratings = ordered.map(
+      (d) =>
+        d.rating +
+        styleEdge(publicStyle(d), track) +
+        (d.ownerId === 'local' ? 0 : fitnessEdge(d.fitness)),
+    );
     const winP = winProbabilities(ratings);
     const placeP = placeProbabilities(ratings);
     fields.push({

@@ -33,6 +33,7 @@
   "bookEdgeStalkerSprint": -1,
   "bookEdgeStalkerStandard": 0,
   "bookEdgeStalkerStaying": 0,
+  "bookFitnessPerPoint": 0.2,
   "catchChance": 0.35,
   "catchChanceHolyBark": 0.6,
   "catchChanceLagrangeLows": 0.2,

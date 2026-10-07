@@ -439,3 +439,69 @@ describe('The Bookie is order-independent: the order humans bet in never changes
     }
   }, 120_000);
 });
+
+/*
+ * v3 Phase Q — additions only; nothing above this line was edited.
+ */
+describe('Q1: the book prices fitness, in whole rating points (GDD_V3 §5.6)', () => {
+  it('a fitness edge is a whole number, zero at a local’s 75, and rises with fitness', async () => {
+    const { fitnessEdge } = await import('../src/race/odds');
+    expect(fitnessEdge(balance.localFitness)).toBe(0);
+    let last = -Infinity;
+    for (let f = 0; f <= 100; f++) {
+      const e = fitnessEdge(f);
+      expect(Number.isInteger(e), `fitness ${f} gives ${e}`).toBe(true);
+      expect(e).toBeGreaterThanOrEqual(last);
+      last = e;
+    }
+    expect(fitnessEdge(100)).toBeGreaterThan(0);
+    expect(fitnessEdge(40)).toBeLessThan(0);
+  });
+
+  it('every rating 5–99, every style edge and every fitness edge clears thousands of ULPs', async () => {
+    const { STYLES } = await import('../src/content/styles');
+    const { fitnessEdge } = await import('../src/race/odds');
+    const edges = STYLES.flatMap((st) => Object.values(st.bookEdge));
+    const lo = 5 + Math.min(0, ...edges) + fitnessEdge(0);
+    const hi = 99 + Math.max(0, ...edges) + fitnessEdge(100);
+    let worst = Infinity;
+    for (let r = lo; r <= hi; r++)
+      worst = Math.min(worst, quantizeMarginUlps(Math.pow(10, r / balance.oddsScale)));
+    expect(worst).toBeGreaterThan(1000);
+  });
+
+  it('posts every stable runner on rating + style + fitness, and every local on rating + style', async () => {
+    const { createSeason, reduceMut, decide, needsAdvance, currentPlanet } =
+      await import('../src/index');
+    const { fitnessEdge, styleEdge } = await import('../src/race/odds');
+    const s = createSeason({
+      seed: 11,
+      players: Array.from({ length: 4 }, () => ({
+        name: '',
+        kind: 'ai' as const,
+        difficulty: 'normal' as const,
+      })),
+    });
+    let guard = 0;
+    while (!s.fields && guard++ < 50_000) {
+      if (needsAdvance(s)) {
+        reduceMut(s, { t: 'AdvancePhase' });
+        continue;
+      }
+      const who = s.pendingEvent?.playerId ?? s.activePlayer!;
+      for (const a of decide(s, who, 'normal')) reduceMut(s, a);
+    }
+    const track = currentPlanet(s).track;
+    let fresh = 0;
+    for (const f of s.fields!)
+      for (const e of f.entries) {
+        const d = s.dogs[e.dogId]!;
+        const book = e.rating + styleEdge(e.style, track) + (e.local ? 0 : fitnessEdge(d.fitness));
+        expect(e.bookRating).toBe(book);
+        // Week 1: every drafted dog is at 90, so the book has every one of them shorter than a local.
+        if (!e.local && fitnessEdge(d.fitness) > 0) fresh++;
+      }
+    expect(fresh).toBeGreaterThan(0);
+    expect(fitnessEdge(100)).toBeGreaterThan(0);
+  });
+});
