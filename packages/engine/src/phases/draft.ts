@@ -40,10 +40,17 @@ import {
  * A pick is the turn — there is no EndPhase in a draft.
  */
 
-/** The snake (V29): round 1 as drawn, every even round reversed. */
-export function snakeOrder(round1: readonly Id[], rounds: number): Id[] {
+/**
+ * The snake (V29): round 1 as drawn, every even round reversed. With `thirdReverses` (Q2) round 3 runs
+ * the way round 2 did, and the snake carries on from there: so the stable that picked first picks last
+ * twice running, and the last pick of round 1 opens round 3.
+ */
+export function snakeOrder(round1: readonly Id[], rounds: number, thirdReverses = false): Id[] {
   const out: Id[] = [];
-  for (let r = 0; r < rounds; r++) out.push(...(r % 2 === 0 ? round1 : [...round1].reverse()));
+  for (let r = 0; r < rounds; r++) {
+    const backwards = thirdReverses && r >= 2 ? r % 2 === 0 : r % 2 === 1;
+    out.push(...(backwards ? [...round1].reverse() : round1));
+  }
   return out;
 }
 
@@ -77,7 +84,7 @@ export function openOpeningDraft(ctx: Ctx): void {
     kind: 'opening',
     season: 1,
     rounds,
-    order: snakeOrder(round1, rounds),
+    order: snakeOrder(round1, rounds, balance.draftThirdRoundReverses === 1),
     at: 0,
     dogs,
     staff,

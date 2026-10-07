@@ -265,6 +265,7 @@ const LABELS: Record<string, string> = {
   'Draft: AI takes an off-season pick when it beats what it lets go by (Bones)': 'aiDraftMargin',
   // Phase Q: Claude's unattended changes (GDD_V3 Q1…), each revertible on its own.
   'Book: rating points a fitness point is worth, against a local at 75': 'bookFitnessPerPoint',
+  'Draft: round 3 runs the way round 2 did (1 yes, 0 a plain snake)': 'draftThirdRoundReverses',
 };
 
 const wb = XLSX.read(readFileSync(xlsxPath));

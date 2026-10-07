@@ -39,6 +39,12 @@ const ROWS: NewRow[] = [
     value: 0.2,
     note: "Q1 (GDD_V3 §5.6, §14 Q9): the book prices a stable runner's fitness, rounded to whole rating points; locals are always priced at 75. At 0 (v3p) a 1-Bone win bet on a stable runner at fitness 100 returned +92%, at 80–89 +22%, under 60 −33%; at 0.1 +35% / +9% / −22%; at 0.2 +8% / +3% / −7%; at 0.3 −15% / −3% / +16%",
   },
+  {
+    section: Q_SECTION,
+    label: 'Draft: round 3 runs the way round 2 did (1 yes, 0 a plain snake)',
+    value: 1,
+    note: "Q2 (GDD_V3 §5.5, V29): the third-round reversal. Win rate by draft position, widest gap from fair at 3 / 6 / 8 stables, all Normal, one season: plain snake 4.4 / 5.2 / 4.7 points (1,000 games); round 3 reversed 1.0 / 2.0 / 3.1 (1,000) and 2.3 / 1.1 / 2.7 (2,000) against ±3. Jesse's 45–55 board is untouched",
+  },
 ];
 
 const REMOVE: { label: string; why: string }[] = [];

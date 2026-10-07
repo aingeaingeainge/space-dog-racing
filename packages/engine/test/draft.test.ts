@@ -55,6 +55,16 @@ function play(setup: SeasonSetup, stop: (s: GameState) => boolean = () => false)
 }
 
 describe('the opening draft (V29)', () => {
+  it('snakeOrder is the plain snake unless round 3 reverses (Q2)', () => {
+    const r1 = ['a', 'b', 'c'];
+    expect(snakeOrder(r1, 4)).toEqual(['a', 'b', 'c', 'c', 'b', 'a', 'a', 'b', 'c', 'c', 'b', 'a']);
+    expect(snakeOrder(r1, 4, true)).toEqual([
+      ...['a', 'b', 'c'],
+      ...['c', 'b', 'a'],
+      ...['c', 'b', 'a'],
+      ...['a', 'b', 'c'],
+    ]);
+  });
   for (const n of [3, 6, 8]) {
     it(`snakes six rounds for ${n} stables, round 1 drawn`, () => {
       const s = createSeason({ seed: 100 + n, players: ais(n) });
@@ -65,10 +75,12 @@ describe('the opening draft (V29)', () => {
       expect(d.rounds).toBe(6);
       const round1 = d.order.slice(0, n);
       expect([...round1].sort()).toEqual(s.players.map((p) => p.id).sort());
-      expect(d.order).toEqual(snakeOrder(round1, 6));
+      // Q2: round 3 runs the way round 2 did, and the snake carries on from there.
+      expect(d.order).toEqual(snakeOrder(round1, 6, true));
+      const backwards = [false, true, true, false, true, false];
       for (let r = 0; r < 6; r++) {
         const round = d.order.slice(r * n, (r + 1) * n);
-        expect(round).toEqual(r % 2 === 0 ? round1 : [...round1].reverse());
+        expect(round).toEqual(backwards[r] ? [...round1].reverse() : round1);
       }
       expect(s.activePlayer).toBe(round1[0]);
       expect(waitingOn(s)).toBe(round1[0]);

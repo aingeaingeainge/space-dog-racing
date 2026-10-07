@@ -62,6 +62,7 @@
   "draftDogsPerStable": 5,
   "draftRatingMax": 55,
   "draftRatingMin": 45,
+  "draftThirdRoundReverses": 1,
   "draftTrainersPerStable": 3,
   "eloScale": 15,
   "emptyHoldFitness": 10,
