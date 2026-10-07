@@ -14,6 +14,8 @@
  *   npm run harness -- --game [--games 200]   # Phase E1: whole games at 1/3/5 seasons and both targets
  *   npm run harness -- --draft [--games 1000]   # Phase N: win rate by draft position at 3/6/8 stables,
  *                                        # start worth, each trainer bonus re-priced (D12's regression)
+ *   npm run harness -- --decisions [--games 1200] [--only noBet,ranked]   # Phase Q: one naive seat
+ *                                        # a decision against five Normal; the book and fitness
  *   npm run harness -- --explore --seasons 400   # Phase D1: doors, the deck's outcomes, dog offers,
  *                                        # lies, the race-day tip rows and the Bar's shelf
  *   … --set key=value [--set key=value …]   # Phase H: override a numeric balance key for this run
@@ -67,6 +69,7 @@ import { hash01 } from '../src/ai/shared';
 import { isSeasonOver, needsAdvance, reduceMut } from '../src/reduce';
 import { runGames } from './harness-game';
 import { runDraft } from './harness-draft';
+import { runDecisions } from './harness-decisions';
 import { simulateRace, type Runner } from '../src/race/simulateRace';
 import { winProbabilities } from '../src/race/odds';
 import { HEADLINE_TYPE_ID, raceType } from '../src/content/raceTypes';
@@ -115,6 +118,10 @@ interface Args {
   games: number;
   /** Phase N: the draft — fairness by draft position, start worth, trainer bonuses re-priced. */
   draft: boolean;
+  /** Phase Q: one naive seat against five Normal, a rule for each of §1.1's decisions. */
+  decisions: boolean;
+  /** With --decisions: only these rules (comma-separated ids), plus the control. */
+  only: string;
   quiet: boolean;
 }
 
@@ -134,6 +141,8 @@ function parseArgs(argv: string[]): Args {
     hardD2: false,
     game: false,
     draft: false,
+    decisions: false,
+    only: '',
     games: 200,
     quiet: false,
   };
@@ -157,6 +166,8 @@ function parseArgs(argv: string[]): Args {
     else if (a === '--hardD2') args.hardD2 = true;
     else if (a === '--game') args.game = true;
     else if (a === '--draft') args.draft = true;
+    else if (a === '--decisions') args.decisions = true;
+    else if (a === '--only') args.only = next();
     else if (a === '--games') args.games = Number(next());
     else if (a === '--quiet') args.quiet = true;
     // Applied already, at import, by balance-set.ts; step over its value.
@@ -2713,6 +2724,7 @@ function main() {
     overridesLine() &&
     !args.game &&
     !args.draft &&
+    !args.decisions &&
     !(plain && !args.hardD2 && !args.hardAblation)
   )
     console.log(overridesLine());
@@ -2720,6 +2732,10 @@ function main() {
   else if (args.draft)
     console.log(
       runDraft(args.games === 200 ? 1000 : args.games, args.seed, args.ai[0] ?? 'normal'),
+    );
+  else if (args.decisions)
+    console.log(
+      runDecisions(args.games === 200 ? 1200 : args.games, args.seed, args.only || undefined),
     );
   else if (args.calibrate) console.log(runCalibration());
   else if (args.stats) console.log(runStatLeverage());
