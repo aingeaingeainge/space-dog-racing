@@ -46,7 +46,7 @@ export function GalaxyMap({ s }: { s: GameState; me: Player }) {
             `The Majors are the exception: week ${MAJOR_WEEKS.join(', ')} always, and the Grand Final always at Collar Prime in week ${balance.weeks}. The rhythm is fixed even when the content is not.`,
             gossip.length
               ? `They are saying: ${gossip.map((r) => r.text).join(' ')}`
-              : 'Nobody in the Saloon has anything worth repeating this week.',
+              : 'Nobody on the circuit has anything worth repeating this week.',
           ]}
         />
       </Panel>
@@ -95,9 +95,11 @@ export function GalaxyMap({ s }: { s: GameState; me: Player }) {
                     </td>
                     {level === 'dark' || !p ? (
                       <td className="muted" colSpan={4}>
-                        {e.major
-                          ? 'A Major, venue not yet announced'
-                          : 'An unknown stop — the circuit is dark past next week'}
+                        {e.grandFinal
+                          ? 'The Grand Final — at Collar Prime, as it always is'
+                          : e.major
+                            ? 'A Major, venue not yet announced'
+                            : 'An unknown stop — the circuit is dark past next week'}
                       </td>
                     ) : (
                       <>

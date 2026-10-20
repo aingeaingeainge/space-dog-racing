@@ -424,6 +424,10 @@ tbody tr:hover td {
 }
 tr.me td {
   background: var(--accent-1-soft);
+}
+/* The bar marks the row, so it sits on the row's first cell only (it was on every cell, which drew a
+   bar between each column of your own line in every table). */
+tr.me td:first-child {
   box-shadow: inset 3px 0 0 var(--accent-1);
 }
 tr.me:hover td {
@@ -837,6 +841,8 @@ ul.notes li::before {
 }
 .ticket tr.me td {
   background: rgba(33, 29, 24, 0.09);
+}
+.ticket tr.me td:first-child {
   box-shadow: inset 3px 0 0 var(--rust);
 }
 .ticket .badge {
@@ -1436,6 +1442,14 @@ ul.notes li::before {
 }
 .scrim.event > .panel {
   max-width: 640px;
+}
+/* v3 Phase R: the leaderboard's seven columns at 820 px cut Net worth — the one that decides the
+   game — off the right-hand edge. Wider, and the owner's one-line blurb may wrap under the name. */
+.scrim.wide > .panel {
+  max-width: 1040px;
+}
+.scrim.wide .owner-blurb {
+  white-space: normal;
 }
 /* The event card's illustration slot (GDD §11); session 2 drops the 800×500 art in. */
 .event-art {

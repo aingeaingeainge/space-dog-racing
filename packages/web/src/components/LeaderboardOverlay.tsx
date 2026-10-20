@@ -13,6 +13,7 @@ export function LeaderboardOverlay({ s, meId }: { s: GameState; meId: Id | null 
   const rows = standings(s);
   return (
     <Modal
+      kind="wide"
       title="Leaderboard"
       sub={`week ${s.week} of ${s.calendar.length} — net worth decides the season`}
       onClose={() => setLeaderboard(false)}

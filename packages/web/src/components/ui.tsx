@@ -82,8 +82,11 @@ export function Modal({
   sub?: ReactNode;
   children: ReactNode;
   onClose?: () => void;
-  /** 'event' narrows the card so the illustration slot is not a letterbox. */
-  kind?: 'event';
+  /**
+   * 'event' narrows the card so the illustration slot is not a letterbox; 'wide' widens it for a
+   * table of seven columns (the leaderboard, v3 Phase R).
+   */
+  kind?: 'event' | 'wide';
 }) {
   return (
     <div className={kind ? `scrim ${kind}` : 'scrim'}>
