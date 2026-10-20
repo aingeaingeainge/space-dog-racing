@@ -62,8 +62,12 @@ function target(frame: CameraFrame, view: Viewport) {
 
   // Tighten as the leader comes to the line, so the finish is the closest shot of the race.
   const closing = Math.max(0, Math.min(1, (frame.progress - 0.82) / 0.18));
-  const wide = WIDE_MAX + (FINISH_MAX - WIDE_MAX) * closing;
-  const tight = WIDE_MIN + (FINISH_MIN - WIDE_MIN) * closing;
+  // v3 Phase R: a phone held upright has a tall, narrow picture, and the minimum shot is metres
+  // *across* it — so the field was drawn at half the size the height had room for. Upright, the
+  // minimum shrinks with the aspect (never below 55%); a landscape screen is exactly as before.
+  const portrait = view.h > view.w ? Math.max(0.55, view.w / view.h) : 1;
+  const wide = (WIDE_MAX + (FINISH_MAX - WIDE_MAX) * closing) * portrait;
+  const tight = (WIDE_MIN + (FINISH_MIN - WIDE_MIN) * closing) * portrait;
 
   const spanX = Math.max(maxX - minX + 26, tight);
   const spanY = maxY - minY + 20;

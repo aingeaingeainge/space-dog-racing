@@ -1808,8 +1808,11 @@ ul.notes li::before {
     font-size: 11px;
     max-width: 46%;
   }
+  /* v3 Phase R: on a phone too the race takes the screen under its header (taller here, the
+     controls wrap), so the standings box no longer sits over half the track. */
   .race-canvas {
-    height: min(46vh, 360px);
+    height: clamp(300px, calc(100vh - 170px), 640px);
+    height: clamp(300px, calc(100dvh - 170px), 640px);
   }
   /*
    * The result strip under a finished race is a flex row of name, stable, rating change and
