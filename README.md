@@ -24,7 +24,10 @@ AI stables; **Custom game** under it sets up a hotseat table of up to eight (any
 Easy, Normal and Hard AIs), one to five seasons or a race to a target, and the toggles; **Play
 online** (on the live site) makes a room for friends in other houses. A game opens on a draft of four
 dogs and two trainers. A weekend is a door to open, the six-food market that is also your dogs'
-training, a dog in each of three races, a bet, and the races. Every planet is painted.
+training, a dog in each of three races, a bet, and the races. Every planet is painted, and the
+track has a sound of its own (all of it synthesised in the browser; **Sound on / off** in the top
+bar, key V). Your dog wears a ring on the track, so you can find it when the camera is on the
+leaders.
 
 Share a game with `?seed=12345&players=h,normal,normal,hard` — the link opens the Custom game with
 the same seed and the same table, so two people can play the same season and compare. `h` is a
@@ -33,7 +36,8 @@ because a seed only replays the same way with the same toggles.
 
 ## The design
 
-`design/GDD.md` is the source of truth for the rules and `design/BUILD_PLAN.md` for the roadmap.
+`design/GDD_V3.md` is the source of truth for the rules and `design/BUILD_PLAN_V3.md` for the roadmap
+(`design/CANON.md` says which documents are current; `design/GDD.md` is v2's, kept as the record).
 `design/space_dog_racing_economy.xlsx` is the source of truth for the numbers — `balance.json` is
 generated from it and never hand-edited. `design/PLAYTEST_NOTES.md` is what happened when a
 person actually played it, which is the only document here that can prove any of the others

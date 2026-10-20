@@ -3,7 +3,7 @@
 > **Status: CURRENT.** Build from this document.
 >
 > Canonical copy: `design/GDD_V3.md` in the `space-dog-racing` repo. A copy in a claude.ai Project
-> is a **mirror**, last synced 8 October 2026 (at `v3q`) — edit the repo, never the mirror. See `design/CANON.md`.
+> is a **mirror**, last synced 20 October 2026 (at `v3r`) — edit the repo, never the mirror. See `design/CANON.md`.
 >
 > Supersedes `design/GDD.md` (v2, shipped at tag `v2e`), which is kept as historical reference and
 > is cited by name throughout this document.
@@ -760,6 +760,15 @@ left this weekend to the results in one press. Watching changes nothing in the e
 table the race view has no "you". The pace timer (E11) splits out race day, so the table's own time
 says whether split view is worth building.*
 
+*`v3r` (R3, UI only): **your dog is ringed on the track.** The camera follows the leading group, so a dog
+of yours out of the lead was nowhere — on the first Silver Plate of the session it was 103 m back and never
+in shot. Solo and online your runner wears a ring in the stable's colour and a YOU tag; at a hotseat table
+every human's runner is ringed and tagged with its stable's name (the race is still the table's: the
+result card has no "you" there). A marked dog out of shot gets an arrow on the picture's edge: "YOU · 40 m
+back". The race takes the screen under its header, and on an upright phone the camera's minimum shot
+shrinks with the aspect. **And it has sound** (R2): the traps, the hare, the stands rising with a close
+finish, an "ooh" for a bump, a cheer for a lead change, the shutter at a photo, the bell, the coins.*
+
 ---
 
 ## 8. Staff — two trainers on commission
@@ -982,6 +991,14 @@ field of eight behind "Full book"; the **Results** show the first three and the 
 results" one press away. A first game shows one line of guidance a screen (the first-game guide), which a
 browser shows once. No rule moved (P3).)*
 
+*(`v3r`, Phase R: **the game has sound** (R2) — synthesised in the browser, so nothing to download: the
+race day of §7.5, the Market's till, chips on a bet, a whoosh when a card comes up behind your door and a
+sting for what it did, a tick on the big button, a fanfare at the season's end. One switch, **Sound on /
+off**, in the top bar and on race day (key **V**; M is the Market), remembered per browser and never in a
+save. Three screen bugs fixed: the accent bar on every cell of your own row in every table, the
+leaderboard cutting off Net worth at 1280, and the map calling week 10 "a Major, venue not yet announced"
+beside the line that says the Grand Final is always at Collar Prime.)*
+
 ### 10.1 The click budget
 
 v2 measured 13.3–14.3 decisions a weekend for one player and treated 14.5 as a ceiling. **v3's
@@ -1035,7 +1052,7 @@ v2's harness survives and most of its measures still mean something. New and cha
 | **Win rate by opening draft position** (all Normal, 1,000 one-season games at 3, 6 and 8 stables) | every position within ±3 points of fair | V29: the snake is what keeps a draft of unequal dogs fair · *`v3n`: missed, knowingly (see below)* · *`v3q`: **1.0 / 1.4 / 2.7, MET** (Q2)* |
 | Start worth spread, first pick to last, before week 1 | reported | V31 · *`v3n`: 520–800 Bones (about 2% of it)* |
 | **The book's return on a stable runner, by its fitness when the field is posted** (`--decisions`) | no band beyond ±15%, the margin | §5.6, §1.1 decision 5: a public number the book ignores is free money, not a read · *`v3p`: −32.5…+92.2% ❌; `v3q`: −7.0…+11.7% ✅ (Q1)* |
-| **Each of §1.1's decisions against a naive rule** (`--decisions`: one naive seat, five Normal) | the naive rule loses | §0.1: a shallow decision is a problem no content papers over · *`v3q`: doors and the Race Office are shallow for the AI (§14 Q14–Q15); trading, the diet and Race/Rest are real; the bookie was shallow until Q1* |
+| **Each of §1.1's decisions against a naive rule** (`--decisions`: one naive seat, five Normal) | the naive rule loses | §0.1: a shallow decision is a problem no content papers over · *`v3q`: doors and the Race Office are shallow for the AI (§14 Q14–Q15); trading, the diet and Race/Rest are real; the bookie was shallow until Q1 · `v3r`: **the Race Office is a decision for the AI too** (R1: the ladder −388 ± 477 against Normal's assignment); the door is still shallow in Bones (§14 Q14)* |
 | Seed + action log reproduces a game | exactly, on any JS engine | unchanged and non-negotiable |
 
 *Measured at `v3e1` (`--game`, six Normal):*
@@ -1262,6 +1279,9 @@ All 18 planets survive as data. What changes is which fields do work:
 | 2026-10-08 | **Q1 — the book prices fitness: a rating point for every five points of fitness above or below a local's 75** | **Claude's call at `v3q`, unattended; Jesse to keep or revert.** §5.6, §14 Q9. A 1-Bone win bet on a stable runner returned +92.2% at fitness 100, +21.5% at 80–89 and −32.5% under 60 (180,842 runners, `--decisions`): "back the fresh dog" was always right and was free money, not decision 5's read. Swept 0.1 (+34.8% at 100), **0.2** (−5.0…+10.2% across the six bands), 0.3 (−14.8% at 100, +16.3% under 60). Every stable dog backed blind +6.5% → +1.0%; the lone closer −3.4% → −4.4%; AI rows unmoved (Normal beats Easy 98%, Hard beats Normal 57.9% → 57.2%). Locals stay at 75, so a tip-off is still a secret. No press. **Switch:** the sheet cell at 0 is `v3p`'s book, words included; re-record the goldens |
 | 2026-10-08 | **Q2 — the opening draft's round 3 runs the way round 2 did (the third-round reversal)** | **Claude's call at `v3q`, unattended; Jesse to keep or revert.** §5.5, §11's draft-position row, the one row out of band that was not Jesse's own call. Widest gap from a fair win rate at 3 / 6 / 8 stables: plain snake 4.4 / 5.2 / 4.7 points; reversed 1.0 / 2.0 / 3.1 (1,000 games), 2.3 / 1.1 / 2.7 (2,000 games, MET). The 45–55 board (Jesse's call, N) is untouched; a sheet cell (`draftThirdRoundReverses`) is the switch. No press. **Switch:** the cell at 0 is `v3p`'s plain snake; re-record the goldens |
 | 2026-10-08 | **Q3 — the trainer bonus that read a rival's style gives a race-day tip a week** | **Claude's call at `v3q`, unattended; Jesse to keep or revert.** §8.2, §14 Q13. Since V30 every drafted dog's style is public, so the read could only find a Pound dog: D12's regression −1,125 (± 439), a fair cut of −1.7% against its 2%. The tip (D3's machinery; the best-rated dog carrying a condition this stable has not been told about; told to it alone) reads +278 (± 376), a fair cut of 2.9%; the 2% stands. No press. Revert: `git revert 4470b9f` (clean), then re-record the goldens |
+| 2026-10-20 | **R1 — the AIs price a race the way the book does: places by Harville, and fitness at a point for five** | **Claude's call at `v3r`, unattended; Jesse to keep or revert.** §14 Q15. `expectedPurse` priced second and third as p × 1.2 and p × 1.1 (a favourite at p = 0.5 was second for certain and never third) and ignored fitness, which Q1 had found the biggest thing on the card. Now Harville (`placeProbabilities`, as the book's place prices) and `fitnessEdge` on its own runner and every declared rival. `--decisions`, 1,200 games: "Normal's runners, best-rated in the Gold" against Normal's own assignment **+1,556 (± 483) → −388 (± 477)** (Harville alone +633). 800 mixed seasons: Normal beats Easy 98.0 → 98.3%, Hard beats Normal 57.8 → 56.8%. AI only: no rule, and no `STATE_VERSION`, `SAVE_VERSION` or `PROTOCOL_VERSION` (a save is its log, AI actions included). **Revert:** `git revert` the goldens commit and the two before it |
+| 2026-10-20 | **R2 — the game has sound, synthesised, on by default, one switch** | **Claude's call at `v3r`, unattended.** The game was silent, and Death Rally is not. Web Audio only (no asset, `asset-check` unmoved); a browser preference, never in a save or a seed link; silent wherever there is no `AudioContext`. UI only |
+| 2026-10-20 | **R3 — the humans' dogs are ringed on the track** | **Claude's call at `v3r`, unattended.** §7.5. Yours alone or online; every human's, by stable name, at a hotseat table. Paint over the frame: the camera and the tick log are untouched (`race-view-check` unchanged). UI only |
 ---
 
 ## 14. Open questions ❓
@@ -1346,6 +1366,9 @@ All 18 planets survive as data. What changes is which fields do work:
    no better than "best-rated in the Gold" (+860 ± 495 for the ladder at `v3p`; +1,556 ± 483 at `v3q`, three
    standard errors). The board's read (styles, the hot
    pace) is a human's; an AI phase could teach Normal to read it.
+   *`v3r` (R1): **it is now.** Two things in `expectedPurse`, neither a read of the board: places were a
+   rough multiple of the win chance, and fitness was not priced. With Harville and `fitnessEdge`, the ladder
+   is −388 (± 477) against Normal's assignment. Normal still does not read the hot pace; Hard does.*
 16. **The long game's comeback** (§11's V23 rows: 27.0% / 9.3% at `v3p`, 31.0% / 9.5% at `v3q`, which aimed at
    neither) — the second is still well under V23's 14%. Every lever
    found is a number inside Jesse's calls (V32's one dog a stable, N1's 40–60) or the last stable arriving

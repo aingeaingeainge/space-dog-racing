@@ -3,7 +3,7 @@
 > **Status: CURRENT.** Build from this document.
 >
 > Canonical copy: `design/BUILD_PLAN_V3.md` in the `space-dog-racing` repo. A copy in a claude.ai
-> Project is a **mirror**, last synced 8 October 2026 (at `v3q`) — edit the repo, never the mirror. See
+> Project is a **mirror**, last synced 20 October 2026 (at `v3r`) — edit the repo, never the mirror. See
 > `design/CANON.md`.
 >
 > Supersedes `design/BUILD_PLAN.md` from §6 onward. **That document's §§1–5 — architecture, tech
@@ -650,6 +650,16 @@ screen text and `SAVE_VERSION` 13; GDD_V3 §2.2, §10, §11 and V23.
 > style-read trainer gives a race-day tip a week. Dropped with their numbers: dead trainer bonuses at 1%,
 > longer injuries. `STATE_VERSION` / `SAVE_VERSION` 15, **`PROTOCOL_VERSION` 2**; both goldens moved once.
 > **Pushing ends live rooms.** Notes: `claude/V3_PHASE_Q_NOTES.md`.
+>
+> **Phase R** `v3r` ✅ (20 October 2026, not an L phase, **built unattended**, on "make it better any way you
+> can think of"): **the feel, and the AI's race pricing.** The game has **sound** (GDD_V3 R2: synthesised,
+> one switch, key V); **your dog is ringed on the track** with an arrow when it is out of shot, every
+> human's at a hotseat table (R3); the race takes the screen, and a closer camera on an upright phone; three
+> screen bugs fixed (the "you" row's bars, the leaderboard's cut column, week 10 on the map). **R1**, for
+> Jesse to keep or revert: the AIs price places by Harville and fitness at the book's rate when they pick
+> their races, which makes the Race Office a decision for Normal (§14 Q15). **No rule moved**; no
+> `STATE_VERSION`, `SAVE_VERSION` or `PROTOCOL_VERSION`; both goldens moved once, for R1, alone.
+> **Pushing does not end live rooms.** Notes: `claude/V3_PHASE_R_NOTES.md`.
 
 ---
 
