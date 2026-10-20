@@ -1,7 +1,7 @@
 import { balance } from '../content/balance';
 import { planetOf } from '../content/planets';
 import { raceType } from '../content/raceTypes';
-import { placeProbabilities, styleEdge, winProbabilities } from '../race/odds';
+import { fitnessEdge, placeProbabilities, styleEdge, winProbabilities } from '../race/odds';
 import { publicStyle } from '../content/styles';
 import { baseRating, dogValue } from '../economy/dogValue';
 import {
@@ -53,8 +53,9 @@ export function expectedField(
     if (pid === excludePlayer) continue;
     const d = s.dogs[dogId];
     // A rival's public style counts as the book counts it (GDD_V3 §5.6); a local not yet drawn is
-    // an average dog of an unknown style, which the book prices at nothing.
-    if (d) ratings.push(ratingOf(d) + styleEdge(publicStyle(d), track));
+    // an average dog of an unknown style, which the book prices at nothing. A rival's fitness is
+    // public too, and since Q1 the book prices it: so does the AI (v3 Phase R, R1b).
+    if (d) ratings.push(ratingOf(d) + styleEdge(publicStyle(d), track) + fitnessEdge(d.fitness));
   }
   while (ratings.length < balance.traps - 1) ratings.push(mid);
   return ratings;
@@ -83,7 +84,12 @@ export function expectedPurse(
   const others = expectedField(s, race, playerId, rivalRatingOf);
   // Our own dog's style, if the table knows it — and only then: an owner learns its dog's style by
   // racing it, like everybody else (GDD_V3 §5.4).
-  const ours = rating + styleEdge(publicStyle(dog), currentPlanet(s).track);
+  // ⚠️ **And its fitness** (v3 Phase R, R1b). Q1 measured fitness as the biggest thing the book did
+  // not price — a stable runner at 100 returned +92% a Bone — and the AI that declared it did not price
+  // it either, so it put a jaded dog in the Gold as readily as a fresh one. It now reads fitness at the
+  // book's own rate, `fitnessEdge`, a rating point for every five above or below a local's 75.
+  const ours =
+    rating + styleEdge(publicStyle(dog), currentPlanet(s).track) + fitnessEdge(dog.fitness);
   const field = [ours, ...others];
   const p = winProbabilities(field)[0]!;
   const purse = purseFor(s, race);
