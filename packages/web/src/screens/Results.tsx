@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   formatBones,
   planetOf,
@@ -15,6 +15,7 @@ import { OwnerFace } from '../components/Owner';
 import { useKeys } from '../lib/keys';
 import { humans, playerById, raceLabel } from '../lib/selectors';
 import { useGame } from '../store/gameStore';
+import { sfxCoins } from '../lib/sound';
 
 /**
  * One race's result. Phase P: by default the short form — the first three and every human stable's
@@ -179,6 +180,17 @@ export function Results({ s, me }: { s: GameState; me: Player }) {
     dispatch({ t: 'EndPhase', playerId: me.id });
   };
   useKeys({ Enter: ackResults, ' ': ackResults, f: canFly ? flyOn : undefined });
+  // v3 Phase R: the weekend's takings, rung up as the sheet comes up (your own; a table reads it
+  // together, so nobody's coins there).
+  const takings = table
+    ? 0
+    : (s.races ?? []).reduce(
+        (sum, r) => sum + r.payouts.reduce((t, p) => t + (p.playerId === me.id ? p.amount : 0), 0),
+        0,
+      );
+  useEffect(() => {
+    if (takings > 0) sfxCoins(takings);
+  }, [takings]);
   if (!s.races) return null;
   const planet = planetOf(s.planet.planetId);
   const mine = s.races.flatMap((r) =>
