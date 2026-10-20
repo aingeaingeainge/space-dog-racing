@@ -1651,6 +1651,39 @@ ul.notes li::before {
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
+/* v3 Phase R: your dog in the first three is your line, lit the way the ticker lights it. */
+.race-result li.me {
+  background: var(--accent-1-soft);
+  box-shadow: inset 3px 0 0 var(--accent-1);
+  padding-left: 6px;
+}
+.race-result li.me.first .nm {
+  color: var(--hazard);
+  font-weight: 700;
+}
+/* The photo's flash: one white pop as the frame freezes. */
+.race-photo::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: #fff;
+  opacity: 0;
+  animation: photo-flash 0.5s ease-out 1;
+  pointer-events: none;
+}
+@keyframes photo-flash {
+  0% {
+    opacity: 0.85;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .race-photo::before {
+    animation: none;
+  }
+}
 .race-margin {
   margin: 7px 0 9px;
   font-size: 13px;

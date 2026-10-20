@@ -492,7 +492,12 @@ function ResultCard({
           const owner = e.local ? undefined : playerById(s, e.ownerId as Id);
           const colour = owner ? STABLE_COLOURS[owner.colour % STABLE_COLOURS.length]! : '#7c7889';
           return (
-            <li key={dogId}>
+            <li
+              key={dogId}
+              className={
+                myRunner && e.ownerId === me.id ? (i === 0 ? 'me first' : 'me') : undefined
+              }
+            >
               <b>{i + 1}</b>
               <i className="cloth" style={{ background: colour, color: ink(colour) }}>
                 {e.trap}

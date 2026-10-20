@@ -45,7 +45,7 @@ export function GalaxyMap({ s }: { s: GameState; me: Player }) {
             'The circuit is drawn fresh every season and the stewards do not publish it. You know this planet in full and next week by name, and the rest is rumour.',
             `The Majors are the exception: week ${MAJOR_WEEKS.join(', ')} always, and the Grand Final always at Collar Prime in week ${balance.weeks}. The rhythm is fixed even when the content is not.`,
             gossip.length
-              ? `They are saying: ${gossip.map((r) => r.text).join(' ')}`
+              ? `Overheard: ${gossip.map((r) => r.text).join(' ')}`
               : 'Nobody on the circuit has anything worth repeating this week.',
           ]}
         />
