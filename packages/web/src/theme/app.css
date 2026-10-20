@@ -1496,7 +1496,11 @@ ul.notes li::before {
 .race-canvas {
   display: block;
   width: 100%;
-  height: min(58vh, 540px);
+  /* v3 Phase R: the race is the show, so it takes the screen — everything under the panel's header
+     bar, up to a picture that would be all track. (Was min(58vh, 540px), which left a third of a
+     laptop screen empty under the finish.) */
+  height: clamp(300px, calc(100vh - 96px), 780px);
+  height: clamp(300px, calc(100dvh - 96px), 780px);
   min-height: 300px;
 }
 .race-stage > *:not(.race-canvas) {

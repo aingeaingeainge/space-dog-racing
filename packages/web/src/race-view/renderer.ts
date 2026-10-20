@@ -21,6 +21,17 @@ export interface RunnerStyle {
   mine: boolean;
 }
 
+/**
+ * v3 Phase R: a runner somebody at the table is watching for — your own dog solo or online, or each
+ * human's dog at a hotseat table. Drawn in screen space over the field: a ring in the stable's
+ * colour and a tag, and an arrow on the edge of the picture when the camera has left it behind.
+ */
+export interface RunnerMark {
+  colour: string;
+  /** "YOU", or the stable's name at a hotseat table. */
+  label: string;
+}
+
 export interface RunnerSample {
   index: number;
   dogId: Id;
@@ -75,6 +86,8 @@ export interface RendererOptions {
    * place of the flat `palette.surface`. Polled the same way, and turned into a pattern once.
    */
   surfaceFor?: () => HTMLImageElement | null;
+  /** v3 Phase R: the runners to ring and tag (see RunnerMark). Null for the rest. */
+  markFor?: (index: number) => RunnerMark | null;
 }
 
 export interface Renderer {
@@ -423,6 +436,86 @@ export function createRenderer(canvas: HTMLCanvasElement, opts: RendererOptions)
     ctx!.fillText(String(r.trap), p.x, p.y);
   }
 
+  /**
+   * The rings and tags (v3 Phase R). Pure paint over the finished frame: nothing here moves the
+   * camera, so the leaders stay in shot exactly as before and a marked dog that has fallen out of it
+   * gets an arrow on the edge saying how far back it is.
+   */
+  function drawMarks(s: RaceSample, time: number): void {
+    const mark = opts.markFor;
+    if (!mark) return;
+    const pad = 18;
+    const pulse = 0.5 + 0.5 * Math.sin(time * 5);
+    for (const r of s.standing) {
+      const m = mark(r.index);
+      if (!m) continue;
+      const p = screen(r.pose);
+      const inside = p.x > pad && p.x < view.w - pad && p.y > pad && p.y < view.h - pad;
+      ctx!.save();
+      ctx!.font = `700 11px "Space Mono", ui-monospace, monospace`;
+      ctx!.textBaseline = 'middle';
+      if (inside) {
+        const rad = Math.max(11, Math.min(34, camera.zoom * 1.9)) + pulse * 2;
+        ctx!.lineWidth = 4.5;
+        ctx!.strokeStyle = 'rgba(0,0,0,0.7)';
+        ctx!.beginPath();
+        ctx!.arc(p.x, p.y, rad, 0, Math.PI * 2);
+        ctx!.stroke();
+        ctx!.lineWidth = 2.5;
+        ctx!.strokeStyle = m.colour;
+        ctx!.beginPath();
+        ctx!.arc(p.x, p.y, rad, 0, Math.PI * 2);
+        ctx!.stroke();
+        tag(m, p.x, p.y - rad - 10, 'center');
+      } else {
+        // Clamp to the edge, and point from the middle of the picture toward the dog.
+        const cx = view.w / 2;
+        const cy = view.h / 2;
+        const dx = p.x - cx;
+        const dy = p.y - cy;
+        const k = Math.min(
+          dx ? (view.w / 2 - pad) / Math.abs(dx) : Infinity,
+          dy ? (view.h / 2 - pad) / Math.abs(dy) : Infinity,
+        );
+        const ex = cx + dx * k;
+        const ey = cy + dy * k;
+        const a = Math.atan2(dy, dx);
+        ctx!.translate(ex, ey);
+        ctx!.rotate(a);
+        ctx!.beginPath();
+        ctx!.moveTo(9, 0);
+        ctx!.lineTo(-7, -8);
+        ctx!.lineTo(-7, 8);
+        ctx!.closePath();
+        ctx!.fillStyle = m.colour;
+        ctx!.strokeStyle = 'rgba(0,0,0,0.8)';
+        ctx!.lineWidth = 2;
+        ctx!.fill();
+        ctx!.stroke();
+        ctx!.setTransform(dpr, 0, 0, dpr, 0, 0);
+        const back = r.finished ? 'home' : `${Math.round(r.behind)} m back`;
+        const tx = ex - Math.cos(a) * 16;
+        const ty = ey - Math.sin(a) * 16;
+        tag({ ...m, label: `${m.label} · ${back}` }, tx, ty, ex > cx ? 'right' : 'left');
+      }
+      ctx!.restore();
+    }
+  }
+
+  function tag(m: RunnerMark, x: number, y: number, align: 'center' | 'left' | 'right'): void {
+    const w = ctx!.measureText(m.label).width + 10;
+    const left = align === 'center' ? x - w / 2 : align === 'left' ? x : x - w;
+    const top = Math.max(2, Math.min(view.h - 18, y - 8));
+    const l = Math.max(2, Math.min(view.w - w - 2, left));
+    ctx!.fillStyle = 'rgba(12, 11, 17, 0.88)';
+    ctx!.fillRect(l, top, w, 16);
+    ctx!.fillStyle = m.colour;
+    ctx!.fillRect(l, top, 3, 16);
+    ctx!.fillStyle = '#f4f4f4';
+    ctx!.textAlign = 'left';
+    ctx!.fillText(m.label, l + 6, top + 8.5);
+  }
+
   function draw(time: number, drawOpts?: { freeze?: boolean; dt?: number }): void {
     const s = sample(time);
     const freeze = !!drawOpts?.freeze;
@@ -460,6 +553,7 @@ export function createRenderer(canvas: HTMLCanvasElement, opts: RendererOptions)
     ctx!.restore();
     ctx!.setTransform(dpr, 0, 0, dpr, 0, 0);
     for (const r of s.standing) drawNumber(r, opts.styleFor(r.index));
+    drawMarks(s, time);
   }
 
   resize();

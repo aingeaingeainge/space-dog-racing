@@ -15,7 +15,12 @@ import { NeonButton } from '../components/NeonButton';
 import { humans, playerById, raceLabel } from '../lib/selectors';
 import { useGame, type RaceSpeed } from '../store/gameStore';
 import { buildCommentary, lineAt, type CommentaryLine } from '../race-view/commentary';
-import { createRenderer, type RaceSample, type RunnerStyle } from '../race-view/renderer';
+import {
+  createRenderer,
+  type RaceSample,
+  type RunnerMark,
+  type RunnerStyle,
+} from '../race-view/renderer';
 import { paletteFor } from '../race-view/palette';
 import { spriteAt } from '../race-view/sprites';
 import { trackBlurb, trackFor } from '../race-view/tracks';
@@ -122,6 +127,25 @@ function RaceReplay({
   }, [result, s, me.id, solo]);
 
   /**
+   * v3 Phase R: whose dog to ring on the track. Alone (or online) it is yours, tagged YOU; at a
+   * hotseat table, where the race is the table's, it is every human's, tagged with the stable.
+   */
+  const marks = useMemo(() => {
+    return result.entries.map((e, i): RunnerMark | null => {
+      if (e.local) return null;
+      const owner = playerById(s, e.ownerId as Id);
+      if (!owner || owner.kind !== 'human') return null;
+      if (solo && owner.id !== me.id) return null;
+      const label = solo
+        ? 'YOU'
+        : owner.name.length > 14
+          ? `${owner.name.slice(0, 13)}…`
+          : owner.name;
+      return { colour: styles[i]!.colour, label };
+    });
+  }, [result, s, me.id, solo, styles]);
+
+  /**
    * The planet's ground and its surface tile. Both are fetched here rather than with the app,
    * so a player who never watches a race never pays for them, and both are polled by the
    * renderer rather than passed in — the first frame draws on session 1's palette colours and
@@ -180,6 +204,7 @@ function RaceReplay({
       track,
       tickSeconds: balance.raceTickSeconds,
       styleFor: (i) => styles[i]!,
+      markFor: (i) => marks[i] ?? null,
       palette,
       groundFor: () => (groundUrl ? peekImage(groundUrl) : null),
       surfaceFor: () => (surfaceUrl ? peekImage(surfaceUrl) : null),
@@ -257,7 +282,18 @@ function RaceReplay({
       cancelAnimationFrame(raf);
       globalThis.removeEventListener('resize', onResize);
     };
-  }, [result, track, styles, commentary, palette, groundUrl, surfaceUrl, runners, runnerIndex]);
+  }, [
+    result,
+    track,
+    styles,
+    marks,
+    commentary,
+    palette,
+    groundUrl,
+    surfaceUrl,
+    runners,
+    runnerIndex,
+  ]);
 
   // --- the result overlay advances itself ------------------------------------------------
   useEffect(() => {
