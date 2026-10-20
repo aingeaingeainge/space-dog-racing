@@ -1,7 +1,7 @@
 import { balance } from '../content/balance';
 import { planetOf } from '../content/planets';
 import { raceType } from '../content/raceTypes';
-import { styleEdge, winProbabilities } from '../race/odds';
+import { placeProbabilities, styleEdge, winProbabilities } from '../race/odds';
 import { publicStyle } from '../content/styles';
 import { baseRating, dogValue } from '../economy/dogValue';
 import {
@@ -84,11 +84,18 @@ export function expectedPurse(
   // Our own dog's style, if the table knows it — and only then: an owner learns its dog's style by
   // racing it, like everybody else (GDD_V3 §5.4).
   const ours = rating + styleEdge(publicStyle(dog), currentPlanet(s).track);
-  const p = winProbabilities([ours, ...others])[0]!;
+  const field = [ours, ...others];
+  const p = winProbabilities(field)[0]!;
   const purse = purseFor(s, race);
-  // Places: a cheap approximation of Harville that keeps the AI fast.
-  const p2 = Math.min(1 - p, p * 1.2);
-  const p3 = Math.min(1 - p - p2, p * 1.1);
+  // Places by Harville, as the book's place prices are (v3 Phase R). This was "a cheap approximation
+  // of Harville that keeps the AI fast" — p×1.2 for second and p×1.1 for third — which handed a
+  // favourite every place it did not win (at p = 0.5, second with certainty and third never) and a
+  // long shot too many, so a strong dog looked safest where it could be a short favourite. The exact
+  // sum is 8 × 7 × 6 terms a call, a dozen calls a turn: the harness runs no slower.
+  const top2 = placeProbabilities(field, 2)[0]!;
+  const top3 = placeProbabilities(field, 3)[0]!;
+  const p2 = Math.max(0, top2 - p);
+  const p3 = Math.max(0, top3 - top2);
   return p * purse[0] + p2 * purse[1] + p3 * purse[2];
 }
 
