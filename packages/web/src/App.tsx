@@ -27,6 +27,7 @@ import { roomFromUrl, roomsUrl } from './store/online';
 import { PlanetTheme } from './theme/planetTheme';
 import { screenFor, weekKey } from './store/loop';
 import { useGame } from './store/gameStore';
+import { useSoundCues } from './lib/soundCues';
 
 /**
  * One human is on the clock at any moment: the store drives AI stables and system phases in
@@ -91,7 +92,7 @@ export function App() {
 
   // Phase E2's pace timer. Every change of screen kind (or of weekend) closes one timed stretch and
   // opens the next; a hidden window stops the clock. UI only — nothing here reaches the engine.
-  const screenNow = state
+  const first = state
     ? screenFor(
         state,
         {
@@ -106,8 +107,11 @@ export function App() {
           postTrade,
         },
         online,
-      ).kind
+      )
     : null;
+  const screenNow = first?.kind ?? null;
+  // v3 Phase R: the door's whoosh and sting, for whoever is on the clock.
+  useSoundCues(state, first?.me?.id ?? null);
   const bucket =
     !state || !screenNow
       ? null

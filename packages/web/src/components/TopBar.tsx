@@ -1,5 +1,8 @@
 import { formatBones, planetOf, type GameState, type Player } from '@sdr/engine';
 import { NeonButton } from './NeonButton';
+import { SoundButton } from './SoundButton';
+import { useKeys } from '../lib/keys';
+import { toggleSound } from '../lib/sound';
 import { useGame } from '../store/gameStore';
 
 /** Always on screen: where we are, whose turn it is, and the way into the leaderboard. */
@@ -9,6 +12,8 @@ export function TopBar({ s, me }: { s: GameState; me: Player | null }) {
   const online = useGame((g) => g.source === 'online');
   const entry = s.calendar[s.week - 1];
   const planet = entry ? planetOf(entry.planetId) : null;
+  // v3 Phase R: V for the sound (volume; M is the Market), wherever the top bar is (the race view has its own).
+  useKeys({ v: toggleSound });
 
   return (
     <div className="topbar">
@@ -39,6 +44,7 @@ export function TopBar({ s, me }: { s: GameState; me: Player | null }) {
         </span>
       ) : null}
       <span className="spacer" />
+      <SoundButton />
       <NeonButton small onClick={() => setLeaderboard(true)}>
         Leaderboard
       </NeonButton>

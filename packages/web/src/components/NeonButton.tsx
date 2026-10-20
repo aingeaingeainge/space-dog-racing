@@ -1,4 +1,5 @@
 import type { ButtonHTMLAttributes } from 'react';
+import { sfxTap } from '../lib/sound';
 
 export type NeonVariant = 'default' | 'primary' | 'danger' | 'link' | 'ghost';
 
@@ -23,6 +24,7 @@ export function NeonButton({
   wide,
   className,
   type = 'button',
+  onClick,
   ...rest
 }: NeonButtonProps) {
   const cls = [
@@ -34,5 +36,14 @@ export function NeonButton({
   ]
     .filter(Boolean)
     .join(' ');
-  return <button type={type} className={cls} {...rest} />;
+  // v3 Phase R: the big buttons tick. Only the primary — the one next step on every screen — so a
+  // weekend is a handful of ticks, not a typewriter.
+  const click: NeonButtonProps['onClick'] =
+    variant === 'primary' && onClick
+      ? (e) => {
+          sfxTap();
+          onClick(e);
+        }
+      : onClick;
+  return <button type={type} className={cls} onClick={click} {...rest} />;
 }

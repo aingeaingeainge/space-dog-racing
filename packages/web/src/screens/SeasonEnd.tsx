@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { formatBones, planetOf, type GameState, type Player, type RoadSplit } from '@sdr/engine';
 import { Panel } from '../components/Panel';
 import { More } from '../components/More';
@@ -22,6 +22,7 @@ import {
 import { seasonLinkFor } from '../lib/seedLink';
 import { playerById, standings } from '../lib/selectors';
 import { useGame } from '../store/gameStore';
+import { sfxFanfare } from '../lib/sound';
 import { buildReport, gameEndLine, gameLengthText } from '../lib/report';
 
 /**
@@ -44,6 +45,8 @@ function SeasonOver({ s, rows }: { s: GameState; rows: SeasonRow[] }) {
   const ackSeason = useGame((g) => g.ackSeason);
   const top = rows[0];
   const last = s.calendar[s.week - 1];
+  const humanTop = top?.player.kind === 'human';
+  useEffect(() => sfxFanfare(humanTop), [humanTop]);
   // Phase N (V32): the off-season is a draft, last on the standings picking first.
   const first = s.players.find((p) => p.id === s.drafts.at(-1)?.order[0]);
   return (
@@ -230,6 +233,9 @@ function GameOver({ s }: { s: GameState }) {
   const rows = gameRows(s);
   const winner = rows[0];
   const multi = s.seasons.length > 1;
+  // v3 Phase R: a fanfare, the big one when a human has won it.
+  const humanWon = winner?.player.kind === 'human';
+  useEffect(() => sfxFanfare(humanWon), [humanWon]);
   const finish = targetFinish(s);
   const rec = lastSeason(s);
 

@@ -12,6 +12,7 @@ import {
 import { Panel } from '../components/Panel';
 import { Badge, Delta, STABLE_COLOURS } from '../components/ui';
 import { NeonButton } from '../components/NeonButton';
+import { SoundButton } from '../components/SoundButton';
 import { humans, playerById, raceLabel } from '../lib/selectors';
 import { useGame, type RaceSpeed } from '../store/gameStore';
 import { buildCommentary, lineAt, type CommentaryLine } from '../race-view/commentary';
@@ -26,6 +27,8 @@ import { spriteAt } from '../race-view/sprites';
 import { trackBlurb, trackFor } from '../race-view/tracks';
 import { planetGround, planetSurface } from '../lib/assets';
 import { loadImage, peekImage } from '../lib/imageCache';
+import { crowd, sfxBell, sfxCoins, sfxHare, sfxShutter, sfxTraps, toggleSound } from '../lib/sound';
+import type { CommentaryKind } from '../race-view/commentary';
 
 /**
  * GDD §6.3 — the three races, replayed from the tick logs the engine recorded. Bronze, then
@@ -221,6 +224,10 @@ function RaceReplay({
     let freezeUntil = 0;
     let hudAt = 0;
     let first = true;
+    // v3 Phase R: the race's sounds, driven off the same clock as the picture.
+    let started = false;
+    let belled = false;
+    let lastCall: CommentaryLine | null = null;
     clockRef.current = 0;
     stageRef.current = 'run';
     skipRef.current = false;
@@ -232,13 +239,26 @@ function RaceReplay({
       const dt = last ? Math.min(0.08, (now - last) / 1000) : 1 / 60;
       last = now;
 
+      if (!started) {
+        started = true;
+        crowd.start();
+        sfxTraps();
+        sfxHare();
+      }
       if (skipRef.current && stageRef.current !== 'result') {
+        crowd.stop(true);
+        belled = true;
         clockRef.current = renderer.replayEnd;
         photoPending = false;
         stageRef.current = 'result';
         setStage('result');
       } else if (stageRef.current === 'photo') {
         if (now >= freezeUntil) {
+          if (!belled) {
+            belled = true;
+            sfxBell();
+            crowd.finish();
+          }
           photoPending = false;
           stageRef.current = 'run';
           setStage('run');
@@ -248,10 +268,16 @@ function RaceReplay({
         if (photoPending && next >= renderer.winnerAt) {
           clockRef.current = renderer.winnerAt;
           freezeUntil = now + PHOTO_HOLD_MS;
+          sfxShutter();
           stageRef.current = 'photo';
           setStage('photo');
         } else {
           clockRef.current = next;
+          if (!belled && clockRef.current >= renderer.winnerAt) {
+            belled = true;
+            sfxBell();
+            crowd.finish();
+          }
         }
         if (clockRef.current >= renderer.replayEnd) {
           clockRef.current = renderer.replayEnd;
@@ -269,10 +295,16 @@ function RaceReplay({
       if (now - hudAt > 80) {
         hudAt = now;
         const sample = renderer.sample(clockRef.current);
+        const call = lineAt(commentary, clockRef.current);
+        if (stageRef.current === 'run') {
+          if (call && call !== lastCall) react(call.kind);
+          if (!belled) crowd.level(excitement(sample), speedRef.current);
+        }
+        lastCall = call;
         setHud({
           time: clockRef.current,
           standing: sample.standing,
-          call: lineAt(commentary, clockRef.current),
+          call,
         });
       }
       raf = requestAnimationFrame(frame);
@@ -281,6 +313,7 @@ function RaceReplay({
     return () => {
       cancelAnimationFrame(raf);
       globalThis.removeEventListener('resize', onResize);
+      crowd.stop();
     };
   }, [
     result,
@@ -307,6 +340,7 @@ function RaceReplay({
     function onKey(e: KeyboardEvent): void {
       if (e.key === '1') setRaceSpeed(1);
       else if (e.key === '2') setRaceSpeed(2);
+      else if (e.key === 'v' || e.key === 'V') toggleSound();
       else if (e.key === 'S' && e.shiftKey) skipRaceDay();
       else if (e.key === 's') skipRef.current = true;
       else if (e.key === ' ' || e.key === 'Enter') {
@@ -345,6 +379,7 @@ function RaceReplay({
             >
               2×
             </NeonButton>
+            <SoundButton />
             <NeonButton
               onClick={() => (stage === 'result' ? onDone() : (skipRef.current = true))}
               title="Skip to the result (key: S)"
@@ -399,6 +434,27 @@ function RaceReplay({
   );
 }
 
+/** v3 Phase R: how loud the stands are — later in the race and closer at the front is louder. */
+function excitement(sample: RaceSample): number {
+  const p = sample.progress;
+  const gap = sample.standing[1]?.behind ?? 10;
+  const close = p > 0.6 ? Math.max(0, 1 - gap / 5) * (p - 0.6) * 2.5 : 0;
+  return Math.min(1, 0.15 + 0.45 * p * p + 0.4 * close);
+}
+
+/** v3 Phase R: what the stands do when the commentator calls something. */
+function react(kind: CommentaryKind): void {
+  if (kind === 'bump' || kind === 'breakSlow' || kind === 'burnedOut') crowd.ooh();
+  else if (
+    kind === 'leadChange' ||
+    kind === 'lateRun' ||
+    kind === 'closerGot' ||
+    kind === 'piecesPicked' ||
+    kind === 'hotPace'
+  )
+    crowd.cheer();
+}
+
 /** The brief version, over the frozen finish. The full weekend table follows after Gold. */
 function ResultCard({
   s,
@@ -419,6 +475,10 @@ function ResultCard({
   const online = useGame((g) => g.source === 'online');
   const myRunner =
     online || humans(s).length < 2 ? result.entries.find((e) => e.ownerId === me.id) : undefined;
+  // v3 Phase R: the coins, once, when this card goes up with money on it for you.
+  useEffect(() => {
+    if (myRunner && won > 0) sfxCoins(won);
+  }, [myRunner, won]);
   return (
     <div className="race-result">
       <h3>

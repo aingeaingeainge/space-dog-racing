@@ -26,6 +26,7 @@ import { BettingSlip, type SlipRow } from '../components/BettingSlip';
 import { useKeys } from '../lib/keys';
 import { raceLabel, raceTone } from '../lib/selectors';
 import { bookieBlindSpot, fieldMeanFitness, stakeLine, stakeValue } from '../lib/priceTag';
+import { sfxChips } from '../lib/sound';
 import { useGame } from '../store/gameStore';
 
 /**
@@ -131,8 +132,10 @@ function RaceBetting({
   const room = Math.max(0, Math.min(cap - already, Math.floor(me.cash)));
   const wanted = Math.max(0, Math.min(stake, room));
 
-  const place = (dogId: string, kind: 'win' | 'place') =>
+  const place = (dogId: string, kind: 'win' | 'place') => {
+    sfxChips();
     dispatch({ t: 'PlaceBet', playerId: me.id, race, dogId, kind, stake: wanted });
+  };
 
   /**
    * The two sentences this screen was missing (GDD §10). A price is a ratio; a bet is in Bones —

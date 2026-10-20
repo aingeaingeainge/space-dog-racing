@@ -17,6 +17,7 @@ import { Gauge, Notes } from '../components/ui';
 import { NeonButton } from '../components/NeonButton';
 import { marketRows, nextStop, type MarketRow } from '../lib/market';
 import { weeklyBill } from '../lib/selectors';
+import { sfxRegister } from '../lib/sound';
 import { useGame } from '../store/gameStore';
 
 /**
@@ -128,8 +129,10 @@ function Row({
   const maxBuy = Math.max(0, Math.min(room, affordable, r.onShelf));
   const [qty, setQty] = useState(1);
   const n = Math.max(1, qty);
-  const trade = (units: number) =>
+  const trade = (units: number) => {
+    sfxRegister();
     dispatch({ t: 'TradeFood', playerId: me.id, good: r.good.id as GoodId, units });
+  };
 
   return (
     <tr className={r.aboard > 0 ? 'held' : ''}>
