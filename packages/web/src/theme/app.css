@@ -2999,3 +2999,79 @@ button.more {
     display: inline;
   }
 }
+
+/* ---------------------------------------------------------------- Phase S: the Title's opening shot */
+/* Collar Prime's street at night behind the nameplate, and the pack coming down the straight along
+   the bottom of it (components/TitleParade.tsx). The rest of the Title sits under it unchanged. */
+.title-hero {
+  position: relative;
+  margin: 18px 0 0;
+  padding: 26px 16px 0;
+  border: 3px solid var(--ink);
+  border-radius: 6px;
+  overflow: hidden;
+  background: linear-gradient(180deg, #1d1830, var(--pitch));
+  box-shadow:
+    inset 0 0 0 1px var(--edge),
+    var(--shadow-drop);
+}
+.title-backdrop {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 30%;
+  opacity: 0.5;
+  pointer-events: none;
+}
+/* Darken toward the track so the lettering and the dogs both read. */
+.title-hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(70% 60% at 50% 30%, rgba(12, 11, 17, 0.1), rgba(12, 11, 17, 0.55)),
+    linear-gradient(180deg, transparent 40%, rgba(12, 11, 17, 0.85));
+}
+.title-hero > :not(.title-backdrop) {
+  position: relative;
+}
+.title-hero .tagline {
+  max-width: 46ch;
+  margin: 4px auto 18px;
+  padding: 6px 14px;
+  color: #e4e0ee;
+  background: rgba(12, 11, 17, 0.72);
+  border-radius: 3px;
+}
+.title-hero > .centre {
+  padding: 0 4px;
+}
+/* Play sits straight under the picture: .centre's own padding, doubled by the row inside it, left a
+   hand's width of nothing between the two. */
+.title-hero + .title-start,
+.title-hero + .notice {
+  margin-top: 26px;
+}
+.title-start.centre {
+  padding-top: 0;
+}
+.title-start .row.centre {
+  padding: 0 0 14px;
+}
+.title-parade {
+  display: block;
+  width: calc(100% + 32px);
+  height: 124px;
+  margin: 0 -16px;
+}
+@media (max-width: 480px) {
+  .title-hero {
+    padding-top: 20px;
+  }
+  .title-parade {
+    height: 110px;
+  }
+}

@@ -5,10 +5,14 @@ import { Panel } from '../components/Panel';
 import { Swatch } from '../components/ui';
 import { NeonButton } from '../components/NeonButton';
 import { parseSeasonLink } from '../lib/seedLink';
-import { portraitArt } from '../lib/assets';
+import { planetBackdrop, portraitArt } from '../lib/assets';
+import { TitleParade } from '../components/TitleParade';
 import { HUMAN_FACES, humanFaceStem, resolveColours } from '../lib/owners';
 import { useGame } from '../store/gameStore';
 import { roomsUrl } from '../store/online';
+
+/** Phase S: the Title opens on Collar Prime, where every season ends — the Grand Final's city. */
+const HERO = planetBackdrop('collarPrime');
 
 const MAX_STABLES = 8;
 
@@ -108,13 +112,17 @@ export function Title() {
 
   return (
     <div className="app">
-      <div className="centre">
-        <h1>Space Dog Racing</h1>
-        <p className="muted tagline">
-          Race a kennel of space greyhounds round the grimy underground circuit. Richest stable
-          wins.
-        </p>
-      </div>
+      <header className="title-hero">
+        {HERO ? <img className="title-backdrop" src={HERO.url} alt="" decoding="async" /> : null}
+        <div className="centre">
+          <h1>Space Dog Racing</h1>
+          <p className="tagline">
+            Race a kennel of space greyhounds round the grimy underground circuit. Richest stable
+            wins.
+          </p>
+        </div>
+        <TitleParade />
+      </header>
 
       {error ? <div className="notice error">{error}</div> : null}
 

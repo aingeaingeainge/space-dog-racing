@@ -159,7 +159,11 @@ async function settle(page: Page): Promise<void> {
 }
 
 async function fresh(browser: Browser, url: string, save?: string): Promise<Page> {
-  const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  // Phase S: reduced motion, so the Title's running dogs are one still frame and the PNGs stay byte-identical.
+  const ctx = await browser.newContext({
+    viewport: { width: 1280, height: 900 },
+    reducedMotion: 'reduce',
+  });
   await ctx.addInitScript(FIXED_RANDOM);
   if (save)
     await ctx.addInitScript((blob: string) => {
