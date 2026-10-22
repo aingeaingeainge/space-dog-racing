@@ -220,13 +220,13 @@ const LABELS: Record<string, string> = {
   'Condition: buzzing, chance per stable dog per weekend': 'conditionBuzzingChance',
   'Condition: buzzing, speed on race day (stat points)': 'conditionBuzzingSpeed',
   // Phase D2, GDD_V3 §8: staff on commission.
-  'Staff: trainers dealt to each stable at the start of a game': 'staffSlots',
   'Staff cut: +1 stat a week': 'staffCutStatWeek',
   'Staff cut: +5 fitness recovery a week': 'staffCutFitnessWeek',
   'Staff cut: injury chance halved': 'staffCutInjuryHalf',
   'Staff cut: injury duration −1 week': 'staffCutInjuryShort',
-  'Staff cut: a race-day tip a week': 'staffCutWhisper',
-  "Staff cut: next planet's band position for all six goods": 'staffCutShelfIntel',
+  'Gambling Advisor cut: a race-day tip a week, share of winnings': 'staffCutWhisper',
+  "Trade Advisor cut: next week's prices for all six goods, share of trading profit":
+    'staffCutShelfIntel',
   'Staff cut: +10% prize money': 'staffCutPrizeUp',
   'Staff cut: Explore less likely to go badly': 'staffCutSaferExplore',
   'Staff cut: premium for a trainer with two bonuses': 'staffCutPairPremium',
@@ -251,12 +251,12 @@ const LABELS: Record<string, string> = {
   'Target: suggested net worth, a long game': 'targetLong',
   'Target: the most seasons a Target game runs': 'targetSeasonCap',
   // Phase E1, GDD_V3 §2.2: the off-season.
-  'Off-season: a trainer leaves, chance each': 'staffNoticeChance',
+  'Off-season: a member of staff leaves, chance each': 'staffNoticeChance',
   // Phase E2, GDD_V3 §2.2: the off-season is a long rest (Jesse's call).
   'Off-season: every dog starts the new season on this fitness': 'seasonStartFitness',
   // Phase N, GDD_V3 §2.2, §5.5 and V29–V33: the draft (Jesse's call).
   'Draft: dogs on the opening board, per stable': 'draftDogsPerStable',
-  'Draft: trainers on the opening board, per stable': 'draftTrainersPerStable',
+  'Draft: staff of each role on the opening board, per stable (rounded up)': 'draftStaffPerRole',
   'Draft: the weakest dog on a board (rating)': 'draftRatingMin',
   'Draft: the strongest dog on a board (rating)': 'draftRatingMax',
   'Draft: the weakest dog on the off-season board (rating)': 'offDraftRatingMin',
@@ -266,6 +266,23 @@ const LABELS: Record<string, string> = {
   // Phase Q: Claude's unattended changes (GDD_V3 Q1…), each revertible on its own.
   'Book: rating points a fitness point is worth, against a local at 75': 'bookFitnessPerPoint',
   'Draft: round 3 runs the way round 2 did (1 yes, 0 a plain snake)': 'draftThirdRoundReverses',
+  // Phase T (GDD_V3 T1–T4): the weekend at once, and three staff, one of each role (Jesse's calls).
+  'Market: a stable’s own shelf is this share of the posted depth (rounded up)':
+    'privateShelfShare',
+  'Trade Advisor bonus: every crate bought costs this share less': 'staffHaggle',
+  'Trade Advisor bonus: every crate sold fetches this share more': 'staffSellUp',
+  'Trade Advisor bonus: the stable’s own shelf is this share deeper': 'staffDeepShelf',
+  'Gambling Advisor bonus: a slip’s odds are this share better': 'staffSharpOdds',
+  'Gambling Advisor bonus: the flat stake ceiling is this share higher': 'staffStakeUp',
+  'Trade Advisor cut: buys cheaper, share of trading profit': 'staffCutHaggle',
+  'Trade Advisor cut: sells dearer, share of trading profit': 'staffCutSellUp',
+  'Trade Advisor cut: a deeper shelf, share of trading profit': 'staffCutDeepShelf',
+  'Gambling Advisor cut: better odds, share of winnings': 'staffCutSharpOdds',
+  'Gambling Advisor cut: a higher stake ceiling, share of winnings': 'staffCutStakeUp',
+  'Staff cut: the most an advisor takes, of their side': 'staffAdvisorCutMax',
+  'Arrival: fitness a rested landing gives (a wormhole, a pilot’s chart)': 'freshArrivalFitness',
+  'Arrival: fitness a shaken landing costs (a fried navicomp)': 'rattledArrivalFitness',
+  'Blackreach: every stable’s shelf is this many times the posted depth': 'shelfMultBlackreach',
 };
 
 const wb = XLSX.read(readFileSync(xlsxPath));

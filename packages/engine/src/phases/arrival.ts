@@ -2,7 +2,10 @@ import { balance } from '../content/balance';
 import { planetOf } from '../content/planets';
 import { emptyPlanetState } from '../economy/dogs';
 import { rollGoodPrices } from '../economy/food';
-import { cargoTotal, HOLD_CAP } from '../economy/goods';
+import { shelfDepthFor } from '../economy/staff';
+import { unitCargo } from '../economy/goods';
+import { GOOD_IDS } from '../types';
+import { startPlayerPhase } from './turn';
 import { currentPlanet, emptyDeclarations, log, type Ctx } from '../state';
 import { clamp } from '../rng';
 import { seedExplore } from './explore';
@@ -27,7 +30,7 @@ function drawConditions(ctx: Ctx): void {
   }
 }
 
-/** GDD §4.2 step 1: arrive, roll the planet, decide turn order. */
+/** GDD §4.2 step 1: arrive, roll the planet, fill every stable's shelf, open the weekend. */
 export function runArrival(ctx: Ctx): void {
   const { s, rng } = ctx;
   const entry = s.calendar[s.week - 1]!;
@@ -62,57 +65,32 @@ export function runArrival(ctx: Ctx): void {
   s.races = null;
   s.done = [];
 
-  // Turn order: `20 − cargo ÷ 5 + d10`, highest first (reversed at Blackreach) — GDD_V3 §2.3.
+  // ⚠️ **There is no turn order to roll** (Phase T, GDD_V3 T1 — Jesse's call). Until `v3t` this was
+  // `20 − cargo ÷ 5 + d10`, highest first, reversed at Blackreach: first look at a shared shelf against
+  // last look at the declarations. Everybody plays the weekend at once now, the shelf is every stable's
+  // own and the declarations are sealed, so going first was worth nothing — and the roll's draws went
+  // with it, which moves every draw after this point.
   //
-  // ⚠️ **There is no ship speed to buy any more (BUILD_PLAN_V3 §2.1), so turn order is bought with
-  // an empty hold and nothing else**, and a stable that loads its hold to the roof goes last all
-  // season — a trade the whole table can see it making, which is why the reason names the numbers.
-  //
-  // ⚠️ **The score is computed in whole numbers, scaled by the divisor**: `20×5 − crates + die×5`.
-  // Phase A computed `−crates ÷ 5 + die` in floating point, and 0.2 is not a binary fraction, so two
-  // stables on *exactly* the same score — 1 crate and a 1, 11 crates and a 3 — compared as 0.8
-  // against 0.7999999999999998 and the tie went to whoever the rounding error favoured. Deterministic
-  // (IEEE `+ − ÷` are exact per spec, so every engine agreed), but a tie decided by the last bit of a
-  // double is not a rule anybody can read. Found in Phase B because putting the constant 20 back
-  // moved the golden season when a constant added to every score cannot move an ordering: it moved
-  // which ties the rounding broke. With the score exact, the constant is verifiably inert.
-  //
-  // **Ties go to the lighter hold**, then to the table's seating order. The lighter ship lands first
-  // is the rule's own logic applied to the one case the arithmetic cannot separate.
-  const div = balance.arrivalCargoDiv;
-  const scored = s.players.map((p) => {
-    const die = rng.int(1, balance.arrivalDie);
-    const crates = cargoTotal(p.cargo);
-    let score = balance.arrivalBase * div - crates + die * div;
-    const sum =
-      `${balance.arrivalBase} − ${crates} crate${crates === 1 ? '' : 's'} ÷ ${div} + ` +
-      `${die} on the die = ${(score / div).toFixed(1)}`;
-    let reason = crates > HOLD_CAP / 2 ? `heavy hold: ${sum}` : sum;
-    if (p.flags.arriveFirstNextWeek) {
-      score += 1000 * div;
-      reason = 'wormhole shortcut — first, whatever the score';
-      p.flags.arriveFirstNextWeek = false;
-    } else if (p.flags.arriveLastNextWeek) {
-      score -= 1000 * div;
-      reason = 'a fried navicomp — last, whatever the score';
-    }
-    p.flags.arriveLastNextWeek = false;
-    return { id: p.id, score, crates, reason };
-  });
-  scored.sort((a, b) => b.score - a.score || a.crates - b.crates);
-  if (planet.special.turnOrderReversed) {
-    scored.reverse();
-    for (const x of scored)
-      if (!x.reason.startsWith('wormhole') && !x.reason.startsWith('a fried'))
-        x.reason = `the black hole drags the heaviest in first — ${x.reason}`;
+  // Every stable's own shelf (T2): the posted depth, times the planet's multiplier (Blackreach), times
+  // a Trade Advisor's deeper shelf. No draw.
+  for (const p of s.players) {
+    p.priceMult = unitCargo();
+    for (const id of GOOD_IDS)
+      p.shelf[id] = shelfDepthFor(p, ps.goods[id].stock, planet.special.shelfMult ?? 1);
   }
-  s.turnOrder = scored.map((x) => x.id);
-  s.turnOrderReason = Object.fromEntries(scored.map((x) => [x.id, x.reason]));
   log(s, `Week ${s.week}: ${planet.name}${entry.major ? ` — ${planet.event ?? 'Major'}` : ''}.`);
 
-  // Planet arrival effects.
+  // Planet arrival effects, and a stable's own landing (Phase T): a wormhole or a pilot's chart lands
+  // its dogs rested, a fried navicomp lands them shaken — what used to be arriving first or last.
   for (const p of s.players) {
-    const delta = planet.special.fitnessOnArrival ?? 0;
+    const delta =
+      (planet.special.fitnessOnArrival ?? 0) +
+      (p.flags.freshNextWeek ? balance.freshArrivalFitness : 0) +
+      (p.flags.rattledNextWeek ? balance.rattledArrivalFitness : 0);
+    if (p.flags.freshNextWeek) log(s, 'The shortcut paid: your dogs land rested.', p.id);
+    if (p.flags.rattledNextWeek) log(s, 'The navicomp held, just. Your dogs land shaken.', p.id);
+    p.flags.freshNextWeek = false;
+    p.flags.rattledNextWeek = false;
     if (delta) {
       for (const id of p.dogIds) {
         const d = s.dogs[id];
@@ -125,9 +103,9 @@ export function runArrival(ctx: Ctx): void {
   // seating order, whatever it lands on — so the stream never depends on what was drawn, and the
   // conditions exist before any tip can be about them.
   drawConditions(ctx);
-  // GDD_V3 §2.3 step 2: Explore, in turn order, each stable on its own stream (decision D1).
+  // GDD_V3 §2.3 step 2: Explore, each stable on its own stream (decision D1) — and since Phase T, the
+  // first thing in a weekend every stable plays at once (T1).
   seedExplore(ctx);
-  s.phase = 'explore';
-  s.pendingEvent = null;
-  s.activePlayer = s.turnOrder[0] ?? null;
+  s.pendingEvents = {};
+  startPlayerPhase(s, 'planetPre');
 }

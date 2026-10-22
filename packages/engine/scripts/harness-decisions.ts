@@ -44,6 +44,7 @@ import {
 import { isSeasonOver, needsAdvance, reduceMut } from '../src/reduce';
 import { createSeason, currentPlanet, player, purseFor, thisWeeksCard } from '../src/state';
 import type { Action, Diet, DoorCategory, GameState, Id, RaceTypeId } from '../src/types';
+import { hasExplored } from '../src/phases/planet';
 
 const fmt = (n: number) => Math.round(n).toLocaleString('en-NZ');
 const pct = (n: number) => `${(n * 100).toFixed(1)}%`;
@@ -77,7 +78,12 @@ function normalWith(opts: {
   door?: (s: GameState, playerId: Id) => number;
 }): Decide {
   return (s, playerId) => {
-    if (opts.door && s.phase === 'explore' && s.activePlayer === playerId && !s.pendingEvent)
+    if (
+      opts.door &&
+      s.phase === 'planetPre' &&
+      !hasExplored(s, playerId) &&
+      !s.pendingEvents[playerId]
+    )
       return [{ t: 'ChooseDoor', playerId, door: opts.door(s, playerId) }];
     const explore = exploreStep(s, playerId);
     if (explore) return explore;
@@ -261,7 +267,7 @@ function playOne(
       reduceMut(s, { t: 'AdvancePhase' });
       continue;
     }
-    const who = s.pendingEvent?.playerId ?? s.activePlayer!;
+    const who = s.activePlayer!;
     const acts =
       who === naive && s.phase !== 'draft' && s.phase !== 'offSeason'
         ? variant.decide(s, who)

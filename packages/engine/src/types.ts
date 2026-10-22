@@ -136,12 +136,17 @@ export type Phase =
    * on the clock, and the last pick opens week 1's arrival.
    */
   | 'draft'
-  | 'arrival' // system: roll turn order, planet stock and food prices
-  | 'explore' // in turn order, each stable picks one of the planet's three doors (GDD_V3 §9.1)
-  | 'planetPre' // in turn order: market, kennels, race office (declarations)
+  | 'arrival' // system: food prices, every stable's own shelf, race-day conditions, Explore seeds
+  /**
+   * v3 Phase T (GDD_V3 T1): **the stable's weekend, everybody at once.** Each stable opens one of the
+   * planet's three doors (GDD_V3 §9.1) and then works its own market, its kennels and its Race Office,
+   * in any order and whenever it likes; its declarations are **sealed** until everybody has finished.
+   * Until `v3t` Explore was a phase of its own and the rest was in turn order.
+   */
+  | 'planetPre'
   | 'betting' // declarations are locked and public; everyone bets, in any order (Phase E2)
   | 'race' // system: simulate the card in order; pay purses; settle bets
-  | 'planetPost' // in turn order: buy food
+  | 'planetPost' // any order (Phase T): the market again, after the races
   | 'endTurn' // system: weekly costs, training, recovery, jump to the next planet
   /**
    * Between seasons (GDD_V3 §2.2, V32): every dog has aged and the staff notice has been read, and
@@ -181,7 +186,11 @@ export interface PlanetSpecial {
   purseMult?: number; // Old Wembley: purse +20%
   winningsTax?: number; // Port Slobber: tax on prize money
   fitnessOnArrival?: number; // Sunbleach −5, Holy Bark +5
-  turnOrderReversed?: boolean; // Blackreach
+  /**
+   * Every stable's own shelf is this many times the posted depth (Blackreach ×2, Phase T). It replaced
+   * `turnOrderReversed`: there is no turn order to reverse since `v3t`.
+   */
+  shelfMult?: number;
   piratesLikely?: boolean; // The Drift
   /** The stewards' catch chance for a nobble here (GDD_V3 §9.3); `catchChance` if absent. */
   catchChance?: number;
@@ -381,10 +390,27 @@ export interface Player {
    * so the save never carries an average for crates that are not there.
    */
   paid: Cargo;
+  /**
+   * What this week's own stock is, per good (Phase T, GDD_V3 T2): **every stable has a shelf of its
+   * own**, rolled once at arrival for the planet and copied to each stable, scaled by the planet and by
+   * a Trade Advisor's deeper shelf. What it buys comes off this shelf and nobody else's. Until `v3t` the
+   * shelf was the planet's and shared, which is what turn order was for.
+   */
+  shelf: Cargo;
+  /**
+   * This week's own price multiplier per good, 1 for none (Phase T): a Mash glut or shortage behind
+   * a door moves the price for the stable that found it, not for the table — there is no shared
+   * market to move. Reset at every arrival.
+   */
+  priceMult: Cargo;
   flags: {
-    arriveFirstNextWeek: boolean;
-    /** A fried navicomp (the Solar flare card): lands last next week, whatever the score. */
-    arriveLastNextWeek: boolean;
+    /**
+     * A shortcut through a wormhole, or a pilot's chart (Phase T): the dogs land rested next week,
+     * `+freshArrivalFitness`. It was "arrive first" until `v3t`, when turn order went.
+     */
+    freshNextWeek: boolean;
+    /** A fried navicomp (the Solar flare card): the dogs land shaken next week. Was "arrive last". */
+    rattledNextWeek: boolean;
     tipOff: boolean; // a local runner is not trying this week
   };
   sponsorWeeks: number; // Glorbo's Meat Paste: dogs eat double
@@ -400,9 +426,10 @@ export interface Player {
    */
   intel: { week: number; goods: GoodId[] };
   /**
-   * Its trainers (GDD_V3 §8): at most `staffSlots` ids of `content/staff.ts` rows. Drafted at the start
-   * of a game (V29, Phase N; dealt until then); changed by a Bar card, the off-season notice and the
-   * off-season draft.
+   * Its staff (GDD_V3 §8, Phase T): ids of `content/staff.ts` rows, **at most one in each role** — a
+   * Dog Trainer, a Trade Advisor and a Gambling Advisor (`STAFF_ROLES`), kept in that order. Drafted at
+   * the start of a game; changed by a Bar card, the off-season notice and the off-season draft, always
+   * within a role. A stable may be short of a role for a while (a notice it did not replace).
    */
   staff: Id[];
   fanClubDogId?: Id;
@@ -430,6 +457,13 @@ export interface PlayerSeasonStats {
    */
   commission: number;
   /**
+   * Phase T (GDD_V3 §8.1): what the Trade Advisor took from the profit on sales, and what the Gambling
+   * Advisor took from winning slips. `tradeIncome` and `betIncome` are after these, as `prizeIncome` is
+   * after `commission`.
+   */
+  tradeCommission: number;
+  betCommission: number;
+  /**
    * Sabotage (GDD_V3 §9.3): nobbles booked, and how many bit (the dog ran); times the stewards caught
    * this stable, and what they fined it; times one of its own dogs was nobbled and ran on it.
    */
@@ -451,13 +485,13 @@ export interface PlayerSeasonStats {
  *
  * Price and stock are separate questions. Every planet posts a buy and a sell price for every
  * good — you can always sell into a market — but what is *on the shelf* is rolled per planet and
- * per week. `stock` is crates available to buy here and is decremented as they are bought, so the
- * shelf is shared with the whole table and turn order is first look.
+ * per week. `stock` is the posted depth; since Phase T (GDD_V3 T2) every stable is given a shelf of
+ * its own that deep (`Player.shelf`), and this number is never decremented.
  */
 export interface GoodMarket {
   buy: number; // what you pay per crate
   sell: number; // what you get per crate
-  stock: number; // crates on the shelf this week
+  stock: number; // the posted shelf depth this week, copied to every stable's own shelf
 }
 
 export interface PlanetState {
@@ -481,7 +515,8 @@ export interface Bet {
   kind: 'win' | 'place';
   stake: number;
   odds: number; // decimal odds at the time of the bet
-  settled?: { won: boolean; payout: number };
+  /** `payout` is what the stable banked; `commission` what its Gambling Advisor took (Phase T). */
+  settled?: { won: boolean; payout: number; commission?: number };
 }
 
 export interface RaceEntry {
@@ -596,12 +631,11 @@ export interface ExploreState {
   picks: Record<Id, number>;
   /** What was behind it, once drawn: the card id, or '' if the door was empty. */
   cards: Record<Id, Id>;
-  /**
-   * Cards that are one of a kind on a planet-week (a particular dog in the Pound) and have been
-   * drawn. Contention is resolved in turn order: the first stable through the door gets it and the
-   * next draws something else (§2.3 step 2).
+  /*
+   * ⚠️ `taken` went in Phase T: a one-of-a-kind card used to be gone for the next stable through the
+   * door, in turn order. Everybody explores at once now, so contention would have gone to whoever
+   * pressed first — and every stable draws from its own deck instead.
    */
-  taken: Id[];
 }
 
 /** A race-day condition's row id (`content/conditions.ts`). */
@@ -791,8 +825,18 @@ export interface GameState {
   calendar: CalendarEntry[];
   planet: PlanetState; // the planet we are on this week
   players: Player[];
+  /**
+   * ⚠️ **The seating order, fixed for the game** (Phase T, GDD_V3 T1). It was the turn order, rolled
+   * at every arrival from the hold and a die; there is no turn order since `v3t`, and the name is kept
+   * because it is still the order the engine walks the stables in when an order is needed (the fields'
+   * entry order, the book's filing, the AI's turn to act). Nothing in it is an advantage.
+   */
   turnOrder: Id[];
-  turnOrderReason: Record<Id, string>;
+  /**
+   * Who the engine would hear from next, for a driver: in the draft, the stable on the clock; in a
+   * phase taken all at once (Phase T), **the first AI still to finish, else the first human**, in
+   * seating order — so AIs are out of the way at once and a human may act whenever they like.
+   */
   activePlayer: Id | null;
   /** Players who have sent EndPhase in the current player phase. */
   done: Id[];
@@ -812,7 +856,11 @@ export interface GameState {
    */
   fields: RaceField[] | null;
   races: RaceResult[] | null;
-  pendingEvent: PendingEvent | null;
+  /**
+   * Cards waiting on a human's choice, by stable (Phase T): several humans can be at their doors at
+   * once now. At most one a stable.
+   */
+  pendingEvents: Record<Id, PendingEvent>;
   /** This week's Explore; null before the first arrival. */
   explore: ExploreState | null;
   /**
@@ -896,7 +944,7 @@ export type Action =
    * save file and the replay protocol.
    */
   | { t: 'SetDogState'; playerId: Id; dogId: Id; state: WeekState; diet?: Diet }
-  /** Open one of the planet's three doors (GDD_V3 §9.1). Once a weekend, in turn order. */
+  /** Open one of the planet's three doors (GDD_V3 §9.1). Once a weekend, first thing, any order. */
   | { t: 'ChooseDoor'; playerId: Id; door: number }
   | { t: 'ResolveEvent'; playerId: Id; choice: number }
   /**

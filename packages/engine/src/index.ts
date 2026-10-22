@@ -37,10 +37,16 @@ export {
   STAFF_BY_ID,
   STAFF_BONUSES,
   STAFF_BONUS_BY_ID,
+  STAFF_ROLES,
+  ROLE_INFO,
   cutOf,
   staffRow,
+  staffOfRole,
   type StaffBonus,
   type StaffBonusId,
+  type StaffRole,
   type StaffRow,
 } from './content/staff';
+export { hasExplored } from './phases/planet';
+export { mayAct } from './phases/turn';
 export { boxWorthText } from './content/deck/alley';

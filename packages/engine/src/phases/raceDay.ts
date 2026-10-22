@@ -1,5 +1,5 @@
 import { balance, formatBones } from '../content/balance';
-import { commissionRate, purseAfterStaff, staffBonus } from '../economy/staff';
+import { betCommission, commissionRate, purseAfterStaff, staffBonus } from '../economy/staff';
 import { good } from '../content/goods';
 import { publicStyle, STYLE_BY_ID } from '../content/styles';
 import { CONDITION_BY_ID, conditionOf } from '../content/conditions';
@@ -47,6 +47,15 @@ export function lockDeclarations(ctx: Ctx): void {
   const { s, rng } = ctx;
   const track = currentPlanet(s).track;
   const major = calendarEntry(s).major;
+  // Phase T: the weekend was played at once, so the jobs were booked in whatever order stables went
+  // through their doors. Put them in seating order (stably, a stable's own in the order it booked them)
+  // so that what two stables' jobs do to each other — two boxes bought the same — never turns on who
+  // pressed first.
+  const seat = (id: Id) => s.turnOrder.indexOf(id);
+  s.jobs = s.jobs
+    .map((j, i) => ({ j, i }))
+    .sort((a, b) => seat(a.j.by) - seat(b.j.by) || a.i - b.i)
+    .map((x) => x.j);
   const card = thisWeeksCard();
   const fields: RaceField[] = [];
   const margin = bettingMargin(s);
@@ -125,9 +134,10 @@ export function lockDeclarations(ctx: Ctx): void {
 /**
  * GDD_V3 §9.3's bought trap draw, at the one point the draw was always going to be applied: after the
  * shuffle and the wide runners, before the book prices the field — so the book's prices are struck on
- * the box as it will be run, and a bought box moves nothing else. Jobs are honoured in the order they
- * were booked, so two stables that bought the same box in the same race settle it by turn order: the
- * first gets it, and the second keeps the box the draw gave it and is told.
+ * the box as it will be run, and a bought box moves nothing else. Jobs are honoured in seating order
+ * (Phase T; booking order, which was turn order, until `v3t`), so two stables that bought the same box
+ * in the same race settle it by their seats: the first gets it, and the second keeps the box the draw
+ * gave it and is told.
  *
  * No draw is made here, so buying a box never moves the game's stream.
  */
@@ -338,7 +348,7 @@ export function runRaces(ctx: Ctx): void {
           if (commission > 0)
             log(
               s,
-              `${d.name}'s ${formatBones(net + commission)}: the trainers take ${formatBones(commission)} (${Math.round(commissionRate(owner) * 100)}%).`,
+              `${d.name}'s ${formatBones(net + commission)}: the trainer takes ${formatBones(commission)} (${Math.round(commissionRate(owner) * 100)}%).`,
               owner.id,
             );
         }
@@ -350,12 +360,16 @@ export function runRaces(ctx: Ctx): void {
       if (bet.week !== s.week || bet.race !== race || bet.settled) continue;
       const place = sim.order.indexOf(bet.dogId) + 1;
       const won = bet.kind === 'win' ? place === 1 : place >= 1 && place <= 3;
-      const payout = won ? Math.round(bet.stake * bet.odds) : 0;
-      bet.settled = { won, payout };
+      const gross = won ? Math.round(bet.stake * bet.odds) : 0;
+      // Phase T (T4): a Gambling Advisor takes a share of what a winning slip made over its stake.
+      const p = player(s, bet.playerId);
+      const commission = gross ? betCommission(p, bet.stake, gross) : 0;
+      const payout = gross - commission;
+      bet.settled = commission ? { won, payout, commission } : { won, payout };
       if (payout) {
-        const p = player(s, bet.playerId);
         p.cash += payout;
         p.stats.betIncome += payout;
+        p.stats.betCommission += commission;
       }
     }
 

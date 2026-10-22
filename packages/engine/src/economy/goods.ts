@@ -17,6 +17,11 @@ export function emptyCargo(): Cargo {
   return Object.fromEntries(GOOD_IDS.map((id) => [id, 0])) as Cargo;
 }
 
+/** A dense record of ones, in `GOOD_IDS` order: `Player.priceMult` with nothing moved (Phase T). */
+export function unitCargo(): Cargo {
+  return Object.fromEntries(GOOD_IDS.map((id) => [id, 1])) as Cargo;
+}
+
 /** Crates aboard, all goods together — what the arrival roll is charged against (GDD_V3 §2.3). */
 export function cargoTotal(cargo: Cargo): number {
   let total = 0;

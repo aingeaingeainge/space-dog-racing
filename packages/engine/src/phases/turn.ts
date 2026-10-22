@@ -2,42 +2,47 @@ import { currentPlanet, player } from '../state';
 import type { GameState, Id, Phase } from '../types';
 
 /**
- * The next player still to act this phase.
+ * **Everybody plays the weekend at once** (v3 Phase T, GDD_V3 T1 — Jesse's call). The phases a stable
+ * acts in — its weekend on the planet (`planetPre`), the Bookie (`betting`) and after the races
+ * (`planetPost`) — are taken **in any order**: every stable that has not sent EndPhase may act, and
+ * the phase moves on when the last one does. Nothing a stable does in one of them reaches another
+ * stable before the phase ends: the shelves are private (T2), the declarations sealed (T1), the
+ * Bookie's slips filed in seating order whatever order they were struck in (E8).
  *
- * ⚠️ **Nobody is skipped any more.** This used to pass over a bankrupt stable; there is no
- * bankruptcy in v3 (BUILD_PLAN_V3 §2.1, GDD_V3 V10 and pillar 5 — *nobody is out before the end*),
- * so every stable in `turnOrder` acts every phase until it sends EndPhase. `player()` is still
- * called so an id that is not in the game throws here rather than three frames later.
+ * `activePlayer` is kept for a driver's sake: **the first AI still to finish, else the first human**,
+ * in seating order. So a loop that plays whoever is "active" plays every AI the moment a phase opens,
+ * and then waits on a human — who may act whenever they like, whether or not they are the one named.
+ *
+ * Until `v3t` these phases were in turn order (bar the Bookie, E8), and `turnOrder` was rolled at every
+ * arrival from the hold and a die. It is the seating order now.
  */
-function nextLivePlayer(s: GameState, after: Id | null): Id | null {
-  const start = after ? s.turnOrder.indexOf(after) + 1 : 0;
-  for (let i = start; i < s.turnOrder.length; i++) {
-    const id = s.turnOrder[i]!;
-    player(s, id);
-    if (!s.done.includes(id)) return id;
-  }
-  return null;
+export function nextToAct(s: GameState): Id | null {
+  const left = s.turnOrder.filter((id) => !s.done.includes(id));
+  for (const id of left) player(s, id); // an id that is not in the game throws here
+  const ai = left.find((id) => player(s, id).kind === 'ai');
+  return ai ?? left[0] ?? null;
 }
 
-/** Enter a phase in which players act in turn order and each sends EndPhase. */
+/** Enter a phase every stable acts in, at once, each finishing with EndPhase. */
 export function startPlayerPhase(s: GameState, phase: Phase): void {
   s.phase = phase;
   s.done = [];
-  s.activePlayer = nextLivePlayer(s, null);
+  s.activePlayer = nextToAct(s);
   if (s.activePlayer === null) finishPlayerPhase(s);
 }
 
-/**
- * A player is finished; pass to the next, or move the game on.
- *
- * ⚠️ **The next player is the first in the turn order still to finish**, not the one after this one
- * (Phase E2). In turn order the two are the same stable. They differ only at the Bookie, where a stable
- * may finish out of turn: then the active player stays whoever it was, and the phase ends when the
- * last stable finishes, whichever that is.
- */
+/** May this stable act in the phase now? Any stable that has not finished it (Phase T). */
+export function mayAct(s: GameState, playerId: Id): boolean {
+  return s.turnOrder.includes(playerId) && !s.done.includes(playerId);
+}
+
+/** A stable is finished; name the next to act, or move the game on once everybody has. */
 export function endPhaseFor(s: GameState, playerId: Id): void {
   if (!s.done.includes(playerId)) s.done.push(playerId);
-  s.activePlayer = nextLivePlayer(s, null);
+  // `done` is kept in seating order, whatever order stables finished in, so the state after a phase
+  // does not depend on who pressed first.
+  s.done.sort((a, b) => s.turnOrder.indexOf(a) - s.turnOrder.indexOf(b));
+  s.activePlayer = nextToAct(s);
   if (s.activePlayer === null) finishPlayerPhase(s);
 }
 
@@ -47,7 +52,7 @@ export function finishPlayerPhase(s: GameState): void {
   s.done = [];
   switch (s.phase) {
     case 'planetPre':
-      s.phase = 'betting'; // AdvancePhase locks declarations and opens the bookie
+      s.phase = 'betting'; // AdvancePhase unseals and locks the declarations, and opens the bookie
       s.locked = false;
       break;
     case 'betting':

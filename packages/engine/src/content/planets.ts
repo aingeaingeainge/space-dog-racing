@@ -121,7 +121,7 @@ export const PLANETS: readonly Planet[] = [
     major: true,
     track: sprint('none'),
     foodBand: taste(1.1, 0),
-    special: { turnOrderReversed: true },
+    special: { shelfMult: balance.shelfMultBlackreach },
     accents: ['#3FD6E0', '#0B0B1A'],
     exploreDoors: [
       {

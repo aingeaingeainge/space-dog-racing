@@ -17,6 +17,7 @@ import { feedsFor, GOODS, good, STAPLE_ID, type Good } from '../content/goods';
 import { tipsFor } from '../content/conditions';
 import { expectedPrice, planFeeding } from '../economy/food';
 import { cargoTotal, HOLD_CAP } from '../economy/goods';
+import { pricesFor, tradeCommission } from '../economy/staff';
 import {
   type Action,
   type Cargo,
@@ -420,8 +421,8 @@ export function buyFeedPlan(plan: Plan, opts: FeedBuyOptions = {}): void {
   if (opts.reckless) {
     const dear = [...GOODS]
       .filter((g) => availableHere(plan, g.id) > 0)
-      .sort((a, b) => s.planet.goods[b.id].buy - s.planet.goods[a.id].buy)[0];
-    if (dear && HOLD_CAP - cargoTotal(plan.cargo) > 0 && plan.cash >= s.planet.goods[dear.id].buy)
+      .sort((a, b) => buyPrice(plan, b.id) - buyPrice(plan, a.id))[0];
+    if (dear && HOLD_CAP - cargoTotal(plan.cargo) > 0 && plan.cash >= buyPrice(plan, dear.id))
       buy(plan, dear.id, 1);
     return;
   }
@@ -430,7 +431,7 @@ export function buyFeedPlan(plan: Plan, opts: FeedBuyOptions = {}): void {
   const topUp = (id: GoodId, want: number, budget: number): void => {
     const have = plan.cargo[id];
     if (have >= want) return;
-    const price = s.planet.goods[id].buy;
+    const price = buyPrice(plan, id);
     const units = Math.min(
       want - have,
       availableHere(plan, id),
@@ -452,7 +453,7 @@ export function buyFeedPlan(plan: Plan, opts: FeedBuyOptions = {}): void {
     if (g.id === STAPLE_ID) continue;
     const reserve = dietReserve(plan, g.id);
     if (reserve === 0) continue;
-    if (s.planet.goods[g.id].buy > expectedPrice(planetOf(s.planet.planetId), g.id)) continue;
+    if (buyPrice(plan, g.id) > expectedPrice(planetOf(s.planet.planetId), g.id)) continue;
     topUp(g.id, reserve * weeks, Math.max(0, plan.cash - plan.reserve));
   }
   void playerId;
@@ -553,19 +554,26 @@ export function setStates(plan: Plan, racing: ReadonlySet<Id>, opts: SetStateOpt
 }
 
 export interface FoodOptions {
-  /**
-   * Fill the hold whatever the margins say. Hard does this the week before Blackreach, where the
-   * black hole drags the heavy ships in first and first look at the market is worth more than the
-   * spread (GDD §12).
-   */
-  fillHold?: boolean;
   /** Fraction of the spare cash (above the reserve) this step may commit to trading legs. */
   goodsSpend?: number;
 }
 
-/** Crates of one good this stable can still buy here, after whatever it has already queued. */
+/**
+ * Crates of one good this stable can still buy here, after whatever it has already queued — off its
+ * **own** shelf (Phase T, T2).
+ */
 export function availableHere(plan: Plan, id: GoodId): number {
-  return Math.max(0, plan.s.planet.goods[id].stock - (plan.shelfTaken.get(id) ?? 0));
+  return Math.max(0, plan.p.shelf[id] - (plan.shelfTaken.get(id) ?? 0));
+}
+
+/** What this stable pays for a crate here, its Trade Advisor's haggling included (Phase T). */
+export function buyPrice(plan: Plan, id: GoodId): number {
+  return pricesFor(plan.s, plan.p, id).buy;
+}
+
+/** What this stable gets for a crate here, its Trade Advisor's selling included (Phase T). */
+export function sellPrice(plan: Plan, id: GoodId): number {
+  return pricesFor(plan.s, plan.p, id).sell;
 }
 
 function claim(plan: Plan, id: GoodId, crates: number): void {
@@ -574,7 +582,7 @@ function claim(plan: Plan, id: GoodId, crates: number): void {
 
 /** Queue a buy, and move the Plan's cash, hold and shelf as the reducer will. */
 function buy(plan: Plan, id: GoodId, units: number): void {
-  const price = plan.s.planet.goods[id].buy;
+  const price = buyPrice(plan, id);
   plan.out.push({ t: 'TradeFood', playerId: plan.playerId, good: id, units });
   plan.cargo[id] += units;
   plan.cash -= units * price;
@@ -583,7 +591,9 @@ function buy(plan: Plan, id: GoodId, units: number): void {
 
 /** Queue a sale, likewise. */
 function sell(plan: Plan, id: GoodId, units: number): void {
-  const price = plan.s.planet.goods[id].sell;
+  // The cash after the Trade Advisor's cut of the profit (T4), as the reducer will bank it.
+  const price = sellPrice(plan, id);
+  plan.cash -= tradeCommission(plan.p, id, units, price);
   plan.out.push({ t: 'TradeFood', playerId: plan.playerId, good: id, units: -units });
   plan.cargo[id] -= units;
   plan.cash += units * price;
@@ -650,7 +660,7 @@ export function tradeFoodPlan(plan: Plan, opts: FoodOptions = {}): void {
     const spare = plan.cargo[g.id] - keep;
     if (spare <= 0) continue;
     const next = expectedSellNext(plan, g.id);
-    const here = s.planet.goods[g.id].sell;
+    const here = sellPrice(plan, g.id);
     if (next === null || here >= next) sell(plan, g.id, spare);
   }
 
@@ -661,9 +671,9 @@ export function tradeFoodPlan(plan: Plan, opts: FoodOptions = {}): void {
   for (const g of GOODS) {
     const next = expectedSellNext(plan, g.id);
     if (next === null) continue;
-    const price = s.planet.goods[g.id].buy;
+    const price = buyPrice(plan, g.id);
     const margin = next - price;
-    if (opts.fillHold || margin > price * balance.aiGoodsMarginMin) legs.push({ g, price, margin });
+    if (margin > price * balance.aiGoodsMarginMin) legs.push({ g, price, margin });
   }
   while (legs.length && room > 0 && budget > 0) {
     const perCrate = [...legs].sort((a, b) => b.margin - a.margin)[0]!;
@@ -690,9 +700,9 @@ export function tradeFoodPlan(plan: Plan, opts: FoodOptions = {}): void {
  * Never let the yard go hungry for want of looking (GDD_V3 §6.3).
  *
  * ⚠️ **Found by the harness, not by reading.** The staple is the cheapest food on every shelf, and
- * with six stables buying dinner and trading it, the Grey Mash on a planet can be gone by the time
- * the last stable in the turn order gets there — which is §2.3 working exactly as designed: the shelf
- * is shared and going first is what it is for. What was *not* working was the agent: a Normal stable
+ * with six stables buying dinner and trading it, the Grey Mash on a planet could be gone by the time
+ * the last stable in the turn order got there (the shelf was shared until Phase T; every stable's is
+ * its own now, but a stable can still empty its own). What was *not* working was the agent: a Normal stable
  * with twenty thousand Bones in hand would find one crate of Mash, sell its Vat Steak, and sail with
  * two dogs unfed, because nothing asked "can the yard eat?" after the trading was done. 4.8% of
  * Normal's dog-weeks were hungry that way.
@@ -704,14 +714,14 @@ export function tradeFoodPlan(plan: Plan, opts: FoodOptions = {}): void {
  * job: to bite the stable that did not look.
  */
 function guardDinner(plan: Plan): void {
-  const { s, p } = plan;
+  const { p } = plan;
   const hungry = planFeeding({ ...p, cargo: plan.cargo }, plan.kennel).filter(
     (f) => f.good === null,
   );
   let need = hungry.reduce((n, f) => n + f.crates, 0);
   for (const g of GOODS) {
     if (need <= 0) break;
-    const price = s.planet.goods[g.id].buy;
+    const price = buyPrice(plan, g.id);
     const units = Math.min(
       need,
       availableHere(plan, g.id),

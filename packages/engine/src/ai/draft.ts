@@ -1,7 +1,7 @@
 import { balance } from '../content/balance';
 import { staffRow, type StaffBonusId } from '../content/staff';
 import { dogValue } from '../economy/dogValue';
-import { hardWorth, STAFF_WORTH, trainerNet } from '../economy/staff';
+import { hardWorth, STAFF_WORTH, staffInRole, trainerNet } from '../economy/staff';
 import { currentDraft, draftRoom } from '../phases/draft';
 import { player } from '../state';
 import type { Action, AiAgent, Dog, GameState, Id, Player, StyleId } from '../types';
@@ -100,9 +100,9 @@ export function dogScore(
   return dogValue(d) + purses + need;
 }
 
-/** What a trainer is worth to this stable over the seasons ahead, in Bones. */
+/** What a member of staff is worth to this stable over the seasons ahead, in Bones. */
 export function staffScore(s: GameState, p: Player, id: Id, agent: AiAgent): number {
-  const worth: Record<StaffBonusId, { prize: number; flat: number }> =
+  const worth: Record<StaffBonusId, { side: number; flat: number }> =
     agent === 'hard' ? hardWorth(p) : STAFF_WORTH;
   return trainerNet(s, p, staffRow(id), worth) * balance.weeks * seasonsAhead(s);
 }
@@ -119,8 +119,10 @@ export function decideDraft(s: GameState, playerId: Id, agent: AiAgent): Action[
   const mine = ownDogs(s, p);
   const styles = mine.map((x) => x.style);
   const byRating = (a: Dog, b: Dog) => b.rating - a.rating || (a.id < b.id ? -1 : 1);
+  // Phase T: only people in a role this pick may fill (`draftRoom`'s `roles`).
+  const open = d.staff.filter((id) => room.roles.includes(staffRow(id).role));
   const bestStaff = () =>
-    [...d.staff].sort(
+    [...open].sort(
       (a, b) => staffScore(s, p, b, agent) - staffScore(s, p, a, agent) || (a < b ? -1 : 1),
     )[0];
 
@@ -136,7 +138,7 @@ export function decideDraft(s: GameState, playerId: Id, agent: AiAgent): Action[
         if (!best || sc > best.score) best = { score: sc, pick: { dog: x.id } };
       }
     if (room.staff)
-      for (const id of d.staff) {
+      for (const id of open) {
         const sc = staffScore(s, p, id, agent);
         if (!best || sc > best.score) best = { score: sc, pick: { staff: id } };
       }
@@ -145,9 +147,17 @@ export function decideDraft(s: GameState, playerId: Id, agent: AiAgent): Action[
 
   // The off-season: one pick, or a pass.
   const kennelFull = mine.length >= balance.startDogs;
-  const staffFull = p.staff.length >= balance.staffSlots;
+  // Easy fills a role the notice emptied, if the board has somebody for it.
+  const empty = open.filter((id) => !staffInRole(p, staffRow(id).role));
   if (agent === 'easy') {
-    if (!staffFull && d.staff.length) return [pick(playerId, { staff: bestStaff()! })];
+    if (empty.length)
+      return [
+        pick(playerId, {
+          staff: [...empty].sort(
+            (a, b) => staffScore(s, p, b, agent) - staffScore(s, p, a, agent) || (a < b ? -1 : 1),
+          )[0]!,
+        }),
+      ];
     const top = [...d.dogs].sort(byRating)[0];
     const worst = [...mine].sort(byRating).at(-1);
     if (top && (!kennelFull || (worst && top.rating > worst.rating)))
@@ -156,9 +166,6 @@ export function decideDraft(s: GameState, playerId: Id, agent: AiAgent): Action[
   }
   const dogWorth = (x: Dog) => dogScore(s, x, agent);
   const release = [...mine].sort((a, b) => dogWorth(a) - dogWorth(b) || (a.id < b.id ? -1 : 1))[0];
-  const staffOut = [...p.staff].sort(
-    (a, b) => staffScore(s, p, a, agent) - staffScore(s, p, b, agent) || (a < b ? -1 : 1),
-  )[0];
   let best: { gain: number; action: Action } | null = null;
   for (const x of d.dogs) {
     const others = mine.filter((m) => !kennelFull || m.id !== release?.id).map((m) => m.style);
@@ -166,11 +173,11 @@ export function decideDraft(s: GameState, playerId: Id, agent: AiAgent): Action[
     if (!best || gain > best.gain)
       best = { gain, action: pick(playerId, { dog: x.id }, kennelFull ? release?.id : undefined) };
   }
-  for (const id of d.staff) {
-    const gain =
-      staffScore(s, p, id, agent) - (staffFull && staffOut ? staffScore(s, p, staffOut, agent) : 0);
-    if (!best || gain > best.gain)
-      best = { gain, action: pick(playerId, { staff: id }, staffFull ? staffOut : undefined) };
+  for (const id of open) {
+    // A hire replaces whoever holds that role (Phase T): the gain is over them, or over nobody.
+    const holder = staffInRole(p, staffRow(id).role);
+    const gain = staffScore(s, p, id, agent) - (holder ? staffScore(s, p, holder.id, agent) : 0);
+    if (!best || gain > best.gain) best = { gain, action: pick(playerId, { staff: id }) };
   }
   if (best && best.gain > balance.aiDraftMargin) return [best.action];
   return [pick(playerId, null)];

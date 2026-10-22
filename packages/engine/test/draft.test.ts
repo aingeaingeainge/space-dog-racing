@@ -11,6 +11,9 @@ import {
   replay,
   snakeOrder,
   STAFF,
+  STAFF_ROLES,
+  staffOfRole,
+  staffRow,
   STYLE_IDS,
   waitingOn,
   type Action,
@@ -66,23 +69,23 @@ describe('the opening draft (V29)', () => {
     ]);
   });
   for (const n of [3, 6, 8]) {
-    it(`snakes six rounds for ${n} stables, round 1 drawn`, () => {
+    it(`snakes seven rounds for ${n} stables, round 1 drawn (Phase T: four dogs, three staff)`, () => {
       const s = createSeason({ seed: 100 + n, players: ais(n) });
       expect(s.phase).toBe('draft');
       const d = currentDraft(s)!;
       expect(d.kind).toBe('opening');
-      expect(d.rounds).toBe(balance.startDogs + balance.staffSlots);
-      expect(d.rounds).toBe(6);
+      expect(d.rounds).toBe(balance.startDogs + STAFF_ROLES.length);
+      expect(d.rounds).toBe(7);
       const round1 = d.order.slice(0, n);
       expect([...round1].sort()).toEqual(s.players.map((p) => p.id).sort());
       // Q2: round 3 runs the way round 2 did, and the snake carries on from there — while its sheet
       // cell is 1. The cell is Q2's switch; at 0 the draft is v3p's plain snake.
       const reversal = balance.draftThirdRoundReverses === 1;
-      expect(d.order).toEqual(snakeOrder(round1, 6, reversal));
+      expect(d.order).toEqual(snakeOrder(round1, 7, reversal));
       const backwards = reversal
-        ? [false, true, true, false, true, false]
-        : [false, true, false, true, false, true];
-      for (let r = 0; r < 6; r++) {
+        ? [false, true, true, false, true, false, true]
+        : [false, true, false, true, false, true, false];
+      for (let r = 0; r < 7; r++) {
         const round = d.order.slice(r * n, (r + 1) * n);
         expect(round).toEqual(backwards[r] ? [...round1].reverse() : round1);
       }
@@ -103,7 +106,11 @@ describe('the opening draft (V29)', () => {
       const s = createSeason({ seed: 7 + n, players: ais(n) });
       const d = currentDraft(s)!;
       expect(d.dogs).toHaveLength(balance.draftDogsPerStable * n);
-      expect(d.staff).toHaveLength(Math.min(STAFF.length, balance.draftTrainersPerStable * n));
+      // Phase T: of each role, 1.5 a stable rounded up, capped by the role's roster.
+      for (const role of STAFF_ROLES)
+        expect(d.staff.filter((id) => staffRow(id).role === role)).toHaveLength(
+          Math.min(staffOfRole(role).length, Math.ceil(balance.draftStaffPerRole * n)),
+        );
       expect(new Set(d.staff).size).toBe(d.staff.length);
       // Ratings evenly spaced across 40–60.
       const ratings = d.dogs.map((x) => x.rating).sort((a, b) => a - b);
@@ -147,12 +154,19 @@ describe('the opening draft (V29)', () => {
     });
   }
 
-  it('gives eight stables every one of the 24 trainers', () => {
+  it('gives eight stables every Trade and Gambling Advisor, and twelve of the seventeen Trainers', () => {
     const d = currentDraft(createSeason({ seed: 3, players: ais(8) }))!;
-    expect([...d.staff].sort()).toEqual(STAFF.map((r) => r.id).sort());
+    for (const role of ['trade', 'gambling'] as const)
+      expect(d.staff.filter((id) => staffRow(id).role === role).sort()).toEqual(
+        staffOfRole(role)
+          .map((r) => r.id)
+          .sort(),
+      );
+    expect(d.staff.filter((id) => staffRow(id).role === 'trainer')).toHaveLength(12);
+    expect(STAFF).toHaveLength(41);
   });
 
-  it('holds a stable to four dogs and two trainers, and refuses an illegal pick', () => {
+  it('holds a stable to four dogs and one of each staff role, and refuses an illegal pick', () => {
     const s = createSeason({ seed: 5, players: humans(3) });
     const d = currentDraft(s)!;
     const [a, b] = d.order as [string, string];
@@ -179,27 +193,29 @@ describe('the opening draft (V29)', () => {
     ).toThrow(/opening/);
     expect(() => reduceMut(s, { t: 'EndPhase', playerId: a })).toThrow(/pick/);
     expect(() => reduceMut(s, { t: 'AdvancePhase' })).toThrow();
-    // Every stable takes its trainers first, then dogs: a third trainer is refused.
+    // Every stable takes its staff first, then dogs: a second of any role is refused (Phase T).
     let refusedStaff = 0;
     while (s.phase === 'draft') {
       const cur = currentDraft(s)!;
       const who = s.activePlayer!;
       const p = player(s, who);
-      if (p.staff.length === balance.staffSlots && cur.staff.length) {
+      const held = new Set(p.staff.map((id) => staffRow(id).role));
+      const again = cur.staff.find((id) => held.has(staffRow(id).role));
+      if (again) {
         expect(() =>
-          reduceMut(s, { t: 'DraftPick', playerId: who, pick: { staff: cur.staff[0]! } }),
-        ).toThrow(/staff is full/);
+          reduceMut(s, { t: 'DraftPick', playerId: who, pick: { staff: again } }),
+        ).toThrow(/already have a/);
         refusedStaff++;
       }
-      if (p.staff.length < balance.staffSlots)
-        reduceMut(s, { t: 'DraftPick', playerId: who, pick: { staff: cur.staff[0]! } });
+      const open = cur.staff.find((id) => !held.has(staffRow(id).role));
+      if (open) reduceMut(s, { t: 'DraftPick', playerId: who, pick: { staff: open } });
       else reduceMut(s, { t: 'DraftPick', playerId: who, pick: { dog: cur.dogs[0]!.id } });
     }
     expect(refusedStaff).toBeGreaterThan(0);
     expect(s.phase).toBe('arrival');
     for (const p of s.players) {
       expect(p.dogIds).toHaveLength(balance.startDogs);
-      expect(p.staff).toHaveLength(balance.staffSlots);
+      expect(p.staff.map((id) => staffRow(id).role)).toEqual([...STAFF_ROLES]);
       for (const id of p.dogIds) {
         expect(s.dogs[id]!.ownerId).toBe(p.id);
         expect(s.dogs[id]!.styleKnown).toBe(true);
@@ -209,7 +225,7 @@ describe('the opening draft (V29)', () => {
     const done = s.drafts[0]!;
     expect(done.dogs).toEqual([]);
     expect(done.staff).toEqual([]);
-    expect(done.picks).toHaveLength(6 * 3);
+    expect(done.picks).toHaveLength(7 * 3);
     expect(done.at).toBe(done.order.length);
   });
 
@@ -223,7 +239,9 @@ describe('the opening draft (V29)', () => {
         expect(() =>
           reduceMut(s, { t: 'DraftPick', playerId: who, pick: { dog: cur.dogs[0]!.id } }),
         ).toThrow(/kennel is full/);
-        reduceMut(s, { t: 'DraftPick', playerId: who, pick: { staff: cur.staff[0]! } });
+        const held = new Set(p.staff.map((id) => staffRow(id).role));
+        const open = cur.staff.find((id) => !held.has(staffRow(id).role))!;
+        reduceMut(s, { t: 'DraftPick', playerId: who, pick: { staff: open } });
       } else reduceMut(s, { t: 'DraftPick', playerId: who, pick: { dog: cur.dogs[0]!.id } });
     }
     expect(s.phase).toBe('arrival');
@@ -231,12 +249,12 @@ describe('the opening draft (V29)', () => {
 
   for (const agent of ['easy', 'normal', 'hard'] as const)
     for (const n of [3, 8])
-      it(`completes by AI at ${agent}, ${n} stables, every kennel four and two`, () => {
+      it(`completes by AI at ${agent}, ${n} stables, every kennel four dogs and one of each role`, () => {
         const { s } = play({ seed: 11 + n, players: ais(n, agent) }, (x) => x.phase !== 'draft');
         expect(s.phase).toBe('arrival');
         for (const p of s.players) {
           expect(p.dogIds).toHaveLength(4);
-          expect(p.staff).toHaveLength(2);
+          expect(p.staff.map((id) => staffRow(id).role)).toEqual([...STAFF_ROLES]);
         }
         const all = s.players.flatMap((p) => p.staff);
         expect(new Set(all).size).toBe(all.length);
@@ -340,29 +358,26 @@ describe('the off-season draft (V32)', () => {
     });
   });
 
-  it('a trainer lets one go when the staff is full, and not otherwise', () => {
+  // ⚠️ Rewritten in Phase T (T2): a hire replaces whoever holds that role; nobody else can be let go.
+  it('a hire replaces the holder of its role, and only that holder may be named', () => {
     const s = structuredClone(open);
     const who = s.activePlayer!;
     const p = player(s, who);
     const d = currentDraft(s)!;
     if (!d.staff.length) return;
     const t = d.staff[0]!;
-    if (p.staff.length === 2) {
-      expect(() => reduceMut(s, { t: 'DraftPick', playerId: who, pick: { staff: t } })).toThrow(
-        /let go/,
-      );
-      const out = p.staff[0]!;
-      reduceMut(s, { t: 'DraftPick', playerId: who, pick: { staff: t }, release: out });
-      expect(p.staff).toHaveLength(2);
-      expect(p.staff).not.toContain(out);
-      expect(p.staff).toContain(t);
-    } else {
+    const role = staffRow(t).role;
+    const holder = p.staff.find((id) => staffRow(id).role === role);
+    const other = p.staff.find((id) => staffRow(id).role !== role);
+    if (other)
       expect(() =>
-        reduceMut(s, { t: 'DraftPick', playerId: who, pick: { staff: t }, release: 'x' }),
-      ).toThrow(/room/);
-      reduceMut(s, { t: 'DraftPick', playerId: who, pick: { staff: t } });
-      expect(p.staff).toContain(t);
-    }
+        reduceMut(s, { t: 'DraftPick', playerId: who, pick: { staff: t }, release: other }),
+      ).toThrow(holder ? /replaces/ : /no /);
+    reduceMut(s, { t: 'DraftPick', playerId: who, pick: { staff: t } });
+    expect(p.staff).toContain(t);
+    if (holder) expect(p.staff).not.toContain(holder);
+    const roles = p.staff.map((id) => staffRow(id).role);
+    expect(new Set(roles).size).toBe(roles.length);
   });
 
   it('refuses a pick out of turn, and ends into the new season', () => {
@@ -394,7 +409,7 @@ describe('the off-season draft (V32)', () => {
   });
 
   for (const agent of ['easy', 'normal', 'hard'] as const)
-    it(`plays a two-season game at ${agent}, every kennel still four and two`, () => {
+    it(`plays a two-season game at ${agent}, every kennel still four dogs and no role twice`, () => {
       const { s } = play({
         seed: 5,
         players: ais(5, agent),
@@ -404,7 +419,8 @@ describe('the off-season draft (V32)', () => {
       expect(s.drafts).toHaveLength(2);
       for (const p of s.players) {
         expect(p.dogIds).toHaveLength(4);
-        expect(p.staff.length).toBeLessThanOrEqual(2);
+        const roles = p.staff.map((id) => staffRow(id).role);
+        expect(new Set(roles).size).toBe(roles.length);
       }
     });
 

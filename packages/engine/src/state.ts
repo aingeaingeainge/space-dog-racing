@@ -9,7 +9,8 @@ import { AI_PERSONALITIES, AI_STABLE_NAMES } from './content/names';
 import { CARD, raceType } from './content/raceTypes';
 import { emptyPlanetState, type IdGen } from './economy/dogs';
 import { openOpeningDraft } from './phases/draft';
-import { emptyCargo } from './economy/goods';
+import { emptyCargo, unitCargo } from './economy/goods';
+import { staffBonus } from './economy/staff';
 import { STAPLE_ID } from './content/goods';
 import { mulberry32, type Rng } from './rng';
 import type {
@@ -29,6 +30,16 @@ import type {
 import { ActionError, RACE_TYPE_IDS } from './types';
 
 /**
+ * 16 for v3 Phase T (GDD_V3 T1–T4, Jesse's calls): **everybody plays the weekend at once, and every
+ * stable has three staff, one of each role.** No turn order is rolled (`turnOrderReason` is gone and
+ * `turnOrder` is the seating order); Explore is the first thing a stable does in `planetPre` rather
+ * than a phase of its own; every stable has its own shelf (`Player.shelf`), and declarations are sealed
+ * until the lock; `pendingEvent` became `pendingEvents`, one a stable; `ExploreState.taken` is gone; a
+ * stable's `flags` carry `freshNextWeek` / `rattledNextWeek` where they carried arriving first or last;
+ * its stats carry the advisors' `tradeCommission` and `betCommission`. The opening draft is seven rounds
+ * — four dogs and one of each role — and a v3s log's picks would be refused at the first second
+ * trainer.
+ *
  * 15 for v3 Phase Q: three rules moved (GDD_V3 Q1–Q3), and no shape. The book prices a stable runner's
  * fitness, so every posted price and every bet's return moves; the opening draft's round 3 runs the way
  * round 2 did, so every pick from round 3 on is a different stable's; and the gossip trainer tells a
@@ -114,7 +125,7 @@ import { ActionError, RACE_TYPE_IDS } from './types';
  * The web save is seed + log (store/persist.ts), which is why SAVE_VERSION moves with it and an
  * old save fails soft to the title screen rather than replaying into a different game.
  */
-export const STATE_VERSION = 15;
+export const STATE_VERSION = 16;
 /**
  * **The online protocol's version** (ONLINE_PLAN §7), v3 Phase L1. A browser says it in `hello`; a
  * room on another answers `reload`, and the browser offers to reload rather than play a subtly
@@ -122,11 +133,15 @@ export const STATE_VERSION = 15;
  * shape (`viewFor`, `SEAT_SECRETS`) or a rule moves: anything that would make an old browser misread a
  * new room. Hotseat never reads it.
  *
+ * 3 for v3 Phase T: the view changed shape (`pendingEvents`, `Player.shelf`, no `turnOrderReason`, the
+ * declarations sealed) and so did the rules (everybody at once, three staff). A browser on 2 cannot
+ * play a room on 3.
+ *
  * 2 for v3 Phase Q: no message moved and neither did the view's shape, but three rules did (GDD_V3
  * Q1–Q3), and a browser on 1 would draw the old draft order and misread the posted prices. Frozen at 1
  * from the first deploy (`v3l4`) until here.
  */
-export const PROTOCOL_VERSION = 2;
+export const PROTOCOL_VERSION = 3;
 /**
  * The Major weekends. **One, at week 5 (GDD_V3 §2.1)**, where v2 had three.
  *
@@ -333,7 +348,10 @@ export function maxStakeCeiling(s: GameState): number {
  * The AIs size their stakes through this function too, so they are capped by the same rule as a human.
  */
 export function maxStakeFor(s: GameState, p: Player): number {
-  return Math.min(Math.floor(p.cash * maxStakeFraction(s)), maxStakeCeiling(s));
+  // A Gambling Advisor who lifts the limit (Phase T, T3) lifts the flat ceiling, never the fraction:
+  // a poor stable is protected exactly as before.
+  const lift = 1 + staffBonus(p, 'stakeUp') * balance.staffStakeUp;
+  return Math.min(Math.floor(p.cash * maxStakeFraction(s)), Math.floor(maxStakeCeiling(s) * lift));
 }
 
 /*
@@ -391,6 +409,8 @@ export function emptySeasonStats(): PlayerSeasonStats {
     liesCaught: 0,
     tips: 0,
     commission: 0,
+    tradeCommission: 0,
+    betCommission: 0,
     nobbles: 0,
     nobblesLanded: 0,
     caught: 0,
@@ -446,7 +466,6 @@ export function createSeason(setup: SeasonSetup): GameState {
     planet: emptyPlanetState(''),
     players: [],
     turnOrder: [],
-    turnOrderReason: {},
     activePlayer: null,
     done: [],
     dogs: {},
@@ -454,7 +473,7 @@ export function createSeason(setup: SeasonSetup): GameState {
     locked: false,
     fields: null,
     races: null,
-    pendingEvent: null,
+    pendingEvents: {},
     explore: null,
     nextPlanet: null,
     conditions: [],
@@ -496,9 +515,11 @@ export function createSeason(setup: SeasonSetup): GameState {
       cargo: { ...emptyCargo(), [STAPLE_ID]: balance.startCargo },
       // The starting crates were not bought, so they cost nothing — which is what You Paid says.
       paid: emptyCargo(),
+      shelf: emptyCargo(),
+      priceMult: unitCargo(),
       flags: {
-        arriveFirstNextWeek: false,
-        arriveLastNextWeek: false,
+        freshNextWeek: false,
+        rattledNextWeek: false,
         tipOff: false,
       },
       sponsorWeeks: 0,
@@ -517,6 +538,8 @@ export function createSeason(setup: SeasonSetup): GameState {
     }
     s.players.push(p);
   });
+  // Phase T (GDD_V3 T1): the seating order, fixed for the game. There is no turn order to roll.
+  s.turnOrder = s.players.map((p) => p.id);
   // GDD_V3 V29 (Phase N): the opening draft — the board and round 1's order, from the game's stream,
   // after the seats. ⚠️ This replaced §5.5's deal (one of each style at rating 50) and §8.1's two
   // trainers dealt in seating order, so it moves every draw the game makes after the seats.

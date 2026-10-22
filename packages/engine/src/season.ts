@@ -9,10 +9,23 @@ export interface DriveResult {
   log: Action[];
 }
 
-/** The player who must act next, or null if the engine should AdvancePhase / the season is over. */
+/**
+ * The player a driver should hear from next, or null if the engine should AdvancePhase / the season
+ * is over. In a phase everybody plays at once (Phase T) that is the first AI still to finish, else the
+ * first human — but **every** stable in `onTheClock` may act.
+ */
 export function waitingOn(s: GameState): Id | null {
-  if (s.pendingEvent) return s.pendingEvent.playerId;
   return s.activePlayer;
+}
+
+/**
+ * Every stable that may act now (Phase T): in the draft, the one on the clock; in a weekend's player
+ * phase, every stable that has not finished it; nobody while the system moves the game.
+ */
+export function onTheClock(s: GameState): Id[] {
+  if (isSeasonOver(s) || needsAdvance(s)) return [];
+  if (s.phase === 'draft' || s.phase === 'offSeason') return s.activePlayer ? [s.activePlayer] : [];
+  return s.turnOrder.filter((id) => !s.done.includes(id));
 }
 
 /**

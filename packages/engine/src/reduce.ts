@@ -4,11 +4,11 @@ import { runEndTurn } from './phases/endTurn';
 import { startNextSeason } from './phases/game';
 import { draftPick } from './phases/draft';
 import { chooseDoor, resolveEvent } from './phases/explore';
-import { chooseBox, declare, placeBet, setDogState, tradeFood } from './phases/planet';
+import { chooseBox, declare, hasExplored, placeBet, setDogState, tradeFood } from './phases/planet';
 import { lockDeclarations, runRaces } from './phases/raceDay';
-import { endPhaseFor } from './phases/turn';
+import { endPhaseFor, mayAct } from './phases/turn';
 import { commitCtx, makeCtx, player } from './state';
-import { ActionError, type Action, type GameState } from './types';
+import { ActionError, PLAYER_PHASES, type Action, type GameState } from './types';
 
 /** True when the game is waiting for the system to move it on rather than for a player. */
 export function needsAdvance(s: GameState): boolean {
@@ -51,18 +51,20 @@ export function reduceMut(s: GameState, action: Action): GameState {
       else runEndTurn(ctx);
       break;
     case 'EndPhase': {
-      if (s.pendingEvent) throw new ActionError('Resolve your event first', action);
-      if (s.phase === 'explore') throw new ActionError('Pick a door first', action);
+      if (s.pendingEvents[action.playerId])
+        throw new ActionError('Resolve your event first', action);
       // Phase N: a draft's pick is its turn, so there is nothing to end (GDD_V3 V29, V32).
       if (s.phase === 'draft' || s.phase === 'offSeason')
         throw new ActionError('Make your pick', action);
-      // Phase E2: the Bookie is taken in any order (GDD_V3 §2.3 step 6), so a stable still betting
-      // may leave it whenever it likes. (Phase L1 did the same for the off-season; Phase N's
-      // off-season is a draft, taken in turn order.) Every other player phase is in turn order.
-      const anyOrder = s.phase === 'betting' && !s.done.includes(action.playerId);
-      if (s.activePlayer !== action.playerId && !anyOrder)
-        throw new ActionError(`It is not ${action.playerId}'s turn`, action);
+      if (!PLAYER_PHASES.includes(s.phase) || needsAdvance(s))
+        throw new ActionError(`Nothing to finish in ${s.phase}`, action);
+      // Phase T (GDD_V3 T1): every player phase of the weekend is taken in any order — the planet, the
+      // Bookie (as since E2) and after the races — so any stable still at it may finish it.
       player(s, action.playerId);
+      if (!mayAct(s, action.playerId))
+        throw new ActionError(`${action.playerId} has already finished`, action);
+      if (s.phase === 'planetPre' && !hasExplored(s, action.playerId))
+        throw new ActionError('Pick a door first', action);
       endPhaseFor(s, action.playerId);
       break;
     }

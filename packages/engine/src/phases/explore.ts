@@ -6,7 +6,7 @@ import { CONDITION_BY_ID } from '../content/conditions';
 import { staffOf } from '../economy/staff';
 import { ActionError, GOOD_IDS, type Action, type GameState, type Id } from '../types';
 import { revealStyles } from './raceDay';
-import { startPlayerPhase } from './turn';
+import { mayAct } from './turn';
 
 /**
  * Explore (GDD_V3 §2.3 step 2, §9.1): every stable opens one of the planet's three doors, and what is
@@ -34,7 +34,7 @@ export function seedExplore(ctx: Ctx): void {
   const { s, rng } = ctx;
   const seeds: Record<Id, number> = {};
   for (const p of s.players) seeds[p.id] = Math.floor(rng.next() * 4294967296);
-  s.explore = { seeds, picks: {}, cards: {}, taken: [] };
+  s.explore = { seeds, picks: {}, cards: {} };
 }
 
 function eventCtx(
@@ -55,16 +55,12 @@ function eventCtx(
   };
 }
 
-/** The deck behind a door: its category, less swings on Casual and anything one-of-a-kind already gone. */
+/** The deck behind a door: its category, less swings on Casual. Every stable draws from all of it. */
 export function deckFor(s: GameState, door: number): { cards: EventCard[]; weights: number[] } {
   const planet = currentPlanet(s);
   const category = planet.exploreDoors[door]!.category;
-  const taken = s.explore?.taken ?? [];
   const cards = EVENTS.filter(
-    (e) =>
-      e.category === category &&
-      !(s.toggles.casualEvents && e.kind === 'swing') &&
-      !(e.unique && taken.includes(e.id)),
+    (e) => e.category === category && !(s.toggles.casualEvents && e.kind === 'swing'),
   );
   const weights = cards.map((e) =>
     e.planets?.includes(planet.id) ? e.weight * (e.planetBoost ?? 3) : e.weight,
@@ -91,9 +87,12 @@ export function choiceLabels(card: EventCard, ectx: EventCtx): string[] {
 export function chooseDoor(ctx: Ctx, action: Extract<Action, { t: 'ChooseDoor' }>): void {
   const { s } = ctx;
   const { playerId, door } = action;
-  if (s.phase !== 'explore' || !s.explore) throw new ActionError('Nothing to explore now', action);
-  if (s.activePlayer !== playerId) throw new ActionError(`It is not ${playerId}'s turn`, action);
-  if (s.pendingEvent) throw new ActionError('Resolve your event first', action);
+  if (s.phase !== 'planetPre' || !s.explore)
+    throw new ActionError('Nothing to explore now', action);
+  if (!mayAct(s, playerId))
+    throw new ActionError(`${playerId} has finished on this planet`, action);
+  if (s.explore.picks[playerId] !== undefined)
+    throw new ActionError('You have already been through a door this weekend', action);
   if (!Number.isInteger(door) || door < 0 || door > 2)
     throw new ActionError('No such door', action);
   const planet = currentPlanet(s);
@@ -114,15 +113,14 @@ export function chooseDoor(ctx: Ctx, action: Extract<Action, { t: 'ChooseDoor' }
   if (!drawn) {
     s.explore.cards[playerId] = '';
     log(s, 'Nothing doing. You have a look round and leave.', playerId);
-    passOn(ctx, playerId);
+    afterDoor(s, playerId);
     return;
   }
   const { card, params } = drawn;
   s.explore.cards[playerId] = card.id;
-  if (card.unique) s.explore.taken.push(card.id);
   const ectx = eventCtx(s, ctx, rng, playerId, params);
   if (card.choices.length > 1 && p.kind === 'human') {
-    s.pendingEvent = {
+    s.pendingEvents[playerId] = {
       playerId,
       eventId: card.id,
       params,
@@ -136,13 +134,13 @@ export function chooseDoor(ctx: Ctx, action: Extract<Action, { t: 'ChooseDoor' }
   const decideBy = p.difficulty === 'hard' && card.hardChoice ? card.hardChoice : card.aiChoice;
   const choice = card.choices.length > 1 && decideBy ? decideBy(ectx) : 0;
   applyChoice(ectx, card, choice);
-  passOn(ctx, playerId);
+  afterDoor(s, playerId);
 }
 
 export function resolveEvent(ctx: Ctx, playerId: Id, choice: number): void {
   const { s } = ctx;
-  const pending = s.pendingEvent;
-  if (!pending || pending.playerId !== playerId) {
+  const pending = s.pendingEvents[playerId];
+  if (!pending) {
     throw new ActionError('No event waiting for this player', {
       t: 'ResolveEvent',
       playerId,
@@ -154,9 +152,9 @@ export function resolveEvent(ctx: Ctx, playerId: Id, choice: number): void {
   if (!Number.isInteger(choice) || choice < 0 || choice >= card.choices.length) {
     throw new ActionError('Bad event choice', { t: 'ResolveEvent', playerId, choice });
   }
-  s.pendingEvent = null;
+  delete s.pendingEvents[playerId];
   applyChoice(eventCtx(s, ctx, mulberry32(pending.rng), playerId, pending.params), card, choice);
-  passOn(ctx, playerId);
+  afterDoor(s, playerId);
 }
 
 /**
@@ -165,8 +163,8 @@ export function resolveEvent(ctx: Ctx, playerId: Id, choice: number): void {
  * Runs on a copy of the stable's stream and changes nothing.
  */
 export function aiChoiceFor(s: GameState, playerId: Id): number {
-  const pending = s.pendingEvent;
-  if (!pending || pending.playerId !== playerId) return 0;
+  const pending = s.pendingEvents[playerId];
+  if (!pending) return 0;
   const card = EVENT_BY_ID[pending.eventId];
   if (!card?.aiChoice) return 0;
   const noIds = () => {
@@ -184,40 +182,42 @@ export function aiChoiceFor(s: GameState, playerId: Id): number {
   return card.aiChoice(ectx);
 }
 
-/** This stable has explored; hand the turn on, or open the market once everybody has. */
-function passOn(ctx: Ctx, playerId: Id): void {
-  const { s } = ctx;
-  const i = s.turnOrder.indexOf(playerId);
-  const next = s.turnOrder.slice(i + 1).find((id) => s.explore!.picks[id] === undefined);
-  if (next) {
-    s.activePlayer = next;
-    return;
-  }
-  s.activePlayer = null;
-  staffWeek(s);
-  startPlayerPhase(s, 'planetPre');
+/**
+ * This stable is through its door (Phase T): what its staff tell it now, and the rest of its weekend
+ * — market, kennels, Race Office — is open to it, whoever else is still at a door.
+ */
+function afterDoor(s: GameState, playerId: Id): void {
+  staffWeek(s, playerId);
 }
 
 /**
- * The two trainer bonuses that tell a stable something (GDD_V3 §8.2), once Explore is over and before
- * the Market opens, in turn order. Neither draws: which dog, and which goods, are rules.
+ * The two staff bonuses that tell a stable something (GDD_V3 §8.2), once its door is behind it and
+ * before its market (Phase T: per stable, the moment it is through — the Gambling Advisor's tip and
+ * the Trade Advisor's prices). Neither draws: which dog, and which goods, are rules.
  *
- * - **Hears the kennel gossip (Q3):** a race-day tip a week — the best-rated dog on the planet that is
- *   carrying a knock, is off its feed or is buzzing, and that this stable has not been told about. It
- *   is told to this stable alone, exactly as a Bar card's tip is (D3), and it may be about its own dog.
+ * - **Hears the kennel gossip (Q3):** a race-day tip a week — the best-rated rival dog on the planet
+ *   that is carrying a knock, is off its feed or is buzzing, and that this stable has not been told
+ *   about. It is told to this stable alone, exactly as a Bar card's tip is (D3). Since Phase T it is the
+ *   Gambling Advisor's, and never about the stable's own dog.
  *   Until `v3q` this bonus made one rival dog's style public; since the draft (V30) every drafted dog's
  *   style is public from the start, and it priced below zero (§14 Q13).
- * - **Reads the manifests:** where all six goods will sit next week, as the freight clerk's card does.
+ * - **Reads the manifests:** where all six goods will sit next week, as the freight clerk's card does —
+ *   the Trade Advisor's since Phase T.
  */
-export function staffWeek(s: GameState): void {
+export function staffWeek(s: GameState, only?: Id): void {
   for (const id of s.turnOrder) {
+    if (only && id !== only) continue;
     const p = player(s, id);
     for (const row of staffOf(p)) {
       if (row.bonuses.includes('whisper')) {
-        // The best-rated dog carrying a race-day condition this stable has not been told about —
-        // a rival's or its own — told to this stable alone, as a Bar card's tip is (D3, Q3).
+        // The best-rated **rival** dog carrying a race-day condition this stable has not been told
+        // about, told to this stable alone, as a Bar card's tip is (D3, Q3). ⚠️ Rivals' only since
+        // Phase T: it is the Gambling Advisor's bonus now, paid from winnings, and a tip about your
+        // own dog is a Race-or-Rest call — the Trainer's side, which a share of winnings cannot price.
         const told = s.conditions
-          .filter((c) => !c.tipped.includes(p.id) && s.dogs[c.dogId])
+          .filter(
+            (c) => !c.tipped.includes(p.id) && s.dogs[c.dogId] && s.dogs[c.dogId]!.ownerId !== p.id,
+          )
           .sort((a, b) => {
             const da = s.dogs[a.dogId]!;
             const db = s.dogs[b.dogId]!;
@@ -228,7 +228,7 @@ export function staffWeek(s: GameState): void {
           told.tipped.push(p.id);
           p.stats.tips++;
           const owner = s.players.find((x) => x.id === d.ownerId);
-          const whose = owner?.id === p.id ? 'your own' : `${owner?.name ?? 'somebody'}’s`;
+          const whose = `${owner?.name ?? 'somebody'}’s`;
           log(
             s,
             `${row.name} has heard something: ${d.name} — ${whose} dog — ${CONDITION_BY_ID[told.condition].tip}.`,

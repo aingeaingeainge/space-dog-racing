@@ -1,5 +1,5 @@
 {
-  "_comment": "Numbers the Assumptions sheet does not carry. The sheet wins on any clash. v3 Phase A removed the keys whose systems BUILD_PLAN_V3 \u00a72.1 deletes; the rating weights live here rather than in the sheet and are now three, not four (GDD_V3 \u00a74.1).",
+  "_comment": "Numbers the Assumptions sheet does not carry. The sheet wins on any clash. v3 Phase A removed the keys whose systems BUILD_PLAN_V3 \u00a72.1 deletes; the rating weights live here rather than in the sheet and are now three, not four (GDD_V3 \u00a74.1). v3 Phase T removed the arrival roll's three keys: there is no turn order (GDD_V3 T1).",
   "ratingWeightSpeed": 0.4,
   "ratingWeightAccel": 0.35,
   "ratingWeightStamina": 0.25,
@@ -33,9 +33,6 @@
   "oddsScale": 19,
   "oddsFloor": 0.005,
   "foodSpread": 0.1,
-  "arrivalBase": 20,
-  "arrivalCargoDiv": 5,
-  "arrivalDie": 10,
   "startDogAgeMin": 2,
   "startDogAgeMax": 4,
   "aiFoodSpreadMin": 40,

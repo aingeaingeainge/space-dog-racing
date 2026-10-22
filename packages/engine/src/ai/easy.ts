@@ -5,6 +5,7 @@ import { STAPLE_ID } from '../content/goods';
 import { cargoTotal, HOLD_CAP } from '../economy/goods';
 import {
   availableHere,
+  buyPrice,
   buyFeedPlan,
   hash01,
   setStates,
@@ -12,6 +13,7 @@ import {
   startPlan,
   weeklyFoodNeed,
 } from './shared';
+import { mayAct } from '../phases/turn';
 
 /**
  * How often Easy cannot be bothered with a race and leaves the trap to the locals. Half the
@@ -45,7 +47,7 @@ export function decideEasy(s: GameState, playerId: Id): Action[] {
   // Explore (GDD_V3 §9.1): open a door, answer the card. Easy picks by the hash alone.
   const explore = exploreStep(s, playerId, false);
   if (explore) return explore;
-  if (s.activePlayer !== playerId) return [];
+  if (!mayAct(s, playerId)) return [];
 
   const plan = startPlan(s, playerId);
   const { out } = plan;
@@ -62,7 +64,7 @@ export function decideEasy(s: GameState, playerId: Id): Action[] {
     // stand, because the crate above has already taken some of it.
     if (s.toggles.trading) {
       const need = weeklyFoodNeed(s, p);
-      const staple = s.planet.goods[STAPLE_ID];
+      const staple = { buy: buyPrice(plan, STAPLE_ID) };
       if (plan.cargo[STAPLE_ID] === 0 && staple.buy > 0) {
         const units = Math.min(
           HOLD_CAP - cargoTotal(plan.cargo),

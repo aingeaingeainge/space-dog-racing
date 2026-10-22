@@ -19,9 +19,9 @@
  * the coefficient as a share of a stable's purses. Commission as a share of purses closes it.
  */
 import { overridesLine } from './balance-set';
-import { STAFF_BONUSES, type StaffBonusId } from '../src/content/staff';
+import { STAFF_BONUSES, type StaffBonusId, type StaffRole } from '../src/content/staff';
 import { netWorth } from '../src/economy/netWorth';
-import { staffBonus } from '../src/economy/staff';
+import { cutFor, staffBonus } from '../src/economy/staff';
 import { decide } from '../src/ai';
 import { isSeasonOver, needsAdvance, reduceMut } from '../src/reduce';
 import { createSeason, player } from '../src/state';
@@ -39,6 +39,9 @@ interface StableObs {
   bonuses: Record<StaffBonusId, number>;
   purses: number;
   commission: number;
+  /** Phase T: the Trade Advisor's side (profit on sales) and the Gambling Advisor's (winnings). */
+  tradeSide: number;
+  betSide: number;
   meanRating: number;
   allStyles: boolean;
 }
@@ -71,7 +74,7 @@ function playOne(seed: number, n: number, agent: AiAgent): StableObs[] {
       reduceMut(s, { t: 'AdvancePhase' });
       continue;
     }
-    const who = s.pendingEvent?.playerId ?? s.activePlayer!;
+    const who = s.activePlayer!;
     for (const a of decide(s, who, player(s, who).difficulty)) reduceMut(s, a);
   }
   const winner = s.finalStandings![0]!.playerId;
@@ -86,6 +89,10 @@ function playOne(seed: number, n: number, agent: AiAgent): StableObs[] {
       bonuses: bonuses[i]!,
       purses: p.stats.prizeIncome + p.stats.commission,
       commission: p.stats.commission,
+      // The side each advisor is paid from, worked back from what they took (Phase T): the cut is a
+      // share of it, so commission ÷ cut is the side. NaN where the role is empty at the end.
+      tradeSide: cutFor(p, 'trade') ? p.stats.tradeCommission / cutFor(p, 'trade') : NaN,
+      betSide: cutFor(p, 'gambling') ? p.stats.betCommission / cutFor(p, 'gambling') : NaN,
       meanRating: mean(mine.map((d) => d.rating)),
       allStyles: new Set(mine.map((d) => d.style)).size === 3,
     };
@@ -185,8 +192,18 @@ export function runDraft(games = 1000, seed = 1, agent: AiAgent = 'normal'): str
   const y = all.map((o) => o.end);
   const { beta, se } = ols(X, y);
   const purses = mean(all.map((o) => o.purses));
+  const finite = (xs: number[]) => xs.filter((x) => Number.isFinite(x));
+  // Phase T: each role's cut is a share of its own side, so a bonus's fair cut is read against that.
+  const side: Record<StaffRole, number> = {
+    trainer: purses,
+    trade: mean(finite(all.map((o) => o.tradeSide))),
+    gambling: mean(finite(all.map((o) => o.betSide))),
+  };
   out.push(
-    `Each trainer bonus priced by D12's regression — end worth on bonuses drafted, start worth as a control (${all.length} stables)`,
+    `Each staff bonus priced by D12's regression — end worth on bonuses drafted, start worth as a control (${all.length} stables)`,
+  );
+  out.push(
+    `  sides a season: purses ${fmt(side.trainer)} · trading profit ${fmt(side.trade)} · winnings ${fmt(side.gambling)} — a fair cut is the cut now + Bones ÷ its role's side`,
   );
   out.push('  bonus                        held    Bones per bonus (± se)   cut now   fair cut');
   ids.forEach((id, i) => {
@@ -194,7 +211,7 @@ export function runDraft(games = 1000, seed = 1, agent: AiAgent = 'normal'): str
     const e = se[i + 2]!;
     const row = STAFF_BONUSES.find((x) => x.id === id)!;
     const held = mean(all.map((o) => o.bonuses[id]));
-    const fairCut = row.cut + b / Math.max(1, purses);
+    const fairCut = row.cut + b / Math.max(1, side[row.role]);
     out.push(
       `  ${row.short.padEnd(28)} ${held.toFixed(2).padStart(5)}   ${(b >= 0 ? '+' : '') + fmt(b)} (± ${fmt(e)})`.padEnd(
         68,

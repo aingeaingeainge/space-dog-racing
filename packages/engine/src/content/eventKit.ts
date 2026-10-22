@@ -98,11 +98,12 @@ export const crates = (ctx: { p: Player }): number => cargoTotal(ctx.p.cargo);
  * further. The sell price is re-derived from the buy rather than scaled separately, so the spread
  * stays `foodSpread` exactly — the same rule the weekly draw keeps.
  */
-export const scaleGood = (ctx: { s: GameState }, id: GoodId, mult: number): void => {
-  const m = ctx.s.planet.goods[id];
-  const g = good(id);
-  m.buy = clamp(Math.round(m.buy * mult), g.floor, g.ceiling);
-  m.sell = Math.max(1, Math.round(m.buy * (1 - balance.foodSpread)));
+export const scaleGood = (ctx: { p: Player }, id: GoodId, mult: number): void => {
+  // ⚠️ Phase T: **the stable's own price**, not the planet's (`Player.priceMult`, read by
+  // `pricesFor`). Everybody plays the weekend at once and nobody shares a market, so a glut one
+  // stable found behind a door cannot move the price another stable already paid. The band clamp
+  // and the re-derived sell are applied where the price is read.
+  ctx.p.priceMult[id] *= mult;
 };
 export const fit = (d: Dog, delta: number) => {
   d.fitness = clamp(Math.round(d.fitness + delta), 0, 100);

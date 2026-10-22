@@ -73,8 +73,10 @@ export function pickDoor(s: GameState, playerId: Id, weigh = true): number {
  * outside Explore, so a `decide` can fall through to its own phases.
  */
 export function exploreStep(s: GameState, playerId: Id, weigh = true): Action[] | null {
-  if (s.pendingEvent?.playerId === playerId)
+  if (s.pendingEvents[playerId])
     return [{ t: 'ResolveEvent', playerId, choice: aiChoiceFor(s, playerId) }];
-  if (s.phase !== 'explore' || s.activePlayer !== playerId) return null;
+  // Phase T: the door is the first thing a stable does in its weekend on the planet.
+  if (s.phase !== 'planetPre' || !s.explore || s.explore.picks[playerId] !== undefined) return null;
+  if (s.done.includes(playerId)) return null;
   return [{ t: 'ChooseDoor', playerId, door: pickDoor(s, playerId, weigh) }];
 }

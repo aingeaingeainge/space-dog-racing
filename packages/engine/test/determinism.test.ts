@@ -163,7 +163,7 @@ describe("Explore never moves the game's stream (decision D1)", () => {
    * different door in each, compared at the moment Explore hands over to the market.
    */
   it('gives the same game stream, seeds and rival cards whichever door a stable opens', async () => {
-    const { createSeason, reduceMut, decide, needsAdvance, player, aiChoiceFor } =
+    const { createSeason, reduceMut, decide, needsAdvance, player, aiChoiceFor, hasExplored } =
       await import('../src/index');
     const toMarket = (door: number) => {
       const s = createSeason({
@@ -178,15 +178,20 @@ describe("Explore never moves the game's stream (decision D1)", () => {
         ],
       });
       let guard = 0;
-      while (s.phase !== 'planetPre' && guard++ < 1000) {
+      // Phase T: until every stable is through its door — the AIs go first, then the human.
+      const allIn = () =>
+        s.phase === 'planetPre' &&
+        s.turnOrder.every((id) => hasExplored(s, id)) &&
+        !Object.keys(s.pendingEvents).length;
+      while (!allIn() && guard++ < 1000) {
         if (needsAdvance(s)) {
           reduceMut(s, { t: 'AdvancePhase' });
           continue;
         }
-        const who = s.pendingEvent?.playerId ?? s.activePlayer!;
+        const who = s.activePlayer!;
         // Phase N: the human seat drafts as Normal would; the doors are what this test varies.
         if (player(s, who).kind === 'human' && s.phase !== 'draft') {
-          if (s.pendingEvent)
+          if (s.pendingEvents[who])
             reduceMut(s, { t: 'ResolveEvent', playerId: who, choice: aiChoiceFor(s, who) });
           else reduceMut(s, { t: 'ChooseDoor', playerId: who, door });
         } else for (const a of decide(s, who, 'normal')) reduceMut(s, a);
@@ -201,12 +206,11 @@ describe("Explore never moves the game's stream (decision D1)", () => {
         runs[0]!.conditions.map((c) => [c.dogId, c.condition]),
       );
     }
-    // The human opened three different doors; a rival's card changes only if the human took a
-    // one-of-a-kind card first, which the test allows for rather than hides.
+    // The human opened three different doors, and no rival's card changed: since Phase T nothing in
+    // a deck is taken by another stable (there is no one-of-a-kind contention any more).
     for (const id of ['p2', 'p3', 'p4', 'p5', 'p6']) {
       const cards = runs.map((s) => s.explore!.cards[id]);
-      const humanTookUnique = runs.some((s) => s.explore!.taken.length > 0);
-      if (!humanTookUnique) expect(new Set(cards).size).toBe(1);
+      expect(new Set(cards).size).toBe(1);
     }
   });
 });
@@ -252,7 +256,7 @@ describe("A Back Alley job never moves the game's stream (GDD_V3 §9.3, Phase D2
           reduceMut(s, { t: 'AdvancePhase' });
           continue;
         }
-        const who = s.pendingEvent?.playerId ?? s.activePlayer!;
+        const who = s.activePlayer!;
         for (const a of decide(s, who, player(s, who).difficulty)) reduceMut(s, a);
       }
       return s;
@@ -293,12 +297,12 @@ describe("No off-season pick moves the game's stream (GDD_V3 §2.2, V32)", () =>
       });
       let board = '';
       let guard = 0;
-      while (!(s.season === 2 && s.phase === 'explore') && guard++ < 100_000) {
+      while (!(s.season === 2 && s.phase === 'planetPre') && guard++ < 100_000) {
         if (needsAdvance(s)) {
           reduceMut(s, { t: 'AdvancePhase' });
           continue;
         }
-        const who = s.pendingEvent?.playerId ?? s.activePlayer!;
+        const who = s.activePlayer!;
         const p = player(s, who);
         if (p.kind === 'human' && s.phase === 'offSeason') {
           const d = currentDraft(s)!;
@@ -316,11 +320,10 @@ describe("No off-season pick moves the game's stream (GDD_V3 §2.2, V32)", () =>
               t: 'DraftPick',
               playerId: who,
               pick: { staff: d.staff[0]! },
-              ...(p.staff.length >= 2 ? { release: p.staff[0]! } : {}),
             });
           else reduceMut(s, { t: 'DraftPick', playerId: who, pick: null });
         } else if (p.kind === 'human') {
-          if (s.pendingEvent)
+          if (s.pendingEvents[who])
             reduceMut(s, { t: 'ResolveEvent', playerId: who, choice: aiChoiceFor(s, who) });
           else for (const a of decide(s, who, 'normal')) reduceMut(s, a);
         } else for (const a of decide(s, who, 'normal')) reduceMut(s, a);
@@ -406,13 +409,13 @@ describe('The Bookie is order-independent: the order humans bet in never changes
           reduceMut(s, { t: 'AdvancePhase' });
           continue;
         }
-        const who = s.pendingEvent?.playerId ?? s.activePlayer!;
+        const who = s.activePlayer!;
         const p = player(s, who);
         if (p.kind === 'human' && s.phase === 'betting' && s.week === week) {
           // The table: whoever holds the laptop next, not whoever the turn order names.
           const next = queue.find((id) => !s.done.includes(id))!;
           humanBets(s, next);
-        } else if (p.kind === 'human' && s.pendingEvent)
+        } else if (p.kind === 'human' && s.pendingEvents[who])
           reduceMut(s, { t: 'ResolveEvent', playerId: who, choice: aiChoiceFor(s, who) });
         else
           for (const a of decide(s, who, p.kind === 'human' ? 'normal' : p.difficulty))
@@ -491,7 +494,7 @@ describe('Q1: the book prices fitness, in whole rating points (GDD_V3 §5.6)', (
         reduceMut(s, { t: 'AdvancePhase' });
         continue;
       }
-      const who = s.pendingEvent?.playerId ?? s.activePlayer!;
+      const who = s.activePlayer!;
       for (const a of decide(s, who, 'normal')) reduceMut(s, a);
     }
     const track = currentPlanet(s).track;

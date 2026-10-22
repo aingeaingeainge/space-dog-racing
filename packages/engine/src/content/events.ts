@@ -109,10 +109,9 @@ const REHOMED: readonly EventCard[] = [
     weight: 3,
     kind: 'choice',
     category: 'track',
-    // ⚠️ **It used to reshuffle the whole table's turn order on arrival**, which was harmless while
-    // every stable drew its card in a queue. Explore walks the turn order itself, so a shuffle in the
-    // middle of it would skip or repeat a stable. The flare now fries one ship: this stable lands
-    // last next week unless it pays (Phase D1).
+    // ⚠️ **It used to reshuffle the whole table's turn order on arrival**, and from Phase D1 it made
+    // this stable land last next week. There is no turn order since Phase T (GDD_V3 T1), so a fried
+    // navicomp now gives the dogs a rough landing: `rattledArrivalFitness` next week, unless it pays.
     choices: [
       {
         label: 'Pay the tech (−300)',
@@ -123,16 +122,16 @@ const REHOMED: readonly EventCard[] = [
         },
       },
       {
-        label: 'Fly on it anyway (land last next week)',
+        label: `Fly on it anyway (dogs ${balance.rattledArrivalFitness} fitness next week)`,
         apply: (ctx) => {
-          ctx.p.flags.arriveLastNextWeek = true;
-          ctx.log('The navicomp limps. You will land last next week.');
+          ctx.p.flags.rattledNextWeek = true;
+          ctx.log('The navicomp limps. It will be a rough landing next week.');
         },
       },
     ],
-    // Last in the turn order is first look at the declarations board (§7.3), and it costs nothing
-    // but the shelf. A stable with a hold to sell pays; one travelling light keeps the money.
-    aiChoice: (ctx) => (crates(ctx) > 15 && ctx.p.cash > 1500 ? 0 : 1),
+    // A rough landing costs every dog fitness, which costs a week's racing more than 300 once there
+    // is money in the bank.
+    aiChoice: (ctx) => (ctx.p.cash > 1500 ? 0 : 1),
   },
   {
     id: 'tipOff',
@@ -154,7 +153,7 @@ const REHOMED: readonly EventCard[] = [
   {
     id: 'kibbleGlut',
     name: 'Mash glut',
-    text: 'A bumper harvest: Grey Mash is half price here until you leave.',
+    text: 'A bumper harvest, and a stallholder who likes the look of you: Grey Mash is half price for you here until you leave.',
     weight: 4,
     kind: 'flavour',
     category: 'strip',
@@ -166,7 +165,7 @@ const REHOMED: readonly EventCard[] = [
           // a bumper harvest of Grey Mash is not a sale on Ambrosia. The id stays `kibbleGlut`
           // because it is a save-file and asset key; Phase D rewrites the deck.
           scaleGood(ctx, STAPLE_ID, 0.5);
-          ctx.log('Mash glut: Grey Mash prices halved on this planet.');
+          ctx.log('Mash glut: Grey Mash is half price for you on this planet.');
         },
       },
     ],
@@ -174,7 +173,7 @@ const REHOMED: readonly EventCard[] = [
   {
     id: 'kibbleShortage',
     name: 'Mash shortage',
-    text: 'The Grey Mash freighter never arrived. Prices double here until you leave.',
+    text: 'The Grey Mash freighter never arrived, and the last crates are going to whoever asks first. Your price doubles here until you leave.',
     weight: 4,
     kind: 'flavour',
     category: 'strip',
@@ -183,7 +182,7 @@ const REHOMED: readonly EventCard[] = [
         label: 'Typical',
         apply: (ctx) => {
           scaleGood(ctx, STAPLE_ID, 2);
-          ctx.log('Mash shortage: Grey Mash prices doubled on this planet.');
+          ctx.log('Mash shortage: Grey Mash costs you double on this planet.');
         },
       },
     ],
@@ -244,7 +243,7 @@ const REHOMED: readonly EventCard[] = [
   {
     id: 'wormhole',
     name: 'Wormhole shortcut',
-    text: 'Your navigator finds a wormhole. You will arrive first next week regardless.',
+    text: 'Your navigator finds a wormhole. You will be there a day early next week, and the dogs will have had a lie-in.',
     weight: 3,
     kind: 'flavour',
     category: 'bar',
@@ -252,8 +251,10 @@ const REHOMED: readonly EventCard[] = [
       {
         label: 'Punch it',
         apply: (ctx) => {
-          ctx.p.flags.arriveFirstNextWeek = true;
-          ctx.log('Wormhole found: you arrive first next week.');
+          ctx.p.flags.freshNextWeek = true;
+          ctx.log(
+            `Wormhole found: your dogs land rested next week (+${balance.freshArrivalFitness}).`,
+          );
         },
       },
     ],

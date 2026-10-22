@@ -11,8 +11,9 @@ import { GOOD_IDS, type GameState, type Id, type PlayerSeasonStats } from './typ
  * A view is **the same type as the state**, a redacted deep copy, so every screen reads a view exactly
  * as it reads a state. What is redacted is a table, `SEAT_SECRETS`, one row per secret with the field,
  * what it gives away, who may see it and what the view does: **a new secret field is a row and a test,
- * not a hunt.** Anything not in the table is public — cash, cargo, every dog's stats, declarations, the
- * locked fields, races and results, the Stewards' findings, turn order, `done`, standings, staff.
+ * not a hunt.** Anything not in the table is public — cash, cargo, every stable's shelf, every dog's
+ * stats, the locked fields, races and results, the Stewards' findings, the seating order, `done`,
+ * standings, staff. Declarations are public **once they lock** (Phase T: sealed until then).
  *
  * The view also carries what the room works out and the seat cannot: the Saloon's `rumours`, which
  * read the seed and the calendar two weeks out.
@@ -65,10 +66,9 @@ const DISPLAY_PARAMS: readonly string[] = ['staffId', 'offerName'];
 
 /** A pending Pound offer whose patter lies was counted in `liesTold` the moment it was rolled. */
 function pendingLie(s: GameState, playerId: Id): boolean {
-  const e = s.pendingEvent;
+  const e = s.pendingEvents[playerId];
   return (
     !!e &&
-    e.playerId === playerId &&
     e.params.offerName !== undefined &&
     Number(e.params.lie) === 1 &&
     EVENT_BY_ID[e.eventId]?.category === 'pound'
@@ -128,32 +128,46 @@ export const SEAT_SECRETS: readonly SeatSecret[] = [
     },
   },
   {
-    field: 'explore.taken',
-    secret: 'which one-of-a-kind cards others drew (it gives away doors)',
-    who: 'nobody',
-    redact: (v) => {
-      if (v.explore) v.explore.taken = [];
-    },
-  },
-  {
-    field: 'pendingEvent (another stable’s)',
+    field: 'pendingEvents (another stable’s)',
     secret: 'their card',
     who: 'its owner',
     redact: (v, seat) => {
-      if (v.pendingEvent && v.pendingEvent.playerId !== seat) v.pendingEvent = null;
+      const mine = v.pendingEvents[seat];
+      v.pendingEvents = mine ? { [seat]: mine } : {};
     },
   },
   {
-    field: 'pendingEvent.params, pendingEvent.rng',
+    field: 'pendingEvents[seat].params, .rng',
     secret: 'an offered dog’s true stats and whether the patter lies; the dice behind a gamble',
     who: 'nobody, not even its owner (the card’s `detail` is what it shows)',
     redact: (v) => {
-      const e = v.pendingEvent;
-      if (!e) return;
-      const kept: Record<string, number | string> = {};
-      for (const k of DISPLAY_PARAMS) if (e.params[k] !== undefined) kept[k] = e.params[k]!;
-      e.params = kept;
-      e.rng = 0;
+      for (const e of Object.values(v.pendingEvents)) {
+        const kept: Record<string, number | string> = {};
+        for (const k of DISPLAY_PARAMS) if (e.params[k] !== undefined) kept[k] = e.params[k]!;
+        e.params = kept;
+        e.rng = 0;
+      }
+    },
+  },
+  {
+    field: 'declarations (another stable’s), before the lock',
+    secret: 'who a rival has put in which race (Phase T: sealed until everybody has finished)',
+    who: 'that stable, until the lock makes the whole card public',
+    redact: (v, seat, full) => {
+      if (full.phase !== 'planetPre') return;
+      for (const race of Object.keys(v.declarations) as (keyof GameState['declarations'])[]) {
+        const mine = v.declarations[race][seat];
+        v.declarations[race] = mine ? { [seat]: mine } : {};
+      }
+    },
+  },
+  {
+    field: 'dogs[d].weekState (another stable’s), before the lock',
+    secret: 'Race or Rest follows the declarations (D2 item 5), so it would give them away',
+    who: 'the dog’s owner, until the lock',
+    redact: (v, seat, full) => {
+      if (full.phase !== 'planetPre') return;
+      for (const d of Object.values(v.dogs)) if (d.ownerId !== seat) d.weekState = 'rest';
     },
   },
   {
@@ -224,12 +238,12 @@ export const SEAT_SECRETS: readonly SeatSecret[] = [
   },
   {
     field: 'players[].flags',
-    secret: 'the result of a private card (a tip-off, arriving first or last next week)',
+    secret: 'the result of a private card (a tip-off, a rested or a rough landing next week)',
     who: 'that stable, until arrival makes it public',
     redact: (v, seat) => {
       for (const p of v.players)
         if (p.id !== seat)
-          p.flags = { arriveFirstNextWeek: false, arriveLastNextWeek: false, tipOff: false };
+          p.flags = { freshNextWeek: false, rattledNextWeek: false, tipOff: false };
     },
   },
   {

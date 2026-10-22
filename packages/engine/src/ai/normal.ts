@@ -13,6 +13,7 @@ import {
   startPlan,
   tradeFoodPlan,
 } from './shared';
+import { mayAct } from '../phases/turn';
 
 /**
  * Normal's Race-or-Rest rule (GDD_V3 §4.2): race above 65 fitness, rest below it. Deliberately a
@@ -42,7 +43,7 @@ export function decideNormal(s: GameState, playerId: Id): Action[] {
   // Explore (GDD_V3 §9.1): open a door, answer the card.
   const explore = exploreStep(s, playerId);
   if (explore) return explore;
-  if (s.activePlayer !== playerId) return [];
+  if (!mayAct(s, playerId)) return [];
 
   const plan = startPlan(s, playerId);
 

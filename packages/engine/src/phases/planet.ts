@@ -2,6 +2,7 @@ import { raceType } from '../content/raceTypes';
 import { balance } from '../content/balance';
 import { good } from '../content/goods';
 import { cargoTotal, HOLD_CAP, recordPurchase } from '../economy/goods';
+import { pricesFor, staffBonus, tradeCommission } from '../economy/staff';
 import { decimalOdds } from '../race/odds';
 import {
   bettingMargin,
@@ -20,15 +21,30 @@ import {
   type Player,
   RACE_TYPE_IDS,
 } from '../types';
-import { bettingOpen } from './turn';
+import { bettingOpen, mayAct } from './turn';
 
 function fail(msg: string, action: Action): never {
   throw new ActionError(msg, action);
 }
 
-function activeOrFail(s: GameState, playerId: Id, action: Action): Player {
-  if (s.activePlayer !== playerId) fail(`It is not ${playerId}'s turn`, action);
-  return player(s, playerId);
+/**
+ * Is this stable free to act on the planet now (Phase T, GDD_V3 T1)? **Any stable still at it**, in
+ * whatever order — the weekend is played by everybody at once. Before the races it must have been
+ * through its door first (§2.3 step 2): what is behind it can hand it a dog, a crate or a trainer,
+ * and the market and the Race Office are the rest of the same visit.
+ */
+function actorOrFail(s: GameState, playerId: Id, action: Action): Player {
+  const p = player(s, playerId);
+  if (!mayAct(s, p.id)) fail(`${p.name} has finished on this planet`, action);
+  if (s.pendingEvents[p.id]) fail('Resolve your event first', action);
+  if (s.phase === 'planetPre' && s.explore && s.explore.picks[p.id] === undefined)
+    fail('Pick a door first', action);
+  return p;
+}
+
+/** Has this stable opened its door this weekend? (Phase T: the first thing it does on the planet.) */
+export function hasExplored(s: GameState, playerId: Id): boolean {
+  return !s.explore || s.explore.picks[playerId] !== undefined;
 }
 
 function planetPhase(s: GameState, action: Action, ...phases: GameState['phase'][]): void {
@@ -53,7 +69,7 @@ export function declaredDogs(s: GameState, playerId: Id): Id[] {
 export function declare(ctx: Ctx, action: Extract<Action, { t: 'Declare' }>): void {
   const { s } = ctx;
   planetPhase(s, action, 'planetPre');
-  const p = activeOrFail(s, action.playerId, action);
+  const p = actorOrFail(s, action.playerId, action);
   const type = raceType(action.race);
   // A race that is not on this weekend's card is not a race you can enter (GDD §6.3). The
   // declaration book has a key for every type, so nothing else would stop an entry landing in
@@ -154,10 +170,14 @@ export function placeBet(ctx: Ctx, action: Extract<Action, { t: 'PlaceBet' }>): 
   if (alreadyStaked + stake > cap) fail(`Max stake on this race is ${cap}`, action);
   pay(p, stake, action);
   const margin = bettingMargin(s);
-  const odds =
+  const posted =
     action.kind === 'win'
       ? decimalOdds(entry.winProb, margin)
       : decimalOdds(entry.placeProb, margin);
+  // A Gambling Advisor's better price (Phase T, T3): the slip is struck at it, so it is what the slip
+  // says and what it pays. Rounded to the book's two places.
+  const sharp = staffBonus(p, 'sharpOdds') * balance.staffSharpOdds;
+  const odds = sharp ? Math.round(posted * (1 + sharp) * 100) / 100 : posted;
   s.bets.splice(slipIndex(s, p.id), 0, {
     playerId: p.id,
     week: s.week,
@@ -173,38 +193,43 @@ export function placeBet(ctx: Ctx, action: Extract<Action, { t: 'PlaceBet' }>): 
 /**
  * Buy or sell one good (GDD §9.1). Positive units buy, negative sell.
  *
- * Three refusals: the hold has to have room for the crates *in total*, the shelf has to have that
- * many on it, and you cannot sell what you are not carrying. The shelf is what makes turn order
- * worth something — stock is shared with the whole table, so first look is first buy (GDD §8.5),
- * and GDD_V3 §2.3 keeps the Market in turn order for exactly that reason.
+ * Three refusals: the hold has to have room for the crates *in total*, the stable's shelf has to have
+ * that many on it, and you cannot sell what you are not carrying.
+ *
+ * ⚠️ **Every stable has a shelf of its own** (Phase T, GDD_V3 T2 — Jesse's "no more shared market").
+ * The planet posts one set of prices and one depth per good, and each stable is given that shelf to
+ * itself at arrival (`Player.shelf`); what it buys comes off its own. Until `v3t` the shelf was shared
+ * and the Market was taken in turn order, so the first stable through had first pick — the thing turn
+ * order was for. The prices a stable pays and gets are its own too: a Trade Advisor haggles and sells
+ * (`pricesFor`), and takes a share of the profit on a sale (`tradeCommission`, T4).
  */
 export function tradeFood(ctx: Ctx, action: Extract<Action, { t: 'TradeFood' }>): void {
   const { s } = ctx;
   planetPhase(s, action, 'planetPre', 'planetPost');
-  const p = activeOrFail(s, action.playerId, action);
+  const p = actorOrFail(s, action.playerId, action);
   if (!s.toggles.trading) fail('Trading is switched off this season', action);
   const g = good(action.good);
-  const market = s.planet.goods[action.good];
+  const price = pricesFor(s, p, action.good);
   const units = Math.trunc(action.units);
   if (units === 0) return;
   if (units > 0) {
     if (cargoTotal(p.cargo) + units > HOLD_CAP) fail('Not enough hold space', action);
-    const available = market.stock;
+    const available = p.shelf[action.good];
     if (units > available) fail(`Only ${available} crates of ${g.label} to be had here`, action);
-    const cost = units * market.buy;
+    const cost = units * price.buy;
     pay(p, cost, action);
-    recordPurchase(p, action.good, units, market.buy);
-    // Every shelf is finite and shared (GDD_V3 §6.1, V7): what you buy, the stable after you in the
-    // turn order cannot. That is what going first is *for* (§2.3).
-    market.stock -= units;
+    recordPurchase(p, action.good, units, price.buy);
+    p.shelf[action.good] -= units;
     p.stats.tradeIncome -= cost;
   } else {
     const sell = -units;
     if (sell > p.cargo[action.good]) fail(`Not that much ${g.label} aboard`, action);
-    const proceeds = sell * market.sell;
-    p.cash += proceeds;
+    const gross = sell * price.sell;
+    const commission = tradeCommission(p, action.good, sell, price.sell);
+    p.cash += gross - commission;
     p.cargo[action.good] -= sell;
-    p.stats.tradeIncome += proceeds;
+    p.stats.tradeIncome += gross - commission;
+    p.stats.tradeCommission += commission;
   }
 }
 
@@ -217,7 +242,7 @@ export function tradeFood(ctx: Ctx, action: Extract<Action, { t: 'TradeFood' }>)
 export function setDogState(ctx: Ctx, action: Extract<Action, { t: 'SetDogState' }>): void {
   const { s } = ctx;
   planetPhase(s, action, 'planetPre', 'planetPost');
-  const p = activeOrFail(s, action.playerId, action);
+  const p = actorOrFail(s, action.playerId, action);
   const d = dog(s, action.dogId);
   if (d.ownerId !== p.id) fail('Not your dog', action);
   if (action.state !== 'race' && declaredDogs(s, p.id).includes(d.id)) {
@@ -239,7 +264,7 @@ export function setDogState(ctx: Ctx, action: Extract<Action, { t: 'SetDogState'
 export function chooseBox(ctx: Ctx, action: Extract<Action, { t: 'ChooseBox' }>): void {
   const { s } = ctx;
   planetPhase(s, action, 'planetPre');
-  const p = activeOrFail(s, action.playerId, action);
+  const p = actorOrFail(s, action.playerId, action);
   const job = s.jobs.find((j) => j.by === p.id && j.kind === 'box');
   if (!job) fail('You have not bought a box from a steward this weekend', action);
   if (!thisWeeksCard().includes(action.race)) fail('That race is not on the card', action);

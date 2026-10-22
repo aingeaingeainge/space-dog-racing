@@ -195,7 +195,7 @@ export const STRIP: readonly EventCard[] = [
       { label: 'The dogs need it', apply: (ctx) => ctx.log('She runs off to try the next ship.') },
     ],
     // Double the shelf beats any leg, as long as there is Mash here to buy back for the dogs.
-    aiChoice: (ctx) => (ctx.s.planet.goods[STAPLE_ID].stock >= 10 ? 0 : 1),
+    aiChoice: (ctx) => (ctx.p.shelf[STAPLE_ID] >= 10 ? 0 : 1),
   },
   {
     id: 'taxMan',

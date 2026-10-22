@@ -154,7 +154,7 @@ export function playGame(seed: number, ai: AiAgent[], length: GameLength): GameO
   let guard = 0;
   while (!isSeasonOver(s) && guard++ < 2_000_000) {
     // The season's first look, once arrival has rolled the shelf (so the hold has a price).
-    if (s.phase === 'explore' && s.week === 1 && startedSeason !== s.season) {
+    if (s.phase === 'planetPre' && s.week === 1 && startedSeason !== s.season) {
       startedSeason = s.season;
       obs.start.push(s.players.map((p) => netWorth(s, p)));
       obs.ages.push(s.players.flatMap((p) => p.dogIds.map((id) => s.dogs[id]!.age)));
@@ -207,7 +207,7 @@ export function playGame(seed: number, ai: AiAgent[], length: GameLength): GameO
       reduceMut(s, { t: 'AdvancePhase' });
       continue;
     }
-    const who = s.pendingEvent?.playerId ?? s.activePlayer;
+    const who = s.activePlayer;
     if (!who) throw new Error(`Engine stalled in phase ${s.phase}`);
     const p = player(s, who);
     for (const a of decide(s, who, p.difficulty)) {

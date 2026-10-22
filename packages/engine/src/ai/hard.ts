@@ -13,7 +13,6 @@ import {
   hash01,
   otherFrontRunners,
   buyFeedPlan,
-  planetAhead,
   racingDogs,
   setStates,
   spendBox,
@@ -68,7 +67,7 @@ export function decideHard(s: GameState, playerId: Id): Action[] {
   // Explore (GDD_V3 §9.1): open a door, answer the card.
   const explore = exploreStep(s, playerId);
   if (explore) return explore;
-  if (s.activePlayer !== playerId) return [];
+  if (!mayAct(s, playerId)) return [];
 
   const plan = startPlan(s, playerId);
 
@@ -78,14 +77,15 @@ export function decideHard(s: GameState, playerId: Id): Action[] {
     // declarations and the book — which is most of why Phase A's `Hard beats Normal` row must be
     // treated as unmeasured rather than inherited.
     //
-    // Blackreach reverses the turn order, so arrive heavy and get first look at the market.
-    const fillHold = s.phase === 'planetPost' && !!planetAhead(s, 1)?.special.turnOrderReversed;
+    // ⚠️ It used to fill the hold before Blackreach, which reversed the turn order so the heaviest
+    // landed first. There is no turn order since Phase T (T1), and Blackreach doubles every shelf
+    // instead, so nothing is gained by arriving heavy.
     // Dinner first, as Normal: a trading leg sitting below the staple is never what the dogs eat.
     // ⚠️ v2's "feeds deeper than Normal" (three crates a stat, 70% of spare cash) is gone with the
     // stat feeds it bought; it was measured free rather than good (58.7% either way) and there is
     // nothing yet to buy deeper *of* until the diet lands.
     if (s.phase === 'planetPre') buyFeedPlan(plan);
-    tradeFoodPlan(plan, { fillHold });
+    tradeFoodPlan(plan);
     // ⚠️ **Declarations last, after the feed and the trade, and that is v2's order rather than an
     // accident.** It used to be `feedSupplements(plan, declareForThisWeek(plan))` — the supplement
     // decision needed to know who was running, so the declaration was made as its argument. The
@@ -241,6 +241,7 @@ const KELLY_SHARE = 0.25;
 const KELLY_MAX_FRACTION = 0.2;
 
 import { HARD_KNOBS } from './knobs';
+import { mayAct } from '../phases/turn';
 export { HARD_KNOBS };
 
 function placeBets(plan: Plan): void {

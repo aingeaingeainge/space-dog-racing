@@ -65,8 +65,9 @@ function play(setup: SeasonSetup, stop: (s: GameState) => boolean = () => false)
 const json = (x: unknown) => JSON.stringify(x);
 
 describe('PROTOCOL_VERSION', () => {
-  // 1 from L1 to the first deploy's freeze (v3l4) and v3p; 2 at v3q, where three rules moved.
-  it('is 2 since v3q', () => expect(PROTOCOL_VERSION).toBe(2));
+  // 1 from L1 to the first deploy's freeze (v3l4) and v3p; 2 at v3q, where three rules moved; 3 at
+  // v3t, where the weekend went simultaneous, the staff became three and the view changed shape.
+  it('is 3 since v3t', () => expect(PROTOCOL_VERSION).toBe(3));
 });
 
 describe('the stand-in: decide plays a human seat (ONLINE_PLAN §5.3)', () => {
@@ -229,28 +230,49 @@ const PLANTS: Plant[] = [
     shows: (v, a) => v.explore!.picks[a] === 2 && v.explore!.cards[a] === 'plantedCard',
   },
   {
-    row: 'explore.taken',
-    who: 'nobody',
-    plant: (s) => {
-      s.explore!.taken.push('plantedCard');
-    },
-    shows: (v) => v.explore!.taken.includes('plantedCard'),
-  },
-  {
-    row: 'pendingEvent (another stable’s)',
+    row: 'pendingEvents (another stable’s)',
     who: 'owner',
     plant: (s, a) => plantOffer(s, a),
-    shows: (v, a) => v.pendingEvent?.playerId === a,
+    shows: (v, a) => v.pendingEvents[a]?.playerId === a,
   },
   {
-    row: 'pendingEvent.params, pendingEvent.rng',
+    row: 'pendingEvents[seat].params, .rng',
     who: 'nobody',
     plant: (s, a) => plantOffer(s, a),
     twin: (s, a) => plantOffer(s, a, { speed: 49, stamina: 77, rng: 5 }),
     shows: (v) =>
-      !!v.pendingEvent &&
-      (v.pendingEvent.rng !== 0 ||
-        Object.keys(v.pendingEvent.params).some((k) => !['offerName', 'staffId'].includes(k))),
+      Object.values(v.pendingEvents).some(
+        (e) =>
+          e.rng !== 0 || Object.keys(e.params).some((k) => !['offerName', 'staffId'].includes(k)),
+      ),
+  },
+  {
+    // Phase T: the Race Office before the lock. The base is at the Bookie, so the plant and its twin
+    // both wind it back to the planet (that much is public) and differ only in a's Gold Cup runner.
+    row: 'declarations (another stable’s), before the lock',
+    who: 'owner',
+    plant: (s, a) => {
+      toPlanet(s);
+      s.declarations.goldCup[a] = player(s, a).dogIds[0]!;
+    },
+    twin: (s, a) => {
+      toPlanet(s);
+      s.declarations.goldCup[a] = player(s, a).dogIds[1]!;
+    },
+    shows: (v, a) => v.declarations.goldCup[a] === player(v, a).dogIds[0],
+  },
+  {
+    row: 'dogs[d].weekState (another stable’s), before the lock',
+    who: 'owner',
+    plant: (s, a) => {
+      toPlanet(s);
+      for (const id of player(s, a).dogIds) s.dogs[id]!.weekState = 'race';
+    },
+    twin: (s, a) => {
+      toPlanet(s);
+      for (const id of player(s, a).dogIds) s.dogs[id]!.weekState = 'rest';
+    },
+    shows: (v, a) => player(v, a).dogIds.every((id) => v.dogs[id]!.weekState === 'race'),
   },
   {
     row: 'players[].stats.liesTold',
@@ -337,7 +359,7 @@ const PLANTS: Plant[] = [
     who: 'owner',
     plant: (s, a) => {
       player(s, a).flags.tipOff = true;
-      player(s, a).flags.arriveFirstNextWeek = true;
+      player(s, a).flags.freshNextWeek = true;
     },
     shows: (v, a) => player(v, a).flags.tipOff,
   },
@@ -371,7 +393,7 @@ function plantOffer(
   alt: { speed?: number; stamina?: number; rng?: number; lie?: number } = {},
 ): void {
   const lie = alt.lie ?? 1;
-  s.pendingEvent = {
+  s.pendingEvents[a] = {
     playerId: a,
     eventId: poundCard,
     params: {
@@ -390,8 +412,15 @@ function plantOffer(
     detail: 'Planted Pup, age 3.',
     rng: alt.rng ?? 31337,
   };
-  if (alt.speed !== undefined) s.pendingEvent.params.speed = alt.speed;
+  if (alt.speed !== undefined) s.pendingEvents[a]!.params.speed = alt.speed;
   if (lie) player(s, a).stats.liesTold += 1;
+}
+
+/** Wind a base state at the Bookie back to the planet, before the lock (Phase T's sealed plants). */
+function toPlanet(s: GameState): void {
+  s.phase = 'planetPre';
+  s.locked = false;
+  s.fields = null;
 }
 
 /** A table mid-season: week 4, at the Bookie with the fields locked. */

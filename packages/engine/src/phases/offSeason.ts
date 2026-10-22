@@ -10,10 +10,10 @@ import { openOffSeasonDraft } from './draft';
  *
  * 1. **Every dog ages a year** — shown, not asked. This is where the age tick lives (§4.3), so a
  *    one-season game has no ageing at all.
- * 2. **The staff notice.** Each trainer has a `staffNoticeChance` of leaving for a better stable.
+ * 2. **The staff notice.** Each member of staff, of every role, has a `staffNoticeChance` of leaving.
  *    Public: the table reads it before the draft, so a stable left short is seen to be short.
  * 3. **One round of the draft** (V32), in reverse order of the season's standings, from a fresh board
- *    (`openOffSeasonDraft`): a dog (retiring one), a trainer (letting one go if the staff is full) or
+ *    (`openOffSeasonDraft`): a dog (retiring one), a member of staff (replacing that role's holder) or
  *    a pass.
  *
  * ⚠️ **Replaced at Phase N:** the retirement window's offer (E4), the candidate offered to a stable
@@ -41,7 +41,7 @@ export function openOffSeason(ctx: Ctx): void {
   );
   const notices: Record<Id, OffSeasonNotice> = {};
   const leavers: Id[] = [];
-  // 2. The staff notice: one draw for each trainer, on the stable's own stream.
+  // 2. The staff notice: one draw for each member of staff, in role order, on the stable's own stream.
   for (const p of s.players) {
     const r = streams.get(p.id)!;
     const left = p.staff.filter(() => r.chance(balance.staffNoticeChance));

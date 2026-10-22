@@ -218,7 +218,7 @@ export function startNextSeason(ctx: Ctx): void {
   s.locked = false;
   s.fields = null;
   s.races = null;
-  s.pendingEvent = null;
+  s.pendingEvents = {};
   s.offSeason = null;
   s.done = [];
   s.activePlayer = null;

@@ -67,6 +67,7 @@ import { decide } from '../src/ai';
 import { HARD_KNOBS } from '../src/ai/hard';
 import { hash01 } from '../src/ai/shared';
 import { isSeasonOver, needsAdvance, reduceMut } from '../src/reduce';
+import { hasExplored } from '../src/phases/planet';
 import { runGames } from './harness-game';
 import { runDraft } from './harness-draft';
 import { runDecisions } from './harness-decisions';
@@ -541,7 +542,7 @@ function playOut(
       reduceMut(s, { t: 'AdvancePhase' });
       continue;
     }
-    const who = s.pendingEvent?.playerId ?? s.activePlayer;
+    const who = s.activePlayer;
     if (!who) throw new Error(`Engine stalled in phase ${s.phase}`);
     const p = player(s, who);
     let actions = decide(s, who, p.difficulty);
@@ -591,12 +592,12 @@ export function runAutoplan(seasons = 200, seed = 1, sampleEvery = 4): string {
         reduceMut(s, { t: 'AdvancePhase' });
         continue;
       }
-      const who = s.pendingEvent?.playerId ?? s.activePlayer;
+      const who = s.activePlayer;
       if (!who) throw new Error(`Engine stalled in phase ${s.phase}`);
       const p = player(s, who);
       const actions = decide(s, who, p.difficulty);
 
-      if (s.phase === 'planetPre' && !s.pendingEvent) {
+      if (s.phase === 'planetPre' && hasExplored(s, who)) {
         const auto = planFrom(s, p, autoplanFor(s, p, soldThisPhase()));
         const own = planFrom(s, p, actions);
         weeks++;
@@ -710,7 +711,7 @@ export function playSeason(
   let shelfWeek = 0;
   while (!isSeasonOver(s) && guard++ < 200_000) {
     // The shelf as the planet posts it: the first look at a new week, before anybody has traded.
-    if (shelfWeek !== s.week && (s.phase === 'explore' || s.phase === 'planetPre')) {
+    if (shelfWeek !== s.week && s.phase === 'planetPre') {
       shelfWeek = s.week;
       for (const g of GOODS) {
         const list = sample.shelfAtArrival.get(g.id) ?? [];
@@ -800,7 +801,7 @@ export function playSeason(
       actions++;
       continue;
     }
-    const who = s.pendingEvent?.playerId ?? s.activePlayer;
+    const who = s.activePlayer;
     if (!who) throw new Error(`Engine stalled in phase ${s.phase}`);
     const p = player(s, who);
     if (p.kind === 'human') throw new Error('The harness plays AI stables only');
@@ -1856,11 +1857,7 @@ export function harvest(seasons: number, seed: number): HarvestedRace[] {
       }
       const actions: Action[] = needsAdvance(s)
         ? [{ t: 'AdvancePhase' }]
-        : decide(
-            s,
-            s.pendingEvent?.playerId ?? s.activePlayer!,
-            player(s, s.activePlayer!).difficulty,
-          );
+        : decide(s, s.activePlayer!, player(s, s.activePlayer!).difficulty);
       for (const a of actions) reduceMut(s, a);
       if (pending && s.races) {
         s.races.forEach((r, i) =>
@@ -2406,10 +2403,10 @@ function exploreSeason(
       }
       continue;
     }
-    const who = s.pendingEvent?.playerId ?? s.activePlayer!;
+    const who = s.activePlayer!;
     const p = player(s, who);
     let actions = decide(s, who, p.difficulty);
-    if (s.phase === 'explore' && who === poundSeat && !s.pendingEvent) {
+    if (s.phase === 'planetPre' && who === poundSeat && !hasExplored(s, who)) {
       const i = currentPlanet(s).exploreDoors.findIndex((d) => d.category === wantDoor);
       if (i >= 0) actions = [{ t: 'ChooseDoor', playerId: who, door: i }];
     }
@@ -2418,7 +2415,6 @@ function exploreSeason(
         const cat = currentPlanet(s).exploreDoors[a.door]!.category;
         bumpMap(out.doors, cat);
         const worth = netWorth(s, p);
-        const taken = s.explore!.taken.length;
         const jobsBefore = s.jobs.length;
         reduceMut(s, a);
         if (out.sab)
@@ -2441,7 +2437,6 @@ function exploreSeason(
           if (!seen) out.seen.set(who, (seen = new Set()));
           seen.add(id);
         }
-        void taken;
         continue;
       }
       if (a.t === 'TradeFood' && a.units < 0) {

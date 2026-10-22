@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   aiChoiceFor,
+  hasExplored,
+  staffRow,
+  STAFF_ROLES,
   balance,
   createSeason,
   decide,
@@ -182,11 +185,7 @@ function playChecked(seed: number, players: number): GameState {
   while (!isSeasonOver(s) && guard++ < 50_000) {
     const actions: Action[] = needsAdvance(s)
       ? [{ t: 'AdvancePhase' }]
-      : decide(
-          s,
-          s.pendingEvent?.playerId ?? s.activePlayer!,
-          player(s, s.activePlayer!).difficulty,
-        );
+      : decide(s, s.activePlayer!, player(s, s.activePlayer!).difficulty);
     for (const a of actions) {
       reduceMut(s, a);
       checkInvariants(s);
@@ -202,10 +201,13 @@ function playChecked(seed: number, players: number): GameState {
  * `while (s.pendingEvent) ResolveEvent(0)`, which could now mean "swap your first dog".
  */
 function explorePast(s: GameState): void {
+  // Phase T: every stable's door, in seating order, now that the door is the first thing in a
+  // weekend everybody plays at once rather than a phase of its own.
   let guard = 0;
-  while ((s.phase === 'explore' || s.pendingEvent) && guard++ < 20) {
-    const who = s.pendingEvent?.playerId ?? s.activePlayer!;
-    if (s.pendingEvent)
+  while (s.phase === 'planetPre' && guard++ < 40) {
+    const who = s.turnOrder.find((id) => s.pendingEvents[id] || !hasExplored(s, id));
+    if (!who) break;
+    if (s.pendingEvents[who])
       reduceMut(s, { t: 'ResolveEvent', playerId: who, choice: aiChoiceFor(s, who) });
     else reduceMut(s, { t: 'ChooseDoor', playerId: who, door: 0 });
   }
@@ -288,7 +290,10 @@ describe('engine invariants', () => {
     // **money** with the hold far from full — "cash binds early" — and at a 20-crate hold the same
     // walk runs out of *space* first (Ambrosia and Marrow alone fill it), so this line fails if the
     // hold is ever put back. The crossover to hold-bound later in the season is a harness row.
-    expect(stoppedOn).toBe('cash');
+    //
+    // ⚠️ Phase T: a stable's own shelf is a fifth of the posted depth (T2), so in week 1 it can run
+    // out of shelf — every good bought bare — before it runs out of money. Either way, never space.
+    expect(stoppedOn).not.toBe('hold');
     expect(cargoTotal(p.cargo)).toBeLessThan(HOLD_CAP);
   });
 
@@ -377,7 +382,7 @@ describe('running styles (GDD_V3 §5.4, §5.5)', () => {
         const lockedBefore = s.locked;
         const actions: Action[] = needsAdvance(s)
           ? [{ t: 'AdvancePhase' }]
-          : decide(s, s.pendingEvent?.playerId ?? s.activePlayer!, 'normal');
+          : decide(s, s.activePlayer!, 'normal');
         for (const a of actions) {
           reduceMut(s, a);
           for (const d of Object.values(s.dogs)) {
@@ -521,8 +526,11 @@ describe('Explore, the Pound, the tips and the local runner (GDD_V3 §4.4, §9; 
         );
       assert(new Set(c.tipped).size === c.tipped.length, 'a stable tipped twice about one dog');
     }
-    if (s.phase === 'explore') assert(s.activePlayer !== null || s.pendingEvent, 'Explore stalled');
-    if (s.explore && s.phase !== 'explore' && s.phase !== 'arrival')
+    // Phase T: a stable that has finished its weekend on the planet went through its door first, and
+    // once the planet is behind everybody, everybody did.
+    if (s.phase === 'planetPre')
+      for (const id of s.done) assert(hasExplored(s, id), `${id} finished without a door`);
+    if (s.explore && s.phase !== 'planetPre' && s.phase !== 'arrival')
       for (const p of s.players)
         assert(s.explore.picks[p.id] !== undefined, `${p.id} never opened a door`);
   }
@@ -539,7 +547,7 @@ describe('Explore, the Pound, the tips and the local runner (GDD_V3 §4.4, §9; 
       });
       let guard = 0;
       while (!isSeasonOver(s) && guard++ < 50_000) {
-        const who = s.pendingEvent?.playerId ?? s.activePlayer!;
+        const who = s.activePlayer!;
         const actions: Action[] = needsAdvance(s)
           ? [{ t: 'AdvancePhase' }]
           : decide(s, who, player(s, who).difficulty);
@@ -554,7 +562,9 @@ describe('Explore, the Pound, the tips and the local runner (GDD_V3 §4.4, §9; 
   }, 60_000);
 
   // ⚠️ Edited in Phase E1 (item 1): the loaner half of this test went with the free local runner.
-  it('refuses a second door and a door out of turn', () => {
+  // ⚠️ Rewritten in Phase T: "a door out of turn" is not a thing any more — both humans may open
+  // theirs whenever they like — so it checks the rules that replaced it.
+  it('refuses a second door, a door that is not there, and the planet before the door', () => {
     const s = drafted({
       seed: 11,
       players: [
@@ -563,13 +573,18 @@ describe('Explore, the Pound, the tips and the local runner (GDD_V3 §4.4, §9; 
       ],
     });
     reduceMut(s, { t: 'AdvancePhase' });
-    expect(s.phase).toBe('explore');
-    const first = s.activePlayer!;
-    const second = s.turnOrder.find((id) => id !== first)!;
-    expect(() => reduceMut(s, { t: 'ChooseDoor', playerId: second, door: 0 })).toThrow();
+    expect(s.phase).toBe('planetPre');
+    const first = s.turnOrder[0]!;
+    const second = s.turnOrder[1]!;
+    expect(() =>
+      reduceMut(s, { t: 'TradeFood', playerId: first, good: 'greyMash', units: 1 }),
+    ).toThrow(/door first/);
+    expect(() => reduceMut(s, { t: 'EndPhase', playerId: first })).toThrow(/door first/);
     expect(() => reduceMut(s, { t: 'ChooseDoor', playerId: first, door: 3 })).toThrow();
+    // The second stable goes first: nobody waits on anybody.
+    reduceMut(s, { t: 'ChooseDoor', playerId: second, door: 0 });
     reduceMut(s, { t: 'ChooseDoor', playerId: first, door: 1 });
-    if (s.pendingEvent)
+    if (s.pendingEvents[first])
       reduceMut(s, { t: 'ResolveEvent', playerId: first, choice: aiChoiceFor(s, first) });
     expect(() => reduceMut(s, { t: 'ChooseDoor', playerId: first, door: 0 })).toThrow();
   });
@@ -590,22 +605,29 @@ describe('Phase D2: staff, sabotage and the bought box', () => {
       })),
     });
   const step = (s: GameState) => {
-    const who = s.pendingEvent?.playerId ?? s.activePlayer!;
+    const who = s.activePlayer!;
     const actions: Action[] = needsAdvance(s)
       ? [{ t: 'AdvancePhase' }]
       : decide(s, who, player(s, who).difficulty);
     for (const a of actions) reduceMut(s, a);
   };
 
-  it('a stable never has more than two trainers, and commission comes only from purses', () => {
+  // ⚠️ Rewritten in Phase T (T2): three staff, one of each role, where it was two trainers.
+  it('a stable never has two of one role, and a trainer’s commission comes only from purses', () => {
     for (let seed = 400; seed < 410; seed++) {
       const s = table(seed, 3 + (seed % 6));
       let guard = 0;
       while (!isSeasonOver(s) && guard++ < 50_000) {
         step(s);
         for (const p of s.players) {
-          assert(p.staff.length <= balance.staffSlots, `${p.id} holds ${p.staff.length} trainers`);
-          assert(new Set(p.staff).size === p.staff.length, `${p.id} holds a trainer twice`);
+          const roles = p.staff.map((id) => staffRow(id).role);
+          assert(new Set(roles).size === roles.length, `${p.id} holds two of one role`);
+          assert(
+            roles.every(
+              (r, i) => i === 0 || STAFF_ROLES.indexOf(roles[i - 1]!) < STAFF_ROLES.indexOf(r),
+            ),
+            `${p.id}'s staff are out of role order`,
+          );
         }
         const all = s.players.flatMap((p) => p.staff);
         assert(new Set(all).size === all.length, 'two stables employ the same trainer');
@@ -689,7 +711,7 @@ describe('Phase E1: the game around the seasons (GDD_V3 §2.1, §2.2, §4.3)', (
   /** One step of an all-AI game: the actions the engine or the stable on the clock would take. */
   const step = (s: GameState): Action[] => {
     if (needsAdvance(s)) return [{ t: 'AdvancePhase' }];
-    const who = s.pendingEvent?.playerId ?? s.activePlayer!;
+    const who = s.activePlayer!;
     return decide(s, who, player(s, who).difficulty);
   };
 
@@ -728,10 +750,10 @@ describe('Phase E1: the game around the seasons (GDD_V3 §2.1, §2.2, §4.3)', (
     });
     let guard = 0;
     while (!(s.phase === 'offSeason' && s.activePlayer === 'p1') && guard++ < 100_000) {
-      const who = s.pendingEvent?.playerId ?? s.activePlayer;
+      const who = s.activePlayer;
       if (!needsAdvance(s) && who === 'p1') {
         // The human seat plays the week (and the opening draft) as Normal would.
-        if (s.pendingEvent)
+        if (s.pendingEvents[who])
           reduceMut(s, { t: 'ResolveEvent', playerId: who, choice: aiChoiceFor(s, who) });
         else for (const a of decide(s, who, 'normal')) reduceMut(s, a);
         continue;
@@ -820,7 +842,7 @@ describe('Phase E2: the fresh season, the archive’s moments and the Bookie in 
   }));
   const step = (s: GameState): Action[] => {
     if (needsAdvance(s)) return [{ t: 'AdvancePhase' }];
-    const who = s.pendingEvent?.playerId ?? s.activePlayer!;
+    const who = s.activePlayer!;
     return decide(s, who, player(s, who).difficulty);
   };
 
@@ -901,12 +923,12 @@ describe('Phase E2: the fresh season, the archive’s moments and the Bookie in 
         reduceMut(s, { t: 'EndPhase', playerId: s.activePlayer });
         continue;
       }
-      const who = s.pendingEvent?.playerId ?? s.activePlayer;
+      const who = s.activePlayer;
       if (!who || needsAdvance(s)) {
         reduceMut(s, { t: 'AdvancePhase' });
         continue;
       }
-      if (s.pendingEvent)
+      if (s.pendingEvents[who])
         reduceMut(s, { t: 'ResolveEvent', playerId: who, choice: aiChoiceFor(s, who) });
       else for (const a of decide(s, who, 'normal')) reduceMut(s, a);
     }
@@ -965,16 +987,20 @@ describe('Q3: the gossip trainer tells its stable one race-day tip a week, and o
           if (!free) break;
           s.players[0]!.staff = [free];
         }
-        const before = s.phase;
-        const who = s.pendingEvent?.playerId ?? s.activePlayer!;
+        const before = hasExplored(s, s.players[0]!.id);
+        const who = s.activePlayer!;
         const actions: Action[] = needsAdvance(s)
           ? [{ t: 'AdvancePhase' }]
           : decide(s, who, player(s, who).difficulty);
         for (const a of actions) reduceMut(s, a);
-        // The moment Explore ends and the market opens, the trainer has spoken.
-        if (given && before === 'explore' && s.phase === 'planetPre') {
+        // The moment the stable is through its door (Phase T: its own, not the table's), the
+        // Gambling Advisor has spoken.
+        if (given && !before && s.phase === 'planetPre' && hasExplored(s, s.players[0]!.id)) {
           const me = s.players[0]!.id;
-          const sound = s.conditions.filter((c) => s.dogs[c.dogId]);
+          // Phase T: rivals' dogs only — it is the Gambling Advisor's tip now.
+          const sound = s.conditions.filter(
+            (c) => s.dogs[c.dogId] && s.dogs[c.dogId]!.ownerId !== me,
+          );
           if (!sound.length) continue;
           const best = [...sound].sort(
             (a, b) =>
