@@ -24,7 +24,6 @@ import {
   refuseAct,
   seatColours,
   wholeOf,
-  type Queued,
 } from '../src/game';
 
 const setup = (humans: number, ais: number, seed = 7): SeasonSetup => ({
@@ -76,12 +75,20 @@ test('a browser may act only for its own seat, and never AdvancePhase', () => {
   assert.equal(refuseAct('p1', 'EndPhase'), 'Nothing to do');
 });
 
-test('a started room waits on a human at Explore, and the clock names them', () => {
+test('a started room has played its AIs and waits on every human at once, and the clock names them', () => {
   const { s } = started(2, 2);
-  assert.equal(s.phase, 'explore');
+  assert.equal(s.phase, 'planetPre');
   const who = waitingOn(s)!;
-  assert.deepEqual(clockOf(s), [who]);
   assert.equal(s.players.find((p) => p.id === who)!.kind, 'human');
+  // Phase T: both humans, together; the AIs have already finished.
+  assert.deepEqual(
+    clockOf(s),
+    s.players.filter((p) => p.kind === 'human').map((p) => p.id),
+  );
+  assert.deepEqual(
+    s.done,
+    s.players.filter((p) => p.kind === 'ai').map((p) => p.id),
+  );
 });
 
 test('the draft is in turn order: the clock names the one stable picking, and a pick out of turn is refused', () => {
@@ -105,48 +112,32 @@ test('the draft is in turn order: the clock names the one stable picking, and a 
   assert.ok(s.players.find((p) => p.id === on)!.dogIds.includes(dog));
 });
 
-test('a door from a seat not on the clock is held, and applied when its turn comes', () => {
+// ⚠️ Phase T (GDD_V3 T1): everybody plays the weekend at once, so the room holds nothing — the three
+// tests of the queue (a door held, a held door dropped, "Fly on" held) became these.
+test('every seat still at its weekend is on the clock, and a door from any of them applies at once', () => {
   const { s, log } = started(2, 1);
-  const first = waitingOn(s)!;
-  const other = s.players.find((p) => p.kind === 'human' && p.id !== first)!.id;
-  const door: Action = { t: 'ChooseDoor', playerId: other, door: 1 };
-  assert.equal(queueKind(s, other, door), 'door');
-  assert.equal(queueKind(s, first, { t: 'ChooseDoor', playerId: first, door: 0 }), null);
-  const queue = new Map<string, Queued>([[other, { kind: 'door', action: door, seq: 4 }]]);
-  const from = log.length;
-  // The seat on the clock answers; resolve any card, then the drive reaches the held door.
-  reduceMut(s, { t: 'ChooseDoor', playerId: first, door: 0 });
-  log.push({ t: 'ChooseDoor', playerId: first, door: 0 });
-  while (s.pendingEvent?.playerId === first) {
-    const a: Action = { t: 'ResolveEvent', playerId: first, choice: 0 };
+  assert.equal(s.phase, 'planetPre');
+  const humans = s.players.filter((p) => p.kind === 'human').map((p) => p.id);
+  // The AI played the moment the weekend opened; both humans are on the clock together.
+  assert.deepEqual(clockOf(s), humans);
+  const second = humans[1]!;
+  const door: Action = { t: 'ChooseDoor', playerId: second, door: 1 };
+  assert.equal(queueKind(s, second, door), null);
+  reduceMut(s, door);
+  log.push(door);
+  assert.equal(s.explore!.picks[second], 1);
+  while (s.pendingEvents[second]) {
+    const a: Action = { t: 'ResolveEvent', playerId: second, choice: 0 };
     reduceMut(s, a);
     log.push(a);
   }
-  const out = driveRoom(s, log, { standIn: new Set(), queue });
-  assert.equal(queue.size, 0);
-  assert.deepEqual(out.dropped, []);
-  assert.ok(log.slice(from).some((a) => a.t === 'ChooseDoor' && a.playerId === other));
-  assert.equal(s.explore!.picks[other], 1);
+  const end: Action = { t: 'EndPhase', playerId: second };
+  reduceMut(s, end);
+  log.push(end);
+  assert.deepEqual(clockOf(s), [humans[0]!]);
 });
 
-test('a held action the engine refuses when its turn comes is dropped, with its seq', () => {
-  const { s, log } = started(2, 1);
-  const first = waitingOn(s)!;
-  const other = s.players.find((p) => p.kind === 'human' && p.id !== first)!.id;
-  const queue = new Map<string, Queued>([
-    [other, { kind: 'door', action: { t: 'ChooseDoor', playerId: other, door: 5 }, seq: 9 }],
-  ]);
-  reduceMut(s, { t: 'ChooseDoor', playerId: first, door: 0 });
-  while (s.pendingEvent?.playerId === first)
-    reduceMut(s, { t: 'ResolveEvent', playerId: first, choice: 0 });
-  const out = driveRoom(s, log, { standIn: new Set(), queue });
-  assert.equal(out.dropped.length, 1);
-  assert.equal(out.dropped[0]!.seat, other);
-  assert.equal(out.dropped[0]!.seq, 9);
-  assert.equal(waitingOn(s), other, 'the seat is on the clock to choose again');
-});
-
-test('"Fly on" is held from a seat not on the clock after the races', () => {
+test('"Fly on" is never held: any seat still at it after the races may fly on', () => {
   const { s } = started(3, 0);
   // Play everybody as a Normal AI would, up to the first planetPost.
   while (s.phase !== 'planetPost') {
@@ -154,14 +145,11 @@ test('"Fly on" is held from a seat not on the clock after the races', () => {
     if (!who) reduceMut(s, { t: 'AdvancePhase' });
     else for (const a of decide(s, who, 'normal')) reduceMut(s, a);
   }
-  const on = waitingOn(s)!;
-  const off = s.turnOrder.find((id) => id !== on && !s.done.includes(id))!;
-  assert.equal(queueKind(s, off, { t: 'EndPhase', playerId: off }), 'flyOn');
-  assert.equal(queueKind(s, on, { t: 'EndPhase', playerId: on }), null);
-  assert.equal(
-    queueKind(s, off, { t: 'TradeFood', playerId: off, good: 'scrapmeat', units: 1 }),
-    null,
-  );
+  const last = s.turnOrder[s.turnOrder.length - 1]!;
+  assert.equal(queueKind(s, last, { t: 'EndPhase', playerId: last }), null);
+  assert.equal(clockOf(s).length, 3);
+  reduceMut(s, { t: 'EndPhase', playerId: last });
+  assert.ok(s.done.includes(last));
 });
 
 test('a stand-in plays a human seat through a season, and the log replays exactly', () => {

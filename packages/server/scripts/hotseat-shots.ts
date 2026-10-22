@@ -197,7 +197,7 @@ async function seen(loc: ReturnType<Page['locator']>): Promise<boolean> {
 async function toExplore(page: Page, arrival?: string): Promise<void> {
   await btn(page, 'Start season').first().click();
   // Phase N: the game opens on the draft; every human picks, an item and then "Take".
-  const turnOrder = page.getByText('Turn order').first();
+  const turnOrder = page.getByText('The table', { exact: true }).first();
   for (let i = 0; i < 400 && !(await seen(turnOrder)); i++)
     if (!(await draftStep(page))) await sleep(150);
   await turnOrder.waitFor();

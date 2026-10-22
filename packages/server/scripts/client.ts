@@ -131,7 +131,7 @@ export function planetTurn(s: GameState, p: Player): Action[] {
       const units = Math.min(
         HOLD_CAP - cargoTotal(p.cargo),
         dogs.length * 2,
-        s.planet.goods[STAPLE_ID].stock,
+        p.shelf[STAPLE_ID],
         Math.floor(Math.max(0, p.cash - 1500) / Math.max(1, s.planet.goods[STAPLE_ID].buy)),
       );
       if (units > 0) out.push({ t: 'TradeFood', playerId: p.id, good: STAPLE_ID, units });
@@ -368,7 +368,7 @@ export class Client {
     const queued = this.meta.queued[this.seat];
     let actions: Action[] | null = null;
     let early: 'door' | 'flyOn' | null = null;
-    if (s.pendingEvent && s.pendingEvent.playerId === this.seat) {
+    if (s.pendingEvents[this.seat]) {
       let choice = 0;
       try {
         choice = aiChoiceFor(s, this.seat);
@@ -376,13 +376,9 @@ export class Client {
         choice = 0;
       }
       actions = [{ t: 'ResolveEvent', playerId: this.seat, choice }];
-    } else if (s.phase === 'explore' && !(this.seat in (s.explore?.picks ?? {}))) {
-      const door: Action = { t: 'ChooseDoor', playerId: this.seat, door: s.week % 3 };
-      if (on) actions = [door];
-      else if (this.opts.early && !queued) {
-        actions = [door];
-        early = 'door';
-      }
+    } else if (s.phase === 'planetPre' && on && !(this.seat in (s.explore?.picks ?? {}))) {
+      // Phase T: the door is the first thing in a weekend everybody plays at once.
+      actions = [{ t: 'ChooseDoor', playerId: this.seat, door: s.week % 3 }];
     } else if (s.phase === 'planetPre' && on) {
       actions = planetTurn(s, me);
     } else if (s.phase === 'betting' && s.locked && !s.done.includes(this.seat)) {
@@ -541,28 +537,25 @@ export function summary(clients: Client[], label: string, rep: Replayed, t0: num
 }
 
 /**
- * Queued doors and "Fly on"s: every one sent was held (the client was told so), applied later with
- * nothing refused, and — since the engine takes a door and an `EndPhase` at `planetPost` only from
- * the seat on the clock — in turn order. The replay checks that order again, directly.
+ * Phase T (GDD_V3 T1): **nobody waits their turn.** The room holds nothing — no door, no "Fly on" —
+ * and the log shows doors opened and stables flying on in whatever order the browsers pressed, not
+ * the order the engine names (`activePlayer`). It replaced v3l3's "queued door and queued Fly on apply
+ * in turn order".
  */
 export function queueRow(clients: Client[], rep: Replayed, label: string): void {
   const sent = clients.flatMap((c) => c.queuedSent);
-  const doors = sent.filter((q) => q.kind === 'door').length;
-  const flyOns = sent.length - doors;
   const dropped = clients.flatMap((c) => c.dropped);
-  // Walk the log again: every ChooseDoor and every EndPhase at planetPost is from the seat on the clock.
   const s = createSeason(clients[0]!.ended!.setup);
-  let outOfTurn = 0;
+  let ahead = 0;
   for (const a of clients[0]!.ended!.log) {
-    if (a.t === 'ChooseDoor' && s.activePlayer !== a.playerId) outOfTurn++;
-    if (a.t === 'EndPhase' && s.phase === 'planetPost' && s.activePlayer !== a.playerId)
-      outOfTurn++;
+    if (a.t === 'ChooseDoor' && s.activePlayer !== a.playerId) ahead++;
+    if (a.t === 'EndPhase' && s.phase === 'planetPost' && s.activePlayer !== a.playerId) ahead++;
     reduceMut(s, a);
   }
   row(
-    `${label}: queued door and queued "Fly on" apply in turn order`,
-    doors > 0 && flyOns > 0 && dropped.length === 0 && outOfTurn === 0,
-    `${doors} doors and ${flyOns} "Fly on"s held and applied, ${dropped.length} dropped, ${outOfTurn} out of turn in ${rep.logRows} actions`,
+    `${label}: nobody waits their turn — doors and "Fly on" go in whatever order they are pressed`,
+    sent.length === 0 && dropped.length === 0 && ahead > 0,
+    `${sent.length} held, ${dropped.length} dropped, ${ahead} of ${rep.logRows} actions a door or a "Fly on" from a seat the engine was not naming`,
   );
 }
 

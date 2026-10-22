@@ -11,10 +11,10 @@
  *
  * - **A** makes a room from the Title's "Play online"; **B** joins by the link; **C** by the code;
  * - the host adds an AI, sets a race to 1 Bone (so the first weekend is the game), and starts;
- * - the game opens on the draft (Phase N): each browser takes its six picks when its turn comes,
+ * - the game opens on the draft (Phase N): each browser takes its seven picks when its turn comes,
  *   an item and then "Take", while the others watch;
- * - they play the weekend: a door each (B's early, so the room holds it), a declaration, a bet, the
- *   races, the results, "Fly on" (B's early again);
+ * - they play the weekend, all three at once (Phase T): a door each, a declaration, a bet, the
+ *   races, the results, "Fly on";
  * - B refreshes mid-sitting and comes back to the same screen; A nudges B and B's tab title flashes;
  * - the game's end, and the host's **Play again**: every browser follows to the new room;
  * - and a build **without** `VITE_ROOMS_URL` has no "Play online".
@@ -223,14 +223,9 @@ async function act(p: Seat): Promise<string | null> {
   }
   const doors = page.locator('.doors button.door:not([disabled])');
   if (await seen(page, doors)) {
-    if (waiting && !p.early) return null;
+    // Phase T: every browser opens its door at once — nothing is held, nobody waits.
     await doors.nth(1).click();
-    if (waiting) {
-      await page.locator('.notice.held').first().waitFor({ timeout: 5000 });
-      await once('held-door', () => shoot(page, '03-explore-held-door'));
-      return 'picked a door early (held)';
-    }
-    return 'picked a door';
+    return waiting ? 'picked a door while another was on the clock' : 'picked a door';
   }
   if (await seen(page, btn(page, /^(Head to the track|Next: Race Office)$/))) {
     if (!p.declared) {
@@ -259,10 +254,7 @@ async function act(p: Seat): Promise<string | null> {
     await btn(page, 'End turn').click();
     return 'ended the turn';
   }
-  if (waiting && (await seen(page, btn(page, 'Fly on'))) && p.early) {
-    await btn(page, 'Fly on').click();
-    return 'pressed Fly on early (held)';
-  }
+
   return null;
 }
 
@@ -478,15 +470,13 @@ async function walk(browser: Browser, base: string): Promise<void> {
   for (const p of table) p.page.setDefaultTimeout(30_000);
   for (const p of table) console.log(`  ${p.name}: ${p.log.join(' → ')}`);
   const all = table.flatMap((p) => p.log);
-  // B and C both pick early when they can: whichever is not first in the turn order is held.
-  const heldDoor = [B, C].filter((p) => p.log.includes('picked a door early (held)'));
-  const heldFly = [B, C].filter((p) => p.log.includes('pressed Fly on early (held)'));
-  // Phase N: the game opened on the draft, and each of the three picked its six in turn.
+  // Phase N: the game opened on the draft, and each of the three picked its seven in turn (Phase T:
+  // four dogs and one of each staff role).
   const drafted = table.map((p) => p.log.filter((x) => x === 'drafted').length);
   row(
-    'the draft opens the game: each browser takes its six picks in turn, two presses a pick',
-    drafted.every((n) => n === 6) &&
-      table.every((p) => p.log.filter((x) => x === 'pressed a draft item').length === 6),
+    'the draft opens the game: each browser takes its seven picks in turn, two presses a pick',
+    drafted.every((n) => n === 7) &&
+      table.every((p) => p.log.filter((x) => x === 'pressed a draft item').length === 7),
     `picks ${table.map((p, i) => `${p.name} ${drafted[i]}`).join(', ')}`,
   );
   row(
@@ -498,11 +488,10 @@ async function walk(browser: Browser, base: string): Promise<void> {
     `${all.length} presses`,
   );
   row(
-    'a held door and a held "Fly on" show as held, and land in turn order',
-    heldDoor.length > 0 &&
-      heldFly.length > 0 &&
-      all.filter((x) => x.startsWith('picked a door')).length === 3,
-    `doors held for ${heldDoor.map((p) => p.name).join(', ') || 'nobody'} ("Your door is chosen" shown); "Fly on" held for ${heldFly.map((p) => p.name).join(', ') || 'nobody'}; every stable reached the game's end, which needs every door and every "Fly on" applied`,
+    'nobody waits a turn: no screen says "held", and every door lands the moment it is pressed',
+    all.filter((x) => x.startsWith('picked a door')).length === 3 &&
+      !all.some((x) => x.includes('held')),
+    `${all.filter((x) => x.startsWith('picked a door')).length} doors; every stable reached the game's end`,
   );
   if (!refreshed) row('a refresh mid-sitting comes back to the same screen', false, 'never tried');
   if (!nudged) row('A nudges B: the tab title flashes', false, 'never tried');

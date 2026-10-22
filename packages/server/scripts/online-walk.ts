@@ -6,8 +6,8 @@
  *
  * Each client presses **only what its own view offers**, with `table-walk.ts`'s plain line: a door a
  * week, a crate of staple when short, the best three dogs declared, 100 on each favourite, and a
- * draft pick — the opening draft's and the off-season's — when its turn comes (Phase N). Some clients pick their door and press "Fly on" early, which the room holds
- * (§5.1).
+ * draft pick — the opening draft's and the off-season's — when its turn comes (Phase N). Since
+ * Phase T nobody waits a turn in a weekend, so nothing is held.
  *
  * **Leaks are scanned two ways, on every view a client ends up holding (patches applied):**
  * 1. *against the secret rows*: every `SEAT_SECRETS` row's redaction is run over the received view;
@@ -225,7 +225,9 @@ async function gameOne(wr: Wrangler): Promise<void> {
     );
   }
 
-  // The drop: Bex, on the clock at her first Market sitting after week 1, drops and rejoins.
+  // The drop: Bex, on the clock at her first weekend on a planet after week 1, drops and rejoins.
+  // Phase T: everybody plays the weekend at once, so the others may move the room on while she is
+  // away; she rejoins to the room as it is then, with her own unfinished weekend waiting.
   let dropDone = false;
   let dropDetail = '';
   let dropOk = false;
@@ -243,10 +245,12 @@ async function gameOne(wr: Wrangler): Promise<void> {
       const offline = a.meta!.online.includes(x.seat) === false;
       x.view = null;
       await x.connect({ token: x.token });
-      await until('Bex back', () => x.view !== null && x.rev === rev);
-      dropOk = x.seen.get(rev) === before && offline && x.fullViews >= 2;
+      await until('Bex back', () => x.view !== null && x.rev >= rev);
+      const same = x.rev > rev || x.seen.get(rev) === before;
+      const mine = x.view!.phase === 'planetPre' && !x.view!.done.includes(x.seat);
+      dropOk = same && offline && x.fullViews >= 2 && mine;
       x.paused = false;
-      dropDetail = `week ${s.week}, rev ${rev}: the table saw her go (${offline ? 'offline' : 'still online'}), and the whole view on rejoin is ${x.seen.get(rev) === before ? 'byte-identical' : 'DIFFERENT'}`;
+      dropDetail = `week ${s.week}, rev ${rev}: the table saw her go (${offline ? 'offline' : 'still online'}); she rejoined at rev ${x.rev} with a whole view${x.rev === rev ? (x.seen.get(rev) === before ? ', byte-identical' : ', DIFFERENT') : ''}, her weekend still ${mine ? 'waiting for her' : 'GONE'}`;
       x.maybeAct();
     })();
     return true;

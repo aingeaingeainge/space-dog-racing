@@ -8,6 +8,7 @@ import {
   decide,
   isSeasonOver,
   needsAdvance,
+  onTheClock,
   reduceMut,
   waitingOn,
   type Action,
@@ -17,36 +18,30 @@ import {
 import { MAX_ACTIONS } from './guard';
 
 /**
- * The phase taken in any order (E8): every stable not yet finished at the Bookie is on the clock at
- * once. ⚠️ The off-season was the other (L1a) until v3 Phase N made it one pick of a draft off a
- * shared board (V32): it is in turn order now, like the Market, and so is the opening draft — the
- * stable on the clock is the one picking, and a nudge reaches it.
+ * Who the table is waiting on (`meta.clock`): nobody while the system moves or once it is over.
+ *
+ * ⚠️ **Phase T (GDD_V3 T1): every part of a weekend is played at once** — the planet, the Bookie (as
+ * since E8) and after the races — so every stable not yet finished is on the clock together. Only the
+ * drafts are in turn order (Phase N): there the stable on the clock is the one picking.
  */
-function anyOrder(s: GameState): boolean {
-  return s.phase === 'betting' && s.locked;
-}
-
-/** Who the table is waiting on (`meta.clock`): nobody while the system moves or once it is over. */
 export function clockOf(s: GameState): Id[] {
-  if (isSeasonOver(s) || needsAdvance(s)) return [];
-  if (anyOrder(s)) return s.turnOrder.filter((id) => !s.done.includes(id));
-  const who = waitingOn(s);
-  return who ? [who] : [];
+  return onTheClock(s);
 }
 
 export type QueueKind = 'door' | 'flyOn';
 
 /**
- * Would the room **hold** this action rather than apply it (§5.1)? A door from a seat at Explore
- * that has not picked and is not on the clock, and the after-races "Fly on" (`EndPhase` at
- * `planetPost`) from a seat not on the clock and not yet flown. Anything else goes to the engine,
- * which refuses it or applies it.
+ * Would the room **hold** this action rather than apply it (§5.1)?
+ *
+ * ⚠️ **Never, since Phase T.** The room used to hold a door picked before its seat's turn at Explore
+ * and a "Fly on" pressed before its turn after the races. Everybody plays the weekend at once now, so
+ * no seat is ever waiting for its turn to do either: the engine takes the action at once. The queue's
+ * plumbing is kept (the room's storage, `meta.queued`) so that a change of mind is one line here.
  */
 export function queueKind(s: GameState, seat: Id, a: Action): QueueKind | null {
-  if (isSeasonOver(s) || waitingOn(s) === seat) return null;
-  if (a.t === 'ChooseDoor' && s.phase === 'explore' && s.explore && !(seat in s.explore.picks))
-    return 'door';
-  if (a.t === 'EndPhase' && s.phase === 'planetPost' && !s.done.includes(seat)) return 'flyOn';
+  void s;
+  void seat;
+  void a;
   return null;
 }
 
@@ -102,8 +97,16 @@ export function driveRoom(s: GameState, log: Action[], seats: DriveSeats): Drive
       appliedAll(s, [{ t: 'AdvancePhase' }], log);
       continue;
     }
-    const who = waitingOn(s);
-    if (!who) throw new Error(`Engine stalled in phase ${s.phase}`);
+    // Phase T: in a part of the weekend everybody plays at once, play every AI and every stood-in
+    // seat still at it, in seating order, before waiting on a human; in a draft, whoever picks.
+    const clock = onTheClock(s);
+    if (!clock.length) throw new Error(`Engine stalled in phase ${s.phase}`);
+    const who =
+      clock.find((id) => seats.queue.has(id)) ??
+      clock.find((id) => s.players.find((q) => q.id === id)?.kind === 'ai') ??
+      clock.find((id) => seats.standIn.has(id)) ??
+      waitingOn(s) ??
+      clock[0]!;
     const held = seats.queue.get(who);
     if (held) {
       seats.queue.delete(who);
