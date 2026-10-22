@@ -448,42 +448,6 @@ tr.fog td {
   );
 }
 
-/**
- * The one ladder (GDD 8.1, D11). Rough / Proper / Prime, shared by the goods, the staff and the
- * ship's engine, as a word AND as one to three chevrons -- so a market table scans without being
- * parsed. The colours climb the way the game's other ladders do: muted, accent, hazard gold.
- */
-.tier {
-  display: inline-block;
-  padding: 0 6px;
-  border-radius: 9px;
-  font-size: 11px;
-  letter-spacing: 0.02em;
-  white-space: nowrap;
-  border: 1px solid #4b4560;
-  color: var(--muted);
-}
-.tier .chev {
-  font-weight: 700;
-  letter-spacing: -0.08em;
-  margin-right: 3px;
-}
-.tier-rough {
-  border-color: #4b4560;
-  color: var(--muted);
-}
-.tier-proper {
-  border-color: var(--accent-1);
-  color: var(--accent-1-text);
-  background: var(--accent-1-soft);
-}
-.tier-prime {
-  border-color: var(--hazard);
-  color: var(--hazard);
-  background: rgba(244, 197, 66, 0.12);
-  text-shadow: 0 0 6px rgba(244, 197, 66, 0.35);
-}
-
 /* ---------------------------------------------------------------- badges, bars, atoms */
 .badge {
   display: inline-block;
@@ -1348,79 +1312,150 @@ ul.notes li::before {
   border-radius: 2px;
 }
 
-/* Six hotspots, positioned per planet from data. */
+/*
+ * The venues on the painted planet, positioned per planet from data (lib/hotspots.ts). Each is one
+ * lit sign: an icon tile on the left, the venue's name and what is in it this week beside it, wide
+ * and low so it sits *on* the pad, stall board or plate the backdrop paints at that spot rather than
+ * standing on it as a second frame. A venue worth a walk glows in the planet's accent; a shut one
+ * goes dark and dashed and says why (M1 note 2: "a vanished button teaches nothing").
+ */
 .hotspot {
   position: absolute;
   z-index: 4;
   transform: translate(-50%, -50%);
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: auto auto;
+  grid-template-rows: auto auto;
+  column-gap: 8px;
   align-items: center;
-  gap: 2px;
-  min-width: 92px;
-  padding: 6px 11px;
-  font-size: clamp(11px, 1.15vw, 13px);
-  line-height: 1.2;
-  text-align: center;
+  justify-items: start;
+  max-width: 26%;
+  padding: 5px 12px 5px 5px;
+  font-size: clamp(11px, 1.1vw, 13px);
+  line-height: 1.15;
+  text-align: left;
   color: var(--text);
-  background: rgba(12, 11, 17, 0.76);
-  border: 2px solid var(--accent-1);
-  border-radius: 3px;
+  background: linear-gradient(180deg, rgba(38, 36, 51, 0.94), rgba(12, 11, 17, 0.94));
+  border: 2px solid var(--edge-lit);
+  border-radius: 4px;
   box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
     0 3px 0 var(--ink),
-    0 0 16px var(--accent-1-glow);
-  white-space: normal;
+    0 6px 14px rgba(0, 0, 0, 0.5);
+  white-space: nowrap;
+  transition:
+    transform 0.12s ease,
+    box-shadow 0.12s ease,
+    border-color 0.12s ease;
 }
 .hotspot .icon {
-  font-size: 17px;
+  grid-row: 1 / span 2;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  font-size: 16px;
   line-height: 1;
-  filter: drop-shadow(0 0 6px var(--accent-1-glow));
+  background: var(--ink);
+  border: 1px solid var(--edge);
+  border-radius: 3px;
 }
 .hotspot .icon img {
   display: block;
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
   object-fit: contain;
 }
 .hotspot .lab {
   font-family: var(--font-display);
+  font-size: 1.08em;
   letter-spacing: 0.04em;
+  line-height: 1.1;
+}
+/* No status line: the name sits in the middle of the plate. */
+.hotspot .lab:last-child {
+  grid-row: 1 / span 2;
 }
 .hotspot .why {
   font-size: 10px;
+  line-height: 1.2;
   color: var(--pink);
-  max-width: 15ch;
+  max-width: 20ch;
+  white-space: normal;
+}
+.hotspot .why.open {
+  color: var(--muted);
+}
+.hotspot .why.open.lit {
+  color: var(--accent-1-text);
+}
+/* Something in there this week: the sign is lit. */
+.hotspot.worth {
+  border-color: var(--accent-1);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 3px 0 var(--ink),
+    0 0 22px var(--accent-1-glow);
+}
+.hotspot.worth .icon {
+  background: var(--accent-1-deep);
+  border-color: var(--accent-1-line);
+  box-shadow: 0 0 10px var(--accent-1-glow);
 }
 .hotspot:hover:not(:disabled) {
   color: #fff;
   border-color: var(--accent-1);
-  transform: translate(-50%, -50%) scale(1.06);
+  transform: translate(-50%, -50%) translateY(-2px);
   box-shadow:
-    0 3px 0 var(--ink),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    0 5px 0 var(--ink),
     0 0 28px var(--accent-1-glow);
 }
 .hotspot:active:not(:disabled) {
-  transform: translate(-50%, -50%) translateY(2px) scale(1.02);
+  transform: translate(-50%, -50%) translateY(1px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 1px 0 var(--ink);
 }
 .hotspot:disabled {
   color: var(--dim);
+  background: rgba(12, 11, 17, 0.86);
   border-color: #4b4560;
   border-style: dashed;
-  background: rgba(12, 11, 17, 0.82);
   box-shadow: 0 3px 0 var(--ink);
   cursor: not-allowed;
 }
 .hotspot:disabled .icon {
-  filter: grayscale(1) opacity(0.55);
+  filter: grayscale(1) opacity(0.5);
 }
-
-.venues {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+/* A stand-in backdrop is held back so the hotspots stay readable over its label; a finished one is
+   shown at full strength. */
+.hub-backdrop.ph.on {
+  opacity: 0.4;
 }
-.venues button {
-  min-width: 118px;
+@media (max-width: 760px) {
+  /* A phone: the name only, on a small plate. The status line is still in the tooltip and on the
+     venue's own screen. */
+  .hotspot {
+    column-gap: 5px;
+    padding: 3px 7px 3px 3px;
+    font-size: 10px;
+  }
+  .hotspot .icon {
+    width: 20px;
+    height: 20px;
+    font-size: 12px;
+  }
+  .hotspot .icon img {
+    width: 15px;
+    height: 15px;
+  }
+  .hotspot .why {
+    display: none;
+  }
+  .hotspot .lab {
+    grid-row: 1 / span 2;
+  }
 }
 
 /* ---------------------------------------------------------------- modal */
@@ -1783,18 +1818,6 @@ ul.notes li::before {
     min-height: 0;
     max-height: 54vh;
   }
-  .hotspot {
-    min-width: 0;
-    padding: 4px 7px;
-    font-size: 10px;
-    gap: 0;
-  }
-  .hotspot .icon {
-    font-size: 14px;
-  }
-  .hotspot .why {
-    display: none;
-  }
   .hub-title {
     max-width: 74%;
     padding: 5px 9px;
@@ -1863,31 +1886,6 @@ ul.notes li::before {
   }
 }
 
-/* ---------------------------------------------------------------- hub venue list */
-.hotspot .why.open {
-  color: var(--muted);
-  max-width: 17ch;
-}
-.venue-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  gap: 7px 16px;
-}
-.venue-line {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 12px;
-  padding: 3px 0;
-  border-bottom: 1px dashed #2f2b3c;
-}
-.venue-line > button {
-  flex: 0 0 auto;
-  min-width: 112px;
-}
-.venue-line .shut {
-  color: var(--dim);
-}
 h3.section {
   margin: 18px 0 10px;
   font-size: 12px;
@@ -1931,9 +1929,6 @@ h3.section {
 }
 .flush {
   margin: 0;
-}
-.flush-t {
-  margin-top: 0;
 }
 .flush-b {
   margin-bottom: 0;
@@ -1986,32 +1981,6 @@ dl.kv > div {
   margin: 0 auto;
 }
 
-/* ---------------------------------------------------------------- hub refinements */
-/* A stand-in backdrop is held back so the hotspots stay readable over its label; a finished
-   one is shown at full strength. */
-.hub-backdrop.ph.on {
-  opacity: 0.4;
-}
-.hotspot {
-  max-width: 26%;
-}
-.hotspot.worth {
-  border-color: var(--accent-1);
-  box-shadow:
-    0 3px 0 var(--ink),
-    0 0 22px var(--accent-1-glow);
-}
-.hotspot:not(.worth):not(:disabled) {
-  border-color: var(--edge-lit);
-  box-shadow: 0 3px 0 var(--ink);
-}
-.hotspot .why.open {
-  color: var(--muted);
-  max-width: 17ch;
-}
-.hotspot .why.open.lit {
-  color: var(--accent-1-text);
-}
 /* The betting slip sits inside a ticket, where a heavy drop shadow would smother the small
    print underneath it. */
 .ticket .slip {
