@@ -3,7 +3,7 @@
 > **Status: CURRENT.** Build from this document.
 >
 > Canonical copy: `design/BUILD_PLAN_V3.md` in the `space-dog-racing` repo. A copy in a claude.ai
-> Project is a **mirror**, last synced 20 October 2026 (at `v3r`) — edit the repo, never the mirror. See
+> Project is a **mirror**, last synced 22 October 2026 (at `v3s`) — edit the repo, never the mirror. See
 > `design/CANON.md`.
 >
 > Supersedes `design/BUILD_PLAN.md` from §6 onward. **That document's §§1–5 — architecture, tech
@@ -660,6 +660,16 @@ screen text and `SAVE_VERSION` 13; GDD_V3 §2.2, §10, §11 and V23.
 > their races, which makes the Race Office a decision for Normal (§14 Q15). **No rule moved**; no
 > `STATE_VERSION`, `SAVE_VERSION` or `PROTOCOL_VERSION`; both goldens moved once, for R1, alone.
 > **Pushing does not end live rooms.** Notes: `claude/V3_PHASE_R_NOTES.md`.
+>
+> **Phase S** `v3s` ✅ (22 October 2026, not an L phase, on "can you improve the look of the game /
+> graphics, tidy things up"): **the look.** The hub's venues are one lit sign on the pads the backdrops
+> paint; the tickets' writing is clear of the perforation and the Race Office stub reads; race day's
+> scenery is sharp when the camera closes in, and on an upright phone the race is turned to run up the
+> screen (GDD_V3 S1); the Title opens on Collar Prime with the pack running under the nameplate (S2);
+> the paying places wear their medals; the top bar's cash is a chip; on a phone the venue tabs scroll in
+> one row with the next step full width under them; app.css lost its dead rules and its scattered
+> hotspot blocks. **No rule moved**: no golden, `STATE_VERSION`, `SAVE_VERSION` or `PROTOCOL_VERSION`.
+> **Pushing does not end live rooms.** Notes: `claude/V3_PHASE_S_NOTES.md`.
 
 ---
 

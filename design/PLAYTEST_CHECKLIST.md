@@ -1,8 +1,8 @@
 # Space Dog Racing — playtest checklist
 
 > **Status: CURRENT (the top section).** Canonical copy: `design/PLAYTEST_CHECKLIST.md` in the
-> `space-dog-racing` repo. A copy in a claude.ai Project is a **mirror**, last synced 20 October
-> 2026 (at `v3r`), for reading on a phone at the table — edit the repo, never the mirror. See
+> `space-dog-racing` repo. A copy in a claude.ai Project is a **mirror**, last synced 22 October
+> 2026 (at `v3s`), for reading on a phone at the table — edit the repo, never the mirror. See
 > `design/CANON.md`.
 
 > **Current section: "v3 Phase J — the evening", directly below.** It is one plan for one evening with
@@ -16,7 +16,8 @@
 > for Jesse to keep or revert** (GDD_V3 Q1–Q3): rows 34–36 and questions 1.14, 2.9 and A.7 ask whether
 > anybody noticed each one, and whether it was better. **At `v3r` the game got its sound and its rings
 > on the track, and the AIs' race pricing moved** (GDD_V3 R1–R3): rows 37–39 and questions 1.15, 2.10
-> and A.8. Below both, kept as the record:
+> and A.8. **At `v3s` the look was polished** (GDD_V3 S1–S2): row 40 and question 1.16. Below both,
+> kept as the record:
 > **"v3 Phase E2 — the table"** (the `v3e2` checklist, superseded by this one; nothing in it was
 > answered) and **v1's checklist (milestone M1)**, whose venues no longer exist.
 
@@ -74,6 +75,7 @@ remember anything: the report carries it.
 | 37 | **The sound** (`v3r`): the track, the till, the door. Did the table keep it on? | `v3r`, GDD_V3 R2 | Game 1, question 1.15 |
 | 38 | **The rings** (`v3r`): could every human find their own dog in a race? | `v3r`, GDD_V3 R3 | Game 2, question 2.10 |
 | 39 | 🎲 **R1: the AIs price places and fitness when they pick their races.** Did the Normal AIs feel any tougher? | `v3r`, GDD_V3 R1 | After, question A.8 |
+| 40 | **The look** (`v3s`): the Title's opening, the hub's signs, the medals, and on a phone the race turned to run up the screen. Did anything read worse than before? | `v3s`, GDD_V3 S1–S2 | Game 1, question 1.16 |
 
 **Closed before the evening, not asked again:** `v3f2`'s cards (Jesse, at `v3g`: "great", nothing
 unfinished); `v3f1` Q5 (the cards were drawn at `v3f2`); `v3d2` Q5's plan-the-week press (folded into
@@ -131,6 +133,7 @@ game answers 1.2 before anybody explains the market.
 | 1.13 | **A newcomer, without help:** did they find the next thing to press? (`v3p`) | Yes, the big button and the tips did it · Mostly, they asked once · No, they needed it explained |
 | 1.14 | **Q2: the draft order.** Round 3 runs the way round 2 did. Did anyone notice, and did it feel fairer? | Noticed, and fairer · Noticed, no different · Nobody noticed · It confused someone |
 | 1.15 | **The sound** (`v3r`; the switch is in the top bar, key V) | Kept on, it adds to it · Kept on, didn't notice it · Muted it: annoying (what?) · Muted it: the room was loud |
+| 1.16 | **The look** (`v3s`): the Title, the hub's venue signs, the race tickets and medals; anyone on a phone, the race running up the screen | Better, nothing wrong · Better, but one thing reads worse (what?) · No different · Worse |
 
 ### Game 2 — the long one (about 80 minutes)
 

@@ -3,7 +3,7 @@
 > **Status: CURRENT.** Build from this document.
 >
 > Canonical copy: `design/GDD_V3.md` in the `space-dog-racing` repo. A copy in a claude.ai Project
-> is a **mirror**, last synced 20 October 2026 (at `v3r`) — edit the repo, never the mirror. See `design/CANON.md`.
+> is a **mirror**, last synced 22 October 2026 (at `v3s`) — edit the repo, never the mirror. See `design/CANON.md`.
 >
 > Supersedes `design/GDD.md` (v2, shipped at tag `v2e`), which is kept as historical reference and
 > is cited by name throughout this document.
@@ -1282,6 +1282,8 @@ All 18 planets survive as data. What changes is which fields do work:
 | 2026-10-20 | **R1 — the AIs price a race the way the book does: places by Harville, and fitness at a point for five** | **Claude's call at `v3r`, unattended; Jesse to keep or revert.** §14 Q15. `expectedPurse` priced second and third as p × 1.2 and p × 1.1 (a favourite at p = 0.5 was second for certain and never third) and ignored fitness, which Q1 had found the biggest thing on the card. Now Harville (`placeProbabilities`, as the book's place prices) and `fitnessEdge` on its own runner and every declared rival. `--decisions`, 1,200 games: "Normal's runners, best-rated in the Gold" against Normal's own assignment **+1,556 (± 483) → −388 (± 477)** (Harville alone +633). 800 mixed seasons: Normal beats Easy 98.0 → 98.3%, Hard beats Normal 57.8 → 56.8%. AI only: no rule, and no `STATE_VERSION`, `SAVE_VERSION` or `PROTOCOL_VERSION` (a save is its log, AI actions included). **Revert:** `git revert` the goldens commit and the two before it |
 | 2026-10-20 | **R2 — the game has sound, synthesised, on by default, one switch** | **Claude's call at `v3r`, unattended.** The game was silent, and Death Rally is not. Web Audio only (no asset, `asset-check` unmoved); a browser preference, never in a save or a seed link; silent wherever there is no `AudioContext`. UI only |
 | 2026-10-20 | **R3 — the humans' dogs are ringed on the track** | **Claude's call at `v3r`, unattended.** §7.5. Yours alone or online; every human's, by stable name, at a hotseat table. Paint over the frame: the camera and the tick log are untouched (`race-view-check` unchanged). UI only |
+| 2026-10-22 | **S1 — on an upright phone the race is turned a quarter, to run up the screen** | **Claude's call at `v3s`, on Jesse's "improve the look of the game, tidy things up".** §7.5. A picture a third taller than it is wide lays the track's long axis along the tall side, so the field is drawn about twice the size (a dog about 14 px long before and 30 px after, at 390 × 844). The camera alone: the tick log, the finish, the rings and the out-of-shot arrows read the same (`race-view-check` unchanged). A laptop and a landscape phone are exactly as at `v3r`. UI only |
+| 2026-10-22 | **S2 — the Title opens on Collar Prime with the pack running under the nameplate** | **Claude's call at `v3s`.** Collar Prime is where every season ends. The runners are the race view's own run cycles in the first six stable colours, moving on sine waves: nothing random, nothing read from a game, one still frame under reduced motion. UI only |
 ---
 
 ## 14. Open questions ❓
