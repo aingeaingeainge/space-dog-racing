@@ -85,7 +85,7 @@ export function planetTurn(s: GameState, p: Player): Action[] {
       const units = Math.min(
         HOLD_CAP - cargoTotal(p.cargo),
         dogs.length * 2,
-        s.planet.goods[STAPLE_ID].stock,
+        p.shelf[STAPLE_ID],
         Math.floor(Math.max(0, p.cash - 1500) / Math.max(1, s.planet.goods[STAPLE_ID].buy)),
       );
       if (units > 0) out.push({ t: 'TradeFood', playerId: p.id, good: STAPLE_ID, units });
@@ -298,7 +298,7 @@ export function walkTable(
         send(me.id, bettingTurn(state, me));
         continue;
       default:
-        if (state.pendingEvent && state.pendingEvent.playerId === me.id) {
+        if (state.pendingEvents[me.id]) {
           send(me.id, [{ t: 'ResolveEvent', playerId: me.id, choice: aiChoiceFor(state, me.id) }]);
           continue;
         }

@@ -24,6 +24,7 @@ import {
   waitingOn,
   type Action,
   type RaceResult,
+  hasExplored,
 } from '@sdr/engine';
 import { buildCommentary, type CommentaryKind } from '../src/race-view/commentary';
 import { sampleAt } from '../src/race-view/renderer';
@@ -164,13 +165,9 @@ function playSeason(seed: number): { races: number; lines: number; photos: numbe
     if (!who) break;
     // v3 Phase D1: a week opens on Explore (GDD_V3 §9.1) — the human opens the first door and
     // answers the card as the Normal AI would.
-    if (state.pendingEvent)
-      reduceMut(state, {
-        t: 'ResolveEvent',
-        playerId: state.pendingEvent.playerId,
-        choice: aiChoiceFor(state, state.pendingEvent.playerId),
-      });
-    else if (state.phase === 'explore')
+    if (state.pendingEvents[who])
+      reduceMut(state, { t: 'ResolveEvent', playerId: who, choice: aiChoiceFor(state, who) });
+    else if (state.phase === 'planetPre' && !hasExplored(state, who))
       reduceMut(state, { t: 'ChooseDoor', playerId: who, door: 0 });
     // Phase N: the game opens on the draft — the human picks as Normal would.
     else if (state.phase === 'draft')

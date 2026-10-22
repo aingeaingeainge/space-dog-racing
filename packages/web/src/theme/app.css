@@ -2601,6 +2601,35 @@ table.market tr.held td:first-child {
   padding-left: 18px;
   font-size: 13px;
 }
+/* Phase T: three roles, each with its own stripe down the card's left edge. */
+.staffcard.role-trainer {
+  border-left: 6px solid var(--role-trainer, #e0a64a);
+}
+.staffcard.role-trade {
+  border-left: 6px solid var(--role-trade, #6fcf97);
+}
+.staffcard.role-gambling {
+  border-left: 6px solid var(--role-gambling, #c77dff);
+}
+.staffcard.empty {
+  opacity: 0.75;
+  border-style: dashed;
+}
+.staffcard-role {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.8;
+}
+.staffcard.role-trainer .staffcard-role {
+  color: var(--role-trainer, #e0a64a);
+}
+.staffcard.role-trade .staffcard-role {
+  color: var(--role-trade, #6fcf97);
+}
+.staffcard.role-gambling .staffcard-role {
+  color: var(--role-gambling, #c77dff);
+}
 
 /* Phase I: a human picks their face on the Title. */
 .face-pick {

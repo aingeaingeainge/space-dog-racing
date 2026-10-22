@@ -113,7 +113,10 @@ export function venueStatus(s: GameState, me: Player): Record<VenueId, VenueStat
           worth: true,
         }
       : nothing(
-          `All ${declaredMine} declared · ${TRAPS - declaredCount(s, HEADLINE_TYPE_ID)} locals in the ${raceLabel(HEADLINE_TYPE_ID)}`,
+          // Phase T: the field is sealed until everybody is done, so there is no count to give.
+          declaredCount(s, HEADLINE_TYPE_ID) === null
+            ? `All ${declaredMine} declared · sealed until everybody is done`
+            : `All ${declaredMine} declared · ${TRAPS - declaredCount(s, HEADLINE_TYPE_ID)!} locals in the ${raceLabel(HEADLINE_TYPE_ID)}`,
           `${declaredMine} declared`,
         );
 

@@ -261,7 +261,7 @@ export function App() {
           </>
         )}
       </div>
-      {s.pendingEvent ? <EventModal s={s} /> : null}
+      {s.pendingEvents[me.id] ? <EventModal s={s} meId={me.id} /> : null}
       {leaderboard ? <LeaderboardOverlay s={s} meId={me.id} /> : null}
     </>,
   );

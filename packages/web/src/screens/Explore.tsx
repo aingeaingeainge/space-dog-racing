@@ -28,44 +28,21 @@ export const DOOR_KIND: Record<DoorCategory, { label: string; offers: string }> 
 export function Explore({ s, me }: { s: GameState; me: Player }) {
   const dispatch = useGame((g) => g.dispatch);
   const planet = planetOf(s.planet.planetId);
-  // Online (v3l3, §5.1): a door can be picked before this stable's turn. The room holds it, and
-  // the card comes when the turn does; until then the doors stay up and say so.
-  const early = useGame(
-    (g) => g.source === 'online' && !!g.meta && !g.meta.clock.seats.includes(me.id),
-  );
-  const held = useGame((g) => g.source === 'online' && g.meta?.queued[me.id] === 'door');
-  const go = (door: number) => {
-    if (!held) dispatch({ t: 'ChooseDoor', playerId: me.id, door });
-  };
+  // Phase T: everybody opens their door at once, so there is no turn to wait for and nothing for the
+  // room to hold — the card behind the door comes the moment it opens.
+  const go = (door: number) => dispatch({ t: 'ChooseDoor', playerId: me.id, door });
   useKeys({ '1': () => go(0), '2': () => go(1), '3': () => go(2) });
 
   return (
     <>
       <LastSlips s={s} me={me} />
-      {held ? (
-        <div className="notice held">
-          <b>Your door is chosen</b>, and you will see what is behind it when your turn comes.
-        </div>
-      ) : early ? (
-        <div className="notice">
-          It is not your turn at the doors yet. Pick one now and it is kept for you: where two
-          stables want the same one-of-a-kind card, the first in the turn order still gets it.
-        </div>
-      ) : null}
-      {!held && !early ? (
-        <Guide id="explore">Pick a door. Whatever is behind it is yours alone.</Guide>
-      ) : null}
+      <Guide id="explore">Pick a door. Whatever is behind it is yours alone.</Guide>
       <Panel title={`Explore ${planet.name}`} sub="pick one door">
         <div className="doors">
           {planet.exploreDoors.map((d, i) => {
             const art = doorArt(planet.id, d.category);
             return (
-              <button
-                key={d.category}
-                className={`door door-${d.category}`}
-                disabled={held}
-                onClick={() => go(i)}
-              >
+              <button key={d.category} className={`door door-${d.category}`} onClick={() => go(i)}>
                 <span className="door-art">
                   {art ? <img src={art.url} alt="" decoding="async" /> : null}
                   {!art || art.placeholder ? <span className="ph">placeholder</span> : null}
@@ -85,7 +62,7 @@ export function Explore({ s, me }: { s: GameState; me: Player }) {
         <More label="What the doors are">
           <Notes
             lines={[
-              'Everything unpredictable in the game comes through a door: dogs, tips, money, trouble. Every stable picks one, privately; where two want the same one-of-a-kind thing, the first in the turn order gets it.',
+              'Everything unpredictable in the game comes through a door: dogs, tips, money, trouble, people looking for work. Every stable picks one, privately and at the same time, and what is behind it is drawn for that stable alone.',
             ]}
           />
         </More>

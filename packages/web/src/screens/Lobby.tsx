@@ -430,7 +430,7 @@ function TheTable() {
         )}
         <Notes
           lines={[
-            'Each stable plays on its own screen: no passing, no looking away. The shelf and the declarations still go in turn order, so the screen says who everybody is waiting on.',
+            'Each stable plays on its own screen: no passing, no looking away, and nobody waits their turn — everybody plays the weekend at once. Only the draft goes round the table, and the screen says who it is waiting on.',
             'Close the tab and your seat waits for you: the link brings you straight back.',
           ]}
         />

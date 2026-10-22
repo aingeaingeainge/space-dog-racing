@@ -59,17 +59,16 @@ export function Arrival({ s, me }: { s: GameState; me: Player }) {
           Week {s.week} of {s.calendar.length}
         </p>
       </div>
-      {/* Phase P: the order, and the arithmetic behind it one press away. */}
-      <Panel title="Turn order">
+      {/* Phase T: no turn order — the table, and how a weekend everybody plays at once works. */}
+      <Panel title="The table">
         <div className="table-wrap">
           <table>
             <tbody>
-              {s.turnOrder.map((id, i) => {
+              {s.turnOrder.map((id) => {
                 const p = playerById(s, id);
                 if (!p) return null;
                 return (
                   <tr key={id}>
-                    <td>{i + 1}</td>
                     <td>
                       <StableName player={p} />
                     </td>
@@ -80,11 +79,12 @@ export function Arrival({ s, me }: { s: GameState; me: Player }) {
           </table>
         </div>
         {rules.length ? <Notes lines={rules} /> : null}
-        <More label="How the turn order is drawn">
-          <p className="flush">Highest score goes first: empty hold space and a d10.</p>
-          <Notes
-            lines={s.turnOrder.map((id) => `${playerById(s, id)?.name}: ${s.turnOrderReason[id]}`)}
-          />
+        <More label="How the weekend works">
+          <p className="flush">
+            Everybody plays the weekend at once: a door, your own market, the kennels and the Race
+            Office, in any order. Your shelf is your own, and your entries are sealed until the last
+            stable is done — then the whole card goes up together and the Bookie opens.
+          </p>
         </More>
       </Panel>
       <Notes lines={[passReason(s)]} />
@@ -122,7 +122,7 @@ export function AfterRaces({ s, me }: { s: GameState; me: Player }) {
     <div className="app">
       <Panel
         title="After the races"
-        sub={`the market is open again, in turn order · then ${next ? `on to ${planetOf(next.planetId).name}` : 'the season ends'}`}
+        sub={`your own market is open again · then ${next ? `on to ${planetOf(next.planetId).name}` : 'the season ends'}`}
       >
         <div className="table-wrap">
           <table>

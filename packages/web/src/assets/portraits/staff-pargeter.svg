@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="Snitch Pargeter"><defs><filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="6"/></filter><clipPath id="c1"><path d="M80 520C80 432 150.4 372 256 372C361.6 372 432 432 432 520Z"/></clipPath><clipPath id="c2"><path d="M186 244a70 92 0 1 0 140 0a70 92 0 1 0 -140 0Z"/></clipPath></defs><path d="M80 520C80 432 150.4 372 256 372C361.6 372 432 432 432 520Z" fill="#5a5040"/>
+<path d="M256 362C379.2 372 452 432 452 520H335.2Z" fill="#000" opacity=".2" clip-path="url(#c1)"/>
+<path d="M80 520C80 432 150.4 372 256 372C361.6 372 432 432 432 520Z" fill="none" stroke="#15131b" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M210 380L256 420L302 380" fill="none" stroke="#15131b" stroke-width="6" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M232 300L228 390H284L280 300Z" fill="#c8a070" stroke="#15131b" stroke-width="7" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M260.8 300L260.8 390H284L280 300Z" fill="#000" opacity=".18"/>
+<path d="M180 210Q100 150 110 230Q120 290 186 262Z" fill="#c8a070" stroke="#15131b" stroke-width="6" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M332 210Q412 150 402 230Q392 290 326 262Z" fill="#c8a070" stroke="#15131b" stroke-width="6" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M170 222Q130 200 136 236Q142 262 176 252Z" fill="#e8a0b0"/>
+<path d="M342 222Q382 200 376 236Q370 262 336 252Z" fill="#e8a0b0"/>
+<path d="M186 244a70 92 0 1 0 140 0a70 92 0 1 0 -140 0Z" fill="#c8a070"/>
+<path d="M273.5 106.0C319.0 179.6 319.0 299.2 263.0 372.8H396.0V106.0Z" fill="#000" opacity=".2" clip-path="url(#c2)"/>
+<path d="M209.1 193.4a15.4 12.88 0 1 0 30.8 0a15.4 12.88 0 1 0 -30.8 0Z" fill="#fff" opacity=".22" clip-path="url(#c2)"/>
+<path d="M186 244a70 92 0 1 0 140 0a70 92 0 1 0 -140 0Z" fill="none" stroke="#15131b" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M170 186Q256 120 342 186Q350 200 330 202H182Q162 200 170 186Z" fill="#6a6050" stroke="#15131b" stroke-width="6" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M180 196Q256 180 360 214Q340 222 300 214Q256 204 180 206Z" fill="#5a5040" stroke="#15131b" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="232" cy="244" r="11" fill="#fff" stroke="#15131b" stroke-width="5"/>
+<circle cx="239" cy="244" r="4.95" fill="#15131b"/>
+<circle cx="240.98" cy="241.8" r="1.54" fill="#fff"/>
+<circle cx="282" cy="244" r="11" fill="#fff" stroke="#15131b" stroke-width="5"/>
+<circle cx="289" cy="244" r="4.95" fill="#15131b"/>
+<circle cx="290.98" cy="241.8" r="1.54" fill="#fff"/>
+<path d="M218 226L246 230" stroke="#15131b" stroke-width="5" stroke-linecap="round"/>
+<path d="M268 230L296 226" stroke="#15131b" stroke-width="5" stroke-linecap="round"/>
+<path d="M256 252L270 284H250" fill="none" stroke="#15131b" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M234 304Q262 296 284 308" fill="none" stroke="#15131b" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M206 330L202 346" stroke="#15131b" stroke-width="3" stroke-linecap="round"/>
+<path d="M300 330L306 346" stroke="#15131b" stroke-width="3" stroke-linecap="round"/>
+</svg>

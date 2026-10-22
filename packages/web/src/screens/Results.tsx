@@ -170,14 +170,11 @@ export function Results({ s, me }: { s: GameState; me: Player }) {
   // so it shows every stable's purses and nobody's slips or Back Alley business — each human sees
   // their own settled slips on their next private screen (LastSlips). Flying on is the roll-call's
   // (screens/Table.tsx), one press a human, in public.
-  // Online (v3l3) this browser is one stable's alone, so it reads as single-player does; its "Fly on"
-  // is held by the room until the stable's turn comes (§5.1).
+  // Online (v3l3) this browser is one stable's alone, so it reads as single-player does. Since Phase T
+  // every stable flies on whenever it likes: nothing waits for a turn.
   const online = useGame((g) => g.source === 'online');
   const table = !online && humans(s).length > 1;
-  const canFly =
-    !table &&
-    s.phase === 'planetPost' &&
-    (online ? !s.done.includes(me.id) : s.activePlayer === me.id);
+  const canFly = !table && s.phase === 'planetPost' && !s.done.includes(me.id);
   const next = s.calendar[s.week];
   const flyOn = () => {
     ackResults();
@@ -233,7 +230,7 @@ export function Results({ s, me }: { s: GameState; me: Player }) {
               .join(', ')}
             .
             {taken ? (
-              <span className="muted"> (your trainers took {formatBones(taken)})</span>
+              <span className="muted"> (your trainer took {formatBones(taken)})</span>
             ) : null}
           </p>
         ) : (

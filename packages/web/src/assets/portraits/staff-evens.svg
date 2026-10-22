@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="The Count of Evens"><defs><filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="6"/></filter><clipPath id="c1"><path d="M70 520C70 432 144.4 372 256 372C367.6 372 442 432 442 520Z"/></clipPath><clipPath id="c2"><path d="M178 236a78 104 0 1 0 156 0a78 104 0 1 0 -156 0Z"/></clipPath></defs><path d="M120 520L150 330Q256 300 362 330L392 520Z" fill="#4a0a1a" stroke="#15131b" stroke-width="7" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M150 330L120 250L210 310Z" fill="#6a1a2a" stroke="#15131b" stroke-width="6" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M362 330L392 250L302 310Z" fill="#6a1a2a" stroke="#15131b" stroke-width="6" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M70 520C70 432 144.4 372 256 372C367.6 372 442 432 442 520Z" fill="#1f1a26"/>
+<path d="M256 362C386.2 372 462 432 462 520H339.7Z" fill="#000" opacity=".2" clip-path="url(#c1)"/>
+<path d="M70 520C70 432 144.4 372 256 372C367.6 372 442 432 442 520Z" fill="none" stroke="#15131b" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M210 380L256 440L302 380" fill="none" stroke="#15131b" stroke-width="6" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="300" cy="450" r="18" fill="#8a7a4a" stroke="#15131b" stroke-width="5"/>
+<path d="M292 420L300 400L308 420" fill="#6a1a2a" stroke="#15131b" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="300" cy="450" r="8" fill="#5a5030"/>
+<path d="M232 300L228 390H284L280 300Z" fill="#b8c4d0" stroke="#15131b" stroke-width="7" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M260.8 300L260.8 390H284L280 300Z" fill="#000" opacity=".18"/>
+<path d="M178 236a78 104 0 1 0 156 0a78 104 0 1 0 -156 0Z" fill="#b8c4d0"/>
+<path d="M275.5 80.0C326.2 163.2 326.2 298.4 263.8 381.6H412.0V80.0Z" fill="#000" opacity=".2" clip-path="url(#c2)"/>
+<path d="M203.74 178.8a17.16 14.560000000000002 0 1 0 34.32 0a17.16 14.560000000000002 0 1 0 -34.32 0Z" fill="#fff" opacity=".22" clip-path="url(#c2)"/>
+<path d="M178 236a78 104 0 1 0 156 0a78 104 0 1 0 -156 0Z" fill="none" stroke="#15131b" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M178 196Q186 118 256 116Q326 118 334 196Q316 156 284 156L256 192L228 156Q196 156 178 196Z" fill="#1a1a22" stroke="#15131b" stroke-width="6" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="226" cy="232" r="12" fill="#fff" stroke="#15131b" stroke-width="5"/>
+<circle cx="228" cy="232" r="5.4" fill="#15131b"/>
+<circle cx="230.16" cy="229.6" r="1.6800000000000002" fill="#fff"/>
+<path d="M212 229.6A14 14 0 0 1 240 229.6L240 216L212 216Z" fill="#98a4b0" stroke="#15131b" stroke-width="7" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="288" cy="232" r="12" fill="#fff" stroke="#15131b" stroke-width="5"/>
+<circle cx="290" cy="232" r="5.4" fill="#15131b"/>
+<circle cx="292.16" cy="229.6" r="1.6800000000000002" fill="#fff"/>
+<path d="M274 229.6A14 14 0 0 1 302 229.6L302 216L274 216Z" fill="#98a4b0" stroke="#15131b" stroke-width="7" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="288" cy="232" r="22" fill="none" stroke="#15131b" stroke-width="5"/>
+<path d="M306 248Q320 300 300 360" fill="none" stroke="#c9a227" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M206 208L242 214" stroke="#15131b" stroke-width="5" stroke-linecap="round"/>
+<path d="M270 214L306 208" stroke="#15131b" stroke-width="5" stroke-linecap="round"/>
+<path d="M224 296Q256 310 288 296" fill="none" stroke="#15131b" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M236 300L240 316L246 302Z" fill="#fff" stroke="#15131b" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M266 302L272 316L276 300Z" fill="#fff" stroke="#15131b" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+</svg>

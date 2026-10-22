@@ -50,7 +50,7 @@ export function Nav({ s, me }: { s: GameState; me: Player }) {
   const next = toOffice ? () => setView('office') : endPhase;
 
   // An event card owns the keyboard until it is answered.
-  const live = !s.pendingEvent;
+  const live = !s.pendingEvents[me.id];
   const keys: Record<string, (() => void) | undefined> = {};
   if (live) {
     for (const v of list) {

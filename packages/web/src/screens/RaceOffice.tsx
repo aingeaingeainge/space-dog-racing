@@ -190,14 +190,14 @@ function fieldShape(styles: readonly (StyleId | null)[]): string {
 }
 
 /**
- * GDD §15.7, and GDD_V3 §7.3 (V16): **declarations are made in turn order and are public the instant
- * they are made.** The stables ahead of you in the turn order have already declared, and their
- * runners — with their styles, once known — are on the board; the stables behind you will see yours.
+ * GDD_V3 §7.3, as Phase T rewrote it (T1, Jesse's call): **everybody declares at once, sealed.** A
+ * stable sees its own entries and nobody else's until the last stable has finished its weekend; then
+ * the whole card is public at the lock, before the Bookie. What a stable *can* read is every rival's
+ * kennel — who is fit, how they run — so guessing the field is the skill where reading it was.
  *
- * ⚠️ **v2 hid a human's picks from the other humans until the card locked**, so that hotseat play was
- * not a peeking contest. V16 reverses that on purpose: going first buys the best of a finite shelf,
- * going last buys the right to see the field before you commit a dog to it, and that trade is only
- * real if the board is. Turn order already stops anybody seeing a pick that has not been made.
+ * ⚠️ V16 (`v3c`–`v3s`) had declarations in turn order and public as they were made, so the last
+ * stable saw the field; that needed turn order, which went at `v3t`. Hotseat never shows another
+ * human's entries before the lock: the state has them, and this screen does not draw them.
  */
 export function RaceOffice({ s, me }: { s: GameState; me: Player }) {
   const dispatch = useGame((g) => g.dispatch);
@@ -207,7 +207,6 @@ export function RaceOffice({ s, me }: { s: GameState; me: Player }) {
   const planet = planetOf(s.planet.planetId);
   const sp = planet.special;
   const pct = (n: number) => `${Math.round(n * 100)}%`;
-  const myTurn = s.turnOrder.indexOf(me.id);
   const trip = planet.track.length;
 
   const card = thisWeeksCard();
@@ -239,7 +238,7 @@ export function RaceOffice({ s, me }: { s: GameState; me: Player }) {
           <More label="How declaring works">
             <Notes
               lines={[
-                'Stables declare in turn order, and every declaration is public the moment it is made — so the later you go, the more of each field you can see before you commit. Empty traps are filled by local dogs.',
+                'Everybody declares at once, and every entry is sealed until the last stable is done: you see your own, and the whole card goes up together before the Bookie opens. What you can see is every rival’s kennel — who is fit to run and how they run. Empty traps are filled by local dogs.',
                 `${planet.name}: ${trackText(planet.track)}.`,
                 planet.track.hazard !== 1
                   ? `A hazardous surface — injury risk ×${planet.track.hazard} on top of the base ${pct(balance.injuryBase)} a race.`
@@ -281,14 +280,15 @@ export function RaceOffice({ s, me }: { s: GameState; me: Player }) {
         {card.map((race) => {
           const purse = purseFor(s, race);
           const mine = s.declarations[race][me.id] ?? '';
-          // The board, in the order the stables declare (GDD_V3 §7.3).
+          // Phase T: the rivals' entries are sealed until the lock. What is public is who could run:
+          // each rival's sound dogs, rated, with their styles.
           const rivals = s.turnOrder
             .filter((id) => id !== me.id)
             .map((id) => s.players.find((p) => p.id === id)!)
             .map((p) => ({
               p,
-              dogId: s.declarations[race][p.id],
-              after: s.turnOrder.indexOf(p.id) > myTurn,
+              dogId: s.locked ? s.declarations[race][p.id] : undefined,
+              fit: ownedDogs(s, p).filter((d) => d.injuryWeeks === 0),
             }));
           const declaredHere = rivals.filter((r) => r.dogId).length + (mine ? 1 : 0);
           const shape = fieldShape(
@@ -344,7 +344,15 @@ export function RaceOffice({ s, me }: { s: GameState; me: Player }) {
               ) : null}
 
               <p className="tight-p">
-                <b>In so far:</b> {shape}.
+                {s.locked ? (
+                  <>
+                    <b>The field:</b> {shape}.
+                  </>
+                ) : (
+                  <>
+                    <b>Sealed:</b> nobody sees the field until everybody is done.
+                  </>
+                )}
                 {(() => {
                   const lean = STYLE_IDS.filter((id) => STYLE_BY_ID[id].bookEdge[trip] > 0);
                   return lean.length && trip !== 'standard' ? (
@@ -357,13 +365,14 @@ export function RaceOffice({ s, me }: { s: GameState; me: Player }) {
                 })()}
               </p>
               <p className="muted tight-p">
-                + {Math.max(0, TRAPS - declaredHere)} locals, rated about{' '}
-                {localRatingFor(race, major)}
+                {s.locked
+                  ? `+ ${Math.max(0, TRAPS - declaredHere)} locals, rated about ${localRatingFor(race, major)}`
+                  : `Empty traps go to locals rated about ${localRatingFor(race, major)}`}
               </p>
 
               <table className="rivals">
                 <tbody>
-                  {rivals.map(({ p, dogId, after }) => {
+                  {rivals.map(({ p, dogId, fit }) => {
                     const dog = dogId ? s.dogs[dogId] : undefined;
                     return (
                       <tr key={p.id}>
@@ -376,10 +385,20 @@ export function RaceOffice({ s, me }: { s: GameState; me: Player }) {
                               {dog.name} <Badge>{dog.rating}</Badge>{' '}
                               <StyleTag style={publicStyle(dog)} />
                             </>
-                          ) : after && !s.locked ? (
-                            <span className="muted">declares after you</span>
-                          ) : (
+                          ) : s.locked ? (
                             <span className="muted">no runner</span>
+                          ) : (
+                            <span className="muted" title="Sealed until everybody is done">
+                              could run{' '}
+                              {fit.length
+                                ? fit
+                                    .map(
+                                      (d) =>
+                                        `${d.rating}${publicStyle(d) ? ` ${STYLE_BY_ID[publicStyle(d)!].name.toLowerCase()}` : ''}`,
+                                    )
+                                    .join(', ')
+                                : 'nobody'}
+                            </span>
                           )}
                         </td>
                       </tr>

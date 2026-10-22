@@ -9,6 +9,9 @@ import {
   formatBones,
   restRateFor,
   staffRow,
+  ROLE_INFO,
+  STAFF_ROLES,
+  type StaffRole,
   STYLE_BY_ID,
   type Action,
   type Dog,
@@ -88,17 +91,22 @@ export function Draft({ s, me }: { s: GameState; me: Player }) {
   const picker = mine ? on : undefined;
   // A human who handed their picks over has nothing to press until the draft is done.
   const room =
-    picker && picker.id !== auto ? draftRoom(s, picker.id) : { dog: false, staff: false };
+    picker && picker.id !== auto
+      ? draftRoom(s, picker.id)
+      : { dog: false, staff: false, roles: [] as StaffRole[] };
   const off = d?.kind === 'offSeason';
   const kennel = picker ? picker.dogIds.map((id) => s.dogs[id]!).filter(Boolean) : [];
   const kennelFull = kennel.length >= balance.startDogs;
-  const staffFull = (picker?.staff.length ?? 0) >= balance.staffSlots;
+  // Phase T: a hire goes into its own role, and whoever holds it goes — nothing to choose.
+  const mayTake = (id: Id) => room.roles.includes(staffRow(id).role);
+  const holderOf = (id: Id) =>
+    picker?.staff.map(staffRow).find((r) => r.role === staffRow(id).role) ?? null;
 
   // The selection must be something still on the board, and something this stable may take.
   const selDog = sel && 'dog' in sel ? board.dogs.find((x) => x.id === sel.dog) : undefined;
   const selStaff = sel && 'staff' in sel && board.staff.includes(sel.staff) ? sel.staff : undefined;
   const choice =
-    (selDog && room.dog) || (selStaff && room.staff)
+    (selDog && room.dog) || (selStaff && mayTake(selStaff))
       ? selDog
         ? { dog: selDog.id }
         : { staff: selStaff! }
@@ -120,11 +128,12 @@ export function Draft({ s, me }: { s: GameState; me: Player }) {
   const pass = () => {
     if (picker && off) send({ t: 'DraftPick', playerId: picker.id, pick: null });
   };
-  const needsRelease = !!choice && off && ('dog' in choice ? kennelFull : staffFull);
-  // ↑/↓ through the items this stable may take, dogs first, then trainers.
+  const needsRelease = !!choice && off && 'dog' in choice && kennelFull;
+  const replaced = choice && 'staff' in choice && choice.staff ? holderOf(choice.staff) : null;
+  // ↑/↓ through the items this stable may take, dogs first, then staff.
   const items: ({ dog: Id } | { staff: Id })[] = [
     ...(room.dog ? board.dogs.map((x) => ({ dog: x.id })) : []),
-    ...(room.staff ? board.staff.map((id) => ({ staff: id })) : []),
+    ...board.staff.filter(mayTake).map((id) => ({ staff: id })),
   ];
   const at = choice ? items.findIndex((x) => JSON.stringify(x) === JSON.stringify(choice)) : -1;
   const move = (k: number) => {
@@ -164,14 +173,14 @@ export function Draft({ s, me }: { s: GameState; me: Player }) {
         <p className="muted">
           {off
             ? `Between season ${d.season - 1} and season ${d.season} · one pick each · last at the table picks first`
-            : 'Four dogs and two trainers each, one at a time, in turns.'}
+            : 'Four dogs and three staff each — a Trainer, a Trade Advisor and a Gambling Advisor — one at a time, in turns.'}
         </p>
       </div>
 
       {off ? <OffSeasonNews s={s} /> : null}
       {picker && !off ? (
         <Guide id="draft">
-          Press a dog or a trainer, then <b>Take</b> — or <b>Pick for me</b> and get racing.
+          Press a dog or one of the staff, then <b>Take</b> — or <b>Pick for me</b> and get racing.
         </Guide>
       ) : null}
 
@@ -188,7 +197,7 @@ export function Draft({ s, me }: { s: GameState; me: Player }) {
             <OwnerFace player={picker} /> <b>{picker.name}</b>, your pick
             {off ? '' : ` — round ${Math.floor(d.at / n) + 1} of ${d.rounds}`}.{' '}
             {!room.dog
-              ? 'Your kennel is full: a trainer.'
+              ? `Your kennel is full: ${room.roles.map((r) => `a ${ROLE_INFO[r].name}`).join(' or ')}.`
               : !room.staff && !off
                 ? 'Your staff is full: a dog.'
                 : ''}
@@ -207,6 +216,7 @@ export function Draft({ s, me }: { s: GameState; me: Player }) {
           {choice && !needsRelease ? (
             <NeonButton variant="primary" onClick={() => take()} title="key: Enter">
               Take {choiceName}
+              {replaced ? ` — ${replaced.name} goes` : ''}
             </NeonButton>
           ) : null}
           {choice && needsRelease && 'dog' in choice
@@ -216,14 +226,7 @@ export function Draft({ s, me }: { s: GameState; me: Player }) {
                 </NeonButton>
               ))
             : null}
-          {choice && needsRelease && 'staff' in choice
-            ? picker.staff.map((id) => (
-                <NeonButton key={id} variant="primary" onClick={() => take(id)}>
-                  Let {staffRow(id).name} go and take {choiceName}
-                </NeonButton>
-              ))
-            : null}
-          {!choice ? <span className="muted">Press a dog or a trainer below.</span> : null}
+          {!choice ? <span className="muted">Press a dog or one of the staff below.</span> : null}
           <NeonButton onClick={pickForMe} title="The rest of your picks, made as a Normal AI would">
             Pick for me
           </NeonButton>
@@ -261,29 +264,39 @@ export function Draft({ s, me }: { s: GameState; me: Player }) {
               })}
             </div>
           </Panel>
-          <Panel title={`Trainers (${board.staff.length})`} sub="each takes a cut of your purses">
-            {board.staff.length ? (
-              <div className="staffcards">
-                {board.staff.map((id) => {
-                  const picked = selStaff === id;
-                  return (
-                    <button
-                      key={id}
-                      type="button"
-                      className={`draft-item${picked ? ' picked' : ''}`}
-                      disabled={!room.staff}
-                      onClick={() => setSel({ staff: id })}
-                      aria-pressed={picked}
-                    >
-                      <StaffCard row={staffRow(id)} />
-                    </button>
-                  );
-                })}
-              </div>
-            ) : (
-              <p className="muted">Nobody left on the board.</p>
-            )}
-          </Panel>
+          {STAFF_ROLES.map((role) => {
+            const people = board.staff.filter((id) => staffRow(id).role === role);
+            const info = ROLE_INFO[role];
+            return (
+              <Panel
+                key={role}
+                title={`${info.name}s (${people.length})`}
+                sub={`each takes a cut of your ${info.cutOf}`}
+              >
+                {people.length ? (
+                  <div className="staffcards">
+                    {people.map((id) => {
+                      const picked = selStaff === id;
+                      return (
+                        <button
+                          key={id}
+                          type="button"
+                          className={`draft-item${picked ? ' picked' : ''}`}
+                          disabled={!mayTake(id)}
+                          onClick={() => setSel({ staff: id })}
+                          aria-pressed={picked}
+                        >
+                          <StaffCard row={staffRow(id)} />
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="muted">Nobody left on the board.</p>
+                )}
+              </Panel>
+            );
+          })}
         </div>
 
         <div className="draft-side">
@@ -296,8 +309,8 @@ export function Draft({ s, me }: { s: GameState; me: Player }) {
         <Notes
           lines={[
             off
-              ? 'Take a dog and one of yours retires, paid its book value. Take a trainer with two already and one goes. Or pass. Everything carries over; the new season starts every dog on full fitness.'
-              : `A pick is one dog or one trainer. Four dogs and two trainers each: a full kennel takes trainers, full staff takes dogs. ${balance.draftThirdRoundReverses === 1 ? 'Round 1’s order is drawn and each round turns it round — except round 3, which goes the same way as round 2, so the first pick is not also first in the trainers’ rounds.' : 'Round 1’s order is drawn, and each round turns it round.'} Every style on the board is public, and stays public.`,
+              ? 'Take a dog and one of yours retires, paid its book value. Take one of the staff and they replace whoever does that job for you now. Or pass. Everything carries over; the new season starts every dog on full fitness.'
+              : `A pick is one dog or one of the staff. Four dogs and one of each role — a Trainer (paid from your purses), a Trade Advisor (from your trading profit) and a Gambling Advisor (from your winnings): a full kennel takes staff, a full staff takes dogs. ${balance.draftThirdRoundReverses === 1 ? 'Round 1’s order is drawn and each round turns it round — except round 3, which goes the same way as round 2.' : 'Round 1’s order is drawn, and each round turns it round.'} Every style on the board is public, and stays public.`,
           ]}
         />
       </More>
@@ -314,14 +327,18 @@ function boardAt(s: GameState, d: DraftState, upTo: number): { dogs: Dog[]; staf
   ];
   const staff = [...d.staff, ...later.map((x) => x.staff).filter((x): x is Id => !!x)];
   dogs.sort((a, b) => b.rating - a.rating || (a.name < b.name ? -1 : 1));
-  staff.sort((a, b) => (staffRow(a).name < staffRow(b).name ? -1 : 1));
+  staff.sort(
+    (a, b) =>
+      STAFF_ROLES.indexOf(staffRow(a).role) - STAFF_ROLES.indexOf(staffRow(b).role) ||
+      (staffRow(a).name < staffRow(b).name ? -1 : 1),
+  );
   return { dogs, staff };
 }
 
 function pickText(x: DraftPickRecord): string {
   if (x.dog)
     return `${x.dog.name} (${x.dog.rating}, ${STYLE_BY_ID[x.dog.style].name.toLowerCase()})`;
-  if (x.staff) return staffRow(x.staff).name;
+  if (x.staff) return `${staffRow(x.staff).name} (${ROLE_INFO[staffRow(x.staff).role].short})`;
   return 'passed';
 }
 
@@ -437,7 +454,7 @@ function OffSeasonNews({ s }: { s: GameState }) {
                     `${x.left.map((t) => staffRow(t).name).join(' and ')} left ${playerById(s, id)?.name}`,
                 )
                 .join('; ')}.`
-            : 'The staff notice: every trainer is staying.',
+            : 'The staff notice: everybody is staying.',
         ]}
       />
     </Panel>

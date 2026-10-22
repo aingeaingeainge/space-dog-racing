@@ -36,13 +36,6 @@ import {
 } from '../lib/selectors';
 import { useGame, type View } from '../store/gameStore';
 
-/** 1st, 2nd, 3rd, 4th … for the turn-order line. */
-function ordinal(n: number): string {
-  const t = n % 100;
-  if (t >= 11 && t <= 13) return `${n}th`;
-  return `${n}${['th', 'st', 'nd', 'rd'][n % 10] ?? 'th'}`;
-}
-
 /** The painted hotspot icon for a venue, or nothing — in which case the emoji stands. */
 function finishedIcon(id: string) {
   const art = uiArt(`icon-${id}`);
@@ -181,8 +174,9 @@ export function PlanetHub({
                 )}
               </p>
               <p className="muted flush">
-                {declared} stable{declared === 1 ? '' : 's'} in · {Math.max(0, TRAPS - declared)}{' '}
-                locals at about {localRatingFor(race, entry.major)}
+                {declared === null
+                  ? `Entries sealed until everybody is done · locals at about ${localRatingFor(race, entry.major)}`
+                  : `${declared} stable${declared === 1 ? '' : 's'} in · ${Math.max(0, TRAPS - declared)} locals at about ${localRatingFor(race, entry.major)}`}
               </p>
             </TicketCard>
           );
@@ -190,32 +184,28 @@ export function PlanetHub({
       </div>
 
       {/*
-        GDD_V3 §2.3: turn order is bought with an empty hold and nothing else. Phase P: one line —
-        where you are in it — and the whole table, with the engine's arithmetic, behind the "?".
+        Phase T (GDD_V3 T1): there is no turn order — everybody plays the weekend at once — so the
+        one line says who is still at it, and the table and this week's log are behind the "?".
       */}
       <div className="oneline muted">
-        You go <b>{ordinal(s.turnOrder.indexOf(me.id) + 1)}</b> of {s.turnOrder.length} this
-        weekend.{' '}
-        <More label="Turn order and this week">
+        Everybody plays at once: {s.done.length} of {s.turnOrder.length} done.{' '}
+        <More label="The table and this week">
           <p className="flush">
-            Highest score goes first: {balance.arrivalBase} − crates aboard ÷{' '}
-            {balance.arrivalCargoDiv} + a d{balance.arrivalDie}. A heavy hold goes last to the shelf
-            and last to declare — the later you declare, the more of each field you see.
+            Every stable has its own shelf and its own staff, and its entries are sealed until the
+            last stable is done — then the whole card goes up and the Bookie opens.
           </p>
           <div className="table-wrap">
             <table>
               <tbody>
-                {s.turnOrder.map((id, i) => {
+                {s.turnOrder.map((id) => {
                   const p = playerById(s, id);
                   if (!p) return null;
                   return (
                     <tr key={id} className={id === me.id ? 'me' : ''}>
-                      <td>{i + 1}</td>
                       <td>
                         <StableName player={p} me={id === me.id} />
                       </td>
-                      <td className="muted">{s.turnOrderReason[id]}</td>
-                      <td className="muted">{s.done.includes(id) ? 'done' : ''}</td>
+                      <td className="muted">{s.done.includes(id) ? 'done' : 'still at it'}</td>
                     </tr>
                   );
                 })}
@@ -223,7 +213,7 @@ export function PlanetHub({
             </table>
           </div>
           <p className="muted">
-            {trackText(planet.track)} · food here is {describeTaste(planet)} · trainers:{' '}
+            {trackText(planet.track)} · food here is {describeTaste(planet)} · staff:{' '}
             {staffLine(me)}.
           </p>
           {weekLog.length ? (
@@ -253,7 +243,7 @@ function BehindTheDoor({ s, me }: { s: GameState; me: Player }) {
   const planet = planetOf(s.planet.planetId);
   const card = cardId ? EVENT_BY_ID[cardId] : undefined;
   const lines = s.eventLog.filter(
-    (l) => l.week === s.week && l.phase === 'explore' && l.playerId === me.id,
+    (l) => l.week === s.week && l.phase === 'planetPre' && l.playerId === me.id,
   );
   const art = card ? eventArt(card.id) : null;
   return (

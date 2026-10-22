@@ -42,6 +42,7 @@ import {
   type Id,
   type Player,
   type SeasonSetup,
+  hasExplored,
 } from '@sdr/engine';
 import { applyActions, screenFor, weekKey, type ScreenUi } from '../src/store/loop';
 import { venues } from '../src/lib/venues';
@@ -101,7 +102,7 @@ function planetTurn(s: GameState, p: Player): Action[] {
     const units = Math.min(
       HOLD_CAP - cargoTotal(p.cargo),
       dogs.length * 2,
-      s.planet.goods[STAPLE_ID].stock,
+      p.shelf[STAPLE_ID],
       Math.floor(Math.max(0, cash - 1500) / Math.max(1, s.planet.goods[STAPLE_ID].buy)),
     );
     if (units > 0) out.push({ t: 'TradeFood', playerId: p.id, good: STAPLE_ID, units });
@@ -210,7 +211,7 @@ function playSeason(seed: number, tally: Tally): void {
       log.push(...applied.added);
       continue;
     }
-    if (state.phase === 'explore' && !state.pendingEvent && state.activePlayer === me.id) {
+    if (state.phase === 'planetPre' && !hasExplored(state, me.id) && !state.pendingEvents[me.id]) {
       // One press on a door; the card behind it costs a second only if it has a choice to make.
       tally.explore++;
       const applied = applyActions(state, [{ t: 'ChooseDoor', playerId: me.id, door: 0 }]);
@@ -218,7 +219,7 @@ function playSeason(seed: number, tally: Tally): void {
       log.push(...applied.added);
       continue;
     }
-    if (state.pendingEvent && state.pendingEvent.playerId === me.id) {
+    if (state.pendingEvents[me.id]) {
       tally.explore++;
       const choice = aiChoiceFor(state, me.id);
       const applied = applyActions(state, [{ t: 'ResolveEvent', playerId: me.id, choice }]);

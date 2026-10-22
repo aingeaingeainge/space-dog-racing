@@ -17,9 +17,10 @@ import {
   good,
   restBonus,
   staffRow,
+  STAFF_ROLES,
   type FeedPlan,
 } from '@sdr/engine';
-import { StaffCard, commissionLine } from '../components/StaffCard';
+import { EmptyRoleCard, StaffCard, commissionLine } from '../components/StaffCard';
 import { DogCard } from '../components/DogCard';
 import { Panel } from '../components/Panel';
 import { Badge, KV, Notes } from '../components/ui';
@@ -133,12 +134,20 @@ export function Stable({ s, me }: { s: GameState; me: Player }) {
         </More>
       </Panel>
 
-      {/* GDD_V3 §8: the two trainers, what they do and what they take. */}
-      <Panel title="Trainers" sub="paid a cut of your purses, nothing else">
+      {/* GDD_V3 §8 (Phase T): three staff, one for each side of the game, each paid from that side. */}
+      <Panel
+        title="Staff"
+        sub="a Trainer, a Trade Advisor and a Gambling Advisor — each paid a cut of their own side"
+      >
         <div className="staffcards">
-          {me.staff.map((id) => (
-            <StaffCard key={id} row={staffRow(id)} />
-          ))}
+          {STAFF_ROLES.map((role) => {
+            const row = me.staff.map(staffRow).find((r) => r.role === role);
+            return row ? (
+              <StaffCard key={role} row={row} />
+            ) : (
+              <EmptyRoleCard key={role} role={role} />
+            );
+          })}
         </div>
         <Notes lines={[commissionLine(me)]} />
       </Panel>

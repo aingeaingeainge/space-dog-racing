@@ -9,6 +9,7 @@ import {
   type Id,
   type Player,
   type SeasonSetup,
+  ROLE_INFO,
 } from '@sdr/engine';
 import { aiOwnerIndices, HUMAN_FACES } from './faces';
 import { clock, summarisePace, type Pace } from './pace';
@@ -109,7 +110,7 @@ function whoText(p: Player, owner: number | null): string {
 function pickText(x: DraftPickRecord): string {
   if (x.dog)
     return `${x.dog.name} (${x.dog.rating}, ${STYLE_BY_ID[x.dog.style].name.toLowerCase()})`;
-  if (x.staff) return `${staffRow(x.staff).name} (trainer)`;
+  if (x.staff) return `${staffRow(x.staff).name} (${ROLE_INFO[staffRow(x.staff).role].short})`;
   return 'passed';
 }
 

@@ -16,6 +16,7 @@ import { Guide } from '../components/Guide';
 import { Gauge, Notes } from '../components/ui';
 import { NeonButton } from '../components/NeonButton';
 import { marketRows, nextStop, type MarketRow } from '../lib/market';
+import { tradeAdvisorLine } from '../components/StaffCard';
 import { weeklyBill } from '../lib/selectors';
 import { sfxRegister } from '../lib/sound';
 import { useGame } from '../store/gameStore';
@@ -77,7 +78,7 @@ export function Market({ s, me }: { s: GameState; me: Player }) {
               <tr>
                 <th>Food</th>
                 <th className="num">Your Hold</th>
-                <th className="num">On Planet</th>
+                <th className="num">Your Shelf</th>
                 <th className="num">You Paid</th>
                 <th className="num">Market Price</th>
                 <th>Price Range</th>
@@ -104,7 +105,8 @@ export function Market({ s, me }: { s: GameState; me: Player }) {
             lines={[
               'Buy where a food is cheap in its range and sell where it is dear. The next stop line is what kind of place it is, not next week’s prices; those are drawn when you land.',
               `Your dogs eat ${bill.foodNeeded} crate${bill.foodNeeded === 1 ? '' : 's'} at the jump, each by the diet you set in the Kennel, falling back to the cheapest thing aboard. A dog the hold cannot feed loses ${balance.emptyHoldFitness} fitness.`,
-              `Every ${balance.arrivalCargoDiv} crates aboard when you leave costs a point in next week's turn order — first look at the next shelf, against a hold worth carrying.`,
+              'The shelf is your own: nobody else buys from it, and nobody waits on you to finish. It is restocked on every planet.',
+              tradeAdvisorLine(me),
             ]}
           />
         </More>

@@ -254,7 +254,7 @@ class Client {
         return this.press('draft', draftPress(s, me!).action);
       }
       case 'planet': {
-        if (s.pendingEvent && s.pendingEvent.playerId === g.seat) {
+        if (s.pendingEvents[g.seat]) {
           let choice = 0;
           try {
             choice = aiChoiceFor(s, g.seat);

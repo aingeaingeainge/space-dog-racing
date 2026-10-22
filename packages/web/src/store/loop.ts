@@ -1,6 +1,8 @@
 import {
   drive,
+  hasExplored,
   isSeasonOver,
+  onTheClock,
   reduceMut,
   waitingOn,
   type Action,
@@ -131,9 +133,10 @@ function tableOf(s: GameState): Player[] {
 }
 
 /**
- * Who sits at the Bookie next (Phase E2). **Betting is taken in any order** (the engine's half is in
- * `placeBet`), so the laptop does not have to move just because the turn order says so: whoever holds
- * it bets first if they still have to, and after that the humans still to bet go in turn order.
+ * Who sits at the laptop next in a phase everybody plays at once — the weekend on the planet (Phase
+ * T) and the Bookie (Phase E2). Nothing is in turn order, so the laptop does not have to move just
+ * because the seating says so: whoever holds it carries on if they still have to, and after that the
+ * humans still to play go in seating order.
  */
 export function bookieSitter(s: GameState, holder: Id | null): Player | null {
   const still = s.turnOrder
@@ -148,14 +151,12 @@ export function bookieSitter(s: GameState, holder: Id | null): Player | null {
  */
 export function passReason(s: GameState): string {
   switch (s.phase) {
-    case 'explore':
-      return 'Explore — one door each, in turn order. Nobody sees anybody else’s door.';
     case 'planetPre':
-      return 'Market, Kennels and Race Office — in turn order: the shelf is shared and the declarations are public.';
+      return 'Your weekend on the planet — a door, the market, the kennels and the Race Office, in any order you like. Your shelf is your own and your entries are sealed until everybody is done.';
     case 'betting':
       return 'The Bookie — everybody bets privately, in any order.';
     case 'planetPost':
-      return 'After the races — the market again, in turn order.';
+      return 'After the races — your own market again, before you fly on.';
     default:
       return '';
   }
@@ -190,8 +191,11 @@ export function screenFor(s: GameState, ui: ScreenUi, online?: OnlineSeat): Scre
     const me = on ?? table[0] ?? null;
     return me ? { kind: 'draft', me } : { kind: 'noHuman', me: null };
   }
+  // Phase T: the weekend on the planet is played in any order, like the Bookie, so the laptop stays
+  // with whoever has it until they are done.
+  const anyOrder = s.phase === 'planetPre' || (s.phase === 'betting' && s.locked);
   const me =
-    (hotseat && s.phase === 'betting' && s.locked ? bookieSitter(s, ui.passAck) : null) ??
+    (hotseat && anyOrder ? bookieSitter(s, ui.passAck) : null) ??
     s.players.find((p) => p.id === waiting) ??
     table[0] ??
     null;
@@ -205,32 +209,33 @@ export function screenFor(s: GameState, ui: ScreenUi, online?: OnlineSeat): Scre
   if (s.races && ui.resultsSeenWeek !== wk) return { kind: 'results', me };
   // Phase E2 — the table's public moments, read together and passed to nobody (GDD_V3 §3):
   if (hotseat) {
-    // the new planet and the turn order, once a weekend, before the first door;
-    if (s.phase === 'explore' && (ui.arrivalSeenWeek ?? 0) !== wk) return { kind: 'arrival', me };
+    // the new planet, once a weekend, before the first door;
+    if (s.phase === 'planetPre' && (ui.arrivalSeenWeek ?? 0) !== wk) return { kind: 'arrival', me };
     // the locked board and the prices, once a weekend, before the first slip;
     if (s.phase === 'betting' && (ui.boardSeenWeek ?? 0) !== wk) return { kind: 'board', me };
-    // and after the races, a roll-call in turn order: fly on from here, or take the laptop to trade.
+    // and after the races, a roll-call in seating order: fly on from here, or take the laptop to trade.
     if (s.phase === 'planetPost' && (ui.postTrade ?? null) !== me.id)
       return { kind: 'afterRaces', me };
   }
   // The pass screen, only when the laptop really moves: never to the human already holding it.
   if (hotseat && ui.passAck !== me.id) return { kind: 'pass', me };
-  // GDD_V3 §9.1: a new planet opens on its three doors. A card with a choice waits in EventModal
-  // over the hub, so the doors are only the screen while there is a door still to pick.
-  if (s.phase === 'explore' && !s.pendingEvent) return { kind: 'explore', me };
+  // GDD_V3 §9.1: a new planet opens on its three doors — each stable's own weekend starts there
+  // (Phase T). A card with a choice waits in EventModal over the hub, so the doors are only the
+  // screen while there is a door still to pick.
+  if (s.phase === 'planetPre' && !hasExplored(s, me.id) && !s.pendingEvents[me.id])
+    return { kind: 'explore', me };
   if (s.phase === 'betting') return { kind: 'betting', me };
   return { kind: 'planet', me };
 }
 
 /**
  * Is this seat on the clock (§5.1)? The room's `meta.clock` when there is one; without it, what the
- * view itself says: every stable not finished at the Bookie, otherwise the stable whose turn it is
- * (the draft's pick included, Phase N).
+ * view itself says: every stable not finished with this part of the weekend (Phase T: the planet, the
+ * Bookie and after the races are all played at once), or the stable whose pick it is in a draft.
  */
 export function onClock(s: GameState, online: OnlineSeat): boolean {
   if (online.meta) return online.meta.clock.seats.includes(online.seat);
-  if (s.phase === 'betting' && s.locked) return !s.done.includes(online.seat);
-  return waitingOn(s) === online.seat;
+  return onTheClock(s).includes(online.seat);
 }
 
 /**
@@ -241,10 +246,9 @@ export function onClock(s: GameState, online: OnlineSeat): boolean {
  * after-races roll-call is gone, because each stable flies on from its own screen. A seat that is
  * not on the clock and has nothing it may do sees **`waiting`**, over the hub.
  *
- * What a seat off the clock may still do (§5.1): pick its door early (the room holds it, so the door
- * screen stays up and says so), fly on early after the races (held the same way, from the waiting
- * screen) and bet at the Bookie at once. The draft is in turn order (Phase N): a seat off the clock
- * watches it.
+ * Since Phase T nobody is off the clock in a weekend: every seat plays the planet, the Bookie and
+ * after the races at once, and waits only once it has finished — for the slowest. The draft is in turn
+ * order (Phase N): a seat off the clock watches it.
  */
 function onlineScreenFor(s: GameState, ui: ScreenUi, online: OnlineSeat): Screen {
   if (isSeasonOver(s)) return { kind: 'seasonEnd', me: null };
@@ -260,11 +264,12 @@ function onlineScreenFor(s: GameState, ui: ScreenUi, online: OnlineSeat): Screen
   if (s.races && ui.resultsSeenWeek !== wk) return { kind: 'results', me };
   const done = s.done.includes(me.id);
   const on = onClock(s, online);
-  const mine = s.pendingEvent?.playerId === me.id;
-  if (s.phase === 'explore') {
+  const mine = !!s.pendingEvents[me.id];
+  if (s.phase === 'planetPre') {
     if ((ui.arrivalSeenWeek ?? 0) !== wk) return { kind: 'arrival', me };
-    if (!(me.id in (s.explore?.picks ?? {}))) return { kind: 'explore', me };
-    return { kind: mine ? 'planet' : 'waiting', me };
+    if (done) return { kind: 'waiting', me };
+    if (!hasExplored(s, me.id) && !mine) return { kind: 'explore', me };
+    return { kind: 'planet', me };
   }
   if (mine) return { kind: 'planet', me };
   if (s.phase === 'betting' && s.locked) {
@@ -272,7 +277,6 @@ function onlineScreenFor(s: GameState, ui: ScreenUi, online: OnlineSeat): Screen
     if ((ui.boardSeenWeek ?? 0) !== wk) return { kind: 'board', me };
     return { kind: 'betting', me };
   }
-  if ((s.phase === 'planetPre' || s.phase === 'planetPost') && on && !done)
-    return { kind: 'planet', me };
+  if (s.phase === 'planetPost' && on && !done) return { kind: 'planet', me };
   return { kind: 'waiting', me };
 }

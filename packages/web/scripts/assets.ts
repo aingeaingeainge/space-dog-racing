@@ -403,7 +403,7 @@ const STAFF_BRIEFS: [string, string][] = [
   // in the house style.
   ...STAFF.filter((r) => !r.portrait.startsWith('trainer-')).map((r): [string, string] => [
     r.portrait,
-    `${r.name}, a dog trainer: ${r.looks}`,
+    `${r.name}, ${r.role === 'trainer' ? 'a dog trainer' : r.role === 'trade' ? 'a trade advisor' : 'a gambling advisor'}: ${r.looks}`,
   ]),
 ];
 
@@ -704,7 +704,7 @@ export const GROUPS: AssetGroup[] = [
     title: 'Character portraits',
     tier: 3,
     blurb:
-      'Twelve AI stable owners (keyed by stable name), the twenty-four trainers of GDD_V3 §8 (two ' +
+      'Twelve AI stable owners (keyed by stable name), the forty-one staff of GDD_V3 §8 — seventeen trainers, twelve trade advisors and twelve gambling advisors since Phase T (two ' +
       'rows reuse trainer-01 and trainer-02), and eight faces for the human stables, one per ' +
       'saddle-cloth colour. The v2 vets, fixers and Fat Tony went with the hireables and the loan ' +
       'shark (Phase F1).',

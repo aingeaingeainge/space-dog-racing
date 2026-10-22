@@ -23,7 +23,6 @@ import {
 export const PHASE_LABEL: Record<Phase, string> = {
   draft: 'The draft',
   arrival: 'Arrival',
-  explore: 'Explore',
   planetPre: 'Planet — before the races',
   betting: 'Declarations locked',
   race: 'Race day',
@@ -37,7 +36,6 @@ export const PHASE_LABEL: Record<Phase, string> = {
 /** GDD §4.2 in order, for the phase strip on the hub. */
 export const PHASE_ORDER: Phase[] = [
   'arrival',
-  'explore',
   'planetPre',
   'betting',
   'race',
@@ -238,7 +236,12 @@ export function localRatingFor(race: RaceTypeId, major: boolean): number {
   return raceType(race).localRating + (major ? balance.localRatingMajorBonus : 0);
 }
 
-export function declaredCount(s: GameState, race: RaceTypeId): number {
+/**
+ * Stables declared in a race, **or null while the entries are sealed** (Phase T: until everybody has
+ * finished their weekend on the planet, a stable sees only its own).
+ */
+export function declaredCount(s: GameState, race: RaceTypeId): number | null {
+  if (s.phase === 'planetPre') return null;
   return Object.keys(s.declarations[race]).length;
 }
 

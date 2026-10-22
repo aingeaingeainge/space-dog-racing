@@ -1,4 +1,4 @@
-import { EVENT_BY_ID, planetOf, staffRow, type GameState } from '@sdr/engine';
+import { EVENT_BY_ID, planetOf, staffRow, type GameState, type Id } from '@sdr/engine';
 import { StaffCard } from './StaffCard';
 import { Modal } from './ui';
 import { NeonButton } from './NeonButton';
@@ -15,9 +15,10 @@ import { useGame } from '../store/gameStore';
  * id. Until the art for a card lands the slot draws itself — hazard hatching in the planet's
  * accents with the card's name — so an event never opens onto a hole.
  */
-export function EventModal({ s }: { s: GameState }) {
+export function EventModal({ s, meId }: { s: GameState; meId: Id }) {
   const dispatch = useGame((g) => g.dispatch);
-  const pending = s.pendingEvent;
+  // Phase T: several stables can be at their doors at once; this screen's stable's card.
+  const pending = s.pendingEvents[meId];
   const choose = (choice: number) => {
     if (!pending || choice < 0 || choice >= pending.choices.length) return;
     dispatch({ t: 'ResolveEvent', playerId: pending.playerId, choice });
@@ -58,15 +59,19 @@ export function EventModal({ s }: { s: GameState }) {
       {pending.detail && !pending.params.staffId ? (
         <p className="event-detail">{pending.detail}</p>
       ) : null}
-      {/* GDD_V3 §8: a trainer looking for work shows their face, and the two you would let go. */}
-      {pending.params.staffId ? (
-        <div className="staffcards">
-          <StaffCard row={staffRow(String(pending.params.staffId))} sub="looking for work" />
-          {me?.staff.map((id) => (
-            <StaffCard key={id} row={staffRow(id)} sub="yours now" />
-          ))}
-        </div>
-      ) : null}
+      {/* GDD_V3 §8: somebody looking for work shows their face, and whoever holds that role now. */}
+      {pending.params.staffId
+        ? (() => {
+            const offer = staffRow(String(pending.params.staffId));
+            const now = me?.staff.map(staffRow).find((r) => r.role === offer.role);
+            return (
+              <div className="staffcards">
+                <StaffCard row={offer} sub="looking for work" />
+                {now ? <StaffCard row={now} sub="yours now" /> : null}
+              </div>
+            );
+          })()
+        : null}
       <div className="row">
         {pending.choices.map((label, i) =>
           // A card with a button per rival (a nobble, §9.3) marks the seats it has nothing for as

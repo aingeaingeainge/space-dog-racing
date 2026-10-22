@@ -16,6 +16,7 @@ import {
   GOODS,
   mostNotable,
   planetOf,
+  pricesFor,
   type GameState,
   type Good,
   type Planet,
@@ -62,13 +63,15 @@ export interface MarketRow {
 export function marketRows(s: GameState, me: Player): MarketRow[] {
   const next = nextStop(s);
   return GOODS.map((g) => {
-    const m = s.planet.goods[g.id];
+    // Phase T: this stable's own shelf and its own prices — a Trade Advisor haggles and sells, and a
+    // glut behind a door is the finder's alone (`pricesFor`).
+    const m = pricesFor(s, me, g.id);
     const pos = bandPosition(g, m.buy);
     return {
       good: g,
       aboard: me.cargo[g.id],
       paid: me.cargo[g.id] > 0 ? me.paid[g.id] : null,
-      onShelf: m.stock,
+      onShelf: me.shelf[g.id],
       buy: m.buy,
       sell: m.sell,
       pos,

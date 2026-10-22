@@ -36,6 +36,10 @@ import {
   type Diet,
   type GameLength,
   type GoodId,
+  hasExplored,
+  pricesFor,
+  staffRow,
+  tradeCommission,
 } from '@sdr/engine';
 import { applyActions, screenFor, weekKey, type ScreenUi } from '../src/store/loop';
 import { walkTable } from './table-walk';
@@ -156,14 +160,17 @@ function planetTurn(s: GameState, p: Player, tally: Tally): Action[] {
       const spare = held[g.id] - keep;
       if (spare > 0 && pos(g.id) >= 0.75) {
         out.push({ t: 'TradeFood', playerId: p.id, good: g.id, units: -spare });
-        cash += spare * s.planet.goods[g.id].sell;
+        // Phase T: this stable's own price, less its Trade Advisor's cut of the profit.
+        const sell = pricesFor(s, p, g.id).sell;
+        cash += spare * sell - tradeCommission(p, g.id, spare, sell);
         cargo -= spare;
         held[g.id] -= spare;
         bump(tally, 'TradeFood');
         goodsTraded.add(g.id);
       }
     }
-    const staple = s.planet.goods[STAPLE_ID];
+    // Phase T: this stable's own shelf and price.
+    const staple = { ...pricesFor(s, p, STAPLE_ID), stock: p.shelf[STAPLE_ID] };
     const short = dinner * 2 - held[STAPLE_ID];
     if (short > 0) {
       const units = Math.min(short, staple.stock, HOLD_CAP - cargo, Math.floor(cash / staple.buy));
@@ -178,7 +185,7 @@ function planetTurn(s: GameState, p: Player, tally: Tally): Action[] {
       (a, b) => pos(a.id) - pos(b.id),
     )[0];
     if (bargain) {
-      const m = s.planet.goods[bargain.id];
+      const m = { ...pricesFor(s, p, bargain.id), stock: p.shelf[bargain.id] };
       const units = Math.min(
         m.stock,
         HOLD_CAP - cargo,
@@ -296,11 +303,9 @@ function draftPick(s: GameState, me: Player, plan: OffPlan): { action: Action; p
     };
   }
   if (plan === 'trainer' && d.staff.length) {
+    // Phase T: a hire goes into its own role, and whoever holds it goes — no one to name.
     const pick = { staff: d.staff[0]! };
-    const action: Action =
-      me.staff.length >= balance.staffSlots
-        ? { t: 'DraftPick', playerId: me.id, pick, release: me.staff[0]! }
-        : { t: 'DraftPick', playerId: me.id, pick };
+    const action: Action = { t: 'DraftPick', playerId: me.id, pick };
     return { action, presses: 2 };
   }
   return { action: { t: 'DraftPick', playerId: me.id, pick: null }, presses: 1 };
@@ -416,7 +421,7 @@ function playSeason(
       log.push(...applied.added);
       continue;
     }
-    if (state.phase === 'explore' && !state.pendingEvent && state.activePlayer === me.id) {
+    if (state.phase === 'planetPre' && !hasExplored(state, me.id) && !state.pendingEvents[me.id]) {
       // GDD_V3 §9.1: a door a week, walked round all three so every category gets opened — except
       // that the walk goes down the Back Alley whenever there is one until it has both nobbled a
       // rival and bought a box (§9.3), so the Race Office's box buttons get pressed too.
@@ -426,8 +431,8 @@ function playSeason(
       const door = alley >= 0 && (!me.stats.nobbles || !me.stats.boxes) ? alley : state.week % 3;
       actions = [{ t: 'ChooseDoor', playerId: me.id, door }];
       bump(tally, 'ChooseDoor');
-    } else if (state.pendingEvent && state.pendingEvent.playerId === me.id) {
-      const pe = state.pendingEvent;
+    } else if (state.pendingEvents[me.id]) {
+      const pe = state.pendingEvents[me.id]!;
       // A nobble: the first rival the card names. The steward's box: buy it. Anything else: rotate.
       const choice = NOBBLE_CARDS.has(pe.eventId)
         ? Math.max(
@@ -600,8 +605,13 @@ for (const seed of toRun) {
       // ⚠️ Sabotage is checked across the run, not per season (see the end of the file): at its own
       // target — 40–70% of seasons see one — a third of honest seasons have none.
       walked.sabotages += sabotages;
-      if (state.players.some((p) => p.staff.length > 2))
-        throw new Error('a stable holds more than two trainers');
+      // Phase T: one of each role, never two of one.
+      if (
+        state.players.some(
+          (p) => new Set(p.staff.map((id) => staffRow(id).role)).size !== p.staff.length,
+        )
+      )
+        throw new Error('a stable holds two of one staff role');
     } catch (e) {
       failures++;
       console.error(`seed ${seed} (${label}) FAILED: ${(e as Error).message}`);

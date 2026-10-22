@@ -6,10 +6,10 @@ import type { RoomMeta } from '../../../server/src/protocol';
  * Nudge". Who, from the room's `meta.clock`; which part of the weekend, in the plain names the pass
  * screen uses; and how long, from `meta.clock.since`.
  *
- * Decided at `v3l2`'s checklist: **it names only the humans being waited on**, in turn order. At the
- * Bookie (and in the off-season until Phase N made it a draft, in turn order) the clock also lists AI and stood-in seats waiting behind the turn
- * order (GDD_V3 L2b); they are left out, and when nobody else is left it says "Waiting on the AIs"
- * (they are about to play).
+ * Decided at `v3l2`'s checklist: **it names only the humans being waited on**, in seating order. Since
+ * Phase T every stable plays the weekend at once, so the clock lists everybody still at it, AI and
+ * stood-in seats included (GDD_V3 L2b); they are left out, and when nobody else is left it says
+ * "Waiting on the AIs" (they are about to play).
  */
 export interface WaitingLine {
   /** The humans named, never this browser's own seat, never a stood-in seat. */
@@ -22,8 +22,7 @@ export interface WaitingLine {
 }
 
 export const PHASE_PLAIN: Partial<Record<GameState['phase'], string>> = {
-  explore: 'Explore',
-  planetPre: 'Market and Race Office',
+  planetPre: 'their weekend on the planet',
   betting: 'the Bookie',
   planetPost: 'after the races',
   draft: 'the draft',

@@ -58,7 +58,7 @@ export function specialText(p: Planet): string[] {
   if (s.winningsTax) out.push(`${pct(s.winningsTax)} tax on winnings`);
   if (s.fitnessOnArrival)
     out.push(`Fitness ${s.fitnessOnArrival > 0 ? '+' : ''}${s.fitnessOnArrival} on arrival`);
-  if (s.turnOrderReversed) out.push('Turn order reversed');
+  if (s.shelfMult) out.push(`Every shelf ×${s.shelfMult}`);
   if (s.piratesLikely) out.push('Pirates about');
   return out;
 }

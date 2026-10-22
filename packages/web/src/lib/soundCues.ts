@@ -13,7 +13,7 @@ export function useSoundCues(s: GameState | null, meId: Id | null): void {
   const me = s && meId ? s.players.find((p) => p.id === meId) : undefined;
   const key = s && me ? `${s.season}:${s.week}:${me.id}` : '';
   const card = !!s && !!me && s.explore?.cards[me.id] !== undefined;
-  const pending = !!s?.pendingEvent && s.pendingEvent.playerId === meId;
+  const pending = !!s && !!meId && !!s.pendingEvents[meId];
   const cash = me?.cash ?? 0;
 
   useEffect(() => {

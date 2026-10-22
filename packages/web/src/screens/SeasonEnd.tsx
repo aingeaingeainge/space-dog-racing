@@ -70,7 +70,7 @@ function SeasonOver({ s, rows }: { s: GameState; rows: SeasonRow[] }) {
         </NeonButton>
         <span className="muted">
           The off-season first: every dog a year older and back to full fitness, the staff notice,
-          and one round of the draft — a dog, a trainer or a pass each.
+          and one round of the draft — a dog, one of the staff or a pass each.
           {first ? (
             <>
               {' '}
@@ -207,10 +207,11 @@ export function IncomeSplit({
       </div>
       <More label="What the columns mean">
         <p className="flush">
-          Prize money is what the purses paid, before the trainers took their cut. Trading is goods
-          sold less goods bought; betting is returns less stakes. Food and bills are what went out
-          whatever you were doing. The ledger is those columns — what is left over is in the dogs
-          and the hold, which is why it does not match net worth.
+          Prize money is what the purses paid, before the trainer took their cut. Trading is goods
+          sold less goods bought, after the Trade Advisor’s cut; betting is returns less stakes,
+          after the Gambling Advisor’s. Food and bills are what went out whatever you were doing.
+          The ledger is those columns — what is left over is in the dogs and the hold, which is why
+          it does not match net worth.
         </p>
       </More>
     </Panel>
