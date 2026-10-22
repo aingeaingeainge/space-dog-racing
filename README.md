@@ -5,7 +5,7 @@
 Play online with friends: press **Play online**.
 
 Ten weekends a season on the grimy underground greyhound circuit of a cartoon future. You run a
-kennel of four space dogs and two trainers, and every week the circuit jumps to a new planet for
+kennel of four space dogs and three staff — a trainer, a trade advisor and a gambling advisor — and every week the circuit jumps to a new planet for
 three races: Bronze, Silver and Gold. Prize money is the main way to get rich, but not the only
 one: there is a door to open on every rock (dogs, tips, money, trouble), six foods to buy cheap and
 sell dear that are also your dogs' training, and a bookie who will take a bet on your own dog or a
@@ -23,8 +23,9 @@ v3, the party game (`design/GDD_V3.md`). Press **Play** on the Title for a solo 
 AI stables; **Custom game** under it sets up a hotseat table of up to eight (any mix of humans and
 Easy, Normal and Hard AIs), one to five seasons or a race to a target, and the toggles; **Play
 online** (on the live site) makes a room for friends in other houses. A game opens on a draft of four
-dogs and two trainers. A weekend is a door to open, the six-food market that is also your dogs'
-training, a dog in each of three races, a bet, and the races. Every planet is painted, and the
+dogs and three staff, one of each role. Everybody plays the weekend at once: a door to open, your own
+shelf of the six-food market that is also your dogs' training, a dog in each of three races (sealed
+until everybody is done), a bet, and the races. Every planet is painted, and the
 track has a sound of its own (all of it synthesised in the browser; **Sound on / off** in the top
 bar, key V). Your dog wears a ring on the track, so you can find it when the camera is on the
 leaders.

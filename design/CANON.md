@@ -76,9 +76,17 @@ correction goes in the next phase's notes.
 |---|---|---|
 | v1 | `m4` | `design/GDD.md` 0.1, `design/BUILD_PLAN.md` §6 |
 | v2 | `v2a` … `v2e` | `design/GDD.md` 0.2–0.7, `design/BUILD_PLAN.md` §6b |
-| **v3** | `v3a`, `v3b`, `v3c`, `v3c2`, `v3d1`, `v3d2`, `v3e1`, `v3e2`, `v3f1`, `v3f2`, `v3g`, `v3h`, `v3i`, `v3j`, `v3k`, `v3l1`, `v3l2`, `v3l3`, `v3m`, `v3n`, `v3l4`, `v3p`, `v3q`, `v3r`, `v3s` | **`design/GDD_V3.md` 3.0, `design/BUILD_PLAN_V3.md`**, and from `v3k` **`design/ONLINE_PLAN.md`** |
+| **v3** | `v3a`, `v3b`, `v3c`, `v3c2`, `v3d1`, `v3d2`, `v3e1`, `v3e2`, `v3f1`, `v3f2`, `v3g`, `v3h`, `v3i`, `v3j`, `v3k`, `v3l1`, `v3l2`, `v3l3`, `v3m`, `v3n`, `v3l4`, `v3p`, `v3q`, `v3r`, `v3s`, `v3t` | **`design/GDD_V3.md` 3.0, `design/BUILD_PLAN_V3.md`**, and from `v3k` **`design/ONLINE_PLAN.md`** |
 
-Last reviewed and **synced to the claude.ai Project: 22 October 2026**, at `v3s` (Phase S, not an L
+Last reviewed and **synced to the claude.ai Project: 22 October 2026**, at `v3t` (Phase T, not an L
+phase, on Jesse's two calls: **everybody plays the weekend at once, with no shared market** (GDD_V3 T1–T2)
+— no turn order, the door first in each stable's own weekend, a shelf of its own, the Race Office sealed
+until the lock — and **three staff, one of each role** (T2–T4): a Dog Trainer, a Trade Advisor and a
+Gambling Advisor, each paid a share of their own side, drafted one of each in a seven-round opening
+draft. `STATE_VERSION` / `SAVE_VERSION` 16, **`PROTOCOL_VERSION` 3**, both goldens moved once: **pushing
+`v3t` ends every live room.** GDD_V3 §1.1, §2.3, §3, §6.1, §7.3, §8 (new §8.3), §9.1, §9.4, §12, §13
+(T1–T4) and §14 (Q17–Q18); BUILD_PLAN_V3's Phase T line; PLAYTEST_CHECKLIST rows 41–43 and questions
+1.17, 2.11, A.9; ONLINE_PLAN §5.1's superseded note; README. Before that, `v3s` (Phase S, not an L
 phase, on Jesse's "can you improve the look of the game / graphics, tidy things up": **the look** — the
 hub's venue signs, the tickets, race day sharper and turned to run up an upright phone (GDD_V3 S1), the
 Title's opening on Collar Prime (S2), medals for the paying places, the phone's venue strip, and app.css

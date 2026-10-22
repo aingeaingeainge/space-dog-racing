@@ -2,7 +2,7 @@
 
 > **Status: CURRENT (the top section).** Canonical copy: `design/PLAYTEST_CHECKLIST.md` in the
 > `space-dog-racing` repo. A copy in a claude.ai Project is a **mirror**, last synced 22 October
-> 2026 (at `v3s`), for reading on a phone at the table — edit the repo, never the mirror. See
+> 2026 (at `v3t`), for reading on a phone at the table — edit the repo, never the mirror. See
 > `design/CANON.md`.
 
 > **Current section: "v3 Phase J — the evening", directly below.** It is one plan for one evening with
@@ -16,7 +16,9 @@
 > for Jesse to keep or revert** (GDD_V3 Q1–Q3): rows 34–36 and questions 1.14, 2.9 and A.7 ask whether
 > anybody noticed each one, and whether it was better. **At `v3r` the game got its sound and its rings
 > on the track, and the AIs' race pricing moved** (GDD_V3 R1–R3): rows 37–39 and questions 1.15, 2.10
-> and A.8. **At `v3s` the look was polished** (GDD_V3 S1–S2): row 40 and question 1.16. Below both,
+> and A.8. **At `v3s` the look was polished** (GDD_V3 S1–S2): row 40 and question 1.16. **At `v3t` the weekend
+went simultaneous and the staff became three** (GDD_V3 T1–T4): rows 41–43 and questions 1.17, 2.11 and
+A.9; row 35's draft is seven rounds now, and row 36's gossip is the Gambling Advisor's. Below both,
 > kept as the record:
 > **"v3 Phase E2 — the table"** (the `v3e2` checklist, superseded by this one; nothing in it was
 > answered) and **v1's checklist (milestone M1)**, whose venues no longer exist.
@@ -76,6 +78,9 @@ remember anything: the report carries it.
 | 38 | **The rings** (`v3r`): could every human find their own dog in a race? | `v3r`, GDD_V3 R3 | Game 2, question 2.10 |
 | 39 | 🎲 **R1: the AIs price places and fitness when they pick their races.** Did the Normal AIs feel any tougher? | `v3r`, GDD_V3 R1 | After, question A.8 |
 | 40 | **The look** (`v3s`): the Title's opening, the hub's signs, the medals, and on a phone the race turned to run up the screen. Did anything read worse than before? | `v3s`, GDD_V3 S1–S2 | Game 1, question 1.16 |
+| 41 | 🎲 **T1: everybody plays the weekend at once.** Did the table go faster, and did anybody miss going first or last? | `v3t`, GDD_V3 T1 | Game 1, question 1.17 |
+| 42 | 🎲 **T1: the Race Office is sealed.** Did anybody still think about running styles when they declared, or only at the Bookie? | `v3t`, GDD_V3 T1, §14 Q17 | Game 2, question 2.11 |
+| 43 | 🎲 **T2–T4: three staff, one of each role.** In the draft, which role did people fight over, and which advisor did nobody want? | `v3t`, GDD_V3 T2–T4, §14 Q18 | After, question A.9 |
 
 **Closed before the evening, not asked again:** `v3f2`'s cards (Jesse, at `v3g`: "great", nothing
 unfinished); `v3f1` Q5 (the cards were drawn at `v3f2`); `v3d2` Q5's plan-the-week press (folded into
@@ -134,6 +139,7 @@ game answers 1.2 before anybody explains the market.
 | 1.14 | **Q2: the draft order.** Round 3 runs the way round 2 did. Did anyone notice, and did it feel fairer? | Noticed, and fairer · Noticed, no different · Nobody noticed · It confused someone |
 | 1.15 | **The sound** (`v3r`; the switch is in the top bar, key V) | Kept on, it adds to it · Kept on, didn't notice it · Muted it: annoying (what?) · Muted it: the room was loud |
 | 1.16 | **The look** (`v3s`): the Title, the hub's venue signs, the race tickets and medals; anyone on a phone, the race running up the screen | Better, nothing wrong · Better, but one thing reads worse (what?) · No different · Worse |
+| 1.17 | **Everybody at once** (`v3t`): a weekend played by every stable at the same time, no turn order | Much quicker, nothing missed · Quicker, but I missed seeing the field (or first pick of the shelf) · No different · Worse |
 
 ### Game 2 — the long one (about 80 minutes)
 
@@ -157,6 +163,7 @@ the only way to reach an off-season, the draft and a Hard AI's whole game.
 | 2.8 | **Did the best racing stable win, and was it fine that everyone got richer?** | Yes and yes · The best racer lost to something else (what?) · Too comfortable: nobody went backwards |
 | 2.9 | **Q1: the book prices fitness.** A fresh dog is shorter odds, a tired one longer. Did anyone notice, and was the Bookie better for it? | Noticed, and better · Noticed, no different · Nobody noticed · Worse: betting felt pointless |
 | 2.10 | **The rings** (`v3r`): every human's dog is ringed and named on the track, with an arrow on the edge when it is out of shot. Could everyone find theirs? | Yes, always · Mostly · The tags got in the way · Didn't notice them |
+| 2.11 | **The sealed Race Office** (`v3t`): when you declared, did you think about the rivals' running styles? | Yes, I guessed from their kennels · A little · No, only at the Bookie · Didn't notice styles |
 
 ### Game 3 — if there is time (about 30 minutes)
 
@@ -184,6 +191,7 @@ Pick one:
 | A.6 | **What next?** | Fix what the evening found · Online multiplayer · Another balance pass (on what?) · Something else |
 | A.7 | **Q3: the gossip trainer's tip a week.** Did whoever drafted one notice the tips, and were they worth having? | Yes, I bet or rested on one · Noticed, never used it · Nobody drafted one · Didn't notice |
 | A.8 | **R1: the Normal AIs** now price places and fitness when they pick their races (`v3r`). Against them, the game felt | Tougher, and better for it · No different · Too tough now |
+| A.9 | **The three staff** (`v3t`): Trainer, Trade Advisor, Gambling Advisor. Which was worth having, and was any not worth its cut? | Name the best and the worst · All about right · Advisors felt pointless · Too much to read in the draft |
 
 ---
 

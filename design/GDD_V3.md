@@ -3,7 +3,7 @@
 > **Status: CURRENT.** Build from this document.
 >
 > Canonical copy: `design/GDD_V3.md` in the `space-dog-racing` repo. A copy in a claude.ai Project
-> is a **mirror**, last synced 22 October 2026 (at `v3s`) — edit the repo, never the mirror. See `design/CANON.md`.
+> is a **mirror**, last synced 22 October 2026 (at `v3t`) — edit the repo, never the mirror. See `design/CANON.md`.
 >
 > Supersedes `design/GDD.md` (v2, shipped at tag `v2e`), which is kept as historical reference and
 > is cited by name throughout this document.
@@ -86,7 +86,7 @@ Everything else was cut. If these five are not deep enough, the game is not deep
 | 1 | **Which door do I open?** | Explore | Three places a week, one pick, and what you need (a dog, a trainer, money, revenge) changes weekly |
 | 2 | **Buy, sell, or feed it?** | Market | The same six goods are your inventory and your training programme, and the price band tells you which |
 | 3 | **Who runs, who rests?** | Kennel | Fitness is a budget spent over ten weeks with three dogs and thirty race slots |
-| 4 | **Which dog in which race?** | Race Office | Three purse tiers, public declarations in turn order, and running styles that interact |
+| 4 | **Which dog in which race?** | Race Office | Three purse tiers, declarations sealed until everybody is done (T1), and running styles that interact |
 | 5 | **What do I know that the bookie doesn't?** | Bookie | The book prices ratings and styles; it does not price the shape of the field |
 
 **Tone is unchanged from v2 §1:** Gazillionaire's pastel absurdity crossed with Death Rally's soot
@@ -185,24 +185,30 @@ One planet phase, not two. v2 ran a market phase before *and* after the races; v
 halving the screen visits is worth more to pace than the flexibility is worth to play. Winnings are
 spent next week, which gives the season a rhythm.
 
-1. **Arrival & turn order.** `score = 20 − cargoUnits ÷ 5 + d10` ⚖️. Highest goes first. Shown
-   with the reason. **There is no ship speed to buy**, so turn order is bought with empty cargo
-   space and nothing else.
-2. **Explore** — simultaneous. Everyone picks one of the planet's three destinations at once;
-   events resolve in turn order where two stables want the same thing.
-3. **Market** — in turn order, because the shelf is shared and depth is finite (§6.2). This is what
-   going first is *for*.
-4. **Kennel** — simultaneous. Set each dog to Race or Rest, and set its diet.
-5. **Race Office** — **in turn order, and declarations are public as they are made.** See §7.3;
-   this is the one place where going *last* is the advantage, and it is deliberate.
-6. **Bookie** — after declarations lock, prices are posted, everyone bets at once.
-7. **Race day.** Three races run and are watched. Prizes paid, staff take their cut, bets settled.
-8. **Jump.** Fitness, food, growth and injuries resolve. Next planet.
+**Rewritten at `v3t` (T1, Jesse's call): everybody plays the weekend at once.** There is no turn
+order.
 
-⚠️ **Turn order cuts both ways, and that is the design.** First pick of a shelf that runs out
-against last look at a field you have to commit a dog into. A stable that loads its hold to the roof
-goes last all season, which makes it rich and predictable — a trade the whole table can see it
-making.
+1. **Arrival.** The planet's prices and posted shelf depth are rolled; every stable is given **a shelf
+   of its own** (§6.1, T2); race-day conditions are drawn; nobody is ranked.
+2. **The stable's weekend — everybody at once, in any order.** Each stable opens **one door** first
+   (Explore, §9.1), then works **its own market**, its **kennels** and its **Race Office**, in whatever
+   order it likes, and presses done. Its declarations are **sealed** until the last stable is done
+   (§7.3). Nobody waits for anybody until they have finished.
+3. **The lock.** When the last stable is done, the whole card is public at once, locals fill the empty
+   traps and the book prices the field.
+4. **Bookie** — everyone bets at once (as since E8).
+5. **Race day.** Three races run and are watched. Prizes paid, staff take their cut, bets settled.
+6. **After the races** — the market again, everybody at once, then fly on.
+7. **Jump.** Fitness, food, growth and injuries resolve. Next planet.
+
+*Until `v3t` the list read: arrival and **turn order** (`20 − cargo ÷ 5 + d10`, highest first, B7);
+Explore simultaneous; the **Market in turn order**, because the shelf was shared; the Kennel
+simultaneous; the **Race Office in turn order, public as made** (V16); the Bookie at once. Turn order
+cut both ways — first pick of a shelf that ran out against last look at a field — and it was the
+slowest thing in a multiplayer game: every stable waited for every stable ahead of it twice a weekend.
+Jesse's call: "the turn based part of the game is slowing it down too much, as this is mostly aiming to
+be a multiplayer game." V16, B7 and C10 are superseded by T1 and T2; the drafts (§2.2, §5.5) are the
+one thing still in turn order, because a pick takes something off a shared board.*
 
 *`v3e2` (E8): step 6 is built as written — **the Bookie takes slips in any order**, and a slip is filed
 in turn order whatever order it was struck in, so the order changes nothing (a determinism test runs all
@@ -233,12 +239,13 @@ top. Net worth is the whole scoring system.
 - **Hotseat local multiplayer is the target the rules are written for** — humans round one screen,
   passing a laptop or a tablet. Online is later and unchanged in difficulty (the engine stays pure
   and action-driven, so it is the same job it always was).
-- **Simultaneous wherever the shelf is not shared.** Explore, Kennel and the Bookie all resolve at
-  once for every player; only Market and Race Office are taken in turn. With 8 players that is the
-  difference between a brisk game and an unplayable one, and it is the single biggest pacing lever
-  in the design.
-- **Hidden information between humans:** a stable's Explore choice and its bets are private. Its
-  declarations are public the moment they are made (§7.3), and its dogs' stats are always public.
+- **Simultaneous, all of it** (T1, `v3t`). Every part of a weekend is played by every stable at once;
+  only the drafts go round the table. Until `v3t` the Market and the Race Office were taken in turn.
+  With 8 players that is the difference between a brisk game and an unplayable one, and it is the
+  single biggest pacing lever in the design.
+- **Hidden information between humans:** a stable's Explore choice and its bets are private, and so
+  are its declarations until the lock (§7.3, T1). Its dogs' stats, its cash, its hold and its staff
+  are always public.
 
 *`v3e2` (E8): the laptop moves only when a private screen changes hands. Private: the door and its
 card, the market, kennels and Race Office, the Bookie, the off-season. Public, read together: the
@@ -593,6 +600,13 @@ free.** With a 50-unit hold and 6,000 starting Bones you can fill a fifth of the
 Ambrosia — cash binds. By week six, with prize money in, the hold binds and you graduate up the
 ladder. An early game and a late game, out of a price table, with nothing to buy.
 
+*`v3t` (T2, Jesse's "no more shared market"): **every stable has a shelf of its own.** The depths in
+the table above are a whole planet's posted shelf; each stable is given `privateShelfShare` (0.2 ⚖️) of
+it, rounded up — one or two Ambrosia, eight to twelve Grey Mash — and what it buys comes off its own.
+The share was swept to keep the market where `v3s` had it (food sold 10,399 → 13,417 a stable-season;
+cash-bound → hold-bound at week 4.6 → 4.7); the whole shelf to every stable tripled the trade. A Mash
+glut or shortage behind a door moves that stable's own price, not the planet's.*
+
 **Shelf depth is the scarcity rule**, and it is what stops "fill the hold with Ambrosia" being the
 answer to everything. You cannot buy more than about eight units of the top good on any one planet,
 so the big trade has to be *assembled* across several weeks — under a fog that hides where you are
@@ -711,18 +725,22 @@ model, the tick log, the renderer replay contract — carries over. **These cons
 six phases and there is no reason to disturb them.** Phase C re-baselines against them rather than
 replacing them.
 
-### 7.3 Declaring — the one place going last is better
+### 7.3 Declaring — sealed until everybody is done
 
-**Declarations are made in turn order and are public the instant they are made.**
+**Rewritten at `v3t` (T1, Jesse's call): every stable declares at once, and the entries are sealed.**
+A stable sees its own and nobody else's until the last stable has finished its weekend; then the
+whole card goes up together, the locals fill the empty traps and the Bookie opens. The AIs are sealed
+the same way (`sealedFor`): none reads a rival's entry before the lock.
 
-This is a deliberate inversion. Going first buys the best of a finite shelf; going last buys the
-right to see what you are running into before you commit. A stable that has loaded its hold to the
-roof takes the late slot all season and gets the better half of that trade — legibly, in front of
-everyone.
+What a stable can read is every rival's **kennel** — who is fit, how each dog runs, what it is rated —
+so the Race Office is a guess at the field rather than a read of it. The Race Office shows, for each
+rival, the sound dogs it could run. The field's shape still decides races (§5.3's hot pace), and it is
+still what the bettor reads once the card is public.
 
-It is also what makes §5 pay off. If declarations were simultaneous and hidden, running styles would
-only matter to the bettor, not to the manager. Public-in-turn-order means the last player to declare
-into the Gold Cup can see two front-runners already in it and put their closer in.
+*Until `v3t` (V16, C10): declarations were made in turn order and public the instant they were made, so
+going last bought a look at the field — the other half of turn order's trade against first pick of a
+shared shelf. With no turn order there is no last, and a live public board would have rewarded
+whoever dawdled. ❓ §14 Q17 asks whether styles still matter to the manager with the field sealed.*
 
 ### 7.4 Betting
 
@@ -773,9 +791,18 @@ finish, an "ooh" for a bump, a cheer for a lead change, the shutter at a photo, 
 
 ## 8. Staff — two trainers on commission
 
+**Rewritten at `v3t` (T2–T4, Jesse's calls): three staff, one for each side of the game.** Every stable
+has a **Dog Trainer** (racing), a **Trade Advisor** (the market) and a **Gambling Advisor** (the Bookie),
+one of each. **Each is paid a share of their own side**: the Trainer of race prize money (as before),
+the Trade Advisor of the *profit* on what the stable sells, the Gambling Advisor of the *profit* on a
+winning slip. The opening draft takes one of each; a Bar card or the off-season draft replaces a role's
+holder. §8.3 has the advisors' bonuses. What follows in §8.1–8.2 is the Trainer, unchanged but for the
+two bonuses that moved to the advisors.
+
 ### 8.1 The shape
 
-- **Two slots. Everyone is a trainer.** No roles, no ladder, no market.
+- **Two slots. Everyone is a trainer.** No roles, no ladder, no market. *(`v3t`: three roles, one
+  each — above.)*
 - **Dealt at the start of a game.** The only way to change staff is a random event or the
   off-season notice. *(`v3n`, V29: **drafted**, not dealt — two each from the opening board — and the
   off-season draft can take one on, letting one go if the staff is full.)*
@@ -834,6 +861,30 @@ Fontaine and Hex carry it. Not changed, and measured: the two injury bonuses and
 trouble" still price below zero (§14 Q4); priced at 1% the AI drafted them in place of better trainers
 and they still read −958 / −520 / −957, so their price is not the problem.*
 
+### 8.3 The advisors (`v3t`)
+
+Forty-one people now: seventeen Trainers, twelve Trade Advisors, twelve Gambling Advisors, each with one
+or two bonuses of their own role. A person's cut is the sum of their bonuses' cuts plus 2% for a pair,
+capped at 10% for a Trainer (of purses) and 40% for an advisor (of a profit, which is a smaller side) ⚖️.
+"Next week's prices" and "a tip a week" moved from the Trainer's pool; the tip is now about **a rival's
+dog only** (a tip about your own dog is a Race-or-Rest call, the Trainer's side).
+
+| Role | Bonus | Size ⚖️ | Cut ⚖️ |
+|---|---|---|---|
+| Trade | Next week's prices for all six goods | — | 5% of trading profit |
+| Trade | Buys cheaper | −5% on every crate bought | 20% |
+| Trade | Sells dearer | +4% on every crate sold (never up to the buy price) | 3% |
+| Trade | A deeper shelf | +25% on the stable's own shelf | 15% |
+| Gambling | A race-day tip a week, about a rival's dog | 1 | 10% of winnings |
+| Gambling | A better price | +5% on every slip's odds | 15% |
+| Gambling | A higher limit | +50% on the flat stake ceiling | 2% |
+
+*The cuts are first measurements, not settled (`harness --draft`, D12's regression on 17,000 drafted
+stables, read against each role's own side: about 28,700 in purses, 4,800 in trading profit and 1,400
+in winnings a stable-season). The advisors' sides are small, so each advisor bonus is measured to
+±300–700 Bones of end worth — between a fair cut of nothing and one of double the sheet's. Four runs
+moved every advisor's fair cut by ten points or more. ❓ §14 Q18.*
+
 ---
 
 ## 9. Explore — where everything unpredictable comes from
@@ -870,6 +921,12 @@ category is on 5.7–6.2 of a season's ten weeks. The deck is 86 cards (Pound 19
 17, Strip 16, Track 15); Staff and sabotage (D2) take it past 90. All-Normal door share 17–23% per
 category. One seat's cards recur 13% from one season to the next. Every stable explores on its own
 stream seeded at arrival, so no door moves anybody else's draws.*
+
+*`v3t` (T1): the door is the first thing in a stable's own weekend, opened whenever it likes. A
+one-of-a-kind card is no longer gone for the next stable through the door — that was settled in turn
+order, and there is none — so every stable draws from the whole deck. The Bar's staff cards offer a
+person of one role (two new cards: a Trade Advisor and a Gambling Advisor looking for work), never
+somebody another stable is being offered that weekend.*
 
 ### 9.2 Acquiring a dog
 
@@ -935,7 +992,8 @@ cards sell the band position of two, three or all six goods, rolled a week early
 else. **Race-day tips** — five Bar and Back Alley cards tell one stable about a hidden knock, loss of
 appetite or buzz on a stable dog, which the book never prices: a tipped buzzing dog returns about
 +20% a Bone, and this is the insider knowledge betting was missing.* *(`v3q`, Q3: and one trainer bonus,
-a tip a week.)*
+a tip a week.)* *(`v3t`, T2–T3: both staff bonuses that tell a stable something are advisors' now — the
+prices the Trade Advisor's, the tip, about a rival's dog only, the Gambling Advisor's.)*
 
 ---
 
@@ -1157,6 +1215,8 @@ All 18 planets survive as data. What changes is which fields do work:
   styles interact with it: a tight-bend track favours a front-runner who gets the rail, a long
   straight favours a closer.
 - **`marketBias`**, ship shops, banks, sharks, staff halls and the supplement rules are **cut**.
+- **Blackreach** reversed the turn order; since `v3t` there is none, and its time-bent station
+  **restocks twice**: every stable's shelf there is ×2 (`shelfMultBlackreach` ⚖️).
 - **The book's specials stay, as planet rows:** Neon Snout, the casino moon, has a 10% margin and
   **twice the flat stake ceiling** (`maxStakeMultiplier: 2`, V21) — still the place for a big bet,
   not an unlimited one; Collar Prime lets a stable stake all its cash, up to the ceiling; Holy Bark
@@ -1284,6 +1344,10 @@ All 18 planets survive as data. What changes is which fields do work:
 | 2026-10-20 | **R3 — the humans' dogs are ringed on the track** | **Claude's call at `v3r`, unattended.** §7.5. Yours alone or online; every human's, by stable name, at a hotseat table. Paint over the frame: the camera and the tick log are untouched (`race-view-check` unchanged). UI only |
 | 2026-10-22 | **S1 — on an upright phone the race is turned a quarter, to run up the screen** | **Claude's call at `v3s`, on Jesse's "improve the look of the game, tidy things up".** §7.5. A picture a third taller than it is wide lays the track's long axis along the tall side, so the field is drawn about twice the size (a dog about 14 px long before and 30 px after, at 390 × 844). The camera alone: the tick log, the finish, the rings and the out-of-shot arrows read the same (`race-view-check` unchanged). A laptop and a landscape phone are exactly as at `v3r`. UI only |
 | 2026-10-22 | **S2 — the Title opens on Collar Prime with the pack running under the nameplate** | **Claude's call at `v3s`.** Collar Prime is where every season ends. The runners are the race view's own run cycles in the first six stable colours, moving on sine waves: nothing random, nothing read from a game, one still frame under reduced motion. UI only |
+| 2026-10-22 | **T1 — everybody plays the weekend at once; no turn order** | **Jesse's call at `v3t`**: "the turn based part of the game is slowing it down too much, as this is mostly aiming to be a multiplayer game". §2.3, §3, §7.3. The arrival rolls no turn order (`turnOrder` is the seating order); Explore is the first thing in a stable's own weekend rather than a phase; the market, kennels and Race Office are any order; after the races too. Declarations are **sealed** until the lock (Jesse picked sealed over a live public board), and an AI is sealed the same way. The three cards that bought arriving first or last now land the dogs rested (+10) or shaken (−10). The drafts stay in turn order (Jesse's call). Hotseat at 4 humans: 10.6 → 5.9 passes a weekend; at 8, 22.4 → 13.7 (`hub-clicks`). Supersedes V16, B7, C10 and D1's contention rule |
+| 2026-10-22 | **T2 — every stable has a shelf of its own, and three staff, one of each role** | **Jesse's calls at `v3t`**: "no more shared market", and "a staff member for each of the 3 aspects of the game: Dog Trainer, Trade Advisor, and Gambling Advisor; each player has one of each". §6.1, §8. A stable's shelf is `privateShelfShare` (0.2) of the posted depth (swept to keep the market where `v3s` had it); a glut behind a door is the finder's own price. The opening draft is seven rounds — four dogs, one of each role (Jesse picked drafting over dealing) — and Q2's third-round reversal stays: re-measured on seven rounds it reads 1.7 / 1.0 / 3.0 points off fair at 3 / 6 / 8 stables (MET), where the plain snake read 4.0 / 4.7 / 6.8 |
+| 2026-10-22 | **T3 — the advisors' bonuses** | **Claude's call at `v3t`**, inside T2. §8.3. Trade: next week's prices (from the Trainer's pool), buys 5% cheaper, sells 4% dearer (held under the stable's buy price, so no same-planet arbitrage), a shelf 25% deeper. Gambling: a tip a week (from the Trainer's pool, rivals' dogs only), slips struck 5% better, the flat ceiling 50% higher. 17 new people, drawn as SVG |
+| 2026-10-22 | **T4 — each staff member is paid a share of their own side** | **Jesse's call at `v3t`** (over all three cutting the purses). The Trainer of purses; the Trade Advisor of the profit on a sale, crates × (sell − You Paid), above zero; the Gambling Advisor of payout − stake on a winning slip. Advisors are capped at 40% of their side. The cuts are D12-style measurements with wide error (§8.3); Normal's price list (`STAFF_WORTH`) reads each bonus at its measured fair share |
 ---
 
 ## 14. Open questions ❓
@@ -1375,6 +1439,14 @@ All 18 planets survive as data. What changes is which fields do work:
    neither) — the second is still well under V23's 14%. Every lever
    found is a number inside Jesse's calls (V32's one dog a stable, N1's 40–60) or the last stable arriving
    first, which V23 chose against at `v3i`. Not touched at `v3q`; Jesse's to reopen.
+17. **With the Race Office sealed, do running styles still matter to the manager?** §7.3, T1. V16 made
+   the board public so the last stable could see two front-runners in the Gold Cup and put its closer
+   in. Sealed, a stable guesses from the rivals' kennels. If a table stops thinking about styles when it
+   declares, the field-shape read lives only at the Bookie.
+18. **Are the advisors worth what they take?** §8.3, T4. Each advisor's side is a small profit, so the
+   harness measures them loosely; a Gambling Advisor paid from winnings costs a stable that does not bet
+   nothing at all. The table will say which advisor everybody fights over in the draft, and which
+   nobody wants.
 
 ---
 

@@ -3,7 +3,7 @@
 > **Status: CURRENT.** Build from this document.
 >
 > Canonical copy: `design/BUILD_PLAN_V3.md` in the `space-dog-racing` repo. A copy in a claude.ai
-> Project is a **mirror**, last synced 22 October 2026 (at `v3s`) — edit the repo, never the mirror. See
+> Project is a **mirror**, last synced 22 October 2026 (at `v3t`) — edit the repo, never the mirror. See
 > `design/CANON.md`.
 >
 > Supersedes `design/BUILD_PLAN.md` from §6 onward. **That document's §§1–5 — architecture, tech
@@ -670,6 +670,17 @@ screen text and `SAVE_VERSION` 13; GDD_V3 §2.2, §10, §11 and V23.
 > one row with the next step full width under them; app.css lost its dead rules and its scattered
 > hotspot blocks. **No rule moved**: no golden, `STATE_VERSION`, `SAVE_VERSION` or `PROTOCOL_VERSION`.
 > **Pushing does not end live rooms.** Notes: `claude/V3_PHASE_S_NOTES.md`.
+>
+> **Phase T** `v3t` ✅ (22 October 2026, not an L phase, on Jesse's "the turn based part of the game is
+> slowing it down too much … each person plays their turn simultaneously … no more shared market", and
+> "a staff member for each of the 3 aspects of the game: Dog Trainer, Trade Advisor and Gambling
+> Advisor"): **the weekend at once, and three staff.** No turn order; the door is the first thing in a
+> stable's own weekend; every stable has its own shelf (a fifth of the posted depth); declarations are
+> sealed until the lock, for the AIs too (GDD_V3 T1, T2). One Trainer, one Trade Advisor and one Gambling
+> Advisor a stable, each paid a share of their own side; a seven-round opening draft; 17 new people drawn
+> (T2–T4). Hotseat passes a weekend at 4 humans 10.6 → 5.9, at 8 22.4 → 13.7. **Rules moved**:
+> `STATE_VERSION` / `SAVE_VERSION` 16, **`PROTOCOL_VERSION` 3**, both goldens once. **Pushing `v3t` ends
+> every live room.** Notes: `claude/V3_PHASE_T_NOTES.md`.
 
 ---
 

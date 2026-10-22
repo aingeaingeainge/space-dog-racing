@@ -3,7 +3,7 @@
 > **Status: CURRENT.** Build online multiplayer from this document.
 >
 > Canonical copy: `design/ONLINE_PLAN.md` in the `space-dog-racing` repo. A copy in a claude.ai
-> Project is a **mirror**, last synced 22 October 2026 (at `v3s`) — edit the repo, never the mirror.
+> Project is a **mirror**, last synced 22 October 2026 (at `v3t`) — edit the repo, never the mirror.
 > See `design/CANON.md`.
 >
 > Written in v3 Phase K (`v3k`). It replaces `design/BUILD_PLAN.md` §6b.9 and "Prompt M6", which were
@@ -288,8 +288,15 @@ driven in turn order, which nothing below changes. `STATE_VERSION` and `SAVE_VER
 
 ### 5.1 Waiting (V25)
 
-**No timer; a nudge.** The weekend runs in the same order as hotseat (GDD_V3 §2.3), and the same parts
-are in turn order because the shelf is shared and the declarations are public as made.
+**No timer; a nudge.** The weekend runs in the same order as hotseat (GDD_V3 §2.3).
+
+> ⚠️ **Superseded at `v3t` (GDD_V3 T1): every seat plays the whole weekend at once.** There is no turn
+> order: each seat opens its door, works its own shelf, kennels and Race Office (sealed until the lock)
+> and presses done, and waits only for the slowest — "Waiting on Ruby — their weekend on the planet".
+> Nothing is queued: the door and "Fly on" are applied the moment they are pressed (`queueKind` is
+> always null; the plumbing is kept). `clockOf` is every seat still at its part of the weekend, and
+> `driveRoom` plays every AI and stood-in seat before waiting on a human. The table below is the record
+> of `v3l3`–`v3s`. Only the drafts are still in turn order.
 
 | Step | Online |
 |---|---|
