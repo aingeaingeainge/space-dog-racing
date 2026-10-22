@@ -762,8 +762,10 @@ ul.notes li::before {
   height: 0;
   border-top: 2px dashed rgba(33, 29, 24, 0.35);
 }
+/* The card's printed perforation runs down its left edge (assets/ui/ticket.svg, 23 px in at the size
+   it is drawn), so the writing starts clear of it. */
 .ticket > .fill {
-  padding: 11px 14px;
+  padding: 11px 14px 11px 36px;
 }
 .ticket .serial {
   font-size: 10px;
@@ -2029,11 +2031,46 @@ dl.kv > div {
 .ticket .table-wrap::-webkit-scrollbar-thumb {
   background: var(--rust);
 }
-/* The rivals list on a declaration ticket is two narrow columns, so names wrap rather than
-   being cut off by the stub. */
+/* The rivals on a declaration ticket: the stable on the left and its runner on the right, and when
+   the runner's name and badges will not fit beside it they drop to their own line, right-aligned,
+   rather than squeezing both into two narrow wrapping columns. */
+.ticket table.rivals,
+.ticket table.rivals tbody {
+  display: block;
+  font-size: 12px;
+}
+.ticket table.rivals tr {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 2px 10px;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(33, 29, 24, 0.16);
+}
 .ticket table.rivals td {
+  display: block;
+  padding: 0;
+  border: 0;
   white-space: normal;
   overflow-wrap: anywhere;
+}
+.ticket table.rivals td:last-child {
+  margin-left: auto;
+  text-align: right;
+}
+.ticket table.rivals tbody tr:hover td {
+  background: none;
+}
+/* The runner you have declared: its face, its style and traits, and its fitness, on one line. */
+.ticket .runner-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+}
+.ticket .runner-line .muted {
+  white-space: nowrap;
 }
 
 /* The Race Office's week ledger (GDD §5.7, §6.5): what a run costs, dog by dog. The number

@@ -335,7 +335,7 @@ export function RaceOffice({ s, me }: { s: GameState; me: Player }) {
               </label>
 
               {mine && s.dogs[mine] ? (
-                <p className="tight-p">
+                <p className="tight-p runner-line">
                   <DogThumb dog={s.dogs[mine]!} big />
                   <StyleTag style={publicStyle(s.dogs[mine]!)} />
                   <Traits ids={s.dogs[mine]!.traits} />
