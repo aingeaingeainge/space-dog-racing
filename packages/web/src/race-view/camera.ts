@@ -22,6 +22,12 @@ export interface Camera {
   y: number;
   /** Pixels per metre. */
   zoom: number;
+  /**
+   * Phase S: true when the picture is turned a quarter left — an upright phone, where the track's
+   * long axis is laid along the tall side of the screen instead of across the narrow one, so the
+   * field is drawn twice the size. World +x points up the screen.
+   */
+  turned: boolean;
   /** Ease toward the frame. `dt` in seconds; frame-rate independent. */
   follow(frame: CameraFrame, view: Viewport, dt: number): void;
   /** Jump straight there — for the first frame of a race, and after a skip. */
@@ -47,6 +53,11 @@ function ease(from: number, to: number, lambda: number, dt: number): number {
   return from + (to - from) * (1 - Math.exp(-lambda * Math.max(0, dt)));
 }
 
+/** An upright picture, a third taller than it is wide: a phone. Turn the track to lie along it. */
+export function isTurned(view: Viewport): boolean {
+  return view.h > view.w * 1.33;
+}
+
 function target(frame: CameraFrame, view: Viewport) {
   let minX = Infinity;
   let minY = Infinity;
@@ -65,12 +76,18 @@ function target(frame: CameraFrame, view: Viewport) {
   // v3 Phase R: a phone held upright has a tall, narrow picture, and the minimum shot is metres
   // *across* it — so the field was drawn at half the size the height had room for. Upright, the
   // minimum shrinks with the aspect (never below 55%); a landscape screen is exactly as before.
-  const portrait = view.h > view.w ? Math.max(0.55, view.w / view.h) : 1;
+  // Phase S: a picture tall enough to be turned is measured turned (see `isTurned`), so it is a
+  // landscape picture here and this only applies to one that is a little taller than wide.
+  const turned = isTurned(view);
+  if (turned) view = { w: view.h, h: view.w };
+  // A turned phone is still a small screen: come in closer than a laptop would, and leave less
+  // margin either side of the field, or the dogs are drawn the size of ants.
+  const portrait = turned ? 0.7 : view.h > view.w ? Math.max(0.55, view.w / view.h) : 1;
   const wide = (WIDE_MAX + (FINISH_MAX - WIDE_MAX) * closing) * portrait;
   const tight = (WIDE_MIN + (FINISH_MIN - WIDE_MIN) * closing) * portrait;
 
   const spanX = Math.max(maxX - minX + 26, tight);
-  const spanY = maxY - minY + 20;
+  const spanY = maxY - minY + (turned ? 12 : 20);
   const byX = view.w / Math.min(spanX, wide);
   const byY = spanY > 0 ? view.h / spanY : byX;
   const zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, Math.min(byX, byY)));
@@ -82,13 +99,16 @@ export function createCamera(): Camera {
     x: 0,
     y: 0,
     zoom: 8,
+    turned: false,
     follow(frame, view, dt) {
+      this.turned = isTurned(view);
       const t = target(frame, view);
       this.x = ease(this.x, t.x, PAN_LAMBDA, dt);
       this.y = ease(this.y, t.y, PAN_LAMBDA, dt);
       this.zoom = ease(this.zoom, t.zoom, ZOOM_LAMBDA, dt);
     },
     snap(frame, view) {
+      this.turned = isTurned(view);
       const t = target(frame, view);
       this.x = t.x;
       this.y = t.y;
@@ -96,6 +116,7 @@ export function createCamera(): Camera {
     },
     apply(ctx, view) {
       ctx.translate(view.w / 2, view.h / 2);
+      if (this.turned) ctx.rotate(-Math.PI / 2);
       ctx.scale(this.zoom, this.zoom);
       ctx.translate(-this.x, -this.y);
     },

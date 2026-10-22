@@ -108,6 +108,8 @@ const GROUP_METRES = 24;
 const GROUND_MARGIN = 0.14;
 /** How much track one edge of the surface tile covers. Small enough to read as grit at speed. */
 const SURFACE_TILE_METRES = 9;
+/** The largest side a flattened vector ground may have: 4096² is what every browser will give a canvas. */
+const MAX_FLAT = 4096;
 
 function lerp(a: number, b: number, k: number): number {
   return a + (b - a) * k;
@@ -219,10 +221,12 @@ export function createRenderer(canvas: HTMLCanvasElement, opts: RendererOptions)
   const sample = (time: number): RaceSample => sampleAt(result, track, tickSeconds, time);
 
   function screen(p: { x: number; y: number }): { x: number; y: number } {
-    return {
-      x: (p.x - camera.x) * camera.zoom + view.w / 2,
-      y: (p.y - camera.y) * camera.zoom + view.h / 2,
-    };
+    const dx = (p.x - camera.x) * camera.zoom;
+    const dy = (p.y - camera.y) * camera.zoom;
+    // Turned a quarter left (camera.turned): world (x, y) lands on screen at (y, -x).
+    return camera.turned
+      ? { x: view.w / 2 + dy, y: view.h / 2 - dx }
+      : { x: view.w / 2 + dx, y: view.h / 2 + dy };
   }
 
   /**
@@ -240,18 +244,25 @@ export function createRenderer(canvas: HTMLCanvasElement, opts: RendererOptions)
    */
   function flatten(
     img: HTMLImageElement,
-    slot: { from: HTMLImageElement | null; canvas: HTMLCanvasElement | null },
+    slot: { from: HTMLImageElement | null; canvas: HTMLCanvasElement | null; vector: boolean },
   ): CanvasImageSource {
     if (slot.from !== img) {
       slot.from = img;
       slot.canvas = null;
       if (typeof document !== 'undefined') {
+        // A vector file is flattened at up to twice its stated size: the camera draws the ground at
+        // 10–25 px a metre, and a 2048² scene spread over a track's bounds is about 10, so at 1:1
+        // the scenery went soft the moment the camera closed in. A bitmap has no more detail to give.
+        const scale = slot.vector
+          ? Math.min(2, MAX_FLAT / Math.max(img.naturalWidth, img.naturalHeight))
+          : 1;
         const c = document.createElement('canvas');
-        c.width = img.naturalWidth;
-        c.height = img.naturalHeight;
+        c.width = Math.max(1, Math.round(img.naturalWidth * Math.max(1, scale)));
+        c.height = Math.max(1, Math.round(img.naturalHeight * Math.max(1, scale)));
         const g = c.getContext('2d');
         if (g) {
-          g.drawImage(img, 0, 0);
+          g.imageSmoothingQuality = 'high';
+          g.drawImage(img, 0, 0, c.width, c.height);
           slot.canvas = c;
         }
       }
@@ -261,10 +272,13 @@ export function createRenderer(canvas: HTMLCanvasElement, opts: RendererOptions)
   const groundFlat = {
     from: null as HTMLImageElement | null,
     canvas: null as HTMLCanvasElement | null,
+    vector: false,
   };
   const surfaceFlat = {
     from: null as HTMLImageElement | null,
     canvas: null as HTMLCanvasElement | null,
+    // The surface tile repeats at 9 m to 512 px — already finer than the camera ever draws it.
+    vector: false,
   };
 
   function drawGround(): void {
@@ -280,6 +294,7 @@ export function createRenderer(canvas: HTMLCanvasElement, opts: RendererOptions)
     const w = b.w + m * 2;
     const h = b.h + m * 2;
     const k = Math.max(w / iw, h / ih);
+    groundFlat.vector = /\.svg(\?|$)/i.test(img.currentSrc || img.src);
     ctx!.drawImage(
       flatten(img, groundFlat),
       x + (w - iw * k) / 2,
@@ -505,7 +520,8 @@ export function createRenderer(canvas: HTMLCanvasElement, opts: RendererOptions)
   function tag(m: RunnerMark, x: number, y: number, align: 'center' | 'left' | 'right'): void {
     const w = ctx!.measureText(m.label).width + 10;
     const left = align === 'center' ? x - w / 2 : align === 'left' ? x : x - w;
-    const top = Math.max(2, Math.min(view.h - 18, y - 8));
+    // Clear of the race clock in the top-left corner.
+    const top = Math.max(left < 150 ? 38 : 2, Math.min(view.h - 18, y - 8));
     const l = Math.max(2, Math.min(view.w - w - 2, left));
     ctx!.fillStyle = 'rgba(12, 11, 17, 0.88)';
     ctx!.fillRect(l, top, w, 16);

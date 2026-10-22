@@ -391,7 +391,10 @@ function RaceReplay({
                 onClick={skipRaceDay}
                 title="Every race left this weekend, straight to the results (key: Shift+S)"
               >
-                Skip the rest of race day
+                <span className="vh-narrow">Skip the rest of race day</span>
+                <span className="show-narrow" aria-hidden="true">
+                  Skip day
+                </span>
               </NeonButton>
             ) : null}
           </span>
