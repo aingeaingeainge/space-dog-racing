@@ -36,6 +36,10 @@ export interface SaveBlob {
 }
 
 /**
+ * 16 for v3 Phase T. Everybody plays the weekend at once and every stable has three staff (GDD_V3
+ * T1–T4): no turn order is rolled, the door is part of `planetPre`, the opening draft is seven rounds,
+ * and a v3s log's draft picks and trades would be refused or mean something else here.
+ *
  * 15 for v3 Phase Q. Three rules moved (GDD_V3 Q1–Q3): the book prices fitness, the opening draft's
  * round 3 runs the way round 2 did, and the gossip trainer gives a tip. A v3p log's draft picks from
  * round 3 on were made by other stables, so it would stop at replay on a refused pick; this check sends
@@ -105,7 +109,7 @@ export interface SaveBlob {
  * player on the title screen with a new season rather than half a season that no longer means
  * what it meant.
  */
-export const SAVE_VERSION = 15;
+export const SAVE_VERSION = 16;
 const KEY = 'sdr.save.v1';
 
 export function writeSave(blob: SaveBlob): void {
