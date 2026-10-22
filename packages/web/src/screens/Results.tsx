@@ -72,7 +72,9 @@ function RaceTable({
                     : '';
             return (
               <tr key={dogId} className={e.ownerId === meId ? 'me' : i > 2 ? 'dim' : ''}>
-                <td>{i + 1}</td>
+                <td className={i < 3 ? `place p${i + 1}` : 'place'}>
+                  <span>{i + 1}</span>
+                </td>
                 <td>{e.trap}</td>
                 <td>{e.name}</td>
                 <td>
@@ -111,7 +113,7 @@ function RaceTable({
 function ShortTable({ s, r, meId }: { s: GameState; r: RaceResult; meId: string }) {
   return (
     <div className="table-wrap">
-      <table>
+      <table className="results-short">
         <tbody>
           {r.order.map((dogId, i) => {
             const e = r.entries.find((x) => x.dogId === dogId);
@@ -123,7 +125,9 @@ function ShortTable({ s, r, meId }: { s: GameState; r: RaceResult; meId: string 
             const run = r.runs?.[r.entries.indexOf(e)];
             return (
               <tr key={dogId} className={e.ownerId === meId ? 'me' : i > 2 ? 'dim' : ''}>
-                <td>{i + 1}</td>
+                <td className={i < 3 ? `place p${i + 1}` : 'place'}>
+                  <span>{i + 1}</span>
+                </td>
                 <td>
                   {e.name}
                   {injury ? (

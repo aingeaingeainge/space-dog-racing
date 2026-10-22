@@ -113,7 +113,9 @@ function SeasonOver({ s, rows }: { s: GameState; rows: SeasonRow[] }) {
             <tbody>
               {rows.map((r, i) => (
                 <tr key={r.player.id} className={r.player.kind === 'human' ? 'me' : ''}>
-                  <td>{i + 1}</td>
+                  <td className={i < 3 ? `place p${i + 1}` : 'place'}>
+                    <span>{i + 1}</span>
+                  </td>
                   <td>
                     <StableName player={r.player} />
                   </td>
@@ -430,7 +432,9 @@ function FinalStandings({ s, rows }: { s: GameState; rows: GameRow[] }) {
               const l = live.get(r.player.id);
               return (
                 <tr key={r.player.id} className={r.player.kind === 'human' ? 'me' : ''}>
-                  <td>{i + 1}</td>
+                  <td className={i < 3 ? `place p${i + 1}` : 'place'}>
+                    <span>{i + 1}</span>
+                  </td>
                   <td>
                     <StableName player={r.player} />
                   </td>

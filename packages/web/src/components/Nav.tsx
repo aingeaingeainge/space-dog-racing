@@ -68,37 +68,40 @@ export function Nav({ s, me }: { s: GameState; me: Player }) {
   return (
     <>
       <nav className="tabs">
-        {list.map((v) => {
-          const st = status[v.id];
-          const key = KEY_FOR[v.id];
-          const why = v.reason ?? st?.line;
-          return (
-            <NeonButton
-              key={v.id}
-              small
-              variant={view === v.id ? 'primary' : 'default'}
-              className={v.open && st?.worth ? 'has-stock' : undefined}
-              disabled={!v.open}
-              title={key && v.open ? `${why ?? v.label} (key: ${key.toUpperCase()})` : why}
-              onClick={() => setView(v.id as View)}
-            >
-              {v.label}
-            </NeonButton>
-          );
-        })}
-        <NeonButton
-          small
-          variant={keysOpen ? 'primary' : 'link'}
-          aria-expanded={keysOpen}
-          title="Keyboard shortcuts"
-          onClick={() => setKeysOpen(!keysOpen)}
-        >
-          ?
-        </NeonButton>
+        <div className="tab-row">
+          {list.map((v) => {
+            const st = status[v.id];
+            const key = KEY_FOR[v.id];
+            const why = v.reason ?? st?.line;
+            return (
+              <NeonButton
+                key={v.id}
+                small
+                variant={view === v.id ? 'primary' : 'default'}
+                className={v.open && st?.worth ? 'has-stock' : undefined}
+                disabled={!v.open}
+                title={key && v.open ? `${why ?? v.label} (key: ${key.toUpperCase()})` : why}
+                onClick={() => setView(v.id as View)}
+              >
+                {v.label}
+              </NeonButton>
+            );
+          })}
+          <NeonButton
+            small
+            variant={keysOpen ? 'primary' : 'link'}
+            aria-expanded={keysOpen}
+            title="Keyboard shortcuts"
+            onClick={() => setKeysOpen(!keysOpen)}
+          >
+            ?
+          </NeonButton>
+        </div>
         <span className="spacer" />
         <NeonButton
           small
           variant="primary"
+          className="next-step"
           title={`${toOffice ? 'Put a dog in each race' : pre ? 'Lock the card in and head to the track' : 'Jump to the next planet'} (key: Enter)`}
           onClick={next}
         >

@@ -40,7 +40,7 @@ export function TopBar({ s, me }: { s: GameState; me: Player | null }) {
       </span>
       {me ? (
         <span className="stat">
-          <b>{me.name}</b> · {formatBones(me.cash)}
+          <b>{me.name}</b> <span className="cash">{formatBones(me.cash)}</span>
         </span>
       ) : null}
       <span className="spacer" />

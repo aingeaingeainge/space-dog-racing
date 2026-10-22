@@ -84,6 +84,17 @@ h3 {
 .topbar .star {
   color: var(--hazard);
 }
+/* What you have to spend, the number every screen is about, on a chip of its own. */
+.topbar .cash {
+  margin-left: 4px;
+  padding: 1px 8px;
+  color: var(--hazard);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  background: rgba(244, 197, 66, 0.1);
+  border: 1px solid rgba(244, 197, 66, 0.35);
+  border-radius: 10px;
+}
 
 /* ---------------------------------------------------------------- panel: riveted metal */
 /* Every painted surface below names a --art-* custom property with the CSS the kit already had
@@ -1959,6 +1970,42 @@ h3.section {
     inset 0 0 0 1px var(--edge),
     var(--shadow-drop);
 }
+.tabs .tab-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  align-items: center;
+}
+/* A phone: the venues in one row that scrolls sideways, and the next step a full-width button of
+   its own under them (it was the third row of a wrapped strip, and the one press that matters). */
+@media (max-width: 760px) {
+  .tabs {
+    gap: 8px;
+  }
+  .tabs .tab-row {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    width: 100%;
+    padding: 2px 2px 4px;
+    margin: -2px -2px -4px;
+    scrollbar-width: none;
+  }
+  .tabs .tab-row::-webkit-scrollbar {
+    display: none;
+  }
+  .tabs .tab-row > button {
+    flex: 0 0 auto;
+  }
+  .tabs .spacer {
+    display: none;
+  }
+  .tabs .next-step {
+    width: 100%;
+    padding-top: 7px;
+    padding-bottom: 7px;
+    font-size: 13px;
+  }
+}
 /* A venue with something in it this week gets a lit pip, so the strip carries the same
    "worth a walk" signal the hub's hotspots do. */
 .tabs .has-stock {
@@ -3074,4 +3121,43 @@ button.more {
   .title-parade {
     height: 110px;
   }
+}
+
+/* ---------------------------------------------------------------- Phase S: the places that pay */
+/* First, second and third wear their metal on the results — the same three colours as the race
+   classes' stubs and the race-day ticker. */
+td.place {
+  width: 34px;
+}
+td.place > span {
+  display: inline-grid;
+  place-items: center;
+  min-width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+td.place.p1 > span,
+td.place.p2 > span,
+td.place.p3 > span {
+  color: var(--ink);
+  border: 2px solid var(--ink);
+  box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.25);
+}
+td.place.p1 > span {
+  background: linear-gradient(180deg, #ffe27a, #d9a521);
+}
+td.place.p2 > span {
+  background: linear-gradient(180deg, #f1f3f7, #a9afbd);
+}
+td.place.p3 > span {
+  background: linear-gradient(180deg, #f0b47a, #a8622f);
+}
+/* The short results: the dog and its stable side by side, not pushed to opposite ends of a wide panel. */
+table.results-short td:nth-child(2) {
+  width: 32%;
+}
+table.results-short td:nth-child(3) {
+  width: 34%;
 }

@@ -34,7 +34,9 @@ export function LeaderboardOverlay({ s, meId }: { s: GameState; meId: Id | null 
           <tbody>
             {rows.map((r, i) => (
               <tr key={r.player.id} className={r.player.id === meId ? 'me' : ''}>
-                <td>{i + 1}</td>
+                <td className={i < 3 ? `place p${i + 1}` : 'place'}>
+                  <span>{i + 1}</span>
+                </td>
                 <td>
                   <span className="owner-cell">
                     <OwnerFace player={r.player} />
