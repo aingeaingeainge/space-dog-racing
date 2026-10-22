@@ -62,7 +62,7 @@ const SCREENS: Record<string, (s: GameState, me: Player) => ReactElement> = {
   Market: (s, me) => <Market s={s} me={me} />,
   RaceOffice: (s, me) => <RaceOffice s={s} me={me} />,
   Explore: (s, me) => <Explore s={s} me={me} />,
-  EventModal: (s) => <EventModal s={s} />,
+  EventModal: (s, me) => <EventModal s={s} meId={me.id} />,
   Bookie: (s, me) => <Bookie s={s} me={me} />,
   LockedField: (s, me) => <LockedField s={s} me={me} />,
   RaceView: (s, me) => <RaceView s={s} me={me} />,
@@ -109,9 +109,15 @@ const broken = new Map<string, { n: number; first: string }>();
 const darkMap = new Set<string>();
 
 function look(): void {
-  const key = [s.season, s.week, s.phase, s.activePlayer, s.pendingEvent?.playerId, s.locked].join(
-    '|',
-  );
+  const key = [
+    s.season,
+    s.week,
+    s.phase,
+    s.activePlayer,
+    Object.keys(s.pendingEvents).join(','),
+    s.done.join(','),
+    s.locked,
+  ].join('|');
   if (key === lastKey) return;
   lastKey = key;
   moments++;
